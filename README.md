@@ -48,7 +48,7 @@ O catálogo também pode exibir registros preliminares de Alagoas identificados 
 
 A central de notificações identifica novos concursos adicionados ao catálogo e alterações relevantes em concursos favoritados. Os avisos ficam salvos neste navegador e podem ser abertos para consultar os detalhes da oportunidade.
 
-O usuário pode autorizar notificações do navegador. Esse recurso não exige domínio próprio nem serviço de e-mail. Por depender da comparação local do catálogo, as novidades são identificadas quando o usuário abre ou atualiza o EditalRadar depois de uma publicação. As notificações do navegador também dependem da permissão concedida e do site estar aberto; não há envio de push quando o navegador está fechado.
+O usuário pode autorizar notificações do navegador, consultar avisos não lidos, marcar todos como lidos e limpar o histórico. O cabeçalho exibe a quantidade de avisos pendentes e leva diretamente à central. Esse recurso não exige domínio próprio nem serviço de e-mail. Por depender da comparação local do catálogo, as novidades são identificadas quando o usuário abre ou atualiza o EditalRadar depois de uma publicação. O histórico fica armazenado neste navegador, separado por conta. As notificações do navegador também dependem da permissão concedida e do site estar aberto; não há envio de push quando o navegador está fechado.
 
 ## Monitoramento automático das fontes
 
