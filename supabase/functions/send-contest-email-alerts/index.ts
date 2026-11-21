@@ -129,7 +129,7 @@ Deno.serve(async (request: Request) => {
   if (request.method !== "POST") return json({ error: "Método não permitido." }, 405);
 
   const monitorToken = Deno.env.get("MONITOR_API_TOKEN") || "";
-  const providedToken = (request.headers.get("authorization") || "").replace(/^Bearer\\s+/i, "");
+  const providedToken = (request.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
   if (!monitorToken || !safeEqual(providedToken, monitorToken)) return json({ error: "Não autorizado." }, 401);
 
   const resendKey = Deno.env.get("RESEND_API_KEY");
@@ -195,7 +195,7 @@ Deno.serve(async (request: Request) => {
         ...matches.map((entry) => "- " + entry.item.cargo + " — " + entry.item.orgao + " (" + entry.item.status + "): " + entry.item.sourceUrl),
         "",
         "Para cancelar alertas, abra Editar perfil no EditalRadar e desmarque a opção de e-mail: " + appUrl
-      ].join("\\n");
+      ].join("\n");
 
       try {
         const response = await fetch("https://api.resend.com/emails", {
