@@ -60,7 +60,7 @@ test("filtra concursos estaduais e municipais por estado e cidade", async ({ pag
 
 test("identifica claramente um registro preliminar que não possui edital confirmado", async ({ page }) => {
   await page.goto("./");
-  await page.getByPlaceholder("Buscar cargo ou órgão...").fill("Agência Reguladora");
+  await page.getByPlaceholder("Buscar cargo ou órgão...").fill("Departamento de Estradas e Rodagem");
 
   await expect(page.getByText("Listagem de referência")).toBeVisible();
   await page.getByRole("button", { name: /Ver detalhes/ }).click();
@@ -74,7 +74,7 @@ test("abre a página individual de um concurso com cronograma e fonte oficial", 
   await page.getByRole("button", { name: /Ver detalhes/ }).click();
 
   await expect(page.getByRole("heading", { name: "Agente e Escrivão de Polícia Civil" })).toBeVisible();
-  await expect(page.getByText(/5.318,63/)).toBeVisible();
+  await expect(page.getByText(/5.318,63/).first()).toBeVisible();
   await expect(page.getByRole("link", { name: "Cebraspe — notícia oficial sobre PC/AL" })).toHaveAttribute("href", "https://www.cebraspe.org.br/cebraspe-noticias-103/");
   await expect(page.getByRole("heading", { name: "Cronograma e etapas" })).toBeVisible();
   await expect(page.locator("#detail-timeline time").filter({ hasText: /06 de dezembro de 2026/ }).first()).toBeVisible();

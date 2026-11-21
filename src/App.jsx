@@ -36,7 +36,7 @@ const isMissingNotificationsColumn = (error) =>
   || /notifications.*(column|schema cache)|column.*notifications/i.test(error?.message || "");
 
 const matchesFilters = (item, filters) => {
-  const text = [item.cargo, item.orgao, item.vinculo, item.atoOficial, item.nivel, item.area, item.estado, item.localidade, item.status].join(" ").toLowerCase();
+  const text = [item.sigla, item.cargo, item.orgao, item.vinculo, item.atoOficial, item.nivel, item.area, item.estado, item.localidade, item.status].join(" ").toLowerCase();
   const status = (item.status || "").toLowerCase();
   const matchesSituation = filters.situacao === "Todas as situações"
     || (filters.situacao === "Pré-edital / anunciado" && /(autorizado|anunciado|pré-edital)/.test(status))
