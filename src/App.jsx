@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { isSupabaseConfigured, supabase } from "./lib/supabaseClient";
 import { concursos, materias, sourceUrl, sourceUpdated, fetchedAt } from "./data/concursos";
-import { detectCatalogNotifications } from "./lib/notifications";
+import { detectCatalogNotifications, dismissNotificationHistory, getVisibleNotifications, mergeNotificationHistory } from "./lib/notifications";
 import { applyCatalogOverrides } from "./lib/catalog";
 
 export const scoreRecommendation = (item, profile = {}) => {
@@ -339,12 +339,11 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
         pendingChangesRef.current = {};
         const localNotifications = readStore("er-notifications:" + userId, []);
         const remoteNotifications = Array.isArray(data?.notifications) ? data.notifications : localNotifications;
-        const remoteIds = new Set(remoteNotifications.map((item) => item.id));
         const mergedNotifications = Array.isArray(data?.notifications)
-          ? [...remoteNotifications, ...localNotifications.filter((item) => !remoteIds.has(item.id))].slice(0, 50)
+          ? mergeNotificationHistory(remoteNotifications, localNotifications)
           : remoteNotifications;
         const hasLocalNotificationsToSync = Array.isArray(data?.notifications)
-          && mergedNotifications.length !== remoteNotifications.length;
+          && JSON.stringify(mergedNotifications) !== JSON.stringify(remoteNotifications);
         resolved = {
           favorites: Array.isArray(data?.favorites) ? data.favorites : favorites,
           alerts: Array.isArray(data?.alerts) ? data.alerts : alerts,
@@ -451,7 +450,12 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     });
     if (fresh.length === 0) return;
 
-    const next = [...fresh, ...existing].slice(0, 50);
+    const dismissedHistory = existing.filter((item) => item.dismissedAt);
+    const activeHistory = existing.filter((item) => !item.dismissedAt);
+    const next = [
+      ...[...fresh, ...activeHistory].slice(0, 50),
+      ...dismissedHistory
+    ];
     setNotifications(next);
     localStorage.setItem(notificationStorageKey, JSON.stringify(next));
     void syncUserData({ notifications: next });
@@ -778,15 +782,18 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     if (contest) setSelected(contest);
   };
 
-  const unreadNotificationCount = notifications.filter((item) => !item.read).length;
+  const activeNotifications = getVisibleNotifications(notifications);
+  const unreadNotificationCount = activeNotifications.filter((item) => !item.read).length;
   const visibleNotifications = notificationView === "unread"
-    ? notifications.filter((item) => !item.read)
-    : notifications;
+    ? activeNotifications.filter((item) => !item.read)
+    : activeNotifications;
 
   const clearNotificationHistory = () => {
-    setNotifications([]);
-    localStorage.setItem(notificationStorageKey, JSON.stringify([]));
-    void syncUserData({ notifications: [] });
+    // Keep compact ID tombstones so the same catalog event is never announced again.
+    const dismissed = dismissNotificationHistory(notifications);
+    setNotifications(dismissed);
+    localStorage.setItem(notificationStorageKey, JSON.stringify(dismissed));
+    void syncUserData({ notifications: dismissed });
   };
 
   const openNotifications = () => {
@@ -1094,11 +1101,11 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                     {notificationPermission === "granted" && browserNotificationsEnabled ? "Notificações ativadas" : notificationPermission === "denied" ? "Permissão bloqueada" : "Ativar no navegador"}
                   </button>
                   {unreadNotificationCount > 0 && <button className="alert-remove" type="button" onClick={markAllNotificationsRead}>Marcar como lidas</button>}
-                  {notifications.length > 0 && <button className="alert-remove" type="button" onClick={clearNotificationHistory}>Limpar histórico</button>}
+                  {activeNotifications.length > 0 && <button className="alert-remove" type="button" onClick={clearNotificationHistory}>Limpar histórico</button>}
                 </div>
               </div>
               <div className="notification-filters" role="group" aria-label="Filtrar notificações">
-                <button type="button" className={notificationView === "all" ? "notification-filter active" : "notification-filter"} aria-pressed={notificationView === "all"} onClick={() => setNotificationView("all")}>Todas ({notifications.length})</button>
+                <button type="button" className={notificationView === "all" ? "notification-filter active" : "notification-filter"} aria-pressed={notificationView === "all"} onClick={() => setNotificationView("all")}>Todas ({activeNotifications.length})</button>
                 <button type="button" className={notificationView === "unread" ? "notification-filter active" : "notification-filter"} aria-pressed={notificationView === "unread"} onClick={() => setNotificationView("unread")}>Não lidas ({unreadNotificationCount})</button>
               </div>
               {visibleNotifications.length > 0 ? (
@@ -1111,7 +1118,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                     </button>
                   ))}
                 </div>
-              ) : <p className="alerts-empty">{notifications.length === 0 ? "Nenhuma novidade por enquanto. Quando o catálogo receber novos concursos ou um favorito for atualizado, o aviso aparecerá aqui." : "Não há notificações não lidas. Você já conferiu todas as novidades."}</p>}
+              ) : <p className="alerts-empty">{activeNotifications.length === 0 ? "Nenhuma novidade por enquanto. Quando o catálogo receber novos concursos ou um favorito for atualizado, o aviso aparecerá aqui." : "Não há notificações não lidas. Você já conferiu todas as novidades."}</p>}
               <small className="alerts-note">
                 {notificationPermission === "granted" && browserNotificationsEnabled
                   ? "Notificações de desktop ativadas neste navegador."
