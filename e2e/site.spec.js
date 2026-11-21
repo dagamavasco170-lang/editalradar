@@ -58,6 +58,16 @@ test("filtra concursos estaduais e municipais por estado e cidade", async ({ pag
   await expect(page.getByText("Professor — Matemática (lotação em Paripueira)")).toBeVisible();
 });
 
+test("identifica claramente um registro preliminar que não possui edital confirmado", async ({ page }) => {
+  await page.goto("./");
+  await page.getByPlaceholder("Buscar cargo ou órgão...").fill("Agência Reguladora");
+
+  await expect(page.getByText("Listagem de referência")).toBeVisible();
+  await page.getByRole("button", { name: /Ver detalhes/ }).click();
+  await expect(page.getByRole("link", { name: /Abrir listagem de referência — não é edital/ }))
+    .toHaveAttribute("href", "https://concursor.com.br/editais?uf=AL");
+});
+
 test("salva e remove um alerta personalizado no navegador", async ({ page }) => {
   await page.goto("./");
   await page.getByPlaceholder("Buscar cargo ou órgão...").fill("PROCON");
