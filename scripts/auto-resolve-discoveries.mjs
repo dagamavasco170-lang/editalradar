@@ -243,33 +243,45 @@ export function extractVacancyDetails(text, tableRows = []) {
 }
 
 export function assessNoticeFreshness({ candidateUrl, title = "", heading = "", documentTitle = "", text = "" }, now = new Date()) {
-  const source = [
-    String(title || ""),
-    String(heading || ""),
-    String(documentTitle || ""),
-    String(candidateUrl || ""),
-    String(text || "").slice(0, 5000)
-  ].join(" ");
+  const candidate = (() => {
+    try { return new URL(candidateUrl); } catch { return null; }
+  })();
+  const body = String(text || "");
   const statusContext = [
     String(title || ""),
     String(heading || ""),
     String(documentTitle || ""),
-    String(text || "").slice(0, 1800)
+    body.slice(0, 1800)
   ].join(" ");
   const activeSignal = /\b(?:em andamento|inscri(?:ções|coes) abertas|período de inscrição aberto|prazo de inscrição aberto)\b/i.test(statusContext);
   const archivedSignal = /\b(?:concurso encerrado|processo seletivo encerrado|certame encerrado|concurso finalizado|processo seletivo finalizado|certame finalizado|resultado final homologado|validade(?: do concurso)? encerrada|concurso cancelado|certame cancelado)\b/i.test(statusContext);
-  const years = [...source.matchAll(/\b(20\d{2})\b/g)].map(match => Number(match[1]));
-  const segments = (() => {
-    try { return new URL(candidateUrl).pathname.split("/").filter(Boolean); }
-    catch { return []; }
-  })();
+
+  // Prefer the year explicitly attached to the edital; ignore copyright/footer years.
+  const editalYearMatch = body.slice(0, 5000).match(/\bedital\b[^.\n]{0,120}?\b(20\d{2})\b/i);
+  const pageIdentity = [
+    String(title || ""),
+    String(heading || ""),
+    String(documentTitle || ""),
+    candidate?.pathname || ""
+  ].join(" ");
+  const identityYearMatch = pageIdentity.match(/\b(20\d{2})\b/);
+
+  let shortSlugYear = null;
+  const segments = candidate?.pathname.split("/").filter(Boolean) || [];
   for (const segment of segments) {
-    const shortYear = segment.match(/[a-zA-Z](\d{2})$/);
-    if (!shortYear) continue;
-    const value = Number(shortYear[1]);
-    years.push(value <= 39 ? 2000 + value : 1900 + value);
+    const match = segment.match(/[a-zA-Z][a-zA-Z0-9._-]*?(\d{2})$/);
+    if (!match) continue;
+    const value = Number(match[1]);
+    shortSlugYear = value <= 39 ? 2000 + value : 1900 + value;
   }
-  const editionYear = years.length ? Math.max(...years) : null;
+
+  const contestYearMatch = body.slice(0, 2500).match(/\b(?:concurso|processo seletivo|certame)\b[^\n.]{0,150}?\b(20\d{2})\b/i);
+  const editionYear = editalYearMatch
+    ? Number(editalYearMatch[1])
+    : identityYearMatch
+      ? Number(identityYearMatch[1])
+      : shortSlugYear
+        ?? (contestYearMatch ? Number(contestYearMatch[1]) : null);
   const currentYear = new Date(now).getFullYear();
 
   if (archivedSignal && !activeSignal) {

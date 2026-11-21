@@ -94,6 +94,17 @@ test("mantém concursos do ano anterior para revisão quando a fonte não confir
   assert.equal(result.editionYear,2025);
 });
 
+
+test("ano de copyright não mascara edital antigo", () => {
+  const result = assessNoticeFreshness({
+    candidateUrl:"https://conhecimento.fgv.br/concursos/tjmsjuiz23",
+    title:"Tribunal de Justiça do Estado de Mato Grosso do Sul",
+    text:"Edital 01/2023. Cargos e vagas para Juiz Substituto. Copyright 2026."
+  }, new Date("2026-11-21T19:00:00-03:00"));
+  assert.equal(result.editionYear,2023);
+  assert.equal(result.decision,"dismiss");
+});
+
 test("aceita ano antigo somente quando a fonte oficial comprova andamento atual", () => {
   const result = assessNoticeFreshness({
     candidateUrl:"https://conhecimento.fgv.br/concursos/concursoteste24",
