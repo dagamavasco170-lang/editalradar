@@ -21,6 +21,10 @@ const readStore = (key, fallback) => {
   }
 };
 
+const isMissingNotificationsColumn = (error) =>
+  ["42703", "PGRST204"].includes(error?.code)
+  || /notifications.*(column|schema cache)|column.*notifications/i.test(error?.message || "");
+
 const matchesFilters = (item, filters) => {
   const text = [item.cargo, item.orgao, item.vinculo, item.atoOficial, item.nivel, item.area, item.estado, item.localidade, item.status].join(" ").toLowerCase();
   const status = (item.status || "").toLowerCase();
@@ -75,6 +79,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     const stored = readStore("er-notifications:visitor", []);
     return Array.isArray(stored) ? stored : [];
   });
+  const [notificationCloudSyncAvailable, setNotificationCloudSyncAvailable] = useState(true);
   const [notificationPermission, setNotificationPermission] = useState(() =>
     typeof window !== "undefined" && "Notification" in window ? window.Notification.permission : "unsupported"
   );
@@ -95,6 +100,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   const [syncStatus, setSyncStatus] = useState("local");
   const syncQueueRef = useRef(Promise.resolve());
   const syncReadyUserRef = useRef(null);
+  const notificationsColumnAvailableRef = useRef(null);
   const pendingChangesRef = useRef({});
   const pendingWritesRef = useRef(0);
   const [showAuth, setShowAuth] = useState(false);
@@ -171,38 +177,68 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     const loadAccountData = async () => {
       let resolved = null;
       try {
-        const { data, error } = await authClient
+        let accountQuery = await authClient
           .from("user_data")
-          .select("favorites, alerts, tasks")
+          .select("favorites, alerts, tasks, notifications")
           .eq("user_id", userId)
           .maybeSingle();
 
+        if (accountQuery.error && isMissingNotificationsColumn(accountQuery.error)) {
+          // Keep the existing account sync working until the new SQL migration is applied.
+          notificationsColumnAvailableRef.current = false;
+          setNotificationCloudSyncAvailable(false);
+          accountQuery = await authClient
+            .from("user_data")
+            .select("favorites, alerts, tasks")
+            .eq("user_id", userId)
+            .maybeSingle();
+        } else if (!accountQuery.error) {
+          notificationsColumnAvailableRef.current = true;
+          setNotificationCloudSyncAvailable(true);
+        }
+
         if (cancelled) return;
+        const { data, error } = accountQuery;
         if (error) throw error;
 
         // Preserve actions made while the cloud row was loading instead of
         // replacing those fresh local changes with an older remote snapshot.
         const pending = { ...pendingChangesRef.current };
         pendingChangesRef.current = {};
+        const localNotifications = readStore("er-notifications:" + userId, []);
+        const remoteNotifications = Array.isArray(data?.notifications) ? data.notifications : localNotifications;
+        const remoteIds = new Set(remoteNotifications.map((item) => item.id));
+        const mergedNotifications = Array.isArray(data?.notifications)
+          ? [...remoteNotifications, ...localNotifications.filter((item) => !remoteIds.has(item.id))].slice(0, 50)
+          : remoteNotifications;
+        const hasLocalNotificationsToSync = Array.isArray(data?.notifications)
+          && mergedNotifications.length !== remoteNotifications.length;
         resolved = {
           favorites: Array.isArray(data?.favorites) ? data.favorites : favorites,
           alerts: Array.isArray(data?.alerts) ? data.alerts : alerts,
           tasks: Array.isArray(data?.tasks) ? data.tasks : tasks,
+          notifications: mergedNotifications,
           ...pending
         };
 
         setFavorites(resolved.favorites);
         setAlerts(resolved.alerts);
         setTasks(resolved.tasks);
+        setNotifications(resolved.notifications);
         localStorage.setItem("er-favorites", JSON.stringify(resolved.favorites));
         localStorage.setItem("er-alerts", JSON.stringify(resolved.alerts));
         localStorage.setItem("er-tasks", JSON.stringify(resolved.tasks));
+        localStorage.setItem("er-notifications:" + userId, JSON.stringify(resolved.notifications));
 
-        // Create the initial row, or persist any actions made during hydration.
-        if (!data || Object.keys(pending).length > 0) {
+        // Create the initial row, migrate any local notification history, or
+        // persist actions made while the cloud snapshot was loading.
+        if (!data || Object.keys(pending).length > 0 || hasLocalNotificationsToSync) {
+          const payload = notificationsColumnAvailableRef.current === false
+            ? Object.fromEntries(Object.entries(resolved).filter(([key]) => key !== "notifications"))
+            : resolved;
           const { error: saveError } = await authClient.from("user_data").upsert({
             user_id: userId,
-            ...resolved,
+            ...payload,
             updated_at: new Date().toISOString()
           });
           if (saveError) throw saveError;
@@ -212,12 +248,17 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
         while (Object.keys(pendingChangesRef.current).length > 0) {
           const changes = { ...pendingChangesRef.current };
           pendingChangesRef.current = {};
-          const { error: saveError } = await authClient.from("user_data").upsert({
-            user_id: userId,
-            ...changes,
-            updated_at: new Date().toISOString()
-          });
-          if (saveError) throw saveError;
+          const payload = notificationsColumnAvailableRef.current === false
+            ? Object.fromEntries(Object.entries(changes).filter(([key]) => key !== "notifications"))
+            : changes;
+          if (Object.keys(payload).length > 0) {
+            const { error: saveError } = await authClient.from("user_data").upsert({
+              user_id: userId,
+              ...payload,
+              updated_at: new Date().toISOString()
+            });
+            if (saveError) throw saveError;
+          }
         }
 
         if (!cancelled) {
@@ -242,9 +283,12 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   }, [authUser?.id]);
 
   useEffect(() => {
+    // Authenticated notification history is hydrated from Supabase above.
+    // Visitors continue using their own local-only history.
+    if (authUser) return;
     const stored = readStore(notificationStorageKey, []);
     setNotifications(Array.isArray(stored) ? stored : []);
-  }, [notificationStorageKey]);
+  }, [notificationStorageKey, authUser?.id]);
 
   useEffect(() => {
     if (!authReady) return;
@@ -278,6 +322,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     const next = [...fresh, ...existing].slice(0, 50);
     setNotifications(next);
     localStorage.setItem(notificationStorageKey, JSON.stringify(next));
+    void syncUserData({ notifications: next });
 
     if (browserNotificationsEnabled && notificationPermission === "granted" && "Notification" in window) {
       fresh.slice(0, 3).forEach((item) => {
@@ -325,10 +370,14 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   const syncUserData = async (changes) => {
     if (!authClient || !authUser) return;
     const userId = authUser.id;
+    const supportedChanges = notificationsColumnAvailableRef.current === false
+      ? Object.fromEntries(Object.entries(changes).filter(([key]) => key !== "notifications"))
+      : changes;
+    if (Object.keys(supportedChanges).length === 0) return;
 
     // Buffer changes made while the initial account snapshot is being loaded.
     if (syncReadyUserRef.current !== userId) {
-      pendingChangesRef.current = { ...pendingChangesRef.current, ...changes };
+      pendingChangesRef.current = { ...pendingChangesRef.current, ...supportedChanges };
       return;
     }
 
@@ -337,7 +386,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     const write = syncQueueRef.current.catch(() => {}).then(async () => {
       const { error } = await authClient.from("user_data").upsert({
         user_id: userId,
-        ...changes,
+        ...supportedChanges,
         updated_at: new Date().toISOString()
       });
       if (error) throw error;
@@ -567,12 +616,14 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     const next = notifications.map((item) => ({ ...item, read: true }));
     setNotifications(next);
     localStorage.setItem(notificationStorageKey, JSON.stringify(next));
+    void syncUserData({ notifications: next });
   };
 
   const openNotification = (notification) => {
     const next = notifications.map((item) => item.id === notification.id ? { ...item, read: true } : item);
     setNotifications(next);
     localStorage.setItem(notificationStorageKey, JSON.stringify(next));
+    void syncUserData({ notifications: next });
     const contest = concursos.find((item) => String(item.id) === String(notification.itemId));
     if (contest) setSelected(contest);
   };
@@ -585,6 +636,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   const clearNotificationHistory = () => {
     setNotifications([]);
     localStorage.setItem(notificationStorageKey, JSON.stringify([]));
+    void syncUserData({ notifications: [] });
   };
 
   const openNotifications = () => {
@@ -674,6 +726,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                   <div className="eyebrow">AVISOS DO EDITALRADAR</div>
                   <h2>Notificações {unreadNotificationCount > 0 && <span className="notification-count">{unreadNotificationCount}</span>}</h2>
                   <p>Novos concursos no catálogo e atualizações dos seus favoritos.</p>
+                  {authUser && !notificationCloudSyncAvailable && <p className="notification-sync-hint">Para sincronizar este histórico entre aparelhos, execute no SQL Editor do Supabase o arquivo <strong>supabase/migrations/202611220001_user_notifications.sql</strong> e depois atualize o aplicativo.</p>}
                 </div>
                 <div className="notification-actions">
                   <button className="detail-btn" type="button" onClick={enableBrowserNotifications} disabled={notificationPermission === "unsupported" || (notificationPermission === "granted" && browserNotificationsEnabled)}>
