@@ -230,8 +230,8 @@ export function buildRetificationUpdate(existingData, extractedData, discovery, 
     setIfChanged("vagas", nextVacancies);
   }
 
-  const saysOpen = /inscriç(?:ã|a)ões?\s+(?:estão\s+)?abertas|período de inscriç(?:ã|a)ões?\s+aberto/i.test(text);
-  const saysClosed = /inscriç(?:ã|a)ões?\s+(?:estão\s+)?encerradas|período de inscriç(?:ã|a)ões?\s+encerrado/i.test(text);
+  const saysOpen = /inscrições\s+(?:estão\s+)?abertas|período de inscrições\s+aberto/i.test(text);
+  const saysClosed = /inscrições\s+(?:estão\s+)?encerradas|período de inscrições\s+encerrado/i.test(text);
   if (saysOpen !== saysClosed) {
     setIfChanged("status", saysOpen
       ? "Edital publicado · inscrições abertas"
