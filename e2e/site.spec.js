@@ -381,3 +381,32 @@ test("mantém a navegação inferior centralizada e sem overflow no celular", as
     expect(geometry.documentWidth).toBeLessThanOrEqual(geometry.viewport);
   }
 });
+
+
+test("banco de questões filtra, salva, registra erros e mantém o caderno após recarregar", async ({ page }) => {
+  await page.goto("./");
+  await page.getByRole("button", { name: /Área de estudos/ }).click();
+  const bank = page.getByRole("region", { name: "Banco de questões" });
+  await expect(bank.getByRole("heading", { name: "Banco de questões" })).toBeVisible();
+  await expect(bank.getByText("26 questões autorais", { exact: false })).toBeVisible();
+
+  await bank.getByPlaceholder("Tema, assunto ou enunciado...").fill("crase");
+  await expect(bank.getByRole("heading", { name: /dirigiu-se a comissão/ })).toBeVisible();
+  await bank.getByRole("button", { name: "Certo", exact: true }).click();
+  await bank.getByRole("button", { name: "Conferir resposta" }).click();
+  await expect(bank.getByRole("status")).toContainText("Resposta incorreta");
+  await bank.getByRole("button", { name: "Salvar questão" }).click();
+  await bank.getByRole("button", { name: /Caderno de erros/ }).click();
+  await expect(bank.getByRole("heading", { name: /dirigiu-se a comissão/ })).toBeVisible();
+  await bank.getByRole("button", { name: /Salvas/ }).click();
+  await expect(bank.getByRole("heading", { name: /dirigiu-se a comissão/ })).toBeVisible();
+  await expect(bank.getByRole("button", { name: "Remover questão salva" })).toHaveAttribute("aria-pressed", "true");
+
+  await page.reload();
+  await page.getByRole("button", { name: /Área de estudos/ }).click();
+  const restoredBank = page.getByRole("region", { name: "Banco de questões" });
+  await restoredBank.getByPlaceholder("Tema, assunto ou enunciado...").fill("crase");
+  await restoredBank.getByRole("button", { name: /Salvas/ }).click();
+  await expect(restoredBank.getByRole("heading", { name: /dirigiu-se a comissão/ })).toBeVisible();
+  await expect(restoredBank.getByText(/Última resposta incorreta/)).toBeVisible();
+});
