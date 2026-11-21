@@ -82,6 +82,40 @@ test("repete erro transitório de rede, mas não repete resposta 404", async () 
   assert.equal(calls,1);
 });
 
+
+test("usa transporte alternativo após 403 e valida cada redirecionamento", async () => {
+  const primaryCalls = [];
+  const fallbackCalls = [];
+  const result = await fetchOfficialSource("https://orgao.gov.br/inicio", {
+    fetchImpl: async url => {
+      primaryCalls.push(url);
+      return {status:403,headers:new Headers(),url};
+    },
+    fallbackFetch: async url => {
+      fallbackCalls.push(url);
+      if (url.endsWith("/inicio")) return {status:302,headers:new Headers({location:"/editais"}),url};
+      return {status:200,headers:new Headers(),url};
+    }
+  });
+  assert.deepEqual(primaryCalls,["https://orgao.gov.br/inicio","https://orgao.gov.br/editais"]);
+  assert.deepEqual(fallbackCalls,["https://orgao.gov.br/inicio","https://orgao.gov.br/editais"]);
+  assert.equal(result.response.status,200);
+  assert.equal(result.finalUrl,"https://orgao.gov.br/editais");
+  assert.equal(result.usedFallbackTransport,true);
+});
+
+test("bloqueia redirecionamento externo vindo do transporte alternativo", async () => {
+  const fallbackCalls = [];
+  await assert.rejects(() => fetchOfficialSource("https://orgao.gov.br/inicio", {
+    fetchImpl: async url => ({status:403,headers:new Headers(),url}),
+    fallbackFetch: async url => {
+      fallbackCalls.push(url);
+      return {status:302,headers:new Headers({location:"https://example.com/roubo"}),url};
+    }
+  }), /URL bloqueada/);
+  assert.deepEqual(fallbackCalls,["https://orgao.gov.br/inicio"]);
+});
+
 test("bloqueia redirecionamento para domínio externo antes da segunda requisição", async () => {
   const requested = [];
   await assert.rejects(() => fetchOfficialSource("https://orgao.gov.br/inicio", {

@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { mkdir, readFile, writeFile, appendFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 import { resolve, dirname } from "node:path";
@@ -8,6 +10,7 @@ const STATE_PATH = process.env.SOURCE_MONITOR_STATE || ".cache/source-monitor-st
 const REPORT_PATH = process.env.SOURCE_MONITOR_REPORT || ".cache/source-monitor-report.json";
 const MARKDOWN_PATH = process.env.SOURCE_MONITOR_MARKDOWN || ".cache/source-monitor-report.md";
 const MAX_BYTES = 12 * 1024 * 1024;
+const execFileAsync = promisify(execFile);
 
 export function isTrustedOfficialHost(hostname) {
   const host = String(hostname || "").toLowerCase().replace(/\.$/, "");
@@ -70,6 +73,59 @@ const retryAfterMilliseconds = (headers, now = Date.now()) => {
   return Number.isFinite(date) ? Math.max(0, Math.min(10000, date - now)) : null;
 };
 
+export async function fetchOfficialSourceWithCurl(url, options = {}) {
+  const safeUrl = validateTrustedOfficialUrl(url).href;
+  const timeoutMs = Math.max(1000, Number(options.timeoutMs) || 20000);
+  const maxBytes = Math.max(1024 * 1024, Number(options.maxBytes) || MAX_BYTES);
+  const args = [
+    "--silent", "--show-error", "--compressed",
+    "--connect-timeout", String(Math.min(10, Math.ceil(timeoutMs / 1000))),
+    "--max-time", String(Math.ceil(timeoutMs / 1000)),
+    "--max-redirs", "0",
+    "--dump-header", "-",
+    "--output", "-",
+    "--write-out", "\\n__EDITALRADAR_STATUS__:%{http_code}",
+    "--user-agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 EditalRadar/1.0",
+    "--header", "Accept: text/html,application/xhtml+xml,application/pdf;q=0.9,*/*;q=0.7",
+    "--header", "Accept-Language: pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
+    "--header", "Cache-Control: no-cache",
+    safeUrl
+  ];
+  const { stdout } = await execFileAsync("curl", args, {
+    encoding: "buffer",
+    maxBuffer: maxBytes + 512 * 1024,
+    timeout: timeoutMs + 3000
+  });
+  const output = Buffer.from(stdout);
+  const marker = Buffer.from("\\n__EDITALRADAR_STATUS__:");
+  const markerIndex = output.lastIndexOf(marker);
+  if (markerIndex < 0) throw new Error("O transporte alternativo não retornou um status HTTP legível.");
+  const status = Number(output.subarray(markerIndex + marker.length).toString("utf8").trim());
+  if (!Number.isInteger(status) || status < 100 || status > 599) {
+    throw new Error("Status HTTP inválido no transporte alternativo.");
+  }
+  const responseBytes = output.subarray(0, markerIndex);
+  const headerEnd = responseBytes.indexOf(Buffer.from("\\r\\n\\r\\n"));
+  if (headerEnd < 0) throw new Error("Cabeçalhos HTTP ausentes no transporte alternativo.");
+  const headerLines = responseBytes.subarray(0, headerEnd).toString("utf8").split(/\\r?\\n/);
+  const headers = new Headers();
+  for (const line of headerLines.slice(1)) {
+    const separator = line.indexOf(":");
+    if (separator <= 0) continue;
+    try { headers.append(line.slice(0, separator).trim(), line.slice(separator + 1).trim()); }
+    catch { /* Ignora cabeçalhos fora do padrão. */ }
+  }
+  const body = responseBytes.subarray(headerEnd + 4);
+  return {
+    status,
+    statusText: headerLines[0]?.split(" ").slice(2).join(" ") || "",
+    ok: status >= 200 && status < 300,
+    headers,
+    url: safeUrl,
+    arrayBuffer: async () => body.buffer.slice(body.byteOffset, body.byteOffset + body.byteLength)
+  };
+}
+
 export async function fetchOfficialSource(url, options = {}) {
   const request = options.fetchImpl || fetch;
   const timeoutMs = Math.max(1000, Number(options.timeoutMs) || 20000);
@@ -84,8 +140,9 @@ export async function fetchOfficialSource(url, options = {}) {
     let currentUrl = startUrl;
     try {
       let result = null;
+      let usedFallbackTransport = false;
       for (let redirectCount = 0; redirectCount <= maxRedirects; redirectCount += 1) {
-        const response = await request(currentUrl, {
+        let response = await request(currentUrl, {
           redirect: "manual",
           signal: AbortSignal.timeout(timeoutMs),
           headers: {
@@ -93,6 +150,24 @@ export async function fetchOfficialSource(url, options = {}) {
             Accept: "text/html,application/xhtml+xml,application/pdf;q=0.9,*/*;q=0.7"
           }
         });
+        if ([401, 403, 429].includes(response.status) && typeof options.fallbackFetch === "function") {
+          try {
+            const fallbackResponse = await options.fallbackFetch(currentUrl, {
+              timeoutMs,
+              headers: {
+                "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 EditalRadar/1.0",
+                Accept: "text/html,application/xhtml+xml,application/pdf;q=0.9,*/*;q=0.7",
+                "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7"
+              }
+            });
+            if (fallbackResponse && ![401, 403].includes(fallbackResponse.status)) {
+              response = fallbackResponse;
+              usedFallbackTransport = true;
+            }
+          } catch {
+            // Preserva a resposta original se o transporte alternativo falhar.
+          }
+        }
         if ([301, 302, 303, 307, 308].includes(response.status)) {
           if (redirectCount === maxRedirects) {
             const error = new Error("A fonte excedeu o limite de redirecionamentos seguros.");
@@ -102,7 +177,7 @@ export async function fetchOfficialSource(url, options = {}) {
           currentUrl = resolveTrustedOfficialUrl(currentUrl, response.headers?.get?.("location"));
           continue;
         }
-        result = { response, finalUrl: response.url || currentUrl };
+        result = { response, finalUrl: response.url || currentUrl, usedFallbackTransport };
         break;
       }
       if (!result) throw new Error("Não foi possível resolver o endereço oficial.");
@@ -278,7 +353,9 @@ export function pruneSourceState(sources = {}, monitoredUrls = []) {
 }
 
 async function fetchSource(url) {
-  const { response, finalUrl } = await fetchOfficialSource(url);
+  const { response, finalUrl, usedFallbackTransport } = await fetchOfficialSource(url, {
+    fallbackFetch: fetchOfficialSourceWithCurl
+  });
   if (!response.ok) throw new Error("HTTP " + response.status + " " + response.statusText);
 
   const contentType = response.headers.get("content-type") || "application/octet-stream";
@@ -299,6 +376,7 @@ async function fetchSource(url) {
     status: response.status,
     finalUrl,
     contentType,
+    transport: usedFallbackTransport ? "curl-fallback" : "fetch",
     etag: response.headers.get("etag"),
     lastModified: response.headers.get("last-modified"),
     checkedAt: new Date().toISOString()
@@ -358,7 +436,8 @@ async function runMonitor() {
     message: "A fonte deixou de estar vinculada ao catálogo."
   }));
 
-  const report = { generatedAt: new Date().toISOString(), monitoredCount: urls.length, concurrency, firstRun, changed, unavailable, added, removed, discoveries };
+  const fallbackCount = checked.filter(entry => entry.current.ok && entry.current.transport === "curl-fallback").length;
+  const report = { generatedAt: new Date().toISOString(), monitoredCount: urls.length, concurrency, fallbackCount, firstRun, changed, unavailable, added, removed, discoveries };
   await writeFile(STATE_PATH, JSON.stringify({ version: 1, sources: prunedState.sources }, null, 2) + "\n");
   await writeFile(REPORT_PATH, JSON.stringify(report, null, 2) + "\n");
 
@@ -376,6 +455,7 @@ async function runMonitor() {
     "Verificado em: " + report.generatedAt,
     "Fontes acompanhadas: " + report.monitoredCount,
     "Concorrência: " + report.concurrency + " · tentativas por fonte: 3",
+    "Consultas recuperadas pelo transporte alternativo: " + report.fallbackCount,
     ...(firstRun ? ["Esta foi a primeira leitura; os resultados formam a linha de base."] : []),
     ""
   ];
