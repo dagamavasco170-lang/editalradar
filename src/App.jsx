@@ -564,7 +564,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
             <p className="disclaimer">Este catálogo é uma amostra inicial e não cobre todos os estados e municípios do Brasil. Registros marcados como preliminares vêm de listagem secundária e ainda não foram confirmados individualmente em edital oficial; não considere suas vagas, requisitos ou cronograma como definitivos. Eles não entram na soma de vagas. “Vagas a divulgar” indica que o quantitativo não foi informado nesta ficha. Confirme sempre datas, requisitos, lotação e etapas na publicação oficial.</p>
           </section>
         )}
-        <footer>© 2026 EditalRadar · Feito para apoiar sua jornada até a aprovação.</footer>
+        <footer>© 2026 EditalRadar · Software proprietário. Todos os direitos reservados.</footer>
       </main>
 
       {showAuth && <div className="modal-backdrop" onClick={() => setShowAuth(false)}>
