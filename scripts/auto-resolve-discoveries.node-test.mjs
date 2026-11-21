@@ -416,6 +416,18 @@ test("consulta apenas pendências novas ou cujo intervalo de retentativa venceu"
   assert.equal(url.searchParams.get("limit"), "200");
 });
 
+
+test("descarta páginas genéricas de categoria da banca sem consultar conteúdo como edital", async () => {
+  let calls=0;
+  const result=await prepareDiscoveryDocument({
+    ...discovery,
+    candidate_url:"https://www.institutoaocp.org.br/concursos/status/inscricoes-abertas"
+  },async()=>{calls+=1;throw new Error("não deveria consultar a página de categoria");});
+  assert.equal(result.stage,"dismiss");
+  assert.match(result.reason,/Página geral de categoria/);
+  assert.equal(calls,0);
+});
+
 test("prepara documento oficial para triagem sem escrever no banco", async () => {
   const html = "<html><head><title>Edital 01/2026</title></head><body><h1>Concurso público</h1><p>Edital da Prefeitura Municipal de Igaci. 20 vagas.</p></body></html>";
   let calls = 0;

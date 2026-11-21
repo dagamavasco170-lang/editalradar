@@ -194,6 +194,18 @@ test("extrai links HTTPS relevantes de edital e ignora links comuns ou inseguros
 });
 
 
+
+test("ignora páginas de categoria de concursos e mantém links diretos de editais", () => {
+  const links = extractOpportunityLinks(`
+    <a href="/concursos/status/novos">Novos Concursos</a>
+    <a href="/concursos/status/inscricoes-abertas">Inscrições Abertas</a>
+    <a href="/concursos/status/em-andamento">Concursos em Andamento</a>
+    <a href="/concursos/edital-01-2026.pdf">Edital 01/2026 - Analista</a>
+  `, "https://www.institutoaocp.org.br/");
+  assert.equal(links.length,1);
+  assert.match(links[0].candidate_url,/edital-01-2026\.pdf/);
+});
+
 test("detecta links oficiais de retificação, errata e aditivo", () => {
   const html =
     "<a href='/concursos/edital-01-2026/retificacao-1.pdf'>1ª Retificação do Edital 01/2026</a>" +

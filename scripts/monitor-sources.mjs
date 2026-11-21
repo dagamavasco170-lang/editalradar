@@ -283,6 +283,9 @@ export function extractOpportunityLinks(html, sourceUrl) {
       const candidateUrl = new URL(href, sourceUrl);
       if (candidateUrl.protocol !== "https:" || !isTrustedOfficialHost(candidateUrl.hostname)) continue;
       const pathAndTitle = title + " " + candidateUrl.pathname;
+      const genericStatusPage = /^\/concursos\/status\/(?:novos|inscricoes-abertas|em-andamento|resultados-disponiveis|finalizados)\/?$/i
+        .test(candidateUrl.pathname);
+      if (genericStatusPage) continue;
       const registrationLink = /\b(cadastro|cadastrar|register|login|entrar|signup|sign[-_]?in|account|conta)\b/i.test(pathAndTitle);
       const explicitContest = contestKeyword.test(pathAndTitle)
         && /(20\d{2}|cargo|vagas?|publicad[oa]|abert[oa]|edital)/i.test(pathAndTitle);
@@ -308,7 +311,7 @@ export function extractOpportunityLinks(html, sourceUrl) {
 export function buildDiscoveriesForSource(url, previous, current) {
   if (!current?.ok) return [];
   const discoveries = [];
-  const needsLinkBaseline = previous?.opportunityLinkFilterVersion !== 5;
+  const needsLinkBaseline = previous?.opportunityLinkFilterVersion !== 6;
 
   if (needsLinkBaseline) {
     const opportunityLinks = current.opportunityLinks || [];
@@ -396,7 +399,7 @@ async function fetchSource(url) {
     ok: true,
     sha256: fingerprintContent(content, contentType),
     opportunityLinks,
-    opportunityLinkFilterVersion: 5,
+    opportunityLinkFilterVersion: 6,
     status: response.status,
     finalUrl,
     contentType,

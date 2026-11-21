@@ -728,6 +728,9 @@ export async function prepareDiscoveryDocument(item, request = fetch, options = 
   }
 
   const candidateUrl = candidate.toString();
+  if (/^\/concursos\/status\/(?:novos|inscricoes-abertas|em-andamento|resultados-disponiveis|finalizados)\/?$/i.test(candidate.pathname)) {
+    return { stage: "dismiss", reason: "Página geral de categoria da banca; aguardando links diretos de cada concurso, não uma ficha de edital." };
+  }
   let response;
   try {
     response = await fetchCandidateWithRetry(request, candidateUrl, {
