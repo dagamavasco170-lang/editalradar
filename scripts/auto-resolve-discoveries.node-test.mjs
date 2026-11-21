@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { appendContext, classifyDiscovery, extractDocumentText, inferOrganization } from "./auto-resolve-discoveries.mjs";
+import { appendContext, classifyDiscovery, extractDocumentText, fetchCandidateWithRetry, inferOrganization, summarizeFetchError } from "./auto-resolve-discoveries.mjs";
 
 const discovery = {
   id: 1,
@@ -69,4 +69,24 @@ test("atualiza o motivo da triagem automática sem duplicar comentários antigos
   assert.match(updated, /Contexto original/);
   assert.match(updated, /PDF sem texto extraível/);
   assert.doesNotMatch(updated, /Tentativa anterior/);
+});
+
+test("repete uma falha temporária de rede e recupera o acesso à publicação", async () => {
+  let calls = 0;
+  const response = await fetchCandidateWithRetry(async () => {
+    calls += 1;
+    if (calls === 1) throw new TypeError("fetch failed", { cause: Object.assign(new Error("connection reset"), { code: "ECONNRESET" }) });
+    return { ok: true, status: 200 };
+  }, "https://orgao.gov.br/edital", { attempts: 2, timeoutMs: 1000, retryDelayMs: 0 });
+  assert.equal(response.ok, true);
+  assert.equal(calls, 2);
+});
+
+test("inclui o código e a causa técnica no diagnóstico de rede", () => {
+  const message = summarizeFetchError(new TypeError("fetch failed", {
+    cause: Object.assign(new Error("DNS lookup failed"), { code: "ENOTFOUND" })
+  }));
+  assert.match(message, /fetch failed/);
+  assert.match(message, /ENOTFOUND/);
+  assert.match(message, /DNS lookup failed/);
 });
