@@ -1,4 +1,5 @@
 import { pathToFileURL } from "node:url";
+import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
 import { concursos } from "../src/data/concursos.js";
 import { isTrustedOfficialHost } from "./monitor-sources.mjs";
@@ -169,6 +170,32 @@ export function classifyDiscovery(discovery, document, responseUrl = discovery?.
   };
 }
 
+function readPdfText(buffer) {
+  try {
+    return execFileSync("pdftotext", ["-layout", "-", "-"], {
+      input: buffer,
+      encoding: "utf8",
+      maxBuffer: MAX_BYTES * 8,
+      timeout: TIMEOUT_MS
+    }).trim();
+  } catch {
+    return "";
+  }
+}
+
+async function extractCandidateDocument(response, item, finalUrl, contentType) {
+  const bytes = Buffer.from(await response.arrayBuffer());
+  if (bytes.byteLength > MAX_BYTES) return null;
+  const isPdf = /application\/pdf/i.test(contentType) || /\.pdf(?:$|[?#])/i.test(finalUrl);
+  if (isPdf) {
+    const text = readPdfText(bytes);
+    if (text.length < 120) return null;
+    return { title: item.title || "", heading: item.title || "", text };
+  }
+  if (!/(text\/html|application\/xhtml\+xml|text\/plain)/i.test(contentType)) return null;
+  return extractDocumentText(bytes.toString("utf8"));
+}
+
 function headersFor(key, extra = {}) {
   return {
     apikey: key,
@@ -266,17 +293,18 @@ export async function autoResolvePending(options = {}) {
       let finalHost;
       try { finalHost = new URL(finalUrl).hostname; } catch { result.pending += 1; continue; }
       const contentType = response.headers?.get?.("content-type") || "";
-      if (!response.ok || !isTrustedOfficialHost(finalHost) || !/(text\/html|application\/xhtml\+xml|text\/plain)/i.test(contentType)) {
+      const isPdf = /application\/pdf/i.test(contentType) || /\.pdf(?:$|[?#])/i.test(finalUrl);
+      if (!response.ok || !isTrustedOfficialHost(finalHost) || (!isPdf && !/(text\/html|application\/xhtml\+xml|text\/plain)/i.test(contentType))) {
         result.pending += 1;
         continue;
       }
-      const body = await response.text();
-      if (new TextEncoder().encode(body).byteLength > MAX_BYTES) {
+      const document = await extractCandidateDocument(response, item, finalUrl, contentType);
+      if (!document) {
         result.pending += 1;
         continue;
       }
 
-      const decision = classifyDiscovery(item, extractDocumentText(body), finalUrl);
+      const decision = classifyDiscovery(item, document, finalUrl);
       if (decision.decision === "dismiss") {
         await updateDiscovery(request, baseUrl, key, item, {
           status: "dismissed",
