@@ -834,7 +834,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
         "Página monitorada: " + item.source_url,
         "Contexto: " + (item.context || "Não informado"),
         "Revise a publicação oficial e preencha os dados antes de salvar."
-      ].join("\\n"),
+      ].join("\n"),
       vinculo: ""
     });
     setAdminMessage("");
