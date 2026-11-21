@@ -802,8 +802,13 @@ export const sourceRegistry = [
   { label: "Cebraspe — concursos com inscrições abertas", sourceUrl: "https://www.cebraspe.org.br/concursos/inscricoes-abertas" },
   { label: "FGV Conhecimento — concursos", sourceUrl: "https://conhecimento.fgv.br/concursos" },
   { label: "Fundação Carlos Chagas — concursos em andamento", sourceUrl: "https://www.concursosfcc.com.br/concursoAndamento.html" },
-  { label: "Fundação Vunesp — concursos com inscrições abertas", sourceUrl: "https://www.vunesp.com.br/cabertas.html" },
-  { label: "Instituto AOCP — portal de concursos", sourceUrl: "https://beta.institutoaocp.org.br/" }
+  { label: "Fundação Vunesp — inscrições abertas", sourceUrl: "https://www.vunesp.com.br/busca/concurso/inscricoesabertas" },
+  { label: "Instituto AOCP — inscrições abertas", sourceUrl: "https://www.institutoaocp.org.br/concursos/status/inscricoes-abertas" },
+  { label: "Instituto AOCP — concursos em andamento", sourceUrl: "https://www.institutoaocp.org.br/concursos/status/em-andamento" },
+  { label: "IBFC — concursos abertos", sourceUrl: "https://concursos.ibfc.org.br/index/abertos/" },
+  { label: "IGEDUC — concursos abertos", sourceUrl: "https://www.igeduc.org.br/index/abertos/" },
+  { label: "Instituto Quadrix — todos os concursos", sourceUrl: "https://quadrix.org.br/index/todos/" },
+  { label: "Fundação La Salle — concursos em andamento", sourceUrl: "https://fundacaolasalle.org.br/concursos/?filtro=em-andamento" }
 ];
 
 export const materias = [

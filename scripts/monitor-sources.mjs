@@ -19,6 +19,10 @@ export function isTrustedOfficialHost(hostname) {
   const approvedProviders = [
     "cebraspe.org.br",
     "igeduc.selecao.net.br",
+    "igeduc.org.br",
+    "ibfc.org.br",
+    "quadrix.org.br",
+    "fundacaolasalle.org.br",
     "fgv.br",
     "concursosfcc.com.br",
     "vunesp.com.br",
