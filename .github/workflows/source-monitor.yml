@@ -142,7 +142,7 @@ jobs:
 
       - name: Salvar relatório como artefato
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: monitoramento-fontes-${{ github.run_id }}
           path: |
