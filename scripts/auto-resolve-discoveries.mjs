@@ -90,15 +90,67 @@ function inferState(hostname, text) {
 
 function inferJurisdiction(hostname, organization, text) {
   const host = String(hostname || "").toLowerCase();
-  const state = inferState(host, text);
-  if (/^prefeitura municipal de\b/i.test(organization)) {
-    return state ? { area: "Municipal", estado: state, localidade: organization.replace(/^Prefeitura Municipal de\s+/i, "") } : null;
+  const organizationText = String(organization || "");
+  const federalOrganization = /\b(?:Receita Federal do Brasil|Banco Central do Brasil|Controladoria-Geral da União|Instituto Nacional do Seguro Social|Polícia Federal|Polícia Rodoviária Federal|Universidade Federal de|Instituto Federal de|Tribunal de Contas da União)\b/i
+    .test(organizationText);
+
+  // Classify the institution before scanning the body. Federal editais often
+  // mention several states as possible locations and must remain Federal.
+  if (federalOrganization) {
+    return { area: "Federal", estado: "Brasil", localidade: "Brasil" };
+  }
+
+  const state = inferState(host, organizationText) || inferState(host, text);
+  if (/^prefeitura municipal de\b/i.test(organizationText)) {
+    return state
+      ? { area: "Municipal", estado: state, localidade: organizationText.replace(/^Prefeitura Municipal de\s+/i, "") }
+      : null;
   }
   if (state) return { area: "Estadual", estado: state, localidade: state };
-  if (host === "gov.br" || host === "www.gov.br" || /\b(?:Receita Federal do Brasil|Banco Central do Brasil|Controladoria-Geral da União|Instituto Nacional do Seguro Social|Polícia Federal|Polícia Rodoviária Federal|Universidade Federal de|Instituto Federal de)\b/i.test(organization + " " + text)) {
+  if (host === "gov.br" || host === "www.gov.br") {
     return { area: "Federal", estado: "Brasil", localidade: "Brasil" };
   }
   return null;
+}
+
+function uniqueCapturedNumbers(text, patterns) {
+  const values = new Set();
+  for (const pattern of patterns) {
+    for (const match of String(text || "").matchAll(pattern)) {
+      const value = Number(match[1]);
+      if (Number.isInteger(value) && value >= 0 && value <= 100000) values.add(value);
+    }
+  }
+  return [...values];
+}
+
+export function extractVacancyDetails(text) {
+  const source = String(text || "");
+  const immediateValues = uniqueCapturedNumbers(source, [
+    /\b(\d{1,5})\s+vagas?\s+imediatas?\b/gi,
+    /\b(\d{1,5})\s+vagas?\s+para\s+provimento\s+imediato\b/gi
+  ]);
+  const reserveValues = uniqueCapturedNumbers(source, [
+    /\b(\d{1,5})\s+(?:vagas?\s+)?(?:para\s+)?cadastro\s+de\s+reserva\b/gi
+  ]);
+  const totalValues = uniqueCapturedNumbers(source, [
+    /\btotal(?:\s+geral)?\s+de\s+vagas?\s*[:\-]?\s*(\d{1,5})\b/gi,
+    /\bvagas?\s+totais?\s*[:\-]?\s*(\d{1,5})\b/gi,
+    /\b(?:s[aã]o|ser[aã]o)\s+(?:oferecid[oa]s?|ofertad[oa]s?|disponibilizad[oa]s?)\s+(\d{1,5})\s+vagas?\b/gi,
+    /\b(?:o\s+edital|a\s+sele[cç][aã]o|o\s+concurso|o\s+certame|certame)\s+(?:oferece|ofert[aá]|prev[eê]|disponibiliza)\s+(\d{1,5})\s+vagas?\b/gi,
+    /\bvagas?\s*[:\-]\s*(\d{1,5})\b/gi
+  ]);
+
+  const imediatas = immediateValues.length === 1 ? immediateValues[0] : null;
+  const reserva = reserveValues.length === 1 ? reserveValues[0] : null;
+  const explicitTotal = totalValues.length === 1 ? totalValues[0] : null;
+  const total = explicitTotal !== null
+    ? explicitTotal
+    : imediatas !== null && reserva !== null
+      ? imediatas + reserva
+      : imediatas;
+
+  return { total, imediatas, reserva };
 }
 
 export function classifyDiscovery(discovery, document, responseUrl = discovery?.candidate_url) {
@@ -142,16 +194,14 @@ export function classifyDiscovery(discovery, document, responseUrl = discovery?.
     return { decision: "review", reason: "O edital parece relacionado a seleção pública, mas faltam dados confiáveis para cadastro automático: " + missing + "." };
   }
 
-  const vacancyMatch = text.match(/\b(\d{1,5})\s+vagas?\b/i);
+  const vacancies = extractVacancyDetails(text);
   const editalMatch = evidence.match(/\bedital\s+(?:n[º°.]?\s*)?[\w./-]{1,24}(?:\s*,?\s*de\s+\d{1,2}\s+de\s+[\p{L}]+\s+de\s+20\d{2})?/iu);
   const level = /nível\s+(?:médio|técnico)/i.test(text) ? "Médio/Técnico"
     : /nível\s+(?:superior|graduação)/i.test(text) ? "Superior"
       : /nível\s+fundamental/i.test(text) ? "Fundamental" : "A confirmar no edital";
-  const status = /inscrições\s+abertas|inscricoes\s+abertas/i.test(text)
-    ? "Edital publicado · inscrições abertas"
-    : /inscrições\s+encerradas|inscricoes\s+encerradas/i.test(text)
-      ? "Edital publicado · inscrições encerradas"
-      : "Edital publicado · cronograma a confirmar";
+  // Historic pages can contain old "inscrições abertas" or "encerradas" snippets.
+  // New automatic records remain conservative until a dated review.
+  const status = "Edital publicado · situação a confirmar";
   const atoOficial = editalMatch?.[0]?.trim() || "Edital publicado na página oficial";
   const sigla = orgao.split(/\s+/).filter(word => /^[A-ZÁÉÍÓÚÂÊÔÃÕÇ]{2,}$/.test(word)).join("").slice(0, 12)
     || orgao.replace(/[^A-Za-zÀ-ÿ]/g, "").slice(0, 8).toUpperCase();
@@ -166,14 +216,21 @@ export function classifyDiscovery(discovery, document, responseUrl = discovery?.
       orgao: orgao.slice(0, 160),
       vinculo: recruitmentType + " · " + atoOficial,
       nivel: level,
-      vagas: vacancyMatch ? Number(vacancyMatch[1]) : null,
+      vagas: vacancies.total,
+      vagasImediatas: vacancies.imediatas,
+      cadastroReserva: vacancies.reserva,
       atoOficial,
       status,
       area: jurisdiction.area,
       estado: jurisdiction.estado,
       localidade: jurisdiction.localidade,
       sourceUrl: candidate.toString(),
-      observacao: "Registro estruturado automaticamente pelo EditalRadar a partir da publicação oficial. Confira o edital e suas retificações antes de tomar decisões. Fonte monitorada: " + String(discovery?.source_url || "").slice(0, 500)
+      verificacaoAutomatica: {
+        em: new Date().toISOString(),
+        fonte: candidate.toString(),
+        sinais: ["publicação oficial", "edital", recruitmentType.toLowerCase(), "órgão identificado", "cargo identificado", "jurisdição identificada"]
+      },
+      observacao: "Registro estruturado automaticamente pelo EditalRadar a partir da publicação oficial. A situação das inscrições permanece a confirmar porque a página pode conter referências históricas. Confira o edital e suas retificações antes de tomar decisões. Fonte monitorada: " + String(discovery?.source_url || "").slice(0, 500)
     }
   };
 }
@@ -304,6 +361,13 @@ export function buildRetificationUpdate(existingData, extractedData, discovery, 
   if (nextVacancies !== null && Number.isInteger(nextVacancies) && nextVacancies >= 0) {
     setIfChanged("vagas", nextVacancies);
   }
+
+  const immediateRetification = text.match(/\bleia-se\D{0,40}(\d{1,5})\s+vagas?\s+imediatas?\b/i)
+    || text.match(/\bpassa(?:m)? a ser\D{0,40}(\d{1,5})\s+vagas?\s+imediatas?\b/i);
+  if (immediateRetification) setIfChanged("vagasImediatas", Number(immediateRetification[1]));
+  const reserveRetification = text.match(/\bleia-se\D{0,40}(\d{1,5})\s+(?:vagas?\s+)?(?:para\s+)?cadastro de reserva\b/i)
+    || text.match(/\bpassa(?:m)? a ser\D{0,40}(\d{1,5})\s+(?:vagas?\s+)?(?:para\s+)?cadastro de reserva\b/i);
+  if (reserveRetification) setIfChanged("cadastroReserva", Number(reserveRetification[1]));
 
   const saysOpen = /inscrições\s+(?:estão\s+)?abertas|período de inscrições\s+aberto/i.test(text);
   const saysClosed = /inscrições\s+(?:estão\s+)?encerradas|período de inscrições\s+encerrado/i.test(text);

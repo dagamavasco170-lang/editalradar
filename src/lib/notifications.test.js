@@ -168,6 +168,28 @@ describe("Histórico de notificações dispensadas", () => {
     expect(mergeNotificationHistory(remote, local)).toEqual(local);
   });
 
+
+  it("preserva como lida uma notificação quando apenas um dispositivo sincronizou a leitura", () => {
+    const remote = [{ id: "new-23", title: "Concurso novo", message: "Aviso", read: false }];
+    const local = [{ id: "new-23", title: "Concurso novo", message: "Aviso", read: true }];
+    expect(mergeNotificationHistory(remote, local)).toEqual([
+      { id: "new-23", title: "Concurso novo", message: "Aviso", read: true }
+    ]);
+  });
+
+  it("não reabre como não lida quando a cópia remota já estava lida", () => {
+    const remote = [{ id: "new-24", title: "Concurso", read: true }];
+    const local = [{ id: "new-24", title: "Concurso", read: false }];
+    expect(mergeNotificationHistory(remote, local)[0].read).toBe(true);
+  });
+
+  it("mantém a dispensa mesmo quando o tombstone vem primeiro ou depois", () => {
+    const tombstone = { id: "new-25", read: true, dismissedAt: "2026-11-21T19:00:00.000Z" };
+    const active = { id: "new-25", title: "Concurso", read: false };
+    expect(mergeNotificationHistory([tombstone], [active])).toEqual([tombstone]);
+    expect(mergeNotificationHistory([active], [tombstone])).toEqual([tombstone]);
+  });
+
   it("preserva no histórico as notificações dispensadas durante uma sincronização", () => {
     const remote = [
       { id: "new-20", title: "Concurso anterior", read: false },

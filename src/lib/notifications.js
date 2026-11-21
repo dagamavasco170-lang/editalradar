@@ -120,14 +120,24 @@ export function mergeNotificationHistory(remote = [], local = []) {
       merged.set(id, item);
       continue;
     }
-    const previousDismissed = Boolean(previous.dismissedAt);
-    const nextDismissed = Boolean(item.dismissedAt);
-    if (nextDismissed && !previousDismissed) {
-      merged.set(id, item);
+
+    const dismissal = previous.dismissedAt ? previous : item.dismissedAt ? item : null;
+    if (dismissal) {
+      const timestamps = [previous.dismissedAt, item.dismissedAt].filter(Boolean).sort();
+      merged.set(id, { id, read: true, dismissedAt: timestamps[0] || dismissal.dismissedAt });
+      continue;
     }
+
+    merged.set(id, {
+      ...previous,
+      ...item,
+      id,
+      read: Boolean(previous.read || item.read)
+    });
   }
   return [...merged.values()];
 }
+
 
 export function getVisibleNotifications(notifications = []) {
   return notifications.filter((item) => item && !item.dismissedAt);

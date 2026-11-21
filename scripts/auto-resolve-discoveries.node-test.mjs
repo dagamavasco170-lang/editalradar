@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { appendContext, buildPendingDiscoveriesUrl, buildRetificationUpdate, classifyDiscovery, extractDocumentText, fetchCandidateWithRetry, findMatchingContestForRetification, inferOrganization, mapWithConcurrency, normalizeContestIdentity, prepareDiscoveryDocument, summarizeFetchError } from "./auto-resolve-discoveries.mjs";
+import { appendContext, buildPendingDiscoveriesUrl, buildRetificationUpdate, classifyDiscovery, extractDocumentText, extractVacancyDetails, fetchCandidateWithRetry, findMatchingContestForRetification, inferOrganization, mapWithConcurrency, normalizeContestIdentity, prepareDiscoveryDocument, summarizeFetchError } from "./auto-resolve-discoveries.mjs";
 
 const discovery = {
   id: 1,
@@ -34,9 +34,53 @@ test("cadastra automaticamente somente quando edital, seleção, cargo, órgão 
   assert.equal(result.data.vagas, 30);
   assert.equal(result.data.area, "Municipal");
   assert.equal(result.data.estado, "Alagoas");
-  assert.equal(result.data.status, "Edital publicado · inscrições abertas");
+  assert.equal(result.data.status, "Edital publicado · situação a confirmar");
 });
 
+
+
+test("prioriza a esfera federal mesmo quando o texto menciona estados de lotação", () => {
+  const result = classifyDiscovery(
+    { ...discovery, title: "Edital do Banco Central do Brasil" },
+    {
+      title: "Concurso público do Banco Central do Brasil - Edital 2026",
+      heading: "Edital de abertura do concurso público",
+      text: "O Banco Central do Brasil publica edital para o cargo de Auditor. As vagas terão lotação no Distrito Federal e em Alagoas. São oferecidas 30 vagas."
+    },
+    "https://www.bcb.gov.br/concursos/edital-2026"
+  );
+  assert.equal(result.decision, "publish");
+  assert.equal(result.data.area, "Federal");
+  assert.equal(result.data.estado, "Brasil");
+});
+
+test("extrai vagas imediatas e cadastro de reserva sem contar números genéricos", () => {
+  assert.deepEqual(
+    extractVacancyDetails("O edital prevê 40 vagas imediatas e 60 para cadastro de reserva (100 no total)."),
+    { total: 100, imediatas: 40, reserva: 60 }
+  );
+  assert.deepEqual(
+    extractVacancyDetails("A notícia cita 40 vagas e menciona outras 20 oportunidades de outro órgão."),
+    { total: null, imediatas: null, reserva: null }
+  );
+  assert.deepEqual(
+    extractVacancyDetails("São oferecidas 30 vagas imediatas."),
+    { total: 30, imediatas: 30, reserva: null }
+  );
+});
+
+test("não transforma menção histórica de inscrições abertas em situação atual confirmada", () => {
+  const result = classifyDiscovery(
+    { ...discovery, title: "Edital de concurso público da Prefeitura Municipal de Igaci" },
+    {
+      title: "Edital de concurso público da Prefeitura Municipal de Igaci",
+      heading: "Edital de abertura",
+      text: "A Prefeitura Municipal de Igaci, em Alagoas, publicou edital. Cargo: Agente Administrativo. São oferecidas 30 vagas. No arquivo de notícias de 2024, as inscrições estavam abertas em outubro."
+    }
+  );
+  assert.equal(result.decision, "publish");
+  assert.equal(result.data.status, "Edital publicado · situação a confirmar");
+});
 
 test("reconhece retificação que não repete a expressão concurso público", () => {
   const result = classifyDiscovery(
