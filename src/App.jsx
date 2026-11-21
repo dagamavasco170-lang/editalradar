@@ -429,7 +429,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   const profileRecommendations=useMemo(()=>{
     if(!authUser||(!recommendationProfile.interest_area&&!recommendationProfile.education_level&&!recommendationProfile.state))return [];
     return catalog.map(item=>({item,score:scoreRecommendation(item,recommendationProfile)})).sort((a,b)=>b.score-a.score||(Number(b.item.vagas)||0)-(Number(a.item.vagas)||0)).slice(0,3);
-  },[authUser?.id,authUser?.user_metadata?.interest_area,authUser?.user_metadata?.education_level,authUser?.user_metadata?.state,authUser?.user_metadata?.city]);
+  },[catalog,authUser?.id,authUser?.user_metadata?.interest_area,authUser?.user_metadata?.education_level,authUser?.user_metadata?.state,authUser?.user_metadata?.city]);
   const currentFilters = { query, nivel, esfera, estado, localidade, situacao, ocultarPreliminares };
   const filtered = useMemo(
     () => catalog.filter((item) => matchesFilters(item, currentFilters)),
