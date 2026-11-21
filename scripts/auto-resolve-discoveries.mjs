@@ -462,7 +462,7 @@ export async function fetchCandidateWithCurl(candidateUrl, options = {}) {
       "--header", "Accept: text/html,application/xhtml+xml,text/plain,application/pdf;q=0.9,*/*;q=0.7",
       "--dump-header", headersPath,
       "--output", bodyPath,
-      "--write-out", "%{http_code}\\n%{url_effective}\\n%{content_type}",
+      "--write-out", "%{http_code}\n%{url_effective}\n%{content_type}",
       candidateUrl
     ], {
       encoding: "utf8",
@@ -917,7 +917,7 @@ async function main() {
     result.pendingReasons && Object.keys(result.pendingReasons).length
       ? "Motivos: " + JSON.stringify(result.pendingReasons)
       : "Sem pendências técnicas nesta execução."
-  ].join("\\n");
+  ].join("\n");
   console.log("Triagem automática concluída: " + JSON.stringify(result));
   if (process.env.GITHUB_OUTPUT) {
     const output = [
@@ -928,11 +928,11 @@ async function main() {
       "pending_count=" + result.pending,
       "error_count=" + result.errors,
       ""
-    ].join("\\n");
+    ].join("\n");
     await appendFile(process.env.GITHUB_OUTPUT, output);
   }
   if (process.env.GITHUB_STEP_SUMMARY) {
-    await appendFile(process.env.GITHUB_STEP_SUMMARY, summary + "\\n");
+    await appendFile(process.env.GITHUB_STEP_SUMMARY, summary + "\n");
   }
   if (result.errors > 0) process.exitCode = 1;
 }
