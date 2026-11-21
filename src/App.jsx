@@ -656,7 +656,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
             </div>
             <label className="email-alert-consent">
               <span className="email-alert-copy"><strong>Receber alertas por e-mail</strong><small>Envie uma mensagem quando o catálogo receber um concurso compatível com seu perfil. Você pode cancelar quando quiser.</small></span>
-              <input type="checkbox" checked={profileEmailNotifications} onChange={(event) => setProfileEmailNotifications(event.target.checked)} />
+              <input type="checkbox" aria-label="Receber alertas por e-mail" checked={profileEmailNotifications} onChange={(event) => setProfileEmailNotifications(event.target.checked)} />
             </label>
             <button className="primary-btn full" type="submit" disabled={profileBusy}>{profileBusy ? "Salvando..." : "Salvar perfil"}</button>
             {profileMessage && <p className={`auth-message ${profileMessageType}`} role="status">{profileMessage}</p>}
