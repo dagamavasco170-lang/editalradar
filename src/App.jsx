@@ -36,7 +36,7 @@ const describeAlert = (filters) => {
   return parts.length ? parts.join(" · ") : "Todos os concursos";
 };
 
-export default function App({ authClient = authClient, authConfigured = authConfigured } = {}) {
+export default function App({ authClient = supabase, authConfigured = isSupabaseConfigured } = {}) {
   const [page, setPage] = useState("concursos");
   const [query, setQuery] = useState("");
   const [nivel, setNivel] = useState("Todos os níveis");
@@ -404,7 +404,7 @@ export default function App({ authClient = authClient, authConfigured = authConf
               <p>O cadastro e a recuperação de senha estão preparados, mas falta conectar o projeto ao Supabase para ativar as contas.</p>
               <ol>
                 <li>Crie um projeto gratuito no Supabase.</li>
-                <li>Execute o SQL de <code>authClient/migrations/202611210001_user_data.sql</code> no SQL Editor.</li>
+                <li>Execute o SQL de <code>supabase/migrations/202611210001_user_data.sql</code> no SQL Editor.</li>
                 <li>Adicione <code>VITE_SUPABASE_URL</code> e <code>VITE_SUPABASE_PUBLISHABLE_KEY</code> nas Actions Variables do GitHub.</li>
               </ol>
               <a href="https://github.com/dagamavasco170-lang/editalradar/blob/main/SUPABASE_SETUP.md" target="_blank" rel="noreferrer">Abrir guia de configuração ↗</a>
