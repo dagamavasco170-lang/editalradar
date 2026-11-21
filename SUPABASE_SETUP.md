@@ -87,3 +87,15 @@ A migração usa RLS: leitura pública e gravação exclusiva de tokens autentic
 ## 8. Hospedagem alternativa na Vercel
 
 Para usar um endereço gratuito mais curto, consulte o guia [DEPLOY_VERCEL.md](./DEPLOY_VERCEL.md). A hospedagem da Vercel pode coexistir com o GitHub Pages; mantenha no Supabase os dois endereços em Redirect URLs enquanto ambos forem usados.
+
+## 10. Fila automática de revisão do EditalRadar
+
+Depois de ativar o painel administrativo:
+
+1. No SQL Editor, execute `supabase/migrations/202611220003_contest_discoveries.sql`.
+2. No GitHub: repositório → Settings → Secrets and variables → Actions → New repository secret.
+3. Cadastre `SUPABASE_URL` com a URL do projeto Supabase.
+4. Cadastre `SUPABASE_SERVICE_ROLE_KEY` com a chave service_role/secret do Supabase. Essa chave fica somente nos secrets do GitHub Actions, nunca em variáveis `VITE_` ou no código do aplicativo.
+5. Abra Actions → Monitorar fontes de concursos → Run workflow.
+
+O workflow compara os links encontrados nas páginas oficiais com a execução anterior. Novos links relacionados a editais/concursos e alterações de páginas oficiais entram na fila protegida, visível apenas ao administrador. A primeira execução após a atualização forma a linha de base dos links; ela não transforma automaticamente todos os links já existentes em oportunidades novas. O monitor não faz leitura semântica de PDFs nem publica informações automaticamente. Toda ficha precisa ser conferida e salva pelo administrador.
