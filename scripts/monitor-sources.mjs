@@ -103,7 +103,7 @@ export function extractOpportunityLinks(html, sourceUrl) {
 export function buildDiscoveriesForSource(url, previous, current) {
   if (!current?.ok) return [];
   const discoveries = [];
-  const needsLinkBaseline = previous?.opportunityLinkFilterVersion !== 3;
+  const needsLinkBaseline = previous?.opportunityLinkFilterVersion !== 4;
 
   if (needsLinkBaseline) {
     const opportunityLinks = current.opportunityLinks || [];
@@ -188,7 +188,7 @@ async function fetchSource(url) {
     ok: true,
     sha256: fingerprintContent(content, contentType),
     opportunityLinks,
-    opportunityLinkFilterVersion: 3,
+    opportunityLinkFilterVersion: 4,
     status: response.status,
     finalUrl: response.url,
     contentType,
