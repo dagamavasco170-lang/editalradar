@@ -7,7 +7,7 @@ create table if not exists public.contest_discoveries (
   discovery_key text not null,
   title text not null,
   context text not null default '',
-  discovery_type text not null check (discovery_type in ('new_link', 'page_change')),
+  discovery_type text not null check (discovery_type in ('new_link', 'page_change', 'source_baseline')),
   status text not null default 'pending' check (status in ('pending', 'published', 'dismissed')),
   detected_at timestamptz not null default now(),
   reviewed_at timestamptz,
@@ -15,6 +15,13 @@ create table if not exists public.contest_discoveries (
   published_catalog_id bigint references public.contest_catalog(id) on delete set null,
   constraint contest_discoveries_dedupe unique (source_url, candidate_url, discovery_key)
 );
+
+-- Permite atualizar uma instalação anterior da migração de descobertas.
+alter table public.contest_discoveries
+  drop constraint if exists contest_discoveries_discovery_type_check;
+alter table public.contest_discoveries
+  add constraint contest_discoveries_discovery_type_check
+  check (discovery_type in ('new_link', 'page_change', 'source_baseline'));
 
 create index if not exists contest_discoveries_pending_idx
   on public.contest_discoveries (detected_at desc)
