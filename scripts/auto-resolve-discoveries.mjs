@@ -226,8 +226,12 @@ async function updateDiscovery(request, baseUrl, key, item, patch) {
   });
 }
 
-function appendContext(existing, reason) {
-  return (String(existing || "") + "\n\n[Triagem automática do EditalRadar] " + reason).trim().slice(0, 4000);
+export function appendContext(existing, reason) {
+  const original = String(existing || "")
+    .replace(/\n\n\[Triagem automática do EditalRadar\][\s\S]*$/i, "")
+    .trim();
+  return (original + "\n\n[Triagem automática do EditalRadar] " + reason + " (verificado em " + new Date().toISOString() + ")")
+    .trim().slice(0, 4000);
 }
 
 export async function autoResolvePending(options = {}) {
@@ -242,13 +246,26 @@ export async function autoResolvePending(options = {}) {
   if (!discoveries.length) return { inspected: 0, published: 0, dismissed: 0, pending: 0, errors: 0 };
 
   const existingRows = await requestJson(request, baseUrl + "/rest/v1/contest_catalog?select=id,data,deleted&limit=1000", key) || [];
-  const result = { inspected: 0, published: 0, dismissed: 0, pending: 0, errors: 0 };
+  const result = { inspected: 0, published: 0, dismissed: 0, pending: 0, errors: 0, pendingReasons: {} };
+  const keepPending = async (item, reason) => {
+    result.pending += 1;
+    const label = String(reason || "Não foi possível confirmar os dados na fonte oficial.").slice(0, 500);
+    result.pendingReasons[label] = (result.pendingReasons[label] || 0) + 1;
+    console.log("Pendente #" + item.id + ": " + label);
+    await updateDiscovery(request, baseUrl, key, item, {
+      status: "pending",
+      context: appendContext(item.context, label)
+    });
+  };
 
   for (const item of discoveries) {
     result.inspected += 1;
     try {
       let candidate;
-      try { candidate = new URL(item.candidate_url); } catch { result.pending += 1; continue; }
+      try { candidate = new URL(item.candidate_url); } catch {
+        await keepPending(item, "O link armazenado não é uma URL válida.");
+        continue;
+      }
       if (candidate.protocol !== "https:" || !isTrustedOfficialHost(candidate.hostname)) {
         await updateDiscovery(request, baseUrl, key, item, {
           status: "dismissed",
@@ -285,22 +302,35 @@ export async function autoResolvePending(options = {}) {
           signal: AbortSignal.timeout(TIMEOUT_MS),
           headers: { "User-Agent": "EditalRadar-AutoReview/1.0 (+https://github.com/dagamavasco170-lang/editalradar)", Accept: "text/html,application/xhtml+xml,text/plain,application/pdf;q=0.8,*/*;q=0.5" }
         });
-      } catch {
-        result.pending += 1;
+      } catch (error) {
+        await keepPending(item, "Não foi possível abrir a publicação oficial: " + String(error?.message || error).slice(0, 250));
         continue;
       }
       const finalUrl = response.url || candidate.toString();
       let finalHost;
-      try { finalHost = new URL(finalUrl).hostname; } catch { result.pending += 1; continue; }
+      try { finalHost = new URL(finalUrl).hostname; } catch {
+        await keepPending(item, "O endereço final após redirecionamento é inválido.");
+        continue;
+      }
       const contentType = response.headers?.get?.("content-type") || "";
       const isPdf = /application\/pdf/i.test(contentType) || /\.pdf(?:$|[?#])/i.test(finalUrl);
-      if (!response.ok || !isTrustedOfficialHost(finalHost) || (!isPdf && !/(text\/html|application\/xhtml\+xml|text\/plain)/i.test(contentType))) {
-        result.pending += 1;
+      if (!response.ok) {
+        await keepPending(item, "A fonte oficial respondeu HTTP " + response.status + ".");
+        continue;
+      }
+      if (!isTrustedOfficialHost(finalHost)) {
+        await keepPending(item, "O link redirecionou para um domínio que não está na lista de fontes oficiais autorizadas.");
+        continue;
+      }
+      if (!isPdf && !/(text\/html|application\/xhtml\+xml|text\/plain)/i.test(contentType)) {
+        await keepPending(item, "Formato ainda não suportado pela extração automática: " + (contentType || "tipo de conteúdo não informado") + ".");
         continue;
       }
       const document = await extractCandidateDocument(response, item, finalUrl, contentType);
       if (!document) {
-        result.pending += 1;
+        await keepPending(item, isPdf
+          ? "O PDF não contém texto extraível suficiente; pode ser digitalizado como imagem ou estar protegido."
+          : "Não foi possível extrair texto legível da página oficial.");
         continue;
       }
 
@@ -314,7 +344,7 @@ export async function autoResolvePending(options = {}) {
         continue;
       }
       if (decision.decision !== "publish") {
-        result.pending += 1;
+        await keepPending(item, decision.reason || "A evidência não é suficiente para preencher a ficha automaticamente.");
         continue;
       }
 
@@ -336,9 +366,18 @@ export async function autoResolvePending(options = {}) {
     } catch (error) {
       result.errors += 1;
       console.error("Falha ao processar descoberta " + item.id + ":", error.message);
+      try {
+        await updateDiscovery(request, baseUrl, key, item, {
+          status: "pending",
+          context: appendContext(item.context, "Falha técnica durante a triagem: " + String(error?.message || error).slice(0, 250))
+        });
+      } catch {
+        console.error("Não foi possível registrar o motivo da pendência #" + item.id + ".");
+      }
     }
   }
   result.pending += result.errors;
+  console.log("Motivos das pendências: " + JSON.stringify(result.pendingReasons));
   return result;
 }
 
