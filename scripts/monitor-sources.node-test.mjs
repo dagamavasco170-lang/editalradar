@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { concursos } from "../src/data/concursos.js";
-import { collectSourceUrls, compareSource, fingerprintContent, normalizeHtml } from "./monitor-sources.mjs";
+import { collectSourceUrls, compareSource, fingerprintContent, normalizeHtml, extractOpportunityLinks, buildDiscoveriesForSource } from "./monitor-sources.mjs";
 
 test("coleta somente URLs HTTPS únicas", () => {
   const urls = collectSourceUrls([
@@ -36,4 +36,37 @@ test("identifica alteração, falha e primeira leitura", () => {
 
 test("mantém texto relevante em português", () => {
   assert.equal(normalizeHtml("<p>Inscrições abertas até 25/11.</p>"), "inscrições abertas até 25/11.");
+});
+
+test("extrai links HTTPS relevantes de edital e ignora links comuns ou inseguros", () => {
+  const links = extractOpportunityLinks(`
+    <a href="/editais/edital-2026.pdf">Edital 2026 - Analista</a>
+    <a href="http://inseguro.example/edital">Edital inseguro</a>
+    <a href="/sobre">Sobre o órgão</a>
+    <a href="https://orgao.gov.br/concursos">Página concursos</a>
+  `, "https://orgao.gov.br/concursos-publicos");
+  assert.equal(links.length, 1);
+  assert.equal(links[0].candidate_url, "https://orgao.gov.br/editais/edital-2026.pdf");
+  assert.match(links[0].title, /Edital 2026/);
+});
+
+test("gera itens pendentes para mudanças da página e novos links, não na primeira linha de base", () => {
+  const url = "https://orgao.gov.br/concursos";
+  const oldLink = { candidate_url: "https://orgao.gov.br/edital-antigo.pdf" };
+  const newLink = {
+    candidate_url: "https://orgao.gov.br/edital-novo.pdf",
+    title: "Edital novo",
+    context: "Página oficial"
+  };
+  assert.deepEqual(buildDiscoveriesForSource(url, null, {
+    ok: true, sha256: "first", opportunityLinks: [newLink]
+  }), []);
+  const discoveries = buildDiscoveriesForSource(url, {
+    sha256: "old", opportunityLinks: [oldLink]
+  }, {
+    ok: true, sha256: "new", opportunityLinks: [oldLink, newLink]
+  });
+  assert.equal(discoveries.length, 2);
+  assert.ok(discoveries.some(item => item.discovery_type === "page_change"));
+  assert.ok(discoveries.some(item => item.discovery_type === "new_link" && item.candidate_url === newLink.candidate_url));
 });
