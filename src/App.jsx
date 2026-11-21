@@ -3,6 +3,7 @@ import { isSupabaseConfigured, supabase } from "./lib/supabaseClient";
 import { concursos, materias, sourceUrl, sourceUpdated, fetchedAt } from "./data/concursos";
 import { detectCatalogNotifications, dismissNotificationById, dismissNotificationHistory, getVisibleNotifications, mergeNotificationHistory } from "./lib/notifications";
 import { applyCatalogOverrides } from "./lib/catalog";
+import { getUpcomingMilestones } from "./lib/dashboard";
 
 export const scoreRecommendation = (item, profile = {}) => {
  const area=(profile.interest_area||"").toLowerCase(), text=[item.cargo,item.orgao,item.area,item.nivel,item.estado,item.localidade,item.status].join(" ").toLowerCase();
@@ -499,6 +500,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     if(!authUser||(!recommendationProfile.interest_area&&!recommendationProfile.education_level&&!recommendationProfile.state))return [];
     return catalog.map(item=>({item,score:scoreRecommendation(item,recommendationProfile)})).sort((a,b)=>b.score-a.score||(Number(b.item.vagas)||0)-(Number(a.item.vagas)||0)).slice(0,3);
   },[catalog,authUser?.id,authUser?.user_metadata?.interest_area,authUser?.user_metadata?.education_level,authUser?.user_metadata?.state,authUser?.user_metadata?.city]);
+  const upcomingMilestones = useMemo(() => getUpcomingMilestones(catalog), [catalog]);
   const currentFilters = { query, nivel, esfera, estado, localidade, situacao, ocultarPreliminares };
   const filtered = useMemo(
     () => catalog.filter((item) => matchesFilters(item, currentFilters)),
@@ -1097,6 +1099,79 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
               <div className="stat"><span className="stat-icon green">⌁</span><div><strong>{new Intl.NumberFormat("pt-BR").format(totalVagas)}</strong><small>Vagas em fichas com fonte oficial</small></div></div>
               <div className="stat"><span className="stat-icon gold">☆</span><div><strong>{favorites.length}</strong><small>Oportunidades salvas</small></div></div>
             </div>
+            {page !== "favoritos" && (
+              <section className="candidate-dashboard" aria-label="Painel inteligente do candidato">
+                <div className="candidate-dashboard-heading">
+                  <div>
+                    <div className="eyebrow">PAINEL INTELIGENTE</div>
+                    <h2>Sua jornada em um só lugar</h2>
+                    <p>Acompanhe sua preparação, oportunidades salvas e as próximas datas divulgadas nos concursos.</p>
+                  </div>
+                  <button className="recommendations-edit" type="button" onClick={openProfileEditor}>
+                    {authUser ? "Atualizar meu perfil" : "Personalizar meu perfil"}
+                  </button>
+                </div>
+                <div className="candidate-dashboard-stats">
+                  <button className="dashboard-stat" type="button" onClick={() => setPage("estudos")} aria-label={`Rotina de estudos: ${progress}% concluída`}>
+                    <span className="dashboard-stat-icon">◷</span>
+                    <span className="dashboard-stat-copy"><small>Rotina de estudos</small><strong>{progress}%</strong></span>
+                    <em>{tasks.filter(Boolean).length}/{tasks.length} tarefas</em>
+                  </button>
+                  <button className="dashboard-stat" type="button" onClick={() => setPage("favoritos")} aria-label={`Meus favoritos: ${favorites.length}`}>
+                    <span className="dashboard-stat-icon">♡</span>
+                    <span className="dashboard-stat-copy"><small>Meus favoritos</small><strong>{favorites.length}</strong></span>
+                    <em>Oportunidades salvas</em>
+                  </button>
+                  <button className="dashboard-stat" type="button" onClick={openNotifications} aria-label={`Avisos não lidos: ${unreadNotificationCount}`}>
+                    <span className="dashboard-stat-icon">♧</span>
+                    <span className="dashboard-stat-copy"><small>Avisos não lidos</small><strong>{unreadNotificationCount}</strong></span>
+                    <em>Novidades e retificações</em>
+                  </button>
+                </div>
+                <div className="candidate-dashboard-content">
+                  <div className="dashboard-milestones">
+                    <div className="dashboard-section-heading">
+                      <div><div className="eyebrow">AGENDA DE OPORTUNIDADES</div><h3>Próximas datas importantes</h3></div>
+                      <span>{upcomingMilestones.length} data(s)</span>
+                    </div>
+                    {upcomingMilestones.length > 0 ? (
+                      <div className="dashboard-milestone-list">
+                        {upcomingMilestones.slice(0, 4).map((milestone) => (
+                          <article className="dashboard-milestone" key={milestone.id + "-" + milestone.type}>
+                            <time dateTime={milestone.date.toISOString().slice(0, 10)}>
+                              {milestone.date.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" })}
+                            </time>
+                            <div className="dashboard-milestone-copy">
+                              <strong>{milestone.label}</strong>
+                              <span>{milestone.title}</span>
+                              <small>{milestone.orgao}</small>
+                            </div>
+                            <button className="dashboard-milestone-open" type="button" aria-label={`Ver ${milestone.label.toLowerCase()}: ${milestone.title}`} onClick={() => {
+                              const contest = catalog.find((item) => String(item.id) === String(milestone.id));
+                              if (contest) setSelected(contest);
+                            }}>Ver ↗</button>
+                          </article>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="dashboard-milestone-empty">Não há datas futuras explicitadas nas situações das fichas disponíveis. Consulte os detalhes e confirme o cronograma na fonte oficial.</p>
+                    )}
+                    <small className="dashboard-disclaimer">As datas são extraídas do campo de situação do catálogo e podem mudar. Confirme sempre o cronograma na publicação oficial.</small>
+                  </div>
+                  <div className="dashboard-focus">
+                    <div className="eyebrow">SEU PRÓXIMO PASSO</div>
+                    <h3>{authUser ? "Mantenha seu plano em dia" : "Prepare o EditalRadar para seu perfil"}</h3>
+                    <p>{authUser
+                      ? "Revise suas preferências para receber recomendações mais alinhadas à sua área, escolaridade e localização."
+                      : "Entre na sua conta e informe sua área de interesse, escolaridade e localização para receber recomendações personalizadas."}</p>
+                    <div className="dashboard-focus-actions">
+                      <button className="primary-btn" type="button" onClick={openProfileEditor}>{authUser ? "Revisar perfil" : "Entrar e personalizar"}</button>
+                      <button className="detail-btn" type="button" onClick={() => setPage("estudos")}>Abrir estudos</button>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            )}
             <section className="notification-panel" aria-label="Notificações do EditalRadar" ref={notificationsSectionRef}>
               <div className="notification-heading">
                 <div>

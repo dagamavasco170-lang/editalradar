@@ -166,6 +166,22 @@ describe("EditalRadar", () => {
     expect(screen.queryByRole("button", { name: /Ver mais avisos/ })).not.toBeInTheDocument();
   });
 
+  it("exibe o painel inteligente do candidato e abre a rotina de estudos pelo atalho", () => {
+    localStorage.clear();
+    localStorage.setItem("er-catalog-snapshot:visitor", JSON.stringify(buildCatalogSnapshot(concursos)));
+
+    render(<App />);
+
+    const dashboard = screen.getByRole("region", { name: "Painel inteligente do candidato" });
+    expect(dashboard).toHaveTextContent("Sua jornada em um só lugar");
+    expect(dashboard).toHaveTextContent("Próximas datas importantes");
+    expect(dashboard).toHaveTextContent("Agenda de oportunidades");
+    expect(within(dashboard).getByRole("button", { name: /Rotina de estudos: 0% concluída/ })).toBeInTheDocument();
+
+    fireEvent.click(within(dashboard).getByRole("button", { name: /Rotina de estudos/ }));
+    expect(screen.getByRole("heading", { name: "Área de estudos" })).toBeInTheDocument();
+  });
+
   it("mostra instruções para instalar o aplicativo em diferentes dispositivos", () => {
     render(<App />);
 

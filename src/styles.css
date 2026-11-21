@@ -190,3 +190,41 @@
 @media(max-width:560px){.discovery-row .admin-row-actions{justify-content:stretch}.discovery-row .admin-row-actions button{flex:1}}
 
 .notification-more{display:flex;justify-content:center;padding-top:8px}
+
+
+/* Painel inteligente do candidato: visão rápida da preparação e do calendário. */
+.candidate-dashboard{margin:0 0 22px;padding:20px;border:1px solid #dce9e3;border-radius:14px;background:linear-gradient(145deg,#f7fbf9 0%,#fff 72%)}
+.candidate-dashboard-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:16px}
+.candidate-dashboard-heading h2{font:800 18px Manrope,sans-serif;color:#1c4050;margin:5px 0}
+.candidate-dashboard-heading p{font-size:10px;line-height:1.55;color:#7c8d94;margin:0;max-width:640px}
+.candidate-dashboard-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-bottom:13px}
+.dashboard-stat{display:flex;align-items:center;gap:10px;min-width:0;padding:12px;border:1px solid #e4ece8;border-radius:10px;background:#fff;text-align:left;color:#25465a}
+.dashboard-stat:hover{border-color:#b9d9cc;background:#fbfefc}
+.dashboard-stat:focus-visible,.dashboard-milestone-open:focus-visible{outline:2px solid #197b61;outline-offset:2px}
+.dashboard-stat-icon{display:grid;place-items:center;width:34px;height:34px;flex:0 0 34px;border-radius:9px;background:#edf7f2;color:#28765f;font-size:18px}
+.dashboard-stat-copy{display:grid;gap:3px;min-width:0}
+.dashboard-stat-copy small{font-size:9px;color:#7c8d94}
+.dashboard-stat-copy strong{font:800 17px Manrope,sans-serif;color:#1c4050}
+.dashboard-stat em{margin-left:auto;font-size:8px;line-height:1.4;color:#91a0a6;text-align:right;font-style:normal}
+.candidate-dashboard-content{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(220px,1fr);gap:12px}
+.dashboard-milestones,.dashboard-focus{min-width:0;padding:14px;border:1px solid #e5ece9;border-radius:10px;background:#fff}
+.dashboard-section-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px}
+.dashboard-section-heading h3,.dashboard-focus h3{font:800 14px Manrope,sans-serif;color:#25465a;margin:4px 0 0}
+.dashboard-section-heading>span{font-size:9px;color:#7d8d94;white-space:nowrap}
+.dashboard-milestone-list{display:grid;gap:7px}
+.dashboard-milestone{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid #eff3f1}
+.dashboard-milestone time{display:grid;place-items:center;min-width:83px;padding:7px 5px;border-radius:8px;background:#f0f7f3;color:#28765f;font-size:9px;font-weight:800;text-align:center}
+.dashboard-milestone-copy{display:grid;gap:3px;min-width:0;flex:1}
+.dashboard-milestone-copy strong{font-size:10px;color:#28765f}
+.dashboard-milestone-copy span{font-size:10px;color:#25465a;overflow-wrap:anywhere}
+.dashboard-milestone-copy small{font-size:9px;color:#87969d;overflow-wrap:anywhere}
+.dashboard-milestone-open{border:1px solid #e1ebe6;border-radius:7px;background:#fff;padding:7px 9px;color:#28765f;font-size:9px;font-weight:700;white-space:nowrap}
+.dashboard-milestone-empty{margin:12px 0;padding:12px;border:1px dashed #dfe9e4;border-radius:8px;background:#fbfdfc;color:#7c8d94;font-size:10px;line-height:1.6}
+.dashboard-disclaimer{display:block;margin-top:10px;color:#96a2a7;font-size:8px;line-height:1.5}
+.dashboard-focus{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;background:#f8fbf9}
+.dashboard-focus h3{font-size:15px;line-height:1.4;margin:8px 0}
+.dashboard-focus p{font-size:10px;line-height:1.65;color:#74878e;margin:0 0 14px}
+.dashboard-focus-actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:2px}
+.dashboard-focus-actions .primary-btn,.dashboard-focus-actions .detail-btn{font-size:9px;padding:9px 10px}
+@media(max-width:850px){.candidate-dashboard-content{grid-template-columns:1fr}.dashboard-focus{align-items:flex-start}}
+@media(max-width:600px){.candidate-dashboard{padding:14px}.candidate-dashboard-heading{flex-direction:column;gap:10px}.candidate-dashboard-heading .recommendations-edit{width:100%}.candidate-dashboard-stats{grid-template-columns:1fr}.dashboard-stat em{font-size:9px}.dashboard-milestone{align-items:flex-start;flex-wrap:wrap}.dashboard-milestone time{min-width:77px}.dashboard-milestone-open{margin-left:auto}.dashboard-focus-actions{width:100%}.dashboard-focus-actions button{flex:1}}
