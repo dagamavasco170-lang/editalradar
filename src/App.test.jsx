@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import App from "./App.jsx";
+import { concursos } from "./data/concursos.js";
 
 describe("EditalRadar", () => {
   it("renderiza a página inicial e os concursos oficiais", () => {
@@ -143,6 +144,37 @@ describe("EditalRadar", () => {
     fireEvent.click(screen.getByRole("button", { name: "Fechar cadastro e login" }));
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+
+  it("identifica registros preliminares e deixa claro que a listagem não é edital", () => {
+    render(<App />);
+
+    fireEvent.change(screen.getByPlaceholderText("Buscar cargo ou órgão..."), {
+      target: { value: "Agência Reguladora" }
+    });
+
+    expect(screen.getByText("Listagem de referência")).toBeInTheDocument();
+    expect(screen.getByText(/Concurso listado · verificar edital e cronograma/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Ver detalhes/ }));
+
+    expect(screen.getByRole("link", { name: /Abrir listagem de referência — não é edital/ }))
+      .toHaveAttribute("href", "https://concursor.com.br/editais?uf=AL");
+    expect(screen.getByText(/ainda não foram confirmados individualmente em edital oficial/i)).toBeInTheDocument();
+  });
+
+  it("não soma as vagas dos registros preliminares à métrica principal", () => {
+    render(<App />);
+
+    const verifiedVacancies = concursos
+      .filter((item) => item && !/concurso listado\\s*·\\s*verificar/i.test(item.status || ""))
+      .reduce((sum, item) => sum + (Number(item.vagas) || 0), 0);
+    const metric = screen.getByText("Vagas em fichas com fonte oficial").closest(".stat");
+
+    expect(metric.querySelector("strong")).toHaveTextContent(
+      new Intl.NumberFormat("pt-BR").format(verifiedVacancies)
+    );
+    expect(screen.getByText(/registro\(s\) são preliminares/)).toBeInTheDocument();
   });
 
   it("salva um concurso nos favoritos e mostra a lista", () => {
