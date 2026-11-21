@@ -84,3 +84,9 @@
 .google-mark{display:grid;place-items:center;width:21px;height:21px;border:1px solid #e4e9ed;border-radius:50%;color:#4285f4;background:#fff;font:800 14px Arial,sans-serif}
 .auth-divider{display:flex;align-items:center;gap:10px;color:#8b9aa3;font-size:10px}
 .auth-divider:before,.auth-divider:after{content:"";height:1px;flex:1;background:#e8edef}
+
+
+.profile-edit{border:0;background:transparent;padding:5px 7px;border-radius:6px;font-size:14px;line-height:1;color:#91a0a9}
+.profile-edit:hover{background:#eef5f2;color:#197b61}
+.profile-edit:focus-visible{outline:2px solid #91cbb6;outline-offset:2px}
+.profile-modal>p{line-height:1.55;margin:0 0 15px}
