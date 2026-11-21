@@ -21,9 +21,28 @@ const createAuthClient = () => {
       })
     }))
   };
+  const adminDiscoveries = {
+    items: [],
+    select: vi.fn(() => ({
+      eq: vi.fn(() => ({
+        order: vi.fn(async () => ({
+          data: adminDiscoveries.items.filter(item => item.status === "pending"),
+          error: null
+        }))
+      }))
+    })),
+    update: vi.fn(payload => ({
+      eq: vi.fn(async (_column, id) => {
+        const item = adminDiscoveries.items.find(row => String(row.id) === String(id));
+        if (item) Object.assign(item, payload);
+        return { error: null };
+      })
+    }))
+  };
   const client = {
     database,
     adminCatalog,
+    adminDiscoveries,
     callback: null,
     auth: {
       getSession: vi.fn().mockResolvedValue({ data: { session: null }, error: null }),
@@ -40,7 +59,7 @@ const createAuthClient = () => {
     },
     from: vi.fn((table) => table === "contest_catalog" ? {
       upsert: adminCatalog.upsert
-    } : ({
+    } : table === "contest_discoveries" ? adminDiscoveries : ({
       select: () => ({
         eq: () => ({
           maybeSingle: database.maybeSingle
@@ -244,6 +263,33 @@ describe("Autenticação EditalRadar", () => {
       deleted: false
     })));
     expect(await screen.findByText("Analista de Controle")).toBeInTheDocument();
+  });
+
+  it("mostra descobertas na fila e preenche o formulário ao revisar", async () => {
+    const client = createAuthClient();
+    client.adminDiscoveries.items = [{
+      id: 88,
+      source_url: "https://orgao.gov.br/concursos",
+      candidate_url: "https://orgao.gov.br/editais/edital-2027.pdf",
+      title: "Edital 2027 - Analista",
+      context: "Link identificado em página oficial",
+      discovery_type: "new_link",
+      detected_at: "2026-11-21T12:00:00.000Z",
+      status: "pending"
+    }];
+
+    render(<App authClient={client} authConfigured />);
+    await waitFor(() => expect(client.callback).toBeTypeOf("function"));
+    client.callback("SIGNED_IN", {
+      user: { id: "admin-queue", email: "admin@example.com", app_metadata: { role: "admin" } }
+    });
+    await screen.findByText("Dados sincronizados");
+    fireEvent.click(await screen.findByRole("button", { name: "Administração" }));
+
+    expect(await screen.findByText("Edital 2027 - Analista")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Revisar e cadastrar" }));
+    expect(screen.getByLabelText("Cargo")).toHaveValue("Edital 2027 - Analista");
+    expect(screen.getByLabelText("Link oficial (HTTPS)")).toHaveValue("https://orgao.gov.br/editais/edital-2027.pdf");
   });
 
   it("permite editar e salvar o nome de exibição no perfil da conta", async () => {
