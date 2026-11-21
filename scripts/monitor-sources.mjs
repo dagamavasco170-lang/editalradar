@@ -1,9 +1,9 @@
 import { createHash } from "node:crypto";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { mkdir, readFile, writeFile, appendFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile, appendFile, mkdtemp, rm } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
-import { resolve, dirname } from "node:path";
+import { resolve, dirname, join } from "node:path";
 import { concursos, sourceRegistry } from "../src/data/concursos.js";
 
 const STATE_PATH = process.env.SOURCE_MONITOR_STATE || ".cache/source-monitor-state.json";
@@ -76,54 +76,71 @@ const retryAfterMilliseconds = (headers, now = Date.now()) => {
 export async function fetchOfficialSourceWithCurl(url, options = {}) {
   const safeUrl = validateTrustedOfficialUrl(url).href;
   const timeoutMs = Math.max(1000, Number(options.timeoutMs) || 20000);
-  const maxBytes = Math.max(1024 * 1024, Number(options.maxBytes) || MAX_BYTES);
-  const args = [
-    "--silent", "--show-error", "--compressed",
-    "--connect-timeout", String(Math.min(10, Math.ceil(timeoutMs / 1000))),
-    "--max-time", String(Math.ceil(timeoutMs / 1000)),
-    "--max-redirs", "0",
-    "--dump-header", "-",
-    "--output", "-",
-    "--write-out", "\\n__EDITALRADAR_STATUS__:%{http_code}",
-    "--user-agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 EditalRadar/1.0",
-    "--header", "Accept: text/html,application/xhtml+xml,application/pdf;q=0.9,*/*;q=0.7",
-    "--header", "Accept-Language: pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
-    "--header", "Cache-Control: no-cache",
-    safeUrl
-  ];
-  const { stdout } = await execFileAsync("curl", args, {
-    encoding: "buffer",
-    maxBuffer: maxBytes + 512 * 1024,
-    timeout: timeoutMs + 3000
-  });
-  const output = Buffer.from(stdout);
-  const marker = Buffer.from("\\n__EDITALRADAR_STATUS__:");
-  const markerIndex = output.lastIndexOf(marker);
-  if (markerIndex < 0) throw new Error("O transporte alternativo não retornou um status HTTP legível.");
-  const status = Number(output.subarray(markerIndex + marker.length).toString("utf8").trim());
-  if (!Number.isInteger(status) || status < 100 || status > 599) {
-    throw new Error("Status HTTP inválido no transporte alternativo.");
+  const directory = await mkdtemp(join(tmpdir(), "editalradar-monitor-curl-"));
+  const bodyPath = join(directory, "response-body.bin");
+  const headersPath = join(directory, "response-headers.txt");
+  try {
+    const { stdout: metadata } = await execFileAsync("curl", [
+      "--silent",
+      "--show-error",
+      "--compressed",
+      "--max-redirs", "0",
+      "--connect-timeout", String(Math.min(10, Math.ceil(timeoutMs / 1000))),
+      "--max-time", String(Math.ceil(timeoutMs / 1000)),
+      "--max-filesize", String(MAX_BYTES),
+      "--user-agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 EditalRadar/1.0",
+      "--header", "Accept: text/html,application/xhtml+xml,application/pdf;q=0.9,*/*;q=0.7",
+      "--header", "Accept-Language: pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
+      "--header", "Cache-Control: no-cache",
+      "--dump-header", headersPath,
+      "--output", bodyPath,
+      "--write-out", "%{http_code}\\n%{url_effective}\\n%{content_type}",
+      safeUrl
+    ], {
+      encoding: "utf8",
+      timeout: timeoutMs + 3000,
+      maxBuffer: 64 * 1024
+    });
+    const metadataLines = metadata.trim().split("\\n");
+    const status = Number(metadataLines[0]);
+    const finalUrl = metadataLines[1] || safeUrl;
+    const contentType = metadataLines[2] || "";
+    if (!Number.isInteger(status) || status < 100 || status > 599) {
+      throw new Error("curl não retornou um status HTTP válido.");
+    }
+    const final = validateTrustedOfficialUrl(finalUrl);
+    if (final.href !== finalUrl) throw new Error("O destino final do curl não corresponde a uma URL oficial validada.");
+
+    const rawHeaders = await readFile(headersPath, "utf8");
+    const responseHeaders = {};
+    let currentHeaders = {};
+    for (const line of rawHeaders.split(/\\r?\\n/)) {
+      if (line.startsWith("HTTP/")) {
+        if (Object.keys(currentHeaders).length) Object.assign(responseHeaders, currentHeaders);
+        currentHeaders = {};
+      } else {
+        const separator = line.indexOf(":");
+        if (separator <= 0) continue;
+        const name = line.slice(0, separator).trim().toLowerCase();
+        const value = line.slice(separator + 1).trim();
+        currentHeaders[name] = currentHeaders[name] ? currentHeaders[name] + ", " + value : value;
+      }
+    }
+    Object.assign(responseHeaders, currentHeaders);
+    if (contentType && !responseHeaders["content-type"]) responseHeaders["content-type"] = contentType;
+    const body = await readFile(bodyPath);
+    if (body.byteLength > MAX_BYTES) throw new Error("Resposta excede o limite de 12 MB.");
+    return {
+      status,
+      statusText: "",
+      ok: status >= 200 && status < 300,
+      headers: new Headers(responseHeaders),
+      url: final.href,
+      arrayBuffer: async () => body.buffer.slice(body.byteOffset, body.byteOffset + body.byteLength)
+    };
+  } finally {
+    await rm(directory, { recursive: true, force: true }).catch(() => {});
   }
-  const responseBytes = output.subarray(0, markerIndex);
-  const headerEnd = responseBytes.indexOf(Buffer.from("\\r\\n\\r\\n"));
-  if (headerEnd < 0) throw new Error("Cabeçalhos HTTP ausentes no transporte alternativo.");
-  const headerLines = responseBytes.subarray(0, headerEnd).toString("utf8").split(/\\r?\\n/);
-  const headers = new Headers();
-  for (const line of headerLines.slice(1)) {
-    const separator = line.indexOf(":");
-    if (separator <= 0) continue;
-    try { headers.append(line.slice(0, separator).trim(), line.slice(separator + 1).trim()); }
-    catch { /* Ignora cabeçalhos fora do padrão. */ }
-  }
-  const body = responseBytes.subarray(headerEnd + 4);
-  return {
-    status,
-    statusText: headerLines[0]?.split(" ").slice(2).join(" ") || "",
-    ok: status >= 200 && status < 300,
-    headers,
-    url: safeUrl,
-    arrayBuffer: async () => body.buffer.slice(body.byteOffset, body.byteOffset + body.byteLength)
-  };
 }
 
 export async function fetchOfficialSource(url, options = {}) {
@@ -163,9 +180,11 @@ export async function fetchOfficialSource(url, options = {}) {
             if (fallbackResponse && ![401, 403].includes(fallbackResponse.status)) {
               response = fallbackResponse;
               usedFallbackTransport = true;
+            } else if (fallbackResponse) {
+              console.warn("Fonte oficial continuou bloqueada após transporte alternativo: " + currentUrl + " (HTTP " + fallbackResponse.status + ").");
             }
-          } catch {
-            // Preserva a resposta original se o transporte alternativo falhar.
+          } catch (fallbackError) {
+            console.warn("Transporte alternativo falhou para " + currentUrl + ": " + String(fallbackError?.message || fallbackError).slice(0, 220));
           }
         }
         if ([301, 302, 303, 307, 308].includes(response.status)) {
