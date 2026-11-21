@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import App from "./App.jsx";
 import { concursos } from "./data/concursos.js";
 import { scoreRecommendation } from "./App.jsx";
-import { buildCatalogSnapshot } from "./lib/notifications";
+import { buildCatalogSnapshot, getVisibleNotifications } from "./lib/notifications";
 
 describe("EditalRadar", () => {
   it("detecta um novo concurso e abre seus detalhes pela central de notificações", async () => {
@@ -62,7 +62,35 @@ describe("EditalRadar", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /Limpar histórico/ }));
     expect(screen.getByText(/Nenhuma novidade por enquanto/)).toBeInTheDocument();
-    expect(JSON.parse(localStorage.getItem("er-notifications:visitor"))).toEqual([]);
+    const storedHistory = JSON.parse(localStorage.getItem("er-notifications:visitor"));
+    expect(storedHistory).toHaveLength(2);
+    expect(storedHistory.every((item) => item.dismissedAt && item.read)).toBe(true);
+    expect(getVisibleNotifications(storedHistory)).toEqual([]);
+  });
+
+  it("não recria como nova uma notificação já apagada mesmo se o catálogo voltar a ser comparado", async () => {
+    localStorage.clear();
+    const latest = [...concursos].reverse().find((item) => !String(item.status || "").toLowerCase().includes("concurso listado"));
+    const previous = buildCatalogSnapshot(concursos.filter((item) => String(item.id) !== String(latest.id)));
+    localStorage.setItem("er-catalog-snapshot:visitor", JSON.stringify(previous));
+
+    const firstRender = render(<App />);
+    expect(await screen.findByRole("button", { name: /Novo concurso no catálogo/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Ver notificações/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Limpar histórico/ }));
+
+    const storedAfterDismissal = JSON.parse(localStorage.getItem("er-notifications:visitor"));
+    expect(storedAfterDismissal).toEqual([
+      expect.objectContaining({ id: `new-${latest.id}`, dismissedAt: expect.any(String), read: true })
+    ]);
+
+    // Simulate a stale catalog snapshot after refresh; the dismissal marker must win.
+    localStorage.setItem("er-catalog-snapshot:visitor", JSON.stringify(previous));
+    firstRender.unmount();
+    render(<App />);
+
+    expect(screen.queryByRole("button", { name: /Novo concurso no catálogo/ })).not.toBeInTheDocument();
+    expect(screen.getByText(/Nenhuma novidade por enquanto/)).toBeInTheDocument();
   });
 
   it("mostra instruções para instalar o aplicativo em diferentes dispositivos", () => {
