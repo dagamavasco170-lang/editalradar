@@ -826,7 +826,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
       area: "Federal",
       estado: "Brasil",
       localidade: "Brasil",
-      status: item.discovery_type === "new_link" ? "Edital a verificar" : "Pré-edital / anunciado",
+      status: item.discovery_type === "new_link" ? "Edital a verificar" : item.discovery_type === "source_baseline" ? "A verificar na fonte oficial" : "Pré-edital / anunciado",
       atoOficial: "",
       sourceUrl: item.candidate_url || item.source_url,
       observacao: [
@@ -1046,7 +1046,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                   {discoveryItems.map(item => <article className="admin-row discovery-row" key={item.id}>
                     <div className="admin-row-copy">
                       <strong>{item.title}</strong>
-                      <span>{item.discovery_type === "new_link" ? "Novo link identificado" : "Página oficial alterada"} · {item.detected_at ? new Date(item.detected_at).toLocaleString("pt-BR") : "Data não informada"}</span>
+                      <span>{item.discovery_type === "new_link" ? "Novo link identificado" : item.discovery_type === "source_baseline" ? "Fonte para verificação inicial" : "Página oficial alterada"} · {item.detected_at ? new Date(item.detected_at).toLocaleString("pt-BR") : "Data não informada"}</span>
                       <small>{item.context}</small>
                       <a href={item.candidate_url} target="_blank" rel="noreferrer">Abrir publicação ou página identificada ↗</a>
                     </div>
