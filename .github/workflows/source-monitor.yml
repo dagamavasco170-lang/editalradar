@@ -47,6 +47,13 @@ jobs:
         id: monitor
         run: npm run monitor:sources
 
+      - name: Enviar oportunidades detectadas para a fila administrativa
+        if: steps.monitor.outputs.discovered_count != '0'
+        run: npm run publish:discoveries
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
       - name: Salvar histórico da verificação
         uses: actions/cache/save@v4
         with:
@@ -68,7 +75,11 @@ jobs:
               ...report.changed.map(item => ({ ...item, category: "Conteúdo alterado" })),
               ...report.unavailable.map(item => ({ ...item, category: "Fonte indisponível" })),
               ...report.added.map(item => ({ ...item, category: "Nova fonte cadastrada" })),
-              ...report.removed.map(item => ({ ...item, category: "Fonte removida" }))
+              ...report.removed.map(item => ({ ...item, category: "Fonte removida" })),
+              ...(report.discoveries || []).map(item => ({
+                ...item,
+                category: item.discovery_type === "new_link" ? "Novo link de oportunidade" : "Página oficial alterada para revisão"
+              }))
             ];
             const details = findings.map(item =>
               "- **" + item.category + ":** [" + item.url + "](" + item.url + ") — " + item.message
