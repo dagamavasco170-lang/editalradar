@@ -1,6 +1,12 @@
 name: Monitorar fontes de concursos
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - src/data/concursos.js
+      - scripts/monitor-sources.mjs
+      - .github/workflows/source-monitor.yml
   schedule:
     - cron: "0 11 * * *"
   workflow_dispatch:
