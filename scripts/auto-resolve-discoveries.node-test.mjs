@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { appendContext, buildPendingDiscoveriesUrl, buildRetificationUpdate, classifyDiscovery, extractDocumentText, extractRoleNamesFromText, extractVacancyDetails, fetchCandidateWithRetry, findMatchingContestForRetification, inferOrganization, mapWithConcurrency, normalizeContestIdentity, prepareDiscoveryDocument, summarizeFetchError } from "./auto-resolve-discoveries.mjs";
+import { appendContext, buildPendingDiscoveriesUrl, buildRetificationUpdate, classifyDiscovery, extractDocumentText, extractRoleNamesFromText, extractVacancyDetails, fetchCandidateWithRetry, findMatchingContestForRetification, inferOrganization, mapWithConcurrency, normalizeContestIdentity, prepareDiscoveryDocument, summarizeFetchError , assessNoticeFreshness} from "./auto-resolve-discoveries.mjs";
 
 const discovery = {
   id: 1,
@@ -70,6 +70,47 @@ test("extrai lista de cargos da seção Cargo/Área/Especialidade no padrão FCC
   assert.equal(result.data.estado,"Bahia");
   assert.equal(result.data.area,"Estadual");
   assert.match(result.data.observacao,/Técnico Judiciário/);
+});
+
+
+test("descarta editais históricos sem sinal oficial de vigência", () => {
+  const result = assessNoticeFreshness({
+    candidateUrl:"https://conhecimento.fgv.br/concursos/tjmsjuiz23",
+    title:"Concurso Público para Tribunal de Justiça do Estado de Mato Grosso do Sul - Juiz Substituto",
+    documentTitle:"TJMS Juiz Substituto 2023",
+    text:"Edital 01/2023. Situação: encerrado. Resultado final homologado."
+  }, new Date("2026-11-21T19:00:00-03:00"));
+  assert.equal(result.decision,"dismiss");
+  assert.equal(result.editionYear,2023);
+});
+
+test("mantém concursos do ano anterior para revisão quando a fonte não confirma andamento", () => {
+  const result = assessNoticeFreshness({
+    candidateUrl:"https://conhecimento.fgv.br/concursos/concursoteste25",
+    title:"Concurso Público 2025",
+    text:"Edital 01/2025."
+  }, new Date("2026-11-21T19:00:00-03:00"));
+  assert.equal(result.decision,"review");
+  assert.equal(result.editionYear,2025);
+});
+
+test("aceita ano antigo somente quando a fonte oficial comprova andamento atual", () => {
+  const result = assessNoticeFreshness({
+    candidateUrl:"https://conhecimento.fgv.br/concursos/concursoteste24",
+    title:"Concurso Público 2024",
+    text:"Edital 01/2024. Situação: Em andamento."
+  }, new Date("2026-11-21T19:00:00-03:00"));
+  assert.equal(result.decision,"publish");
+  assert.equal(result.status,"Em andamento");
+});
+
+test("exige revisão quando a página não informa ano nem situação", () => {
+  const result = assessNoticeFreshness({
+    candidateUrl:"https://orgao.gov.br/concursos/seleção",
+    title:"Concurso Público",
+    text:"Edital. Cargo: Analista."
+  }, new Date("2026-11-21T19:00:00-03:00"));
+  assert.equal(result.decision,"review");
 });
 
 test("identifica órgão público explicitamente declarado", () => {

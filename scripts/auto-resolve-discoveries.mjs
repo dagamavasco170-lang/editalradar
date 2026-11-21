@@ -242,6 +242,58 @@ export function extractVacancyDetails(text, tableRows = []) {
   return { total, imediatas, reserva };
 }
 
+export function assessNoticeFreshness({ candidateUrl, title = "", heading = "", documentTitle = "", text = "" }, now = new Date()) {
+  const source = [
+    String(title || ""),
+    String(heading || ""),
+    String(documentTitle || ""),
+    String(candidateUrl || ""),
+    String(text || "").slice(0, 5000)
+  ].join(" ");
+  const statusContext = [
+    String(title || ""),
+    String(heading || ""),
+    String(documentTitle || ""),
+    String(text || "").slice(0, 1800)
+  ].join(" ");
+  const activeSignal = /\b(?:em andamento|inscri(?:ções|coes) abertas|período de inscrição aberto|prazo de inscrição aberto)\b/i.test(statusContext);
+  const archivedSignal = /\b(?:concurso encerrado|processo seletivo encerrado|certame encerrado|concurso finalizado|processo seletivo finalizado|certame finalizado|resultado final homologado|validade(?: do concurso)? encerrada|concurso cancelado|certame cancelado)\b/i.test(statusContext);
+  const years = [...source.matchAll(/\b(20\d{2})\b/g)].map(match => Number(match[1]));
+  const segments = (() => {
+    try { return new URL(candidateUrl).pathname.split("/").filter(Boolean); }
+    catch { return []; }
+  })();
+  for (const segment of segments) {
+    const shortYear = segment.match(/[a-zA-Z](\d{2})$/);
+    if (!shortYear) continue;
+    const value = Number(shortYear[1]);
+    years.push(value <= 39 ? 2000 + value : 1900 + value);
+  }
+  const editionYear = years.length ? Math.max(...years) : null;
+  const currentYear = new Date(now).getFullYear();
+
+  if (archivedSignal && !activeSignal) {
+    return { decision: "dismiss", editionYear, activeSignal, status: "Encerrado", reason: "A própria publicação oficial identifica o certame como encerrado, finalizado, homologado ou cancelado." };
+  }
+  if (archivedSignal && activeSignal) {
+    return { decision: "review", editionYear, activeSignal, status: "Situação conflitante", reason: "A publicação contém sinais contraditórios de situação atual e encerramento; exige conferência humana." };
+  }
+  if (editionYear !== null && editionYear <= currentYear - 2 && !activeSignal) {
+    return { decision: "dismiss", editionYear, activeSignal, status: "Arquivo histórico", reason: "O edital identificado é de " + editionYear + " e a fonte não comprova que o certame continua em andamento." };
+  }
+  if (editionYear === null && !activeSignal) {
+    return { decision: "review", editionYear, activeSignal, status: "Ano/situação a confirmar", reason: "Não foi possível confirmar o ano do edital nem um sinal oficial de vigência atual." };
+  }
+  if (editionYear !== null && editionYear < currentYear && !activeSignal) {
+    return { decision: "review", editionYear, activeSignal, status: "Ano anterior · situação a confirmar", reason: "O edital é de " + editionYear + " e não há sinal explícito de que o certame permaneça em andamento." };
+  }
+
+  const status = /\binscri(?:ções|coes) abertas\b/i.test(statusContext)
+    ? "Inscrições abertas"
+    : activeSignal ? "Em andamento" : "Edital publicado · situação a confirmar";
+  return { decision: "publish", editionYear, activeSignal, status, reason: "Ano/situação atual compatível com publicação automática." };
+}
+
 export function classifyDiscovery(discovery, document, responseUrl = discovery?.candidate_url) {
   let candidate;
   try {
@@ -271,6 +323,17 @@ export function classifyDiscovery(discovery, document, responseUrl = discovery?.
       return { decision: "dismiss", reason: "O conteúdo identificado trata de assunto administrativo sem evidência de concurso ou processo seletivo público." };
     }
     return { decision: "review", reason: "Não há evidências suficientes de edital de concurso/processo seletivo com cargos ou vagas." };
+  }
+
+  const freshness = assessNoticeFreshness({
+    candidateUrl: candidate.toString(),
+    title,
+    heading: document?.heading || "",
+    documentTitle: document?.title || "",
+    text
+  });
+  if (freshness.decision !== "publish") {
+    return { decision: freshness.decision, reason: freshness.reason, editionYear: freshness.editionYear };
   }
 
   const orgao = inferOrganization(title + "\n" + text);
@@ -303,7 +366,7 @@ export function classifyDiscovery(discovery, document, responseUrl = discovery?.
       : /(?:nível\s+)?fundamental/i.test(levelEvidence) ? "Fundamental" : "A confirmar no edital";
   // Historic pages can contain old "inscrições abertas" or "encerradas" snippets.
   // New automatic records remain conservative until a dated review.
-  const status = "Edital publicado · situação a confirmar";
+  const status = freshness.status;
   const atoOficial = editalMatch?.[0]?.trim() || "Edital publicado na página oficial";
   const sigla = orgao.split(/\s+/).filter(word => /^[A-ZÁÉÍÓÚÂÊÔÃÕÇ]{2,}$/.test(word)).join("").slice(0, 12)
     || orgao.replace(/[^A-Za-zÀ-ÿ]/g, "").slice(0, 8).toUpperCase();
@@ -311,7 +374,7 @@ export function classifyDiscovery(discovery, document, responseUrl = discovery?.
 
   return {
     decision: "publish",
-    reason: "Fonte oficial contém edital, seleção pública, cargo e órgão identificáveis.",
+    reason: "Fonte oficial contém edital, seleção pública, cargo e órgão identificáveis. " + freshness.reason,
     data: {
       sigla,
       cargo: cargo.slice(0, 160),
@@ -330,7 +393,7 @@ export function classifyDiscovery(discovery, document, responseUrl = discovery?.
       verificacaoAutomatica: {
         em: new Date().toISOString(),
         fonte: candidate.toString(),
-        sinais: ["publicação oficial", "edital", recruitmentType.toLowerCase(), "órgão identificado", "cargo identificado", "jurisdição identificada"]
+        sinais: ["publicação oficial", "edital", recruitmentType.toLowerCase(), "órgão identificado", "cargo identificado", "jurisdição identificada", "vigência temporal avaliada: " + (freshness.editionYear || freshness.status)]
       },
       observacao: "Registro estruturado automaticamente pelo EditalRadar a partir da publicação oficial. A situação das inscrições permanece a confirmar porque a página pode conter referências históricas. Confira o edital e suas retificações antes de tomar decisões."
         + (detectedRoles.length > 1 ? " Cargos identificados na publicação oficial: " + detectedRoles.slice(0, 12).join("; ") + (detectedRoles.length > 12 ? "; entre outros" : "") + "." : "")
