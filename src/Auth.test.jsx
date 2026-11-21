@@ -471,6 +471,29 @@ describe("Autenticação EditalRadar", () => {
     expect(screen.queryByRole("button", { name: /Limpar filtros/ })).not.toBeInTheDocument();
   });
 
+  it("abre a página completa de um concurso, mostra cronograma e permite focar a preparação", async () => {
+    const client = createAuthClient();
+    render(<App authClient={client} authConfigured />);
+
+    fireEvent.change(screen.getByPlaceholderText("Buscar cargo ou órgão..."), {
+      target: { value: "Polícia Civil" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Ver detalhes/ }));
+
+    expect(await screen.findByRole("heading", { name: "Agente e Escrivão de Polícia Civil" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Cronograma e etapas" })).toBeInTheDocument();
+    expect(screen.getByText(/06 de dezembro de 2026/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Acessar fonte oficial/ })).toHaveAttribute("href", "https://www.cebraspe.org.br/concursos/pc_al_26");
+
+    fireEvent.click(screen.getByRole("button", { name: "Preparar para este concurso" }));
+    expect(screen.getByRole("heading", { name: "Área de estudos" })).toBeInTheDocument();
+    expect(screen.getByText("FOCO DA SUA PREPARAÇÃO")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Voltar aos detalhes" }));
+    expect(screen.getByRole("heading", { name: "Agente e Escrivão de Polícia Civil" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Voltar para concursos/ }));
+    expect(screen.getByRole("heading", { name: "Concursos e avisos no catálogo" })).toBeInTheDocument();
+  });
+
   it("não altera senha quando os campos de confirmação são diferentes", async () => {
     const client = createAuthClient();
     render(<App authClient={client} authConfigured />);

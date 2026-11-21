@@ -68,6 +68,25 @@ test("identifica claramente um registro preliminar que não possui edital confir
     .toHaveAttribute("href", "https://concursor.com.br/editais?uf=AL");
 });
 
+test("abre a página individual de um concurso com cronograma e fonte oficial", async ({ page }) => {
+  await page.goto("./");
+  await page.getByPlaceholder("Buscar cargo ou órgão...").fill("Polícia Civil");
+  await page.getByRole("button", { name: /Ver detalhes/ }).click();
+
+  await expect(page.getByRole("heading", { name: "Agente e Escrivão de Polícia Civil" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Cronograma e etapas" })).toBeVisible();
+  await expect(page.getByText(/06 de dezembro de 2026/)).toBeVisible();
+  await expect(page.getByRole("link", { name: /Acessar fonte oficial/ }))
+    .toHaveAttribute("href", "https://www.cebraspe.org.br/concursos/pc_al_26");
+
+  await page.getByRole("button", { name: "Preparar para este concurso" }).click();
+  await expect(page.getByText("FOCO DA SUA PREPARAÇÃO")).toBeVisible();
+  await page.getByRole("button", { name: "Voltar aos detalhes" }).click();
+  await expect(page.getByRole("heading", { name: "Agente e Escrivão de Polícia Civil" })).toBeVisible();
+  await page.getByRole("button", { name: /Voltar para concursos/ }).click();
+  await expect(page.getByRole("heading", { name: "Concursos e avisos no catálogo" })).toBeVisible();
+});
+
 test("salva e remove um alerta personalizado no navegador", async ({ page }) => {
   await page.goto("./");
   await page.getByPlaceholder("Buscar cargo ou órgão...").fill("PROCON");

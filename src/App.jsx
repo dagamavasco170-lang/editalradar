@@ -64,6 +64,74 @@ const describeAlert = (filters) => {
 
 const isPreliminary = (item) => /concurso listado\s*·\s*verificar/i.test(item?.status || "");
 
+
+const PORTUGUESE_MONTHS = {
+  janeiro: 0, fevereiro: 1, "março": 2, marco: 2, abril: 3, maio: 4, junho: 5,
+  julho: 6, agosto: 7, setembro: 8, outubro: 9, novembro: 10, dezembro: 11
+};
+
+const extractContestTimeline = (item) => {
+  if (!item || typeof item !== "object") return [];
+  const fields = [
+    { origin: "Situação atual", value: item.status || "" },
+    { origin: "Observações da ficha", value: item.observacao || "" },
+    { origin: "Ato oficial informado", value: item.atoOficial || "" }
+  ];
+  const events = [];
+  const seen = new Set();
+  const patterns = [
+    /\b(\d{2})\/(\d{2})\/(\d{4})\b/g,
+    /\b(\d{1,2})º?\s+de\s+(janeiro|fevereiro|março|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\s+de\s+(\d{4})/gi
+  ];
+  for (const field of fields) {
+    for (const pattern of patterns) {
+      pattern.lastIndex = 0;
+      let match;
+      while ((match = pattern.exec(field.value)) !== null) {
+        let day;
+        let month;
+        let year;
+        if (pattern === patterns[0]) {
+          day = Number(match[1]);
+          month = Number(match[2]) - 1;
+          year = Number(match[3]);
+        } else {
+          day = Number(match[1]);
+          month = PORTUGUESE_MONTHS[match[2].toLocaleLowerCase("pt-BR")];
+          year = Number(match[3]);
+        }
+        const date = new Date(year, month, day, 12, 0, 0, 0);
+        if (!Number.isInteger(month) || date.getFullYear() !== year || date.getMonth() !== month || date.getDate() !== day) continue;
+        const context = field.value.slice(Math.max(0, match.index - 95), Math.min(field.value.length, match.index + match[0].length + 65));
+        const normalized = context.toLocaleLowerCase("pt-BR");
+        const label = /inscri|prazo/.test(normalized) ? "Inscrições e prazos"
+          : /prova|exame/.test(normalized) ? "Prova ou avaliação"
+          : /resultado|gabarito|classifica|convoca/.test(normalized) ? "Resultado ou etapa"
+          : /edital|portaria|publica|retifica|autoriza/.test(normalized) ? "Publicação oficial"
+          : "Data mencionada na ficha";
+        const key = date.toISOString().slice(0, 10) + "|" + label;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        events.push({ date, label, origin: field.origin, context: context.replace(/\s+/g, " ").trim() });
+      }
+    }
+  }
+  return events.sort((a, b) => a.date.getTime() - b.date.getTime() || a.label.localeCompare(b.label, "pt-BR"));
+};
+
+const getAdditionalOfficialDocuments = (item) => {
+  const documents = Array.isArray(item?.documentos) ? item.documentos
+    : Array.isArray(item?.documents) ? item.documents : [];
+  return documents.filter((document) => {
+    const url = typeof document === "string" ? document : document?.url || document?.href;
+    return typeof url === "string" && /^https:\/\//i.test(url);
+  }).map((document) => ({
+    title: typeof document === "string" ? "Documento oficial" : document.title || document.titulo || document.label || "Documento oficial",
+    url: typeof document === "string" ? document : document.url || document.href,
+    description: typeof document === "string" ? "" : document.description || document.descricao || ""
+  }));
+};
+
 const brazilianStates = [
   "Acre", "Alagoas", "Amapá", "Amazonas", "Bahia", "Ceará", "Distrito Federal",
   "Espírito Santo", "Goiás", "Maranhão", "Mato Grosso", "Mato Grosso do Sul",
@@ -119,6 +187,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   const [favorites, setFavorites] = useState(() => readStore("er-favorites", []));
   const [tasks, setTasks] = useState(() => readStore("er-tasks", [false, false, false, false]));
   const [selected, setSelected] = useState(null);
+  const [detailOrigin, setDetailOrigin] = useState("concursos");
   const [answer, setAnswer] = useState("");
   const [checkedAnswer, setCheckedAnswer] = useState(false);
   const [authUser, setAuthUser] = useState(null);
@@ -150,6 +219,19 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   const catalogSnapshotStorageKey = "er-catalog-snapshot:" + (authUser?.id || "visitor");
   const catalog = useMemo(() => applyCatalogOverrides(concursos, catalogOverrides), [catalogOverrides]);
   const isAdmin = authUser?.app_metadata?.role === "admin";
+  const openContestDetails = (contest) => {
+    if (!contest) return;
+    setDetailOrigin(page === "favoritos" ? "favoritos" : "concursos");
+    setSelected(contest);
+    setPage("detalhes");
+  };
+  const closeContestDetails = () => {
+    setPage(detailOrigin);
+    setSelected(null);
+  };
+  const selectedTimeline = useMemo(() => extractContestTimeline(selected), [selected]);
+  const selectedDocuments = useMemo(() => getAdditionalOfficialDocuments(selected), [selected]);
+  const selectedSourceUrl = /^https:\/\//i.test(selected?.sourceUrl || "") ? selected.sourceUrl : sourceUrl;
 
   useEffect(() => {
     const handleBeforeInstallPrompt = (event) => {
@@ -493,7 +575,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
         browserNotice.onclick = () => {
           window.focus();
           const contest = catalog.find((entry) => String(entry.id) === String(item.itemId));
-          if (contest) setSelected(contest);
+          if (contest) openContestDetails(contest);
           browserNotice.close();
         };
       });
@@ -822,7 +904,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     localStorage.setItem(notificationStorageKey, JSON.stringify(next));
     void syncUserData({ notifications: next });
     const contest = catalog.find((item) => String(item.id) === String(notification.itemId));
-    if (contest) setSelected(contest);
+    if (contest) openContestDetails(contest);
   };
 
   const dismissSingleNotification = (notificationId) => {
@@ -1036,9 +1118,9 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
         </a>
         <div className="side-label">MENU PRINCIPAL</div>
         <nav className="sidebar-nav" aria-label="Navegação principal">
-          <button className={page === "concursos" ? "nav-item active" : "nav-item"} onClick={() => setPage("concursos")} aria-current={page === "concursos" ? "page" : undefined}><span aria-hidden="true">▦</span> Concursos</button>
+          <button className={page === "concursos" || (page === "detalhes" && detailOrigin === "concursos") ? "nav-item active" : "nav-item"} onClick={() => { setSelected(null); setPage("concursos"); }} aria-current={page === "concursos" || (page === "detalhes" && detailOrigin === "concursos") ? "page" : undefined}><span aria-hidden="true">▦</span> Concursos</button>
           <button className={page === "estudos" ? "nav-item active" : "nav-item"} onClick={() => setPage("estudos")} aria-current={page === "estudos" ? "page" : undefined}><span aria-hidden="true">◷</span> Área de estudos</button>
-          <button className={page === "favoritos" ? "nav-item active" : "nav-item"} onClick={() => setPage("favoritos")} aria-current={page === "favoritos" ? "page" : undefined}><span aria-hidden="true">♡</span> Meus favoritos <b>{favorites.length}</b></button>
+          <button className={page === "favoritos" || (page === "detalhes" && detailOrigin === "favoritos") ? "nav-item active" : "nav-item"} onClick={() => { setSelected(null); setPage("favoritos"); }} aria-current={page === "favoritos" || (page === "detalhes" && detailOrigin === "favoritos") ? "page" : undefined}><span aria-hidden="true">♡</span> Meus favoritos <b>{favorites.length}</b></button>
           {isAdmin && <button className={page === "admin" ? "nav-item active" : "nav-item"} onClick={() => setPage("admin")} aria-label="Administração" aria-current={page === "admin" ? "page" : undefined}><span aria-hidden="true">⚙</span> Administração</button>}
         </nav>
         <div className="sidebar-bottom">
@@ -1049,16 +1131,169 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
 
       <main className="main">
         <header className="topbar">
-          <div className="breadcrumb">Início <span>/</span> {page === "concursos" ? "Concursos" : page === "estudos" ? "Área de estudos" : page === "admin" ? "Administração" : "Meus favoritos"}</div>
+          <div className="breadcrumb">Início <span>/</span> {page === "detalhes" ? "Detalhes do concurso" : page === "concursos" ? "Concursos" : page === "estudos" ? "Área de estudos" : page === "admin" ? "Administração" : "Meus favoritos"}</div>
           <div className="top-actions"><span className="date-chip">◷ &nbsp;Sua jornada começa hoje</span><button className="install-trigger" type="button" onClick={handleInstallApp} disabled={isAppInstalled}>{isAppInstalled ? "App instalado" : deferredInstallPrompt ? "Instalar app" : "Como instalar"}</button><button className="notification-bell" type="button" onClick={openNotifications} aria-label={`Ver notificações (${unreadNotificationCount} não lidas)`} title="Ver notificações">♧{unreadNotificationCount > 0 && <span>{unreadNotificationCount > 9 ? "9+" : unreadNotificationCount}</span>}</button>{authUser ? <button className="auth-trigger" onClick={handleSignOut} disabled={!authReady}>Sair da conta</button> : <button className="auth-trigger" onClick={() => { setShowAuth(true); setAuthMessage(""); }}>Entrar / cadastrar</button>}<div className="mini-avatar">{(authUser?.user_metadata?.full_name || authUser?.user_metadata?.name || authUser?.email || "C")[0]?.toUpperCase() || "C"}</div></div>
         </header>
         {!isOnline && <div className="offline-status" role="status">Você está offline. O catálogo em cache e os dados locais continuam acessíveis; login e sincronização precisam de internet.</div>}
 
-        {page === "estudos" ? (
+
+        {page === "detalhes" && selected ? (
+          <section className="content detail-page">
+            <button className="detail-back" type="button" onClick={closeContestDetails}>← Voltar para {detailOrigin === "favoritos" ? "meus favoritos" : "concursos"}</button>
+            <section className="detail-hero">
+              <div className="detail-hero-copy">
+                <div className="eyebrow light">FICHA DA OPORTUNIDADE · {selected.sigla || "EDITALRADAR"}</div>
+                <span className={"status detail-status " + (isPreliminary(selected) ? "preliminary" : "")}><i />{selected.status || "Situação não informada"}</span>
+                <h1>{selected.cargo}</h1>
+                <p>{selected.orgao}{selected.vinculo ? " · " + selected.vinculo : ""}</p>
+                <div className="detail-hero-facts">
+                  <span><small>VAGAS</small><strong>{selected.vagas == null ? "A divulgar" : new Intl.NumberFormat("pt-BR").format(selected.vagas)}</strong></span>
+                  <span><small>ESCOLARIDADE</small><strong>{selected.nivel || "Não informada"}</strong></span>
+                  <span><small>LOCALIDADE</small><strong>{selected.localidade || selected.estado || "Brasil"}</strong></span>
+                </div>
+              </div>
+              <div className="detail-hero-actions">
+                <button className="detail-favorite-btn" type="button" onClick={() => toggleFavorite(selected.id)} disabled={Boolean(authUser && syncStatus === "loading")}>
+                  {favorites.includes(selected.id) ? "♥ Salvo nos favoritos" : "♡ Salvar oportunidade"}
+                </button>
+                <a className="detail-source-btn" href={selectedSourceUrl} target="_blank" rel="noopener noreferrer">
+                  {isPreliminary(selected) ? "Abrir listagem de referência ↗" : "Acessar fonte oficial ↗"}
+                </a>
+              </div>
+            </section>
+
+            <nav className="detail-section-nav" aria-label="Seções desta oportunidade">
+              <a href="#detail-overview">Visão geral</a>
+              <a href="#detail-timeline">Cronograma</a>
+              <a href="#detail-documents">Edital e documentos</a>
+              <a href="#detail-history">Histórico</a>
+            </nav>
+
+            <div className="detail-content-grid">
+              <div className="detail-main-column">
+                <section className="detail-section" id="detail-overview">
+                  <div className="detail-section-heading"><div><div className="eyebrow">RESUMO DA SELEÇÃO</div><h2>Visão geral</h2></div><span>{selected.area || "Esfera não informada"} · {selected.estado || "Brasil"}</span></div>
+                  <div className="detail-facts-grid">
+                    <div><small>Órgão responsável</small><strong>{selected.orgao || "Não informado"}</strong></div>
+                    <div><small>Cargo / especialidade</small><strong>{selected.cargo || "Não informado"}</strong></div>
+                    <div><small>Quantidade de vagas</small><strong>{selected.vagas == null ? "Não divulgada nesta ficha" : new Intl.NumberFormat("pt-BR").format(selected.vagas)}</strong></div>
+                    <div><small>Escolaridade</small><strong>{selected.nivel || "Não informada"}</strong></div>
+                    <div><small>Esfera</small><strong>{selected.area || "Não informada"}</strong></div>
+                    <div><small>Localidade</small><strong>{[selected.localidade, selected.estado].filter(Boolean).join(" · ") || "Não informada"}</strong></div>
+                    <div><small>Vínculo / edição</small><strong>{selected.vinculo || "Não informado"}</strong></div>
+                    <div><small>Ato ou edital informado</small><strong>{selected.atoOficial || "Não informado"}</strong></div>
+                  </div>
+                  <div className="detail-description">
+                    <h3>O que sabemos sobre esta oportunidade</h3>
+                    <p>{selected.observacao || "Esta ficha ainda não possui observações editoriais. Consulte a fonte oficial para confirmar requisitos, vagas e etapas."}</p>
+                  </div>
+                  {isPreliminary(selected) && <p className="detail-caution">Registro preliminar: os dados ainda não foram confirmados individualmente no edital oficial. O quantitativo de vagas, os requisitos e o cronograma não devem ser tratados como definitivos.</p>}
+                </section>
+
+                <section className="detail-section" id="detail-timeline">
+                  <div className="detail-section-heading"><div><div className="eyebrow">DATAS MENCIONADAS NA FICHA</div><h2>Cronograma e etapas</h2></div><span>{selectedTimeline.length} data(s) identificada(s)</span></div>
+                  {selectedTimeline.length > 0 ? (
+                    <ol className="detail-timeline">
+                      {selectedTimeline.map((event, index) => (
+                        <li className="detail-timeline-item" key={event.date.toISOString() + event.label}>
+                          <span className="detail-timeline-marker" aria-hidden="true">{index + 1}</span>
+                          <div className="detail-timeline-copy">
+                            <strong>{event.label}</strong>
+                            <time dateTime={event.date.toISOString().slice(0, 10)}>{event.date.toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })}</time>
+                            <p>{event.context}</p>
+                            <small>Origem: {event.origin}</small>
+                          </div>
+                        </li>
+                      ))}
+                    </ol>
+                  ) : (
+                    <div className="detail-empty-state">Esta ficha ainda não informa datas específicas de inscrições, provas ou resultados. Consulte o cronograma na publicação oficial.</div>
+                  )}
+                  <p className="detail-data-note">As datas são extraídas do texto disponível na ficha. Retificações e comunicados posteriores podem alterar o cronograma; confirme sempre na fonte oficial.</p>
+                </section>
+
+                <section className="detail-section" id="detail-documents">
+                  <div className="detail-section-heading"><div><div className="eyebrow">PUBLICAÇÕES E ARQUIVOS</div><h2>Edital e documentos</h2></div></div>
+                  <article className="detail-document-card">
+                    <span className="detail-document-icon" aria-hidden="true">↗</span>
+                    <div><strong>{/\.pdf(?:$|[?#])/i.test(selectedSourceUrl) ? "Documento em PDF" : isPreliminary(selected) ? "Listagem secundária de referência" : "Página oficial da seleção"}</strong>
+                      <p>{isPreliminary(selected) ? "Esta não é uma confirmação de edital. Use a listagem apenas como ponto de partida para conferência." : "Acesse a publicação do órgão ou da banca para consultar edital, retificações, comunicados e arquivos disponibilizados."}</p>
+                      <small>{selected.atoOficial || "Ato ou número de edital não informado nesta ficha"}</small>
+                    </div>
+                    <a href={selectedSourceUrl} target="_blank" rel="noopener noreferrer">{isPreliminary(selected) ? "Abrir referência" : "Abrir fonte"} ↗</a>
+                  </article>
+                  {selectedDocuments.length > 0 ? (
+                    <div className="detail-extra-documents">
+                      {selectedDocuments.map((document, index) => (
+                        <article className="detail-document-card" key={document.url + index}>
+                          <span className="detail-document-icon" aria-hidden="true">PDF</span>
+                          <div><strong>{document.title}</strong><p>{document.description || "Documento vinculado à ficha desta seleção."}</p></div>
+                          <a href={document.url} target="_blank" rel="noopener noreferrer">Abrir ↗</a>
+                        </article>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="detail-data-note">Nenhum arquivo adicional foi anexado individualmente a esta ficha. A fonte acima é o endereço cadastrado para acompanhamento oficial.</p>
+                  )}
+                </section>
+
+                <section className="detail-section" id="detail-history">
+                  <div className="detail-section-heading"><div><div className="eyebrow">RASTREABILIDADE</div><h2>Histórico de atualizações</h2></div><span>{Array.isArray(selected.historicoAtualizacoes) ? selected.historicoAtualizacoes.length : 0} registro(s)</span></div>
+                  {Array.isArray(selected.historicoAtualizacoes) && selected.historicoAtualizacoes.length > 0 ? (
+                    <ol className="detail-history-list">
+                      {[...selected.historicoAtualizacoes].reverse().map((entry, index) => {
+                        const record = typeof entry === "string" ? { description: entry } : entry || {};
+                        const dateValue = record.at || record.updated_at || record.date || record.data;
+                        const date = dateValue && !Number.isNaN(new Date(dateValue).getTime()) ? new Date(dateValue) : null;
+                        return <li key={dateValue || index}>
+                          <span className="detail-history-dot" />
+                          <div><strong>{record.title || record.titulo || record.description || record.descricao || record.message || record.mensagem || record.status || "Atualização registrada"}</strong>
+                            <small>{date ? date.toLocaleString("pt-BR") : "Data não informada"}{record.source ? " · " + record.source : ""}</small>
+                          </div>
+                        </li>;
+                      })}
+                    </ol>
+                  ) : (
+                    <div className="detail-empty-state">Esta ficha ainda não possui histórico individual de alterações registrado no catálogo.</div>
+                  )}
+                </section>
+              </div>
+
+              <aside className="detail-side-column">
+                <section className="detail-study-card">
+                  <div className="eyebrow">PRÓXIMO PASSO</div>
+                  <h2>Organize sua preparação</h2>
+                  <p>Use esta oportunidade como foco da sua rotina e acompanhe as tarefas gerais na área de estudos.</p>
+                  <button className="primary-btn full" type="button" onClick={() => setPage("estudos")}>Preparar para este concurso</button>
+                  <button className="detail-btn full" type="button" onClick={() => toggleFavorite(selected.id)} disabled={Boolean(authUser && syncStatus === "loading")}>
+                    {favorites.includes(selected.id) ? "Remover dos favoritos" : "Salvar nos favoritos"}
+                  </button>
+                </section>
+                <section className="detail-trust-card">
+                  <strong>Antes de tomar uma decisão</strong>
+                  <p>Confira requisitos, remuneração, lotação, taxas, prazos e eventuais retificações diretamente na publicação oficial.</p>
+                  <a href={selectedSourceUrl} target="_blank" rel="noopener noreferrer">Conferir fonte oficial ↗</a>
+                </section>
+              </aside>
+            </div>
+          </section>
+        ) : page === "estudos" ? (
+
           <section className="content">
             <div className="eyebrow">SUA ROTINA, SEU RITMO</div>
             <h1>Área de estudos</h1>
             <p className="subhead">Pequenos passos todos os dias constroem grandes aprovações.</p>
+            {selected && (
+              <section className="study-target-card" aria-label="Concurso selecionado para preparação">
+                <div><div className="eyebrow">FOCO DA SUA PREPARAÇÃO</div><strong>{selected.cargo}</strong><p>{selected.orgao} · {selected.sigla || selected.estado || "Seleção selecionada"}</p>
+                  <small>Use o edital e os comunicados oficiais como referência do conteúdo programático. As tarefas abaixo são uma rotina geral.</small>
+                </div>
+                <div className="study-target-actions">
+                  <button className="detail-btn" type="button" onClick={() => setPage("detalhes")}>Voltar aos detalhes</button>
+                  <button className="alert-remove" type="button" onClick={() => setSelected(null)}>Limpar foco</button>
+                </div>
+              </section>
+            )}
             <div className="study-grid">
               <div className="panel progress-panel"><div className="panel-head"><div><div className="eyebrow">VISÃO GERAL</div><h2>Seu progresso diário</h2></div><span className="soft-pill">Hoje</span></div>
                 <div className="progress-number">{progress}%</div><div className="progress-track"><div style={{ width: progress + "%" }} /></div><p className="muted">{tasks.filter(Boolean).length} de {tasks.length} atividades concluídas</p>
@@ -1190,7 +1425,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                             </div>
                             <button className="dashboard-milestone-open" type="button" aria-label={`Ver ${milestone.label.toLowerCase()}: ${milestone.title}`} onClick={() => {
                               const contest = catalog.find((item) => String(item.id) === String(milestone.id));
-                              if (contest) setSelected(contest);
+                              if (contest) openContestDetails(contest);
                             }}>Ver ↗</button>
                           </article>
                         ))}
@@ -1286,7 +1521,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                   <article className="recommendation-card" key={item.id}>
                     <div className="recommendation-score"><strong>{score}%</strong><small>compatibilidade</small></div>
                     <div className="recommendation-info"><strong>{item.cargo}</strong><span>{item.orgao} · {item.estado||"Brasil"}</span><small>{item.status}</small></div>
-                    <button className="recommendation-open" onClick={()=>setSelected(item)}>Ver detalhes</button>
+                    <button className="recommendation-open" onClick={()=>openContestDetails(item)}>Ver detalhes</button>
                   </article>
                 ))}</div>
               </section>
@@ -1364,7 +1599,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                   <span><small>ESCOLARIDADE</small><strong>{item.nivel || "Não informada"}</strong></span>
                   <span><small>LOCALIDADE</small><strong>{item.localidade || "Brasil"}</strong></span>
                 </div>
-                <div className="card-bottom"><div><small>{isPreliminary(item) ? "Listagem de referência" : "Fonte oficial"}</small><strong>{item.atoOficial || "Não informado"}</strong></div><button className="detail-btn" onClick={() => setSelected(item)}>Ver detalhes ↗</button></div>
+                <div className="card-bottom"><div><small>{isPreliminary(item) ? "Listagem de referência" : "Fonte oficial"}</small><strong>{item.atoOficial || "Não informado"}</strong></div><button className="detail-btn" onClick={() => openContestDetails(item)}>Ver detalhes ↗</button></div>
               </article>)}
               {((page === "favoritos" && filtered.filter(c => favorites.includes(c.id)).length === 0) || (page !== "favoritos" && filtered.length === 0)) && <div className="empty">Nenhum concurso encontrado. Experimente ajustar os filtros.</div>}
             </div>
