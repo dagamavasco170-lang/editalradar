@@ -194,6 +194,72 @@ function normalizeOfficialUrl(value) {
   }
 }
 
+
+export function findMatchingContestForRetification({
+  candidateUrl,
+  extractedData,
+  existingRows = [],
+  baseCatalog = concursos
+}) {
+  const targetOrganization = normalizeContestIdentity(extractedData?.orgao);
+  const targetPosition = normalizeContestIdentity(extractedData?.cargo);
+  if (!targetOrganization || !targetPosition) return null;
+
+  const recordsById = new Map();
+  for (const item of baseCatalog) {
+    if (item?.id == null) continue;
+    recordsById.set(String(item.id), {
+      kind: "static",
+      id: Number(item.id),
+      data: { ...item }
+    });
+  }
+
+  for (const row of existingRows) {
+    if (row?.id == null) continue;
+    if (row.deleted) {
+      recordsById.delete(String(row.id));
+      continue;
+    }
+    const key = String(row.id);
+    const baseRecord = recordsById.get(key);
+    recordsById.set(key, {
+      kind: "database",
+      id: Number(row.id),
+      data: { ...(baseRecord?.data || {}), ...(row.data || {}), id: Number(row.id) }
+    });
+  }
+
+  const candidates = [...recordsById.values()].filter(record =>
+    normalizeContestIdentity(record.data?.orgao) === targetOrganization
+    && normalizeContestIdentity(record.data?.cargo) === targetPosition
+  );
+  if (!candidates.length) return null;
+
+  const candidateKey = normalizeOfficialUrl(candidateUrl);
+  const exactUrlMatches = candidates.filter(record =>
+    normalizeOfficialUrl(record.data?.sourceUrl) === candidateKey
+  );
+  if (exactUrlMatches.length === 1) return exactUrlMatches[0];
+  if (exactUrlMatches.length > 1) return null;
+
+  let candidateHost = "";
+  try { candidateHost = new URL(candidateUrl).hostname.toLowerCase(); } catch { return null; }
+  const sameOfficialHost = candidates.filter(record => {
+    try {
+      const source = new URL(record.data?.sourceUrl);
+      return source.protocol === "https:" && source.hostname.toLowerCase() === candidateHost;
+    } catch {
+      return false;
+    }
+  });
+
+  // Só atualiza quando a combinação órgão + cargo e o domínio oficial
+  // apontam para exatamente um registro. Em concursos repetidos/ambíguos,
+  // a descoberta continua na fila para evitar alterar o concurso errado.
+  return sameOfficialHost.length === 1 ? sameOfficialHost[0] : null;
+}
+
 export function buildRetificationUpdate(existingData, extractedData, discovery, document) {
   const text = String(document?.text || "");
   const evidence = [discovery?.title, document?.title, document?.heading, text].filter(Boolean).join("\n");
@@ -548,23 +614,16 @@ export async function autoResolvePending(options = {}) {
         continue;
       }
 
-      const candidateKey = normalizeOfficialUrl(candidate.toString());
-      const matchingDatabase = existingRows.find(row =>
-        !row.deleted
-        && normalizeOfficialUrl(row.data?.sourceUrl) === candidateKey
-        && normalizeContestIdentity(row.data?.orgao) === normalizeContestIdentity(decision.data.orgao)
-        && normalizeContestIdentity(row.data?.cargo) === normalizeContestIdentity(decision.data.cargo)
-      );
-      const matchingStatic = !matchingDatabase
-        ? concursos.find(row =>
-          normalizeOfficialUrl(row.sourceUrl) === candidateKey
-          && normalizeContestIdentity(row.orgao) === normalizeContestIdentity(decision.data.orgao)
-          && normalizeContestIdentity(row.cargo) === normalizeContestIdentity(decision.data.cargo)
-        )
-        : null;
+      const matchingContest = findMatchingContestForRetification({
+        candidateUrl: candidate.toString(),
+        extractedData: decision.data,
+        existingRows
+      });
+      const matchingDatabase = matchingContest?.kind === "database" ? matchingContest : null;
+      const matchingStatic = matchingContest?.kind === "static" ? matchingContest : null;
       const sameSourceAlreadyCatalogued = existingRows.some(row =>
-        !row.deleted && normalizeOfficialUrl(row.data?.sourceUrl) === candidateKey
-      ) || concursos.some(row => normalizeOfficialUrl(row.sourceUrl) === candidateKey);
+        !row.deleted && normalizeOfficialUrl(row.data?.sourceUrl) === normalizeOfficialUrl(candidate.toString())
+      ) || concursos.some(row => normalizeOfficialUrl(row.sourceUrl) === normalizeOfficialUrl(candidate.toString()));
 
       if (matchingDatabase || matchingStatic) {
         const currentRecord = matchingDatabase || matchingStatic;
