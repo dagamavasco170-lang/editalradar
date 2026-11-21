@@ -98,3 +98,37 @@ export function detectCatalogNotifications({
 
   return { snapshot, notifications, initialized: false };
 }
+
+
+export function dismissNotificationHistory(notifications = [], dismissedAt = new Date().toISOString()) {
+  return notifications
+    .filter((item) => item && item.id != null)
+    .map((item) => ({
+      id: String(item.id),
+      read: true,
+      dismissedAt: item.dismissedAt || dismissedAt
+    }));
+}
+
+export function mergeNotificationHistory(remote = [], local = []) {
+  const merged = new Map();
+  for (const item of [...(Array.isArray(remote) ? remote : []), ...(Array.isArray(local) ? local : [])]) {
+    if (!item || item.id == null) continue;
+    const id = String(item.id);
+    const previous = merged.get(id);
+    if (!previous) {
+      merged.set(id, item);
+      continue;
+    }
+    const previousDismissed = Boolean(previous.dismissedAt);
+    const nextDismissed = Boolean(item.dismissedAt);
+    if (nextDismissed && !previousDismissed) {
+      merged.set(id, { ...previous, ...item, id });
+    }
+  }
+  return [...merged.values()];
+}
+
+export function getVisibleNotifications(notifications = []) {
+  return notifications.filter((item) => item && !item.dismissedAt);
+}
