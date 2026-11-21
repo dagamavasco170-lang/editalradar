@@ -64,6 +64,15 @@ const describeAlert = (filters) => {
 };
 
 const isPreliminary = (item) => /concurso listado\s*·\s*verificar/i.test(item?.status || "");
+const getStatusTone = (value = "") => {
+  const status = String(value).toLocaleLowerCase("pt-BR");
+  if (/inscri.{0,18}abertas|edital publicado/.test(status)) return "status-open";
+  if (/pré.?edital|autorizad|anunciad|previst|comissão formada/.test(status)) return "status-upcoming";
+  if (/encerrad|finalizad|homologad|cancelad|suspens/.test(status)) return "status-closed";
+  if (/prova|resultado|convoca|classifica/.test(status)) return "status-stage";
+  return "status-neutral";
+};
+
 
 
 const PORTUGUESE_MONTHS = {
@@ -1170,7 +1179,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   const totalVagas = verifiedRecords.reduce((sum, item) => sum + (Number(item.vagas) || 0), 0);
 
   return (
-    <div className="app-shell">
+    <div className="app-shell" data-page={page}>
       <a className="skip-link" href="#main-content">Pular para o conteúdo</a>
       <aside className="sidebar">
         <a className="brand" href="#" onClick={() => setPage("concursos")}>
@@ -1205,7 +1214,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
             <section className="detail-hero">
               <div className="detail-hero-copy">
                 <div className="eyebrow light">FICHA DA OPORTUNIDADE · {selected.sigla || "EDITALRADAR"}</div>
-                <span className={"status detail-status " + (isPreliminary(selected) ? "preliminary" : "")}><i />{selected.status || "Situação não informada"}</span>
+                <span className={"status detail-status " + getStatusTone(selected.status) + (isPreliminary(selected) ? " preliminary" : "")}><i />{selected.status || "Situação não informada"}</span>
                 <h1>{selected.cargo}</h1>
                 <p>{selected.orgao}{selected.vinculo ? " · " + selected.vinculo : ""}</p>
                 <div className="detail-hero-facts">
@@ -1725,12 +1734,13 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                 return <article className="contest-card" key={item.id}>
                 <div className="card-top"><div className="org-icon">{item.sigla}</div><div className="card-top-actions"><button className={isComparing ? "compare-card-btn selected" : "compare-card-btn"} type="button" onClick={() => toggleComparison(item)} aria-pressed={isComparing} aria-label={isComparing ? `Remover ${item.cargo} da comparação` : `Adicionar ${item.cargo} à comparação`} disabled={compareLimitReached}>{isComparing ? "✓ Comparando" : compareLimitReached ? "Limite 3" : "⇄ Comparar"}</button><button className={favorites.includes(item.id) ? "heart saved" : "heart"} onClick={() => toggleFavorite(item.id)} aria-label="Salvar favorito" disabled={Boolean(authUser && syncStatus === "loading")}>{favorites.includes(item.id) ? "♥" : "♡"}</button></div></div>
                 <div className="card-status-row">
-                  <span className={`status ${isPreliminary(item) ? "preliminary" : ""}`}><i />{item.status}</span>
+                  <span className={`status ${getStatusTone(item.status)} ${isPreliminary(item) ? "preliminary" : ""}`}><i />{item.status}</span>
                   <span className="card-area-tag">{item.area || "Federal"} · {item.estado || "Brasil"}</span>
                 </div>
                 <h3>{item.cargo}</h3><p className="org-name">{item.orgao}</p>
                 <div className="card-meta card-facts">
                   <span><small>VAGAS</small><strong>{item.vagas == null ? "A divulgar" : new Intl.NumberFormat("pt-BR").format(item.vagas)}</strong></span>
+                  <span><small>REMUNERAÇÃO</small><strong>{getContestSalary(item)}</strong></span>
                   <span><small>ESCOLARIDADE</small><strong>{item.nivel || "Não informada"}</strong></span>
                   <span><small>LOCALIDADE</small><strong>{item.localidade || "Brasil"}</strong></span>
                 </div>

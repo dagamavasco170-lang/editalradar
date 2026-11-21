@@ -202,3 +202,23 @@ test("mantém navegação inferior utilizável e sem rolagem horizontal no celul
   await navigation.getByRole("button", { name: /Área de estudos/ }).click();
   await expect(page.getByRole("heading", { name: "Monte sua rotina" })).toBeVisible();
 });
+
+
+test("apresenta salário e quatro informações essenciais nos cards do catálogo", async ({ page }) => {
+  await page.goto("./");
+  const firstCard = page.locator(".contest-card").first();
+  await expect(firstCard.locator(".card-facts > span")).toHaveCount(4);
+  await expect(firstCard.getByText("REMUNERAÇÃO")).toBeVisible();
+  await expect(firstCard.getByRole("button", { name: /Ver detalhes/ })).toBeVisible();
+});
+
+test("mantém o novo visual sem rolagem horizontal em celular e tablet", async ({ page }) => {
+  for (const width of [360, 390, 768, 1024]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("./");
+    const documentWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+    expect(documentWidth, `largura excedente em viewport de ${width}px`).toBeLessThanOrEqual(width);
+    await expect(page.locator(".hero")).toBeVisible();
+    await expect(page.locator(".contest-card").first()).toBeVisible();
+  }
+});
