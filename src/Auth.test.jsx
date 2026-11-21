@@ -13,6 +13,7 @@ const createAuthClient = () => {
         return { data: { subscription: { unsubscribe: vi.fn() } } };
       }),
       signInWithPassword: vi.fn().mockResolvedValue({ error: null }),
+      signInWithOAuth: vi.fn().mockResolvedValue({ data: { provider: "google", url: "https://accounts.google.com/" }, error: null }),
       signUp: vi.fn().mockResolvedValue({ data: { session: null }, error: null }),
       resetPasswordForEmail: vi.fn().mockResolvedValue({ error: null }),
       updateUser: vi.fn().mockResolvedValue({ error: null }),
@@ -39,6 +40,35 @@ afterEach(() => {
 });
 
 describe("Autenticação EditalRadar", () => {
+  it("inicia autenticação com Google e retorna ao GitHub Pages", async () => {
+    const client = createAuthClient();
+    render(<App authClient={client} authConfigured />);
+
+    await waitFor(() => expect(client.auth.onAuthStateChange).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole("button", { name: /Entrar \/ cadastrar/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Continuar com Google" }));
+
+    await waitFor(() => expect(client.auth.signInWithOAuth).toHaveBeenCalledWith({
+      provider: "google",
+      options: { redirectTo: window.location.origin + window.location.pathname }
+    }));
+  });
+
+  it("mostra mensagem quando o provedor Google ainda não está habilitado", async () => {
+    const client = createAuthClient();
+    client.auth.signInWithOAuth.mockResolvedValueOnce({
+      data: { provider: "google", url: null },
+      error: { message: "Unsupported provider: google" }
+    });
+    render(<App authClient={client} authConfigured />);
+
+    await waitFor(() => expect(client.auth.onAuthStateChange).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole("button", { name: /Entrar \/ cadastrar/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Continuar com Google" }));
+
+    expect(await screen.findByText("Unsupported provider: google")).toBeInTheDocument();
+  });
+
   it("permite abrir o cadastro e envia a criação da conta ao Supabase", async () => {
     const client = createAuthClient();
     render(<App authClient={client} authConfigured />);
