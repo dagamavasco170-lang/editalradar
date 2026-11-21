@@ -30,9 +30,10 @@ const matchesFilters = (item, filters) => {
 
 const describeAlert = (filters) => {
   const parts = [filters.estado, filters.localidade, filters.esfera, filters.nivel, filters.situacao, filters.query]
-    .filter((value, index) => value && ![
+    .filter((value) => value && ![
       "Todos os estados", "Todas as cidades", "Todas as esferas", "Todos os níveis", "Todas as situações"
     ].includes(value));
+  if (filters.ocultarPreliminares) parts.push("Somente fichas não preliminares");
   return parts.length ? parts.join(" · ") : "Todos os concursos";
 };
 
@@ -46,6 +47,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   const [estado, setEstado] = useState("Todos os estados");
   const [localidade, setLocalidade] = useState("Todas as cidades");
   const [situacao, setSituacao] = useState("Todas as situações");
+  const [ocultarPreliminares, setOcultarPreliminares] = useState(false);
   const [alerts, setAlerts] = useState(() => {
     const stored = readStore("er-alerts", []);
     return Array.isArray(stored) ? stored : [];
@@ -151,10 +153,10 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   const estados = [...new Set(concursos.map((item) => item.estado || "Brasil"))].sort();
   const cidades = [...new Set(concursos.map((item) => item.localidade || "Brasil"))].sort();
 
-  const currentFilters = { query, nivel, esfera, estado, localidade, situacao };
+  const currentFilters = { query, nivel, esfera, estado, localidade, situacao, ocultarPreliminares };
   const filtered = useMemo(
     () => concursos.filter((item) => matchesFilters(item, currentFilters)),
-    [query, nivel, esfera, estado, localidade, situacao]
+    [query, nivel, esfera, estado, localidade, situacao, ocultarPreliminares]
   );
 
   const syncUserData = async (changes) => {
@@ -346,6 +348,18 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
               <select aria-label="Cidade" value={localidade} onChange={(e) => setLocalidade(e.target.value)}><option>Todas as cidades</option>{cidades.map(x => <option key={x}>{x}</option>)}</select>
               <select aria-label="Escolaridade" value={nivel} onChange={(e) => setNivel(e.target.value)}><option>Todos os níveis</option>{[...new Set(concursos.map(c => c.nivel))].sort().map(x => <option key={x}>{x}</option>)}</select>
               <select aria-label="Situação" value={situacao} onChange={(e) => setSituacao(e.target.value)}><option>Todas as situações</option>{["Pré-edital / anunciado", "Inscrições abertas", "Inscrições encerradas", "Provas / resultados"].map(x => <option key={x}>{x}</option>)}</select>
+            </div>
+            <div className="filter-options">
+              <label className="preliminary-toggle">
+                <input
+                  type="checkbox"
+                  aria-label="Ocultar registros preliminares"
+                  checked={ocultarPreliminares}
+                  onChange={(event) => setOcultarPreliminares(event.target.checked)}
+                />
+                <span>Ocultar registros preliminares sem confirmação individual ({preliminaryCount})</span>
+              </label>
+              {ocultarPreliminares && <span className="filter-hint">Exibindo apenas fichas não preliminares</span>}
             </div>
             <section className="alerts-panel" aria-label="Alertas personalizados">
               <div className="alerts-intro">
