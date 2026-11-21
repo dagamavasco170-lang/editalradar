@@ -213,6 +213,25 @@ test("usa transporte alternativo quando as tentativas de fetch falham por rede",
 });
 
 
+
+test("usa transporte alternativo também quando o servidor bloqueia fetch com HTTP 403", async () => {
+  let primaryCalls=0;
+  let fallbackCalls=0;
+  const response=await fetchCandidateWithRetry(async url=>{
+    primaryCalls+=1;
+    return {ok:false,status:403,url};
+  },"https://orgao.gov.br/edital",{
+    attempts:1,timeoutMs:1000,retryDelayMs:0,
+    fallbackRequest:async url=>{
+      fallbackCalls+=1;
+      return {ok:true,status:200,url};
+    }
+  });
+  assert.equal(primaryCalls,1);
+  assert.equal(fallbackCalls,1);
+  assert.equal(response.status,200);
+});
+
 test("normaliza nomes para comparar o mesmo órgão e cargo", () => {
   assert.equal(normalizeContestIdentity("Agente Administrativo — Área Geral"), "agente administrativo area geral");
 });

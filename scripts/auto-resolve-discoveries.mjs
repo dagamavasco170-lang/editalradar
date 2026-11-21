@@ -561,7 +561,12 @@ export async function fetchCandidateWithRetry(request, candidateUrl, options = {
     }
   }
 
-  const shouldUseFallback = !lastResponse || (!lastResponse.ok && (lastResponse.status >= 500 || lastResponse.status === 429));
+  const shouldUseFallback = !lastResponse || (!lastResponse.ok && (
+    lastResponse.status === 401
+    || lastResponse.status === 403
+    || lastResponse.status === 429
+    || lastResponse.status >= 500
+  ));
   if (shouldUseFallback && typeof options.fallbackRequest === "function") {
     try {
       console.warn("Acesso HTTP direto falhou; tentando transporte alternativo para " + safeStartUrl.slice(0, 240) + ".");
