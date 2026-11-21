@@ -91,3 +91,4 @@ npm test
 ```
 
 O GitHub Actions executa os testes antes do build. A publicação só é realizada se os testes e a verificação do caminho dos arquivos do GitHub Pages passarem.
+\n### Retificações automáticas\n\nO monitoramento compara retificações oficiais com concursos já cadastrados. Atualizações automáticas são limitadas a registros com correspondência exata de órgão e cargo e a campos objetivos explicitamente indicados na retificação (por exemplo, total de vagas e situação das inscrições). A versão anterior e os campos alterados são preservados em `data.historicoAtualizacoes` no mesmo registro do catálogo. Quando a publicação não permite identificar com segurança o registro ou o novo valor, a descoberta permanece pendente para revisão. Não é necessária uma nova tabela ou migração para esse histórico.\n
