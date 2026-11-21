@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { tmpdir } from "node:os";
 import { mkdir, readFile, writeFile, appendFile, mkdtemp, rm } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 import { resolve, dirname, join } from "node:path";
