@@ -1,0 +1,87 @@
+import React, { useCallback, useEffect, useState } from "react";
+
+const shuffle = (items) => {
+  const result=[...items];
+  for(let i=result.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[result[i],result[j]]=[result[j],result[i]];}
+  return result;
+};
+const clock = seconds => String(Math.floor(seconds/60)).padStart(2,"0")+":"+String(seconds%60).padStart(2,"0");
+
+export default function SimulatorPanel({questionBank,history=[],onComplete}) {
+  const [size,setSize]=useState(20);
+  const [minutes,setMinutes]=useState(40);
+  const [run,setRun]=useState(null);
+  const [remaining,setRemaining]=useState(40*60);
+  const [result,setResult]=useState(null);
+  const [reviewOpen,setReviewOpen]=useState(false);
+  const current=run?.questions?.[run.currentIndex]||null;
+  const answered=run?Object.keys(run.answers).length:0;
+
+  const finish=useCallback((reason="manual")=>{
+    if(!run||run.finished)return;
+    const review=run.questions.map(question=>{
+      const selected=run.answers[question.id]||"";
+      return {questionId:question.id,discipline:question.discipline,topic:question.topic,selected,answer:question.answer,correct:Boolean(selected)&&selected===question.answer,explanation:question.explanation};
+    });
+    const correct=review.filter(item=>item.correct).length;
+    const byDiscipline=[...new Set(review.map(item=>item.discipline))].map(discipline=>{
+      const rows=review.filter(item=>item.discipline===discipline), hits=rows.filter(item=>item.correct).length;
+      return {discipline,correct:hits,total:rows.length,percentage:Math.round(hits/rows.length*100)};
+    }).sort((a,b)=>a.percentage-b.percentage||a.discipline.localeCompare(b.discipline,"pt-BR"));
+    const completedAt=new Date().toISOString();
+    const summary={id:run.id,questionIds:run.questions.map(question=>question.id),answers:{...run.answers},correct,total:review.length,percentage:Math.round(correct/review.length*100),byDiscipline,startedAt:run.startedAt,completedAt,durationSeconds:Math.max(0,minutes*60-remaining),finishReason:reason};
+    setRun({...run,finished:true});setResult({...summary,review});setReviewOpen(false);onComplete?.(summary);
+  },[run,minutes,remaining,onComplete]);
+
+  useEffect(()=>{
+    if(!run||run.finished)return undefined;
+    const id=window.setInterval(()=>setRemaining(value=>Math.max(0,value-1)),1000);
+    return ()=>window.clearInterval(id);
+  },[run?.id,run?.finished]);
+  useEffect(()=>{
+    if(run&&!run.finished&&remaining===0)finish("time");
+  },[run,remaining,finish]);
+
+  const start=()=>{
+    if(questionBank.length<size)return;
+    const duration=Math.max(size,minutes);
+    setMinutes(duration);setRemaining(duration*60);setResult(null);setReviewOpen(false);
+    setRun({id:"sim-"+Date.now(),questions:shuffle(questionBank).slice(0,size),answers:{},currentIndex:0,startedAt:new Date().toISOString(),finished:false});
+  };
+  const setAnswer=value=>{
+    if(!run||run.finished||!current)return;
+    setRun(old=>({...old,answers:{...old.answers,[current.id]:value}}));
+  };
+  const reset=()=>{setRun(null);setResult(null);setRemaining(minutes*60);setReviewOpen(false);};
+
+  return <section className="panel simulator-panel" aria-label="Simulados completos">
+    <div className="panel-head"><div><div className="eyebrow">TREINO EM CONDIÇÕES DE PROVA</div><h2>Simulados completos</h2><p className="question-bank-subtitle">Questões autorais sorteadas sem repetição dentro de cada prova.</p></div><span className="soft-pill">20 · 40 · 80 questões</span></div>
+    {!run&&!result&&<div className="simulator-setup">
+      <div className="simulator-size-options" role="group" aria-label="Quantidade de questões">
+        {[20,40,80].map(value=><button type="button" key={value} className={size===value?"active":""} aria-pressed={size===value} disabled={questionBank.length<value} onClick={()=>{setSize(value);setMinutes(value*2);}}><strong>{value}</strong><span>questões</span></button>)}
+      </div>
+      <label className="simulator-time-field">Tempo de prova<select value={minutes} onChange={e=>setMinutes(Number(e.target.value))}>{[size,size*1.5,size*2,size*2.5,size*3].map(value=><option key={value} value={value}>{value} minutos</option>)}</select></label>
+      <div className="simulator-setup-footer"><p>O simulado mistura cinco disciplinas, embaralha a ordem e não mostra o gabarito durante a prova.</p><button type="button" className="primary-btn" onClick={start} disabled={questionBank.length<size}>Iniciar simulado</button></div>
+      <small className="study-disclaimer">Simulados usam questões autorais do EditalRadar. Questões reais estão separadas no catálogo de provas oficiais.</small>
+    </div>}
+    {run&&!run.finished&&current&&<div className="simulator-running">
+      <div className="simulator-livebar"><div><small>PROGRESSO</small><strong>{answered} de {run.questions.length} respondidas</strong></div><div className="simulator-clock" role="timer" aria-label={"Tempo restante "+clock(remaining)}><strong>{clock(remaining)}</strong><small>restantes</small></div></div>
+      <div className="simulator-time-track"><span style={{width:Math.max(0,remaining/(minutes*60)*100)+"%"}}/></div>
+      <div className="simulator-question-layout">
+        <div className="simulator-question-main"><div className="question-meta"><span>{current.discipline}</span><span>{current.topic}</span><span>Questão {run.currentIndex+1} de {run.questions.length}</span></div>
+          <h3>{current.prompt}</h3>
+          <div className="question-options">{current.options.map(([label,value])=><button type="button" key={value} className={"option "+(run.answers[current.id]===value?"chosen":"")} onClick={()=>setAnswer(value)}>{label}</button>)}</div>
+          <div className="simulator-navigation"><button type="button" className="detail-btn" disabled={run.currentIndex===0} onClick={()=>setRun(old=>({...old,currentIndex:old.currentIndex-1}))}>Anterior</button><button type="button" className="detail-btn" disabled={run.currentIndex===run.questions.length-1} onClick={()=>setRun(old=>({...old,currentIndex:old.currentIndex+1}))}>Próxima</button><button type="button" className="primary-btn" onClick={()=>finish("manual")}>Finalizar e corrigir</button></div>
+        </div>
+        <aside className="simulator-question-map" aria-label="Navegação pelas questões"><strong>Ir para questão</strong><div>{run.questions.map((question,index)=><button type="button" key={question.id} className={(index===run.currentIndex?"current ":"")+(run.answers[question.id]?"answered":"")} aria-label={"Ir para questão "+(index+1)} aria-current={index===run.currentIndex?"step":undefined} onClick={()=>setRun(old=>({...old,currentIndex:index}))}>{index+1}</button>)}</div><small>{run.questions.length-answered} sem resposta</small></aside>
+      </div><p className="simulator-warning">O cronômetro continua durante a navegação. Ao zerar, a prova é encerrada automaticamente.</p>
+    </div>}
+    {result&&<div className="simulator-result" aria-label="Resultado do simulado">
+      <div className="simulator-result-hero"><div><div className="eyebrow">SIMULADO CONCLUÍDO</div><h3>{result.correct} de {result.total} acertos</h3><p>{result.finishReason==="time"?"Tempo encerrado automaticamente.":"Prova finalizada."} · {clock(result.durationSeconds)} de duração</p></div><div className="simulator-score"><strong>{result.percentage}%</strong><span>aproveitamento</span></div></div>
+      <div className="simulator-discipline-results">{result.byDiscipline.map(item=><div key={item.discipline}><div><strong>{item.discipline}</strong><span>{item.correct}/{item.total} · {item.percentage}%</span></div><div className="progress-track"><div style={{width:item.percentage+"%"}}/></div></div>)}</div>
+      <div className="simulator-result-actions"><button type="button" className="primary-btn" onClick={()=>setReviewOpen(value=>!value)}>{reviewOpen?"Ocultar correção":"Revisar questões e comentários"}</button><button type="button" className="detail-btn" onClick={reset}>Novo simulado</button></div>
+      {reviewOpen&&<div className="simulator-review">{result.review.map((item,index)=><article key={item.questionId} className="simulator-review-item"><div><strong>Questão {index+1} · {item.discipline}</strong><span className={item.correct?"review-correct":"review-wrong"}>{item.correct?"Acertou":item.selected?"Errou":"Não respondida"}</span></div><p>{item.topic}</p><small>Sua resposta: {item.selected?item.selected.toUpperCase():"Em branco"} · Gabarito: {item.answer.toUpperCase()}</small><p>{item.explanation}</p></article>)}</div>}
+    </div>}
+    {history.length>0&&<div className="simulator-history"><strong>Histórico de simulados</strong><div>{[...history].reverse().slice(0,4).map(item=><article key={item.id}><span>{item.total} questões</span><strong>{item.percentage}%</strong><small>{item.completedAt?new Date(item.completedAt).toLocaleDateString("pt-BR"):"Data não informada"} · {item.correct}/{item.total} acertos</small></article>)}</div></div>}
+  </section>;
+}
