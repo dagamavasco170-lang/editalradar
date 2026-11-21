@@ -73,6 +73,11 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   const [authBusy, setAuthBusy] = useState(false);
   const [authMessage, setAuthMessage] = useState("");
   const [authMessageType, setAuthMessageType] = useState("info");
+  const [showProfile, setShowProfile] = useState(false);
+  const [profileName, setProfileName] = useState("");
+  const [profileBusy, setProfileBusy] = useState(false);
+  const [profileMessage, setProfileMessage] = useState("");
+  const [profileMessageType, setProfileMessageType] = useState("info");
 
   useEffect(() => {
     if (!authClient) {
@@ -299,6 +304,50 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     }
   };
 
+  const openProfileEditor = () => {
+    if (!authUser) {
+      setShowAuth(true);
+      setAuthMessage("");
+      return;
+    }
+    setProfileName(authUser.user_metadata?.full_name || authUser.user_metadata?.name || "");
+    setProfileMessage("");
+    setProfileMessageType("info");
+    setShowProfile(true);
+  };
+
+  const handleProfileSubmit = async (event) => {
+    event.preventDefault();
+    if (!authClient || !authUser) return;
+    const name = profileName.trim();
+    if (!name) {
+      setProfileMessage("Informe seu nome para salvar o perfil.");
+      setProfileMessageType("error");
+      return;
+    }
+
+    setProfileBusy(true);
+    setProfileMessage("");
+    try {
+      const { data, error } = await authClient.auth.updateUser({
+        data: { full_name: name }
+      });
+      if (error) throw error;
+      setAuthUser(data?.user || {
+        ...authUser,
+        user_metadata: { ...authUser.user_metadata, full_name: name }
+      });
+      setProfileName(name);
+      setProfileMessage("Nome atualizado com sucesso.");
+      setProfileMessageType("success");
+    } catch (error) {
+      setProfileMessage(error.message || "Não foi possível atualizar seu perfil.");
+      setProfileMessageType("error");
+    } finally {
+      setProfileBusy(false);
+    }
+  };
+
   const handleGoogleSignIn = async () => {
     if (!authClient) return;
     setAuthBusy(true);
@@ -385,14 +434,14 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
         <button className={page === "favoritos" ? "nav-item active" : "nav-item"} onClick={() => setPage("favoritos")}><span>♡</span> Meus favoritos <b>{favorites.length}</b></button>
         <div className="sidebar-bottom">
           <div className="help-card"><span className="help-icon">✦</span><strong>Seu futuro começa com planejamento.</strong><p>Organize sua preparação e acompanhe suas oportunidades.</p><button onClick={() => setPage("estudos")}>Ver meu plano →</button></div>
-          <div className="profile"><div className="avatar">{authUser?.email?.[0]?.toUpperCase() || "C"}</div><div className="profile-copy"><strong>{authUser?.email || "Concurseiro"}</strong><small>{!authUser ? "Modo visitante" : syncStatus === "loading" || syncStatus === "syncing" ? "Sincronizando dados..." : syncStatus === "synced" ? "Dados sincronizados" : syncStatus === "error" ? "Falha na sincronização" : "Conta conectada"}</small></div><span className="dots">•••</span></div>
+          <div className="profile"><div className="avatar">{(authUser?.user_metadata?.full_name || authUser?.user_metadata?.name || authUser?.email || "C")[0]?.toUpperCase() || "C"}</div><div className="profile-copy" title={authUser?.email || "Modo visitante"}><strong>{authUser?.user_metadata?.full_name || authUser?.user_metadata?.name || authUser?.email || "Concurseiro"}</strong><small>{!authUser ? "Modo visitante" : syncStatus === "loading" || syncStatus === "syncing" ? "Sincronizando dados..." : syncStatus === "synced" ? "Dados sincronizados" : syncStatus === "error" ? "Falha na sincronização" : "Conta conectada"}</small></div><button className="dots profile-edit" type="button" onClick={openProfileEditor} aria-label={authUser ? "Editar perfil" : "Entrar para editar perfil"}>•••</button></div>
         </div>
       </aside>
 
       <main className="main">
         <header className="topbar">
           <div className="breadcrumb">Início <span>/</span> {page === "concursos" ? "Concursos" : page === "estudos" ? "Área de estudos" : "Meus favoritos"}</div>
-          <div className="top-actions"><span className="date-chip">◷ &nbsp;Sua jornada começa hoje</span>{authUser ? <button className="auth-trigger" onClick={handleSignOut} disabled={!authReady}>Sair da conta</button> : <button className="auth-trigger" onClick={() => { setShowAuth(true); setAuthMessage(""); }}>Entrar / cadastrar</button>}<div className="mini-avatar">{authUser?.email?.[0]?.toUpperCase() || "C"}</div></div>
+          <div className="top-actions"><span className="date-chip">◷ &nbsp;Sua jornada começa hoje</span>{authUser ? <button className="auth-trigger" onClick={handleSignOut} disabled={!authReady}>Sair da conta</button> : <button className="auth-trigger" onClick={() => { setShowAuth(true); setAuthMessage(""); }}>Entrar / cadastrar</button>}<div className="mini-avatar">{(authUser?.user_metadata?.full_name || authUser?.user_metadata?.name || authUser?.email || "C")[0]?.toUpperCase() || "C"}</div></div>
         </header>
 
         {page === "estudos" ? (
@@ -529,6 +578,19 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
               <a href="https://github.com/dagamavasco170-lang/editalradar/blob/main/SUPABASE_SETUP.md" target="_blank" rel="noreferrer">Abrir guia de configuração ↗</a>
             </div>
           )}
+        </section>
+      </div>}
+      {showProfile && <div className="modal-backdrop" onClick={() => setShowProfile(false)}>
+        <section className="modal auth-modal profile-modal" role="dialog" aria-modal="true" aria-labelledby="profile-title" onClick={(event) => event.stopPropagation()}>
+          <button className="modal-close" onClick={() => setShowProfile(false)} aria-label="Fechar edição de perfil">×</button>
+          <div className="eyebrow">SUA CONTA EDITALRADAR</div>
+          <h2 id="profile-title">Editar perfil</h2>
+          <p className="muted">Escolha como seu nome aparece no EditalRadar. A alteração fica salva na sua conta.</p>
+          <form className="auth-form" onSubmit={handleProfileSubmit}>
+            <label>Nome de exibição<input type="text" value={profileName} onChange={(event) => setProfileName(event.target.value)} autoComplete="name" maxLength={60} required placeholder="Como quer ser chamado?" /></label>
+            <button className="primary-btn full" type="submit" disabled={profileBusy}>{profileBusy ? "Salvando..." : "Salvar perfil"}</button>
+            {profileMessage && <p className={`auth-message ${profileMessageType}`} role="status">{profileMessage}</p>}
+          </form>
         </section>
       </div>}
             {selected && <div className="modal-backdrop" onClick={() => setSelected(null)}><div className="modal" onClick={(e) => e.stopPropagation()}><button className="modal-close" onClick={() => setSelected(null)}>×</button><span className={`status ${isPreliminary(selected) ? "preliminary" : ""}`}><i />{selected.status}</span><div className="eyebrow">DETALHES DA SELEÇÃO</div><h2>{selected.cargo}</h2><p className="org-name">{selected.orgao}</p><div className="modal-facts"><div><small>Vagas informadas</small><strong>{selected.vagas == null ? "A divulgar" : selected.vagas}</strong></div><div><small>Escolaridade</small><strong>{selected.nivel}</strong></div><div><small>Vínculo</small><strong>{selected.vinculo || "Não informado"}</strong></div><div><small>{isPreliminary(selected) ? "Referência cadastrada" : "Ato oficial"}</small><strong>{selected.atoOficial || "Não informado"}</strong></div></div><p className="muted">{selected.observacao}</p><a className="primary-btn full modal-source-link" href={selected.sourceUrl || sourceUrl} target="_blank" rel="noreferrer">{isPreliminary(selected) ? "Abrir listagem de referência — não é edital ↗" : "Consultar página oficial do concurso ↗"}</a><button className="detail-btn full" onClick={() => toggleFavorite(selected.id)} disabled={Boolean(authUser && syncStatus === "loading")}>{favorites.includes(selected.id) ? "Remover dos favoritos" : "Salvar nos favoritos"}</button></div></div>}
