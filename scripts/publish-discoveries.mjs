@@ -1,4 +1,6 @@
 import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 
 export function buildDiscoveryRows(discoveries = []) {
   const unique = new Map();
@@ -29,7 +31,7 @@ export function buildDiscoveryRows(discoveries = []) {
 export async function publishDiscoveries(discoveries, options = {}) {
   const rows = buildDiscoveryRows(discoveries);
   if (!rows.length) return { published: 0, skipped: 0 };
-  const supabaseUrl = String(options.supabaseUrl || process.env.SUPABASE_URL || "").replace(/\\/$/, "");
+  const supabaseUrl = String(options.supabaseUrl || process.env.SUPABASE_URL || "").replace(/\/$/, "");
   const serviceRoleKey = options.serviceRoleKey || process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!supabaseUrl || !serviceRoleKey) {
     console.warn("Fila Supabase não sincronizada: configure os secrets SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY no GitHub Actions.");
@@ -49,7 +51,7 @@ export async function publishDiscoveries(discoveries, options = {}) {
         method: "POST",
         headers: {
           apikey: serviceRoleKey,
-          Authorization: "Bearer " + serviceRoleKey,
+          ...(serviceRoleKey.startsWith("sb_secret_") ? {} : { Authorization: "Bearer " + serviceRoleKey }),
           "Content-Type": "application/json",
           Prefer: "resolution=ignore-duplicates,return=minimal"
         },
@@ -72,7 +74,7 @@ async function main() {
   console.log("Oportunidades enviadas à fila do Supabase: " + result.published + "; ignoradas: " + result.skipped + ".");
 }
 
-if (process.argv[1] && import.meta.url === new URL("file://" + process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   main().catch((error) => {
     console.error("Falha ao sincronizar fila de oportunidades:", error);
     process.exitCode = 1;
