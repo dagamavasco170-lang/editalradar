@@ -44,3 +44,11 @@ Depois de salvar, execute Actions → Test, build and deploy EditalRadar → Run
 ## Desenvolvimento local
 
 Copie `.env.example` para `.env.local`, preencha os valores e execute `npm run dev`. Nunca faça commit do `.env.local`.
+
+## 6. Recuperação de senha
+
+O aplicativo envia pedidos por `resetPasswordForEmail` com retorno para o endereço público do GitHub Pages. Quando o link é aberto, o cliente detecta o evento `PASSWORD_RECOVERY` e mostra o formulário para criar uma nova senha.
+
+No Supabase, confirme que `https://dagamavasco170-lang.github.io/editalradar/` está em Authentication → URL Configuration → Redirect URLs. Para entrega confiável, configure um provedor SMTP próprio em Authentication → SMTP Settings; o serviço de e-mail padrão pode ter limites de envio.
+
+O sistema não informa se um e-mail existe: a mensagem de retorno é genérica por segurança. A nova senha precisa ter pelo menos 8 caracteres e ser confirmada no formulário.
