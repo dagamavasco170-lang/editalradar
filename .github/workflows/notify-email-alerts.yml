@@ -1,0 +1,58 @@
+name: Enviar alertas de novos concursos
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/data/concursos.js"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: contest-email-alerts
+  cancel-in-progress: false
+
+jobs:
+  notify:
+    name: Identificar alterações e enviar alertas consentidos
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar histórico do repositório
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Gerar lista de concursos novos ou alterados
+        id: digest
+        env:
+          GITHUB_EVENT_BEFORE: ${{ github.event.before }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: node scripts/create-contest-notification-digest.mjs
+
+      - name: Enviar digest à Edge Function do Supabase
+        if: steps.digest.outputs.changed_count != '0'
+        env:
+          MONITOR_API_TOKEN: ${{ secrets.MONITOR_API_TOKEN }}
+          DIGEST_PATH: .cache/contest-notification-digest.json
+        run: |
+          if [ -z "$MONITOR_API_TOKEN" ]; then
+            echo "::notice::MONITOR_API_TOKEN ainda não está configurado; nenhum e-mail foi enviado."
+            exit 0
+          fi
+          curl --fail-with-body --silent --show-error --max-time 120 \
+            --request POST "https://xrdtqbatynoofkjtjgeq.supabase.co/functions/v1/send-contest-email-alerts" \
+            --header "Authorization: Bearer $MONITOR_API_TOKEN" \
+            --header "Content-Type: application/json" \
+            --data-binary "@$DIGEST_PATH"
+
+      - name: Informar ausência de alterações
+        if: steps.digest.outputs.changed_count == '0'
+        run: echo "Nenhuma ficha nova ou alterada; nenhum e-mail foi enviado."
