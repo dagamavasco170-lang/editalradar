@@ -196,6 +196,48 @@ async function extractCandidateDocument(response, item, finalUrl, contentType) {
   return extractDocumentText(bytes.toString("utf8"));
 }
 
+export function summarizeFetchError(error) {
+  const cause = error?.cause || {};
+  const details = [error?.message, cause.code, cause.message]
+    .filter(Boolean)
+    .map(value => String(value).trim());
+  return [...new Set(details)].join(" · ").slice(0, 400)
+    || "Erro de rede sem detalhes adicionais.";
+}
+
+export async function fetchCandidateWithRetry(request, candidateUrl, options = {}) {
+  const attempts = Math.max(1, Number(options.attempts) || 2);
+  const timeoutMs = Math.max(1000, Number(options.timeoutMs) || TIMEOUT_MS);
+  const retryDelayMs = Math.max(0, Number(options.retryDelayMs ?? 500));
+  let lastError = null;
+  let lastResponse = null;
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      const response = await request(candidateUrl, {
+        redirect: "follow",
+        signal: AbortSignal.timeout(timeoutMs),
+        headers: {
+          "User-Agent": "Mozilla/5.0 (compatible; EditalRadar-AutoReview/1.1; +https://github.com/dagamavasco170-lang/editalradar)",
+          Accept: "text/html,application/xhtml+xml,text/plain,application/pdf;q=0.9,*/*;q=0.7"
+        }
+      });
+      lastResponse = response;
+      if (response.ok || (response.status < 500 && response.status !== 429)) return response;
+      lastError = new Error("HTTP " + response.status);
+    } catch (error) {
+      lastError = error;
+    }
+
+    if (attempt < attempts && retryDelayMs > 0) {
+      await new Promise(resolveDelay => setTimeout(resolveDelay, retryDelayMs * attempt));
+    }
+  }
+
+  if (lastResponse) return lastResponse;
+  throw lastError || new Error("Falha de rede sem detalhes adicionais.");
+}
+
 function headersFor(key, extra = {}) {
   return {
     apikey: key,
@@ -251,7 +293,7 @@ export async function autoResolvePending(options = {}) {
     result.pending += 1;
     const label = String(reason || "Não foi possível confirmar os dados na fonte oficial.").slice(0, 500);
     result.pendingReasons[label] = (result.pendingReasons[label] || 0) + 1;
-    console.log("Pendente #" + item.id + ": " + label);
+    console.log("Pendente #" + item.id + " [" + String(item.candidate_url || "").slice(0, 300) + "]: " + label);
     await updateDiscovery(request, baseUrl, key, item, {
       status: "pending",
       context: appendContext(item.context, label)
@@ -297,13 +339,9 @@ export async function autoResolvePending(options = {}) {
 
       let response;
       try {
-        response = await request(candidate.toString(), {
-          redirect: "follow",
-          signal: AbortSignal.timeout(TIMEOUT_MS),
-          headers: { "User-Agent": "EditalRadar-AutoReview/1.0 (+https://github.com/dagamavasco170-lang/editalradar)", Accept: "text/html,application/xhtml+xml,text/plain,application/pdf;q=0.8,*/*;q=0.5" }
-        });
+        response = await fetchCandidateWithRetry(request, candidate.toString());
       } catch (error) {
-        await keepPending(item, "Não foi possível abrir a publicação oficial: " + String(error?.message || error).slice(0, 250));
+        await keepPending(item, "Não foi possível abrir a publicação oficial após 2 tentativas: " + summarizeFetchError(error));
         continue;
       }
       const finalUrl = response.url || candidate.toString();
