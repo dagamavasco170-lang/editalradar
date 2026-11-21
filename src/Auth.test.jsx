@@ -4,7 +4,15 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import App from "./App.jsx";
 
 const createAuthClient = () => {
+  const database = {
+    maybeSingle: vi.fn().mockResolvedValue({
+      data: { favorites: [], alerts: [], tasks: [false, false, false, false] },
+      error: null
+    }),
+    upsert: vi.fn().mockResolvedValue({ error: null })
+  };
   const client = {
+    database,
     callback: null,
     auth: {
       getSession: vi.fn().mockResolvedValue({ data: { session: null }, error: null }),
@@ -22,13 +30,10 @@ const createAuthClient = () => {
     from: vi.fn(() => ({
       select: () => ({
         eq: () => ({
-          maybeSingle: async () => ({
-            data: { favorites: [], alerts: [], tasks: [false, false, false, false] },
-            error: null
-          })
+          maybeSingle: database.maybeSingle
         })
       }),
-      upsert: vi.fn().mockResolvedValue({ error: null })
+      upsert: database.upsert
     }))
   };
   return client;
@@ -52,6 +57,54 @@ describe("Autenticação EditalRadar", () => {
       provider: "google",
       options: { redirectTo: window.location.origin + window.location.pathname }
     }));
+  });
+
+
+  it("carrega favoritos, alertas e tarefas da nuvem ao entrar na conta", async () => {
+    const client = createAuthClient();
+    const cloudAlert = { id: "cloud-alert", name: "Concursos estaduais", filters: { esfera: "Estadual" } };
+    client.database.maybeSingle.mockResolvedValueOnce({
+      data: { favorites: [101, 102], alerts: [cloudAlert], tasks: [true, false, true, false] },
+      error: null
+    });
+
+    render(<App authClient={client} authConfigured />);
+    await waitFor(() => expect(client.callback).toBeTypeOf("function"));
+    client.callback("SIGNED_IN", {
+      user: { id: "user-cloud", email: "aluno@exemplo.com" }
+    });
+
+    await waitFor(() => {
+      expect(JSON.parse(localStorage.getItem("er-favorites"))).toEqual([101, 102]);
+      expect(JSON.parse(localStorage.getItem("er-alerts"))).toEqual([cloudAlert]);
+      expect(JSON.parse(localStorage.getItem("er-tasks"))).toEqual([true, false, true, false]);
+    });
+    expect(await screen.findByText("Dados sincronizados")).toBeInTheDocument();
+    expect(client.database.upsert).not.toHaveBeenCalled();
+  });
+
+  it("envia favoritos, alertas e tarefas alterados para a nuvem", async () => {
+    const client = createAuthClient();
+    render(<App authClient={client} authConfigured />);
+    await waitFor(() => expect(client.callback).toBeTypeOf("function"));
+    client.callback("SIGNED_IN", {
+      user: { id: "user-sync", email: "aluno@exemplo.com" }
+    });
+
+    await screen.findByText("Dados sincronizados");
+    fireEvent.click(screen.getAllByLabelText("Salvar favorito")[0]);
+    fireEvent.click(screen.getByRole("button", { name: /Salvar alerta/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Área de estudos/ }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /Revisar português/ }));
+
+    await waitFor(() => expect(client.database.upsert).toHaveBeenCalledTimes(3));
+    const writes = client.database.upsert.mock.calls.map(([payload]) => payload);
+    expect(writes).toEqual(expect.arrayContaining([
+      expect.objectContaining({ user_id: "user-sync", favorites: [101] }),
+      expect.objectContaining({ user_id: "user-sync", alerts: expect.any(Array) }),
+      expect.objectContaining({ user_id: "user-sync", tasks: [true, false, false, false] })
+    ]));
+    await waitFor(() => expect(screen.getByText("Dados sincronizados")).toBeInTheDocument());
   });
 
   it("mostra mensagem quando o provedor Google ainda não está habilitado", async () => {
