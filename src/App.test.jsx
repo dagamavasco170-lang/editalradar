@@ -8,7 +8,7 @@ import { buildCatalogSnapshot } from "./lib/notifications";
 describe("EditalRadar", () => {
   it("detecta um novo concurso e abre seus detalhes pela central de notificações", async () => {
     localStorage.clear();
-    const latest = [...concursos].reverse().find((item) => !/concurso listado\\s*·\\s*verificar/i.test(item.status || ""));
+    const latest = [...concursos].reverse().find((item) => !String(item.status || "").toLowerCase().includes("concurso listado"));
     const previous = buildCatalogSnapshot(concursos.filter((item) => String(item.id) !== String(latest.id)));
     localStorage.setItem("er-catalog-snapshot:visitor", JSON.stringify(previous));
 
