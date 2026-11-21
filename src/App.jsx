@@ -87,6 +87,10 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   const [isOnline, setIsOnline] = useState(() => typeof navigator === "undefined" ? true : navigator.onLine);
   const [catalogOverrides, setCatalogOverrides] = useState([]);
   const [catalogSyncMessage, setCatalogSyncMessage] = useState("");
+  const [discoveryItems, setDiscoveryItems] = useState([]);
+  const [discoveryLoading, setDiscoveryLoading] = useState(false);
+  const [discoverySyncMessage, setDiscoverySyncMessage] = useState("");
+  const [discoveryDraftId, setDiscoveryDraftId] = useState(null);
   const [adminDraft, setAdminDraft] = useState(null);
   const [adminEditingId, setAdminEditingId] = useState(null);
   const [adminBusy, setAdminBusy] = useState(false);
@@ -190,6 +194,41 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     void loadCatalogOverrides();
     return () => { cancelled = true; };
   }, []);
+
+  useEffect(() => {
+    if (!isAdmin || !authClient) {
+      setDiscoveryItems([]);
+      setDiscoverySyncMessage("");
+      setDiscoveryLoading(false);
+      return undefined;
+    }
+
+    let cancelled = false;
+    const loadDiscoveries = async () => {
+      setDiscoveryLoading(true);
+      try {
+        const { data, error } = await authClient
+          .from("contest_discoveries")
+          .select("id, source_url, candidate_url, title, context, discovery_type, detected_at, status")
+          .eq("status", "pending")
+          .order("detected_at", { ascending: false });
+        if (error) throw error;
+        if (!cancelled) {
+          setDiscoveryItems(Array.isArray(data) ? data : []);
+          setDiscoverySyncMessage("");
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setDiscoverySyncMessage(error?.message || "Não foi possível carregar a fila. Confira se a migração de descobertas foi executada.");
+        }
+      } finally {
+        if (!cancelled) setDiscoveryLoading(false);
+      }
+    };
+
+    void loadDiscoveries();
+    return () => { cancelled = true; };
+  }, [authClient, isAdmin]);
 
   useEffect(() => {
     if (!authClient) {
@@ -762,6 +801,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   }, [page, jumpToNotifications]);
 
   const openAdminEditor = (item = null) => {
+    setDiscoveryDraftId(null);
     setAdminEditingId(item?.id ?? null);
     setAdminDraft({
       cargo: "", orgao: "", sigla: "", vagas: "", nivel: "", area: "Federal",
@@ -772,6 +812,55 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     });
     setAdminMessage("");
     setAdminMessageType("info");
+  };
+
+  const openDiscoveryDraft = (item) => {
+    setDiscoveryDraftId(item.id);
+    setAdminEditingId(null);
+    setAdminDraft({
+      cargo: String(item.title || "Oportunidade identificada").slice(0, 160),
+      orgao: "",
+      sigla: "",
+      vagas: "",
+      nivel: "",
+      area: "Federal",
+      estado: "Brasil",
+      localidade: "Brasil",
+      status: item.discovery_type === "new_link" ? "Edital a verificar" : "Pré-edital / anunciado",
+      atoOficial: "",
+      sourceUrl: item.candidate_url || item.source_url,
+      observacao: [
+        "Oportunidade detectada automaticamente pelo monitor de fontes do EditalRadar.",
+        "Página monitorada: " + item.source_url,
+        "Contexto: " + (item.context || "Não informado"),
+        "Revise a publicação oficial e preencha os dados antes de salvar."
+      ].join("\\n"),
+      vinculo: ""
+    });
+    setAdminMessage("");
+    setAdminMessageType("info");
+  };
+
+  const dismissDiscovery = async (item) => {
+    if (!isAdmin || !authClient) return;
+    setAdminBusy(true);
+    setAdminMessage("");
+    try {
+      const { error } = await authClient.from("contest_discoveries").update({
+        status: "dismissed",
+        reviewed_at: new Date().toISOString(),
+        reviewed_by: authUser?.id || null
+      }).eq("id", item.id);
+      if (error) throw error;
+      setDiscoveryItems(current => current.filter(row => String(row.id) !== String(item.id)));
+      setAdminMessage("Oportunidade descartada da fila.");
+      setAdminMessageType("success");
+    } catch (error) {
+      setAdminMessage(error?.message || "Não foi possível descartar esta descoberta.");
+      setAdminMessageType("error");
+    } finally {
+      setAdminBusy(false);
+    }
   };
 
   const saveAdminContest = async (event) => {
@@ -820,8 +909,23 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
       const record = { ...saved, id: Number(saved.id), data: { ...saved.data, id: Number(saved.id) }, deleted: false };
       setCatalogOverrides(current => [...current.filter(row => String(row.id)!==String(record.id)),record]);
       const editing = adminEditingId !== null;
+      let successMessage = editing ? "Concurso atualizado com sucesso." : "Concurso cadastrado com sucesso.";
+      if (discoveryDraftId !== null) {
+        const { error: reviewError } = await authClient.from("contest_discoveries").update({
+          status: "published",
+          reviewed_at: new Date().toISOString(),
+          reviewed_by: authUser?.id || null,
+          published_catalog_id: Number(saved.id)
+        }).eq("id", discoveryDraftId);
+        if (reviewError) {
+          successMessage = "Concurso salvo, mas não foi possível concluir a revisão na fila: " + reviewError.message;
+        } else {
+          setDiscoveryItems(current => current.filter(row => String(row.id) !== String(discoveryDraftId)));
+        }
+        setDiscoveryDraftId(null);
+      }
       setAdminDraft(null);
-      setAdminMessage(editing ? "Concurso atualizado com sucesso." : "Concurso cadastrado com sucesso.");
+      setAdminMessage(successMessage);
       setAdminMessageType("success");
     } catch(error) {
       setAdminMessage(error?.message || "Não foi possível salvar. Confira a migração e sua permissão.");
@@ -927,6 +1031,32 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                   </div>
                 </article>)}
               </div>
+            </div>
+            <div className="panel admin-panel discovery-panel">
+              <div className="admin-panel-heading">
+                <div><strong>Fila de revisão de oportunidades</strong><small>{discoveryItems.length} descoberta(s) aguardando análise</small></div>
+                <span className="discovery-status-pill">Revisão manual</span>
+              </div>
+              <p className="muted discovery-help">O monitor identifica páginas alteradas e novos links em fontes oficiais. Nenhuma descoberta entra no catálogo sem sua conferência e aprovação.</p>
+              {discoverySyncMessage && <p className="auth-message info" role="status">Fila indisponível. Execute a migração <strong>202611220003_contest_discoveries.sql</strong> no Supabase e configure os secrets do GitHub Actions. Detalhe: {discoverySyncMessage}</p>}
+              {discoveryLoading ? <p className="muted">Carregando descobertas...</p> : discoveryItems.length === 0 ? (
+                <div className="discovery-empty">Nenhuma oportunidade pendente no momento.</div>
+              ) : (
+                <div className="admin-list discovery-list">
+                  {discoveryItems.map(item => <article className="admin-row discovery-row" key={item.id}>
+                    <div className="admin-row-copy">
+                      <strong>{item.title}</strong>
+                      <span>{item.discovery_type === "new_link" ? "Novo link identificado" : "Página oficial alterada"} · {item.detected_at ? new Date(item.detected_at).toLocaleString("pt-BR") : "Data não informada"}</span>
+                      <small>{item.context}</small>
+                      <a href={item.candidate_url} target="_blank" rel="noreferrer">Abrir publicação ou página identificada ↗</a>
+                    </div>
+                    <div className="admin-row-actions">
+                      <button className="detail-btn" type="button" onClick={() => openDiscoveryDraft(item)} disabled={adminBusy}>Revisar e cadastrar</button>
+                      <button className="alert-remove" type="button" onClick={() => dismissDiscovery(item)} disabled={adminBusy}>Descartar</button>
+                    </div>
+                  </article>)}
+                </div>
+              )}
               {adminMessage && <p className={`auth-message ${adminMessageType}`} role="status">{adminMessage}</p>}
             </div>
             <p className="disclaimer">Confira sempre o edital e a página oficial do órgão ou banca antes de alterar a situação de uma oportunidade.</p>
