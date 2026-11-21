@@ -10,6 +10,31 @@ const readStore = (key, fallback) => {
   }
 };
 
+const matchesFilters = (item, filters) => {
+  const text = [item.cargo, item.orgao, item.vinculo, item.atoOficial, item.nivel, item.area, item.estado, item.localidade, item.status].join(" ").toLowerCase();
+  const status = (item.status || "").toLowerCase();
+  const matchesSituation = filters.situacao === "Todas as situações"
+    || (filters.situacao === "Pré-edital / anunciado" && /(autorizado|anunciado|pré-edital)/.test(status))
+    || (filters.situacao === "Inscrições abertas" && /inscrições abertas/.test(status))
+    || (filters.situacao === "Inscrições encerradas" && /inscrições encerradas/.test(status))
+    || (filters.situacao === "Provas / resultados" && /(prova|resultado|provas realizadas)/.test(status));
+
+  return text.includes((filters.query || "").toLowerCase())
+    && (filters.nivel === "Todos os níveis" || item.nivel === filters.nivel)
+    && (filters.esfera === "Todas as esferas" || (item.area || "Federal") === filters.esfera)
+    && (filters.estado === "Todos os estados" || (item.estado || "Brasil") === filters.estado)
+    && (filters.localidade === "Todas as cidades" || (item.localidade || "Brasil") === filters.localidade)
+    && matchesSituation;
+};
+
+const describeAlert = (filters) => {
+  const parts = [filters.estado, filters.localidade, filters.esfera, filters.nivel, filters.situacao, filters.query]
+    .filter((value, index) => value && ![
+      "Todos os estados", "Todas as cidades", "Todas as esferas", "Todos os níveis", "Todas as situações"
+    ].includes(value));
+  return parts.length ? parts.join(" · ") : "Todos os concursos";
+};
+
 export default function App() {
   const [page, setPage] = useState("concursos");
   const [query, setQuery] = useState("");
@@ -18,6 +43,10 @@ export default function App() {
   const [estado, setEstado] = useState("Todos os estados");
   const [localidade, setLocalidade] = useState("Todas as cidades");
   const [situacao, setSituacao] = useState("Todas as situações");
+  const [alerts, setAlerts] = useState(() => {
+    const stored = readStore("er-alerts", []);
+    return Array.isArray(stored) ? stored : [];
+  });
   const [favorites, setFavorites] = useState(() => readStore("er-favorites", []));
   const [tasks, setTasks] = useState(() => readStore("er-tasks", [false, false, false, false]));
   const [selected, setSelected] = useState(null);
@@ -27,21 +56,30 @@ export default function App() {
   const estados = [...new Set(concursos.map((item) => item.estado || "Brasil"))].sort();
   const cidades = [...new Set(concursos.map((item) => item.localidade || "Brasil"))].sort();
 
-  const filtered = useMemo(() => concursos.filter((item) => {
-    const text = [item.cargo, item.orgao, item.vinculo, item.atoOficial, item.nivel, item.area, item.estado, item.localidade, item.status].join(" ").toLowerCase();
-    const status = (item.status || "").toLowerCase();
-    const matchesSituation = situacao === "Todas as situações"
-      || (situacao === "Pré-edital / anunciado" && /(autorizado|anunciado|pré-edital)/.test(status))
-      || (situacao === "Inscrições abertas" && /inscrições abertas/.test(status))
-      || (situacao === "Inscrições encerradas" && /inscrições encerradas/.test(status))
-      || (situacao === "Provas / resultados" && /(prova|resultado|provas realizadas)/.test(status));
-    return text.includes(query.toLowerCase())
-      && (nivel === "Todos os níveis" || item.nivel === nivel)
-      && (esfera === "Todas as esferas" || (item.area || "Federal") === esfera)
-      && (estado === "Todos os estados" || (item.estado || "Brasil") === estado)
-      && (localidade === "Todas as cidades" || (item.localidade || "Brasil") === localidade)
-      && matchesSituation;
-  }), [query, nivel, esfera, estado, localidade, situacao]);
+  const currentFilters = { query, nivel, esfera, estado, localidade, situacao };
+  const filtered = useMemo(
+    () => concursos.filter((item) => matchesFilters(item, currentFilters)),
+    [query, nivel, esfera, estado, localidade, situacao]
+  );
+
+  const matchingAlert = (alert) => concursos.filter((item) => matchesFilters(item, alert.filters)).length;
+  const currentAlertName = describeAlert(currentFilters);
+  const alertAlreadySaved = alerts.some((alert) => JSON.stringify(alert.filters) === JSON.stringify(currentFilters));
+  const saveCurrentAlert = () => {
+    if (alertAlreadySaved) return;
+    const next = [...alerts, {
+      id: `alert-${Date.now()}`,
+      name: currentAlertName,
+      filters: { ...currentFilters }
+    }];
+    setAlerts(next);
+    localStorage.setItem("er-alerts", JSON.stringify(next));
+  };
+  const removeAlert = (id) => {
+    const next = alerts.filter((alert) => alert.id !== id);
+    setAlerts(next);
+    localStorage.setItem("er-alerts", JSON.stringify(next));
+  };
 
   const saveFavorites = (next) => {
     setFavorites(next);
@@ -125,6 +163,31 @@ export default function App() {
               <select aria-label="Escolaridade" value={nivel} onChange={(e) => setNivel(e.target.value)}><option>Todos os níveis</option>{[...new Set(concursos.map(c => c.nivel))].sort().map(x => <option key={x}>{x}</option>)}</select>
               <select aria-label="Situação" value={situacao} onChange={(e) => setSituacao(e.target.value)}><option>Todas as situações</option>{["Pré-edital / anunciado", "Inscrições abertas", "Inscrições encerradas", "Provas / resultados"].map(x => <option key={x}>{x}</option>)}</select>
             </div>
+            <section className="alerts-panel" aria-label="Alertas personalizados">
+              <div className="alerts-intro">
+                <div>
+                  <strong>Alertas personalizados</strong>
+                  <p>Salve seus filtros e confira rapidamente quantas oportunidades combinam com seu perfil neste catálogo.</p>
+                </div>
+                <button className="primary-btn alert-save" onClick={saveCurrentAlert} disabled={alertAlreadySaved}>
+                  {alertAlreadySaved ? "Alerta já salvo" : "＋ Salvar alerta"}
+                </button>
+              </div>
+              {alerts.length > 0 ? (
+                <div className="saved-alerts">
+                  {alerts.map((alert) => (
+                    <div className="saved-alert" key={alert.id}>
+                      <div className="saved-alert-copy">
+                        <strong>{alert.name}</strong>
+                        <span>{matchingAlert(alert)} oportunidade(s) correspondente(s)</span>
+                      </div>
+                      <button className="alert-remove" onClick={() => removeAlert(alert.id)} aria-label={`Remover alerta ${alert.name}`}>Remover</button>
+                    </div>
+                  ))}
+                </div>
+              ) : <p className="alerts-empty">Você ainda não salvou alertas. Ajuste os filtros acima e clique em “Salvar alerta”.</p>}
+              <small className="alerts-note">Os alertas ficam salvos neste navegador. Não enviam e-mail nem notificações push.</small>
+            </section>
             <div className="cards">
               {(page === "favoritos" ? filtered.filter(c => favorites.includes(c.id)) : filtered).map((item) => <article className="contest-card" key={item.id}>
                 <div className="card-top"><div className="org-icon">{item.sigla}</div><button className={favorites.includes(item.id) ? "heart saved" : "heart"} onClick={() => toggleFavorite(item.id)} aria-label="Salvar favorito">{favorites.includes(item.id) ? "♥" : "♡"}</button></div>
