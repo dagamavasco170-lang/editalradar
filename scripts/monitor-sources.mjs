@@ -17,8 +17,8 @@ export function collectSourceUrls(items = concursos) {
 
 export function normalizeHtml(html) {
   return String(html)
-    .replace(/<!--[\\s\\S]*?-->/g, " ")
-    .replace(/<(script|style|noscript)[^>]*>[\\s\\S]*?<\\/\\1>/gi, " ")
+    .replace(/<!--[\s\S]*?-->/g, " ")
+    .replace(/<(script|style|noscript)[^>]*>[\s\S]*?<\/\1>/gi, " ")
     .replace(/<[^>]+>/g, " ")
     .replace(/&nbsp;|&#160;/gi, " ")
     .replace(/&amp;/gi, "&")
@@ -26,13 +26,13 @@ export function normalizeHtml(html) {
     .replace(/&#39;|&apos;/gi, "'")
     .replace(/&lt;/gi, "<")
     .replace(/&gt;/gi, ">")
-    .replace(/\\s+/g, " ")
+    .replace(/\s+/g, " ")
     .trim()
     .toLocaleLowerCase("pt-BR");
 }
 
 export function fingerprintContent(content, contentType = "text/html") {
-  const stableContent = /html|text\\//i.test(contentType) ? normalizeHtml(content) : content;
+  const stableContent = /html|text\//i.test(contentType) ? normalizeHtml(content) : content;
   return createHash("sha256").update(stableContent).digest("hex");
 }
 
@@ -59,7 +59,7 @@ async function fetchSource(url) {
   if (contentLength > MAX_BYTES) throw new Error("Resposta excede o limite de 12 MB.");
   const bytes = new Uint8Array(await response.arrayBuffer());
   if (bytes.byteLength > MAX_BYTES) throw new Error("Resposta excede o limite de 12 MB.");
-  const content = /html|text\\//i.test(contentType) ? new TextDecoder("utf-8").decode(bytes) : bytes;
+  const content = /html|text\//i.test(contentType) ? new TextDecoder("utf-8").decode(bytes) : bytes;
 
   return {
     ok: true,
