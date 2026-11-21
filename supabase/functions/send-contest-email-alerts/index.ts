@@ -181,7 +181,7 @@ Deno.serve(async (request: Request) => {
 
       const matches = updates
         .map((item) => ({ item, score: scoreCompatibility(item, metadata) }))
-        .filter((entry) => entry.score >= 55)
+        .filter((entry) => entry.score >= 70)
         .sort((a, b) => b.score - a.score)
         .slice(0, 5);
 
