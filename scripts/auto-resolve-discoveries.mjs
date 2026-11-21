@@ -279,7 +279,7 @@ export function classifyDiscovery(discovery, document, responseUrl = discovery?.
     /\bcargo\s+(?:de|para)\s+([^.;\n]{3,120}?)(?=\s+(?:do|da)\s+(?:Tribunal|Prefeitura|Secretaria|Ministério|Defensoria|Procuradoria)\b|[.;\n]|$)/i,
     /\bvagas?\s+para\s+([^.;\n]{3,120})/i,
     /\bfunções?\s*(?:de|:)\s*([^.;\n]{3,120})/i
-  ]) || detectedRoles[0]);
+  ]);
   const jurisdiction = orgao ? inferJurisdiction(candidate.hostname, orgao, title + "\n" + text) : null;
   if (!orgao || !cargo || !jurisdiction) {
     const missing = [!orgao && "órgão", !cargo && "cargo/função", !jurisdiction && "esfera/estado"].filter(Boolean).join(", ");
