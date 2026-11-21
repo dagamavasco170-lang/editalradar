@@ -38,10 +38,15 @@ O workflow Enviar alertas de novos concursos roda quando src/data/concursos.js m
 
 ## 4. Publicar a Edge Function
 
-No seu computador, com a CLI Supabase instalada e autenticada:
-supabase login
-supabase link --project-ref xrdtqbatynoofkjtjgeq
-supabase functions deploy send-contest-email-alerts
+Para publicar sem instalar a CLI no computador, gere um access token em https://supabase.com/dashboard/account/tokens e cadastre-o no GitHub como Repository secret chamado SUPABASE_ACCESS_TOKEN:
+https://github.com/dagamavasco170-lang/editalradar/settings/secrets/actions
+
+Depois abra Actions → Publicar Edge Function de alertas → Run workflow. O workflow usa o Supabase CLI para publicar a função no projeto conectado.
+
+Alternativamente, no computador com a CLI Supabase instalada e autenticada, execute:
+- supabase login
+- supabase link --project-ref xrdtqbatynoofkjtjgeq
+- supabase functions deploy send-contest-email-alerts
 
 O arquivo supabase/config.toml desativa a validação JWT do gateway para essa função; o handler exige o token privado MONITOR_API_TOKEN em todas as chamadas. A função usa a chave secreta do projeto apenas no ambiente Supabase para consultar usuários e registrar idempotência. Nunca exponha a chave secreta do Supabase no navegador.
 
