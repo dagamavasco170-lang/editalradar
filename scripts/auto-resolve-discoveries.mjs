@@ -147,7 +147,7 @@ const normalizeTableLabel = value => String(value || "")
 
 export function extractRoleNamesFromText(text = "") {
   const source = String(text || "");
-  const match = source.match(/Cargo\s*\/\s*(?:Área\s*\/\s*)?Especialidade\s*[:\-]?\s*([\s\S]{0,5000})/i);
+  const match = source.match(/Cargo\s*\/\s*(?:Área\s*\/\s*)?Especialidade\s*:?\s*([\s\S]{0,5000})/i);
   if (!match) return [];
   const roles = [];
   for (const line of match[1].split(/\r?\n/)) {
