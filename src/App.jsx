@@ -4,7 +4,8 @@ import { concursos, sourceUrl, sourceUpdated, fetchedAt } from "./data/concursos
 import { detectCatalogNotifications, dismissNotificationById, dismissNotificationHistory, getVisibleNotifications, mergeNotificationHistory } from "./lib/notifications";
 import { applyCatalogOverrides } from "./lib/catalog";
 import { getUpcomingMilestones } from "./lib/dashboard";
-import StudyArea from "./StudyArea.jsx";
+const StudyArea = React.lazy(() => import("./StudyArea.jsx"));
+const StudyQuestionAdmin = React.lazy(() => import("./StudyQuestionAdmin.jsx"));
 
 export const scoreRecommendation = (item, profile = {}) => {
  const area=(profile.interest_area||"").toLowerCase(), text=[item.cargo,item.orgao,item.area,item.nivel,item.estado,item.localidade,item.status].join(" ").toLowerCase();
@@ -1525,15 +1526,11 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
             )}
           </section>
         ) : page === "estudos" ? (
-          <StudyArea
-            selected={selected}
-            tasks={tasks}
-            progress={progress}
-            onToggleTask={toggleTask}
-            onBackDetails={() => setPage("detalhes")}
-            onClearFocus={() => setSelected(null)}
-            userId={authUser?.id || null}
-          />
+          <React.Suspense fallback={<section className="content study-page"><div className="eyebrow">SUA ROTINA, SEU RITMO</div><h1>Carregando área de estudos…</h1></section>}>
+            <StudyArea selected={selected} tasks={tasks} progress={progress} onToggleTask={toggleTask}
+              onBackDetails={() => setPage("detalhes")} onClearFocus={() => setSelected(null)}
+              userId={authUser?.id || null} authClient={authClient}/>
+          </React.Suspense>
         ) : page === "admin" && isAdmin ? (
           <section className="content admin-page">
             <div className="eyebrow">GESTÃO DO CATÁLOGO</div>
@@ -1584,6 +1581,9 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
               )}
               {adminMessage && <p className={`auth-message ${adminMessageType}`} role="status">{adminMessage}</p>}
             </div>
+            <React.Suspense fallback={<div className="panel admin-panel"><p className="muted">Carregando gestão do banco de questões…</p></div>}>
+              <StudyQuestionAdmin authClient={authClient} userId={authUser?.id || null}/>
+            </React.Suspense>
             <p className="disclaimer">Confira sempre o edital e a página oficial do órgão ou banca antes de alterar a situação de uma oportunidade.</p>
           </section>
         ) : (
