@@ -34,8 +34,10 @@ export async function publishDiscoveries(discoveries, options = {}) {
   const supabaseUrl = String(options.supabaseUrl || process.env.SUPABASE_URL || "").replace(/\/$/, "");
   const serviceRoleKey = options.serviceRoleKey || process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!supabaseUrl || !serviceRoleKey) {
-    console.warn("Fila Supabase não sincronizada: configure os secrets SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY no GitHub Actions.");
-    return { published: 0, skipped: rows.length };
+    throw new Error(
+      "Há descobertas pendentes, mas os secrets SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY não estão configurados. " +
+      "A execução deve falhar para preservar a linha de base e tentar novamente depois da configuração."
+    );
   }
   if (new URL(supabaseUrl).protocol !== "https:") {
     throw new Error("SUPABASE_URL precisa usar HTTPS.");
