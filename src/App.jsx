@@ -36,7 +36,7 @@ const describeAlert = (filters) => {
   return parts.length ? parts.join(" · ") : "Todos os concursos";
 };
 
-export default function App() {
+export default function App({ authClient = authClient, authConfigured = authConfigured } = {}) {
   const [page, setPage] = useState("concursos");
   const [query, setQuery] = useState("");
   const [nivel, setNivel] = useState("Todos os níveis");
@@ -65,13 +65,13 @@ export default function App() {
   const [authMessageType, setAuthMessageType] = useState("info");
 
   useEffect(() => {
-    if (!supabase) {
+    if (!authClient) {
       setAuthReady(true);
       return undefined;
     }
 
     let mounted = true;
-    supabase.auth.getSession().then(({ data, error }) => {
+    authClient.auth.getSession().then(({ data, error }) => {
       if (!mounted) return;
       setAuthUser(data.session?.user || null);
       setAuthReady(true);
@@ -81,10 +81,11 @@ export default function App() {
       }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = authClient.auth.onAuthStateChange((event, session) => {
       setAuthUser(session?.user || null);
       setAuthReady(true);
       if (event === "PASSWORD_RECOVERY") {
+        setAuthEmail(session?.user?.email || "");
         setAuthMode("reset");
         setShowAuth(true);
         setAuthMessage("Defina uma nova senha para concluir a recuperação da sua conta.");
@@ -99,11 +100,11 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!supabase || !authUser) return undefined;
+    if (!authClient || !authUser) return undefined;
     let cancelled = false;
 
     const loadAccountData = async () => {
-      const { data, error } = await supabase
+      const { data, error } = await authClient
         .from("user_data")
         .select("favorites, alerts, tasks")
         .eq("user_id", authUser.id)
@@ -127,7 +128,7 @@ export default function App() {
         localStorage.setItem("er-alerts", JSON.stringify(nextAlerts));
         localStorage.setItem("er-tasks", JSON.stringify(nextTasks));
       } else {
-        const { error: insertError } = await supabase.from("user_data").upsert({
+        const { error: insertError } = await authClient.from("user_data").upsert({
           user_id: authUser.id,
           favorites,
           alerts,
@@ -155,8 +156,8 @@ export default function App() {
   );
 
   const syncUserData = async (changes) => {
-    if (!supabase || !authUser) return;
-    const { error } = await supabase.from("user_data").upsert({
+    if (!authClient || !authUser) return;
+    const { error } = await authClient.from("user_data").upsert({
       user_id: authUser.id,
       ...changes,
       updated_at: new Date().toISOString()
@@ -169,12 +170,12 @@ export default function App() {
 
   const handleAuthSubmit = async (event) => {
     event.preventDefault();
-    if (!supabase) return;
+    if (!authClient) return;
     setAuthBusy(true);
     setAuthMessage("");
     try {
       if (authMode === "recovery") {
-        const { error } = await supabase.auth.resetPasswordForEmail(authEmail.trim(), {
+        const { error } = await authClient.auth.resetPasswordForEmail(authEmail.trim(), {
           redirectTo: window.location.origin + window.location.pathname
         });
         if (error) throw error;
@@ -183,7 +184,7 @@ export default function App() {
       } else if (authMode === "reset") {
         if (!authUser) throw new Error("Abra o link de recuperação enviado ao seu e-mail antes de definir uma nova senha.");
         if (authPassword !== authPasswordConfirm) throw new Error("As senhas não coincidem.");
-        const { error } = await supabase.auth.updateUser({ password: authPassword });
+        const { error } = await authClient.auth.updateUser({ password: authPassword });
         if (error) throw error;
         setAuthPassword("");
         setAuthPasswordConfirm("");
@@ -192,7 +193,7 @@ export default function App() {
         setAuthMessage("Senha atualizada com sucesso. Você já pode continuar usando sua conta.");
         setAuthMessageType("success");
       } else if (authMode === "signup") {
-        const { data, error } = await supabase.auth.signUp({
+        const { data, error } = await authClient.auth.signUp({
           email: authEmail.trim(),
           password: authPassword,
           options: { emailRedirectTo: window.location.origin + window.location.pathname }
@@ -206,7 +207,7 @@ export default function App() {
           setAuthMessageType("success");
         }
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { error } = await authClient.auth.signInWithPassword({
           email: authEmail.trim(),
           password: authPassword
         });
@@ -223,8 +224,8 @@ export default function App() {
   };
 
   const handleSignOut = async () => {
-    if (!supabase) return;
-    const { error } = await supabase.auth.signOut();
+    if (!authClient) return;
+    const { error } = await authClient.auth.signOut();
     if (error) {
       setAuthMessage("Não foi possível sair da conta. Tente novamente.");
       setAuthMessageType("error");
@@ -387,7 +388,7 @@ export default function App() {
           <button className="modal-close" onClick={() => setShowAuth(false)} aria-label="Fechar cadastro e login">×</button>
           <div className="eyebrow">SUA CONTA EDITALRADAR</div>
           <h2 id="auth-title">{authMode === "signup" ? "Criar sua conta" : authMode === "recovery" ? "Recuperar senha" : authMode === "reset" ? "Criar nova senha" : "Entrar na sua conta"}</h2>
-          {isSupabaseConfigured ? (
+          {authConfigured ? (
             <form className="auth-form" onSubmit={handleAuthSubmit}>
               <label>E-mail<input type="email" value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} autoComplete="email" required placeholder="voce@exemplo.com" disabled={authMode === "reset"} /></label>
               {authMode !== "recovery" && <label>{authMode === "reset" ? "Nova senha" : "Senha"}<input type="password" value={authPassword} onChange={(event) => setAuthPassword(event.target.value)} autoComplete={authMode === "signup" || authMode === "reset" ? "new-password" : "current-password"} minLength={8} required placeholder="Pelo menos 8 caracteres" /></label>}
@@ -403,7 +404,7 @@ export default function App() {
               <p>O cadastro e a recuperação de senha estão preparados, mas falta conectar o projeto ao Supabase para ativar as contas.</p>
               <ol>
                 <li>Crie um projeto gratuito no Supabase.</li>
-                <li>Execute o SQL de <code>supabase/migrations/202611210001_user_data.sql</code> no SQL Editor.</li>
+                <li>Execute o SQL de <code>authClient/migrations/202611210001_user_data.sql</code> no SQL Editor.</li>
                 <li>Adicione <code>VITE_SUPABASE_URL</code> e <code>VITE_SUPABASE_PUBLISHABLE_KEY</code> nas Actions Variables do GitHub.</li>
               </ol>
               <a href="https://github.com/dagamavasco170-lang/editalradar/blob/main/SUPABASE_SETUP.md" target="_blank" rel="noreferrer">Abrir guia de configuração ↗</a>
