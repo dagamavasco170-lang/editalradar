@@ -81,7 +81,7 @@ export default function StudyQuestionAdmin({authClient,userId}){
    const result=data?.results?.[0]||{};
    setAutomationMessage("Execução concluída: "+(result.generated||0)+" criada(s), "+(result.approved||0)+" publicada(s), "+(result.manualReview||0)+" em revisão adicional e "+(result.rejected||0)+" reprovada(s).");
    setAutomationKind("success");await refreshAutomation();
-  }catch(error){setAutomationMessage(error?.message||"Falha na geração. Confira se OPENAI_API_KEY está configurada.");setAutomationKind("error");}
+  }catch(error){setAutomationMessage(error?.message||"Falha na geração. Confira se GEMINI_API_KEY está configurada e se a cota gratuita está disponível.");setAutomationKind("error");}
   finally{setBusyId("");}
  };
 
@@ -142,7 +142,7 @@ export default function StudyQuestionAdmin({authClient,userId}){
     <div><strong>{topics.length}</strong><span>temas configurados</span></div><div><strong>{topics.filter(item=>item.active).length}</strong><span>agendamentos ativos</span></div>
     <div><strong>{pending.length}</strong><span>rascunhos em exceção</span></div><div><strong>{runs[0]?.auto_approved_count||0}</strong><span>publicadas na última execução</span></div>
    </div>
-   <div className="question-ai-how"><strong>Revisão em duas etapas</strong><p>Um modelo elabora a questão e um segundo passe revisa a resposta, os distratores, a justificativa e a aderência à fonte. Há validação automática de evidência literal e duplicidade. Somente questões com nota mínima de 90/100 e todos os critérios atendidos são publicadas.</p></div>
+   <div className="question-ai-how"><strong>Revisão em duas etapas</strong><p>Gemini Flash-Lite elabora a questão e um segundo passe revisa a resposta, os distratores, a justificativa e a aderência à fonte. Há validação automática de evidência literal e duplicidade. Somente questões com nota mínima de 90/100 e todos os critérios atendidos são publicadas.</p></div>
    <form className="question-ai-form" onSubmit={saveTopic}>
     <div><strong>Configurar tema recorrente</strong><small>Informe a fonte oficial. O sistema tenta extrair o texto automaticamente; o trecho manual é uma alternativa para PDFs e imagens.</small></div>
     <div className="study-admin-grid">
@@ -150,7 +150,7 @@ export default function StudyQuestionAdmin({authClient,userId}){
      <label>Dificuldade<select value={topicForm.difficulty} onChange={e=>updateTopic("difficulty",e.target.value)}>{["Fácil","Intermediária","Avançada"].map(item=><option key={item}>{item}</option>)}</select></label>
      <label className="study-admin-wide">Assunto<input value={topicForm.topic} onChange={e=>updateTopic("topic",e.target.value)} required maxLength={160} placeholder="Ex.: Direitos e garantias fundamentais"/></label>
      <label className="study-admin-wide">Fonte oficial HTTPS<input type="url" value={topicForm.source_url} onChange={e=>updateTopic("source_url",e.target.value)} required placeholder="https://www.gov.br/..."/></label>
-     <label>Questões por execução<select value={topicForm.questions_per_run} onChange={e=>updateTopic("questions_per_run",Number(e.target.value))}>{[1,2,3,4,5].map(value=><option key={value} value={value}>{value}</option>)}</select></label>
+     <label>Questões por execução<select value={topicForm.questions_per_run} onChange={e=>updateTopic("questions_per_run",Number(e.target.value))}>{[1,2,3].map(value=><option key={value} value={value}>{value}</option>)}</select></label>
      <label>Frequência<select value={topicForm.cadence_days} onChange={e=>updateTopic("cadence_days",Number(e.target.value))}>{[{value:1,label:"Diária"},{value:2,label:"A cada 2 dias"},{value:7,label:"Semanal"},{value:14,label:"A cada 14 dias"},{value:30,label:"Mensal"}].map(item=><option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
     </div>
     <label>Trecho do material oficial (opcional)<textarea rows={5} maxLength={12000} value={topicForm.source_excerpt} onChange={e=>updateTopic("source_excerpt",e.target.value)} placeholder="Deixe vazio para a automação extrair o texto da página oficial. Para PDF ou imagem, cole aqui um trecho de 200 a 12.000 caracteres."/></label>
@@ -173,7 +173,7 @@ export default function StudyQuestionAdmin({authClient,userId}){
    </div>}
    {runs.length>0&&<div className="question-ai-runs"><strong>Execuções recentes</strong>{runs.slice(0,5).map(run=><div key={run.id}><span>{run.started_at?new Date(run.started_at).toLocaleString("pt-BR"):"—"} · {run.status}</span><small>{run.generated_count} elaboradas · {run.auto_approved_count} publicadas · {run.manual_review_count} em exceção · {run.rejected_count} reprovadas</small></div>)}</div>}
    {automationMessage&&<p className={"auth-message "+automationKind} role="status">{automationMessage}</p>}
-   <p className="study-disclaimer">Requer OPENAI_API_KEY cadastrada em Supabase → Edge Functions → Secrets. Nunca coloque essa chave no navegador ou no GitHub.</p>
+   <p className="study-disclaimer">Usa Gemini Flash-Lite na cota gratuita. Limite rígido: 3 execuções/dia e até 3 questões por execução. Sem fallback pago. Configure GEMINI_API_KEY em Supabase → Edge Functions → Secrets. Para garantir custo zero, não habilite faturamento no projeto Google.</p>
   </section>
 
   <section className="panel admin-panel study-question-admin" aria-label="Cadastro de questões reais licenciadas">
