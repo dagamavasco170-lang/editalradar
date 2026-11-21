@@ -136,7 +136,7 @@ export const concursos = [
     "estado": "Brasil",
     "sourceUrl": "https://www.gov.br/cgu/pt-br/acesso-a-informacao/concursos/concursos-publicos/",
     "observacao": "O edital foi publicado em 09/10/2026. As inscrições ocorreram de 10/10 a 04/11/2026 e estão encerradas. Prova prevista para 13/12/2026. Esta especialidade tem 10 vagas."
-  }
+  },
   {
     "id": 401,
     "sigla": "PC/AL",
