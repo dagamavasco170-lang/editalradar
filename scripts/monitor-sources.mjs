@@ -17,6 +17,70 @@ export function isTrustedOfficialHost(hostname) {
     || approvedProviders.some((domain) => host === domain || host.endsWith("." + domain));
 }
 
+export function validateTrustedOfficialUrl(value) {
+  let url;
+  try {
+    url = new URL(value);
+  } catch {
+    const error = new Error("URL oficial inválida.");
+    error.code = "UNSAFE_REDIRECT";
+    throw error;
+  }
+  if (url.protocol !== "https:" || !isTrustedOfficialHost(url.hostname) || url.username || url.password) {
+    const error = new Error("URL bloqueada: somente destinos HTTPS de domínios oficiais autorizados são permitidos.");
+    error.code = "UNSAFE_REDIRECT";
+    throw error;
+  }
+  return url;
+}
+
+export function resolveTrustedOfficialUrl(currentUrl, location) {
+  if (!location) {
+    const error = new Error("Redirecionamento oficial sem cabeçalho Location.");
+    error.code = "UNSAFE_REDIRECT";
+    throw error;
+  }
+  const base = validateTrustedOfficialUrl(currentUrl);
+  let target;
+  try {
+    target = new URL(location, base);
+  } catch {
+    const error = new Error("Destino de redirecionamento inválido.");
+    error.code = "UNSAFE_REDIRECT";
+    throw error;
+  }
+  return validateTrustedOfficialUrl(target.href).href;
+}
+
+export async function fetchOfficialSource(url, options = {}) {
+  const request = options.fetchImpl || fetch;
+  const timeoutMs = Math.max(1000, Number(options.timeoutMs) || 20000);
+  const maxRedirects = Math.max(0, Math.min(10, Number(options.maxRedirects ?? 5)));
+  let currentUrl = validateTrustedOfficialUrl(url).href;
+
+  for (let redirectCount = 0; redirectCount <= maxRedirects; redirectCount += 1) {
+    const response = await request(currentUrl, {
+      redirect: "manual",
+      signal: AbortSignal.timeout(timeoutMs),
+      headers: {
+        "User-Agent": "EditalRadar-SourceMonitor/1.0 (+https://github.com/dagamavasco170-lang/editalradar)",
+        Accept: "text/html,application/xhtml+xml,application/pdf;q=0.9,*/*;q=0.7"
+      }
+    });
+    if ([301, 302, 303, 307, 308].includes(response.status)) {
+      if (redirectCount === maxRedirects) {
+        const error = new Error("A fonte excedeu o limite de redirecionamentos seguros.");
+        error.code = "UNSAFE_REDIRECT";
+        throw error;
+      }
+      currentUrl = resolveTrustedOfficialUrl(currentUrl, response.headers?.get?.("location"));
+      continue;
+    }
+    return { response, finalUrl: response.url || currentUrl };
+  }
+  throw new Error("Não foi possível resolver o endereço oficial.");
+}
+
 export function collectSourceUrls(items = concursos) {
   return [...new Set(items.map((item) => item?.sourceUrl).filter((value) => {
     try {
@@ -163,15 +227,16 @@ export function compareSource(url, previous, current) {
   return null;
 }
 
+export function pruneSourceState(sources = {}, monitoredUrls = []) {
+  const retained = { ...(sources && typeof sources === "object" ? sources : {}) };
+  const monitored = new Set(monitoredUrls);
+  const removed = Object.keys(retained).filter(url => !monitored.has(url)).sort();
+  for (const url of removed) delete retained[url];
+  return { sources: retained, removed };
+}
+
 async function fetchSource(url) {
-  const response = await fetch(url, {
-    redirect: "follow",
-    signal: AbortSignal.timeout(20000),
-    headers: {
-      "User-Agent": "EditalRadar-SourceMonitor/1.0 (+https://github.com/dagamavasco170-lang/editalradar)",
-      Accept: "text/html,application/xhtml+xml,application/pdf;q=0.9,*/*;q=0.7"
-    }
-  });
+  const { response, finalUrl } = await fetchOfficialSource(url);
   if (!response.ok) throw new Error("HTTP " + response.status + " " + response.statusText);
 
   const contentType = response.headers.get("content-type") || "application/octet-stream";
@@ -181,7 +246,7 @@ async function fetchSource(url) {
   if (bytes.byteLength > MAX_BYTES) throw new Error("Resposta excede o limite de 12 MB.");
   const content = /html|text\//i.test(contentType) ? new TextDecoder("utf-8").decode(bytes) : bytes;
   const opportunityLinks = /html/i.test(contentType)
-    ? extractOpportunityLinks(content, response.url || url)
+    ? extractOpportunityLinks(content, finalUrl)
     : [];
 
   return {
@@ -190,7 +255,7 @@ async function fetchSource(url) {
     opportunityLinks,
     opportunityLinkFilterVersion: 5,
     status: response.status,
-    finalUrl: response.url,
+    finalUrl,
     contentType,
     etag: response.headers.get("etag"),
     lastModified: response.headers.get("last-modified"),
@@ -243,12 +308,15 @@ async function runMonitor() {
     else nextSources[entry.url] = { ...(previous || {}), lastError: entry.current.error, lastCheckedAt: entry.current.checkedAt };
   }
 
-  const removed = Object.keys(oldState.sources)
-    .filter((url) => !urls.includes(url))
-    .map((url) => ({ type: "removed", url, message: "A fonte deixou de estar vinculada ao catálogo." }));
+  const prunedState = pruneSourceState(nextSources, urls);
+  const removed = prunedState.removed.map((url) => ({
+    type: "removed",
+    url,
+    message: "A fonte deixou de estar vinculada ao catálogo."
+  }));
 
   const report = { generatedAt: new Date().toISOString(), monitoredCount: urls.length, firstRun, changed, unavailable, added, removed, discoveries };
-  await writeFile(STATE_PATH, JSON.stringify({ version: 1, sources: nextSources }, null, 2) + "\n");
+  await writeFile(STATE_PATH, JSON.stringify({ version: 1, sources: prunedState.sources }, null, 2) + "\n");
   await writeFile(REPORT_PATH, JSON.stringify(report, null, 2) + "\n");
 
   const groups = [

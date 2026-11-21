@@ -107,12 +107,38 @@ describe("Autenticação EditalRadar", () => {
     });
 
     await waitFor(() => {
-      expect(JSON.parse(localStorage.getItem("er-favorites"))).toEqual([101, 102]);
-      expect(JSON.parse(localStorage.getItem("er-alerts"))).toEqual([cloudAlert]);
-      expect(JSON.parse(localStorage.getItem("er-tasks"))).toEqual([true, false, true, false]);
+      expect(JSON.parse(localStorage.getItem("er-account:user-cloud:favorites"))).toEqual([101, 102]);
+      expect(JSON.parse(localStorage.getItem("er-account:user-cloud:alerts"))).toEqual([cloudAlert]);
+      expect(JSON.parse(localStorage.getItem("er-account:user-cloud:tasks"))).toEqual([true, false, true, false]);
     });
     expect(await screen.findByText("Dados sincronizados")).toBeInTheDocument();
     expect(client.database.upsert).not.toHaveBeenCalled();
+  });
+
+  it("não transfere favoritos, alertas ou tarefas do visitante para uma conta nova", async () => {
+    const client = createAuthClient();
+    const visitorAlert = { id: "visitor-alert", name: "Dados locais", filters: {} };
+    localStorage.setItem("er-favorites", JSON.stringify([101]));
+    localStorage.setItem("er-alerts", JSON.stringify([visitorAlert]));
+    localStorage.setItem("er-tasks", JSON.stringify([true, true, false, false]));
+    client.database.maybeSingle.mockResolvedValueOnce({ data: null, error: null });
+
+    render(<App authClient={client} authConfigured />);
+    await waitFor(() => expect(client.callback).toBeTypeOf("function"));
+    client.callback("SIGNED_IN", {
+      user: { id: "new-account", email: "novo@exemplo.com" }
+    });
+
+    await waitFor(() => {
+      expect(JSON.parse(localStorage.getItem("er-account:new-account:favorites"))).toEqual([]);
+      expect(JSON.parse(localStorage.getItem("er-account:new-account:alerts"))).toEqual([]);
+      expect(JSON.parse(localStorage.getItem("er-account:new-account:tasks"))).toEqual([false, false, false, false]);
+      expect(client.database.upsert).toHaveBeenCalled();
+    });
+    expect(localStorage.getItem("er-favorites")).toBe(JSON.stringify([101]));
+    expect(localStorage.getItem("er-alerts")).toBe(JSON.stringify([visitorAlert]));
+    expect(localStorage.getItem("er-tasks")).toBe(JSON.stringify([true, true, false, false]));
+    expect(screen.getByRole("button", { name: /Meus favoritos/ })).toHaveTextContent("0");
   });
 
   it("carrega o histórico de notificações da conta e o grava no armazenamento local", async () => {

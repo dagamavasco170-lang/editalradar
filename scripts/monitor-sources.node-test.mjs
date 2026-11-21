@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { concursos } from "../src/data/concursos.js";
-import { collectSourceUrls, compareSource, fingerprintContent, normalizeHtml, extractOpportunityLinks, buildDiscoveriesForSource, isTrustedOfficialHost } from "./monitor-sources.mjs";
+import { collectSourceUrls, compareSource, fingerprintContent, normalizeHtml, extractOpportunityLinks, buildDiscoveriesForSource, fetchOfficialSource, isTrustedOfficialHost, pruneSourceState } from "./monitor-sources.mjs";
 
 test("coleta somente URLs HTTPS únicas", () => {
   const urls = collectSourceUrls([
@@ -15,6 +15,49 @@ test("coleta somente URLs HTTPS únicas", () => {
   assert.deepEqual(urls, ["https://example.gov.br/a"]);
   assert.equal(isTrustedOfficialHost("cebraspe.org.br"), true);
   assert.equal(isTrustedOfficialHost("concursor.com.br"), false);
+});
+
+test("segue somente redirecionamentos para domínios HTTPS oficiais autorizados", async () => {
+  const requested = [];
+  const result = await fetchOfficialSource("https://orgao.gov.br/inicio", {
+    fetchImpl: async (url, options) => {
+      requested.push({ url, redirect: options.redirect });
+      if (url.endsWith("/inicio")) {
+        return { status: 302, headers: new Headers({ location: "/concursos" }), url };
+      }
+      return { status: 200, headers: new Headers(), url };
+    }
+  });
+  assert.equal(requested.length, 2);
+  assert.ok(requested.every(item => item.redirect === "manual"));
+  assert.equal(result.finalUrl, "https://orgao.gov.br/concursos");
+});
+
+test("bloqueia redirecionamento para domínio externo antes da segunda requisição", async () => {
+  const requested = [];
+  await assert.rejects(() => fetchOfficialSource("https://orgao.gov.br/inicio", {
+    fetchImpl: async (url) => {
+      requested.push(url);
+      return { status: 302, headers: new Headers({ location: "https://example.com/metadata" }), url };
+    }
+  }), /URL bloqueada/);
+  assert.deepEqual(requested, ["https://orgao.gov.br/inicio"]);
+});
+
+test("bloqueia downgrade para HTTP e remove fontes antigas da linha de base", async () => {
+  await assert.rejects(() => fetchOfficialSource("https://orgao.gov.br/inicio", {
+    fetchImpl: async (url) => ({
+      status: 302,
+      headers: new Headers({ location: "http://orgao.gov.br/concursos" }),
+      url
+    })
+  }), /URL bloqueada/);
+  const result = pruneSourceState({
+    "https://orgao.gov.br/antiga": { sha256: "old" },
+    "https://orgao.gov.br/atual": { sha256: "current" }
+  }, ["https://orgao.gov.br/atual"]);
+  assert.deepEqual(result.removed, ["https://orgao.gov.br/antiga"]);
+  assert.deepEqual(Object.keys(result.sources), ["https://orgao.gov.br/atual"]);
 });
 
 test("catálogo atual possui fontes HTTPS deduplicadas", () => {

@@ -23,6 +23,14 @@ const readStore = (key, fallback) => {
   }
 };
 
+const accountStorageKey = (userId, key) => `er-account:${userId}:${key}`;
+const readUserDataStore = (userId, key, fallback) =>
+  readStore(userId ? accountStorageKey(userId, key) : `er-${key}`, fallback);
+const persistUserDataStore = (userId, key, value) => {
+  const storageKey = userId ? accountStorageKey(userId, key) : `er-${key}`;
+  localStorage.setItem(storageKey, JSON.stringify(value));
+};
+
 const isMissingNotificationsColumn = (error) =>
   ["42703", "PGRST204"].includes(error?.code)
   || /notifications.*(column|schema cache)|column.*notifications/i.test(error?.message || "");
@@ -297,11 +305,25 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
       syncReadyUserRef.current = null;
       pendingChangesRef.current = {};
       pendingWritesRef.current = 0;
+      setFavorites(readUserDataStore(null, "favorites", []));
+      setAlerts(readUserDataStore(null, "alerts", []));
+      setTasks(readUserDataStore(null, "tasks", [false, false, false, false]));
       setSyncStatus("local");
       return undefined;
     }
 
     const userId = authUser.id;
+    const accountDefaults = {
+      favorites: readUserDataStore(userId, "favorites", []),
+      alerts: readUserDataStore(userId, "alerts", []),
+      tasks: readUserDataStore(userId, "tasks", [false, false, false, false])
+    };
+    // Switch immediately to this account's own cache. Visitor data and other
+    // accounts' data are never used as fallbacks for a missing cloud row.
+    setFavorites(accountDefaults.favorites);
+    setAlerts(accountDefaults.alerts);
+    setTasks(accountDefaults.tasks);
+
     let cancelled = false;
     syncReadyUserRef.current = null;
     pendingChangesRef.current = {};
@@ -347,9 +369,9 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
         const hasLocalNotificationsToSync = Array.isArray(data?.notifications)
           && JSON.stringify(mergedNotifications) !== JSON.stringify(remoteNotifications);
         resolved = {
-          favorites: Array.isArray(data?.favorites) ? data.favorites : favorites,
-          alerts: Array.isArray(data?.alerts) ? data.alerts : alerts,
-          tasks: Array.isArray(data?.tasks) ? data.tasks : tasks,
+          favorites: Array.isArray(data?.favorites) ? data.favorites : accountDefaults.favorites,
+          alerts: Array.isArray(data?.alerts) ? data.alerts : accountDefaults.alerts,
+          tasks: Array.isArray(data?.tasks) ? data.tasks : accountDefaults.tasks,
           notifications: mergedNotifications,
           ...pending
         };
@@ -358,9 +380,9 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
         setAlerts(resolved.alerts);
         setTasks(resolved.tasks);
         setNotifications(resolved.notifications);
-        localStorage.setItem("er-favorites", JSON.stringify(resolved.favorites));
-        localStorage.setItem("er-alerts", JSON.stringify(resolved.alerts));
-        localStorage.setItem("er-tasks", JSON.stringify(resolved.tasks));
+        persistUserDataStore(userId, "favorites", resolved.favorites);
+        persistUserDataStore(userId, "alerts", resolved.alerts);
+        persistUserDataStore(userId, "tasks", resolved.tasks);
         localStorage.setItem("er-notifications:" + userId, JSON.stringify(resolved.notifications));
 
         // Create the initial row, migrate any local notification history, or
@@ -721,19 +743,19 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
       filters: { ...currentFilters }
     }];
     setAlerts(next);
-    localStorage.setItem("er-alerts", JSON.stringify(next));
+    persistUserDataStore(authUser?.id, "alerts", next);
     void syncUserData({ alerts: next });
   };
   const removeAlert = (id) => {
     const next = alerts.filter((alert) => alert.id !== id);
     setAlerts(next);
-    localStorage.setItem("er-alerts", JSON.stringify(next));
+    persistUserDataStore(authUser?.id, "alerts", next);
     void syncUserData({ alerts: next });
   };
 
   const saveFavorites = (next) => {
     setFavorites(next);
-    localStorage.setItem("er-favorites", JSON.stringify(next));
+    persistUserDataStore(authUser?.id, "favorites", next);
     void syncUserData({ favorites: next });
   };
   const toggleFavorite = (id) => {
@@ -978,7 +1000,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   const toggleTask = (index) => {
     const next = tasks.map((done, i) => i === index ? !done : done);
     setTasks(next);
-    localStorage.setItem("er-tasks", JSON.stringify(next));
+    persistUserDataStore(authUser?.id, "tasks", next);
     void syncUserData({ tasks: next });
   };
   const progress = Math.round(tasks.filter(Boolean).length / tasks.length * 100);

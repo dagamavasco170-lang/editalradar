@@ -7,7 +7,7 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { concursos } from "../src/data/concursos.js";
-import { isTrustedOfficialHost } from "./monitor-sources.mjs";
+import { isTrustedOfficialHost, resolveTrustedOfficialUrl, validateTrustedOfficialUrl } from "./monitor-sources.mjs";
 
 const MAX_BYTES = 4 * 1024 * 1024;
 const TIMEOUT_MS = 8000;
@@ -386,8 +386,7 @@ export async function fetchCandidateWithCurl(candidateUrl, options = {}) {
     const { stdout: metadata } = await execFileAsync("curl", [
       "--silent",
       "--show-error",
-      "--location",
-      "--max-redirs", "5",
+      "--max-redirs", "0",
       "--connect-timeout", String(Math.min(5, Math.ceil(timeoutMs / 1000))),
       "--max-time", String(Math.ceil(timeoutMs / 1000)),
       "--max-filesize", String(MAX_BYTES),
@@ -444,27 +443,48 @@ export async function fetchCandidateWithCurl(candidateUrl, options = {}) {
   }
 }
 
+async function requestWithSafeRedirects(request, startUrl, timeoutMs) {
+  let currentUrl = validateTrustedOfficialUrl(startUrl).href;
+  const maxRedirects = 5;
+
+  for (let redirectCount = 0; redirectCount <= maxRedirects; redirectCount += 1) {
+    const response = await request(currentUrl, {
+      redirect: "manual",
+      signal: AbortSignal.timeout(timeoutMs),
+      headers: {
+        "User-Agent": "Mozilla/5.0 (compatible; EditalRadar-AutoReview/1.3; +https://github.com/dagamavasco170-lang/editalradar)",
+        Accept: "text/html,application/xhtml+xml,text/plain,application/pdf;q=0.9,*/*;q=0.7"
+      }
+    });
+    if ([301, 302, 303, 307, 308].includes(response.status)) {
+      if (redirectCount === maxRedirects) {
+        const error = new Error("A publicação excedeu o limite de redirecionamentos seguros.");
+        error.code = "UNSAFE_REDIRECT";
+        throw error;
+      }
+      currentUrl = resolveTrustedOfficialUrl(currentUrl, response.headers?.get?.("location"));
+      continue;
+    }
+    return response;
+  }
+  throw new Error("Não foi possível resolver o endereço oficial.");
+}
+
 export async function fetchCandidateWithRetry(request, candidateUrl, options = {}) {
   const attempts = Math.max(1, Number(options.attempts) || 1);
   const timeoutMs = Math.max(1000, Number(options.timeoutMs) || TIMEOUT_MS);
   const retryDelayMs = Math.max(0, Number(options.retryDelayMs ?? 500));
+  const safeStartUrl = validateTrustedOfficialUrl(candidateUrl).href;
   let lastError = null;
   let lastResponse = null;
 
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     try {
-      const response = await request(candidateUrl, {
-        redirect: "follow",
-        signal: AbortSignal.timeout(timeoutMs),
-        headers: {
-          "User-Agent": "Mozilla/5.0 (compatible; EditalRadar-AutoReview/1.2; +https://github.com/dagamavasco170-lang/editalradar)",
-          Accept: "text/html,application/xhtml+xml,text/plain,application/pdf;q=0.9,*/*;q=0.7"
-        }
-      });
-      lastResponse = response;
-      if (response.ok || (response.status < 500 && response.status !== 429)) return response;
-      lastError = new Error("HTTP " + response.status);
+      lastResponse = await requestWithSafeRedirects(request, safeStartUrl, timeoutMs);
+      if (lastResponse.ok || (lastResponse.status < 500 && lastResponse.status !== 429)) return lastResponse;
+      lastError = new Error("HTTP " + lastResponse.status);
     } catch (error) {
+      if (error?.code === "UNSAFE_REDIRECT") throw error;
       lastError = error;
     }
 
@@ -476,13 +496,14 @@ export async function fetchCandidateWithRetry(request, candidateUrl, options = {
   const shouldUseFallback = !lastResponse || (!lastResponse.ok && (lastResponse.status >= 500 || lastResponse.status === 429));
   if (shouldUseFallback && typeof options.fallbackRequest === "function") {
     try {
-      console.warn("Acesso HTTP direto falhou; tentando transporte alternativo para " + String(candidateUrl).slice(0, 240) + ".");
-      const fallbackResponse = await options.fallbackRequest(candidateUrl, { timeoutMs });
+      console.warn("Acesso HTTP direto falhou; tentando transporte alternativo para " + safeStartUrl.slice(0, 240) + ".");
+      const fallbackResponse = await requestWithSafeRedirects(options.fallbackRequest, safeStartUrl, timeoutMs);
       if (fallbackResponse?.ok || (fallbackResponse && fallbackResponse.status < 500 && fallbackResponse.status !== 429)) {
         return fallbackResponse;
       }
       if (fallbackResponse) lastResponse = fallbackResponse;
     } catch (error) {
+      if (error?.code === "UNSAFE_REDIRECT") throw error;
       lastError = error;
     }
   }

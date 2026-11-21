@@ -102,6 +102,39 @@ test("repete uma falha temporária de rede e recupera o acesso à publicação",
   assert.equal(calls, 2);
 });
 
+test("segue redirecionamento somente para outro destino oficial e HTTPS", async () => {
+  const requested = [];
+  const response = await fetchCandidateWithRetry(async (url, options) => {
+    requested.push({ url, redirect: options.redirect });
+    if (url.endsWith("/inicio")) {
+      return { ok: false, status: 302, headers: new Headers({ location: "/edital.pdf" }), url };
+    }
+    return { ok: true, status: 200, headers: new Headers(), url };
+  }, "https://orgao.gov.br/inicio", { timeoutMs: 1000 });
+  assert.equal(response.ok, true);
+  assert.equal(requested.length, 2);
+  assert.ok(requested.every(item => item.redirect === "manual"));
+  assert.equal(requested[1].url, "https://orgao.gov.br/edital.pdf");
+});
+
+test("bloqueia redirecionamento externo antes de requisitar o destino", async () => {
+  const requested = [];
+  await assert.rejects(() => fetchCandidateWithRetry(async (url) => {
+    requested.push(url);
+    return { ok: false, status: 302, headers: new Headers({ location: "https://example.com/metadata" }), url };
+  }, "https://orgao.gov.br/inicio", { timeoutMs: 1000 }), /URL bloqueada/);
+  assert.deepEqual(requested, ["https://orgao.gov.br/inicio"]);
+});
+
+test("bloqueia redirecionamento de HTTPS para HTTP", async () => {
+  await assert.rejects(() => fetchCandidateWithRetry(async (url) => ({
+    ok: false,
+    status: 301,
+    headers: new Headers({ location: "http://orgao.gov.br/edital" }),
+    url
+  }), "https://orgao.gov.br/inicio", { timeoutMs: 1000 }), /URL bloqueada/);
+});
+
 test("inclui o código e a causa técnica no diagnóstico de rede", () => {
   const message = summarizeFetchError(new TypeError("fetch failed", {
     cause: Object.assign(new Error("DNS lookup failed"), { code: "ENOTFOUND" })
