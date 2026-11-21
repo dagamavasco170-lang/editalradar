@@ -183,7 +183,7 @@ test("monta plano semanal e pratica uma questão autoral filtrada por disciplina
  await expect(page.getByText("15 h/semana")).toBeVisible();
  await page.getByLabel("Filtrar questões por disciplina").selectOption("Direito Constitucional");
  await page.getByLabel("Filtrar questões por estilo de banca").selectOption("Cebraspe");
- await expect(page.getByText(/Formato inspirado em Cebraspe/)).toBeVisible();
+ await expect(page.getByText(/Questão autoral · estilo Cebraspe/)).toBeVisible();
  await page.getByRole("button",{name:"Certo"}).click();
  await page.getByRole("button",{name:"Conferir resposta"}).click();
  await expect(page.getByText(/art\. 5º, IV/)).toBeVisible();
@@ -394,7 +394,7 @@ test("banco de questões filtra, salva, registra erros e mantém o caderno após
   await expect(bank.getByRole("heading", { name: /dirigiu-se a comissão/ })).toBeVisible();
   await bank.getByRole("button", { name: "Certo", exact: true }).click();
   await bank.getByRole("button", { name: "Conferir resposta" }).click();
-  await expect(bank.getByRole("status")).toContainText("Resposta incorreta");
+  await expect(bank.getByText(/Resposta incorreta/)).toBeVisible();
   await bank.getByRole("button", { name: "Salvar questão" }).click();
   await bank.getByRole("button", { name: /Caderno de erros/ }).click();
   await expect(bank.getByRole("heading", { name: /dirigiu-se a comissão/ })).toBeVisible();
