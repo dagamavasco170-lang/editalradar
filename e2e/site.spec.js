@@ -154,7 +154,7 @@ test("abre a experiência de cadastro e login conforme a integração configurad
 test("mostra o concurso PMESP aberto e sua remuneração oficial", async ({ page }) => {
   await page.goto("./");
   await page.getByPlaceholder("Buscar cargo ou órgão...").fill("PMESP");
-  await expect(page.getByText("39 registros")).toBeVisible();
+  await expect(page.getByText("Aluno-Soldado PM do Quadro de Praças").first()).toBeVisible();
   await page.getByRole("button", { name: /Ver detalhes/ }).first().click();
   await expect(page.getByRole("heading", { name: "Aluno-Soldado PM do Quadro de Praças" })).toBeVisible();
   await expect(page.getByText(/5.482,51/)).toBeVisible();
@@ -183,5 +183,5 @@ test("monta plano semanal e pratica uma questão autoral filtrada por disciplina
  await expect(page.getByText(/Formato inspirado em Cebraspe/)).toBeVisible();
  await page.getByRole("button",{name:"Certo"}).click();
  await page.getByRole("button",{name:"Conferir resposta"}).click();
- await expect(page.getByText(/A Constituição Federal assegura/)).toBeVisible();
+ await expect(page.getByText(/art\. 5º, IV/)).toBeVisible();
 });

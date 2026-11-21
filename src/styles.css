@@ -552,3 +552,43 @@ footer{background:#fff}
   .compare-table th,.compare-table td{min-width:155px;padding:10px}
   .compare-table thead th:first-child,.compare-table tbody th{min-width:125px}
 }
+
+
+/* Área de estudos modular: planejamento semanal e prática por disciplina/banca. */
+.study-plan-panel,.study-question-bank{display:grid;gap:13px}
+.study-field,.question-filters label{display:grid;gap:6px;color:#59736b;font-size:10px;font-weight:800}
+.study-field select,.question-filters select{width:100%;min-height:36px;padding:8px 10px;border:1px solid #dce8e1;border-radius:8px;background:#fff;color:#294c5a;font:inherit}
+.study-days{display:grid;gap:8px}
+.study-days>span{font-size:10px;font-weight:800;color:#607b70}
+.study-days>div{display:flex;gap:7px;flex-wrap:wrap}
+.study-days label{display:flex;align-items:center;gap:5px;padding:6px 9px;border:1px solid #e2ebe6;border-radius:7px;color:#587168;font-size:9px;font-weight:800}
+.study-days input,.study-session input{accent-color:#197b61}
+.study-session-list{display:grid;gap:7px}
+.study-session{display:flex;align-items:center;gap:9px;padding:9px 10px;border:1px solid #e5ede8;border-radius:8px;background:#fff}
+.study-session>span{display:grid;gap:3px;flex:1;min-width:0}
+.study-session strong{font-size:10px;color:#31586a}
+.study-session small{font-size:8px;line-height:1.45;color:#81918a}
+.study-session.completed{background:#f1f8f4;border-color:#cfe5d8}
+.study-session.completed strong{text-decoration:line-through;color:#789188}
+.study-disclaimer{display:block;color:#8a9993;font-size:9px;line-height:1.55}
+.study-question-bank{margin-top:16px;padding:18px}
+.question-filters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.question-card{display:grid;gap:12px;padding:14px;border:1px solid #e3ece6;border-radius:11px;background:#fbfdfc}
+.question-meta{display:flex;gap:7px;flex-wrap:wrap}
+.question-meta span{padding:5px 8px;border-radius:6px;background:#edf5f1;color:#5f7d70;font-size:8px;font-weight:800}
+.question-card h3{margin:0;color:#24495a;font:800 15px/1.5 Manrope,sans-serif}
+.question-options{display:grid;gap:7px}
+.question-options .option{text-align:left;min-height:38px;padding:9px 11px;border:1px solid #e3ebe6;border-radius:8px;background:#fff;color:#526c68;font-size:10px;line-height:1.5}
+.question-options .option.chosen{border-color:#88c2a7;background:#eef8f2;color:#205a46}
+.question-options .option.correct{border-color:#7ab99a;background:#eaf7ef;color:#176541}
+.question-options .option.wrong{border-color:#e5a49c;background:#fff2f0;color:#9e5148}
+.question-options .option:disabled{opacity:1;cursor:default}
+.question-actions{display:flex;gap:8px;flex-wrap:wrap}
+.question-actions .primary-btn,.question-actions .detail-btn{min-height:35px}
+.question-card .answer{margin:0;padding:10px 12px;border-radius:8px;font-size:10px;line-height:1.6}
+@media(max-width:650px){
+ .question-filters{grid-template-columns:1fr}
+ .study-question-bank{padding:13px}
+ .question-card h3{font-size:13px}
+ .question-actions>*{flex:1}
+}
