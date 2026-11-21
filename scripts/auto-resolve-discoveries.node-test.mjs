@@ -37,6 +37,26 @@ test("cadastra automaticamente somente quando edital, seleção, cargo, órgão 
   assert.equal(result.data.status, "Edital publicado · inscrições abertas");
 });
 
+
+test("reconhece retificação que não repete a expressão concurso público", () => {
+  const result = classifyDiscovery(
+    {
+      ...discovery,
+      title: "Retificação do Edital nº 01/2026"
+    },
+    {
+      title: "Retificação do Edital nº 01/2026",
+      heading: "Retificação do Edital",
+      text: "A Prefeitura Municipal de Igaci, Estado de Alagoas, publica retificação do Edital nº 01/2026. Cargo: Agente Administrativo. Onde se lê 20 vagas, leia-se 30 vagas."
+    },
+    "https://igaci.al.gov.br/concursos/edital-01-2026/retificacao.pdf"
+  );
+
+  assert.equal(result.decision, "publish");
+  assert.equal(result.data.orgao, "Prefeitura Municipal de Igaci");
+  assert.equal(result.data.cargo, "Agente Administrativo");
+});
+
 test("descarta páginas administrativas claramente sem relação com concursos", () => {
   const result = classifyDiscovery(
     { ...discovery, discovery_type: "new_link", title: "Transação Tributária" },
