@@ -1,4 +1,4 @@
-const isPreliminary = (item) => /concurso listado\\s*·\\s*verificar/i.test(item?.status || "");
+const isPreliminary = (item) => /concurso listado\s*·\s*verificar/i.test(item?.status || "");
 
 export function buildCatalogSnapshot(catalog = []) {
   return catalog
