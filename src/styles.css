@@ -121,3 +121,13 @@
 .notification-open{font-size:10px;font-weight:700;color:#197b61;white-space:nowrap}
 .notification-feedback{display:block;margin-top:8px;color:#197b61;font-size:10px}
 @media(max-width:600px){.notification-heading{flex-direction:column}.notification-actions{justify-content:flex-start}.notification-panel{padding:14px}}
+
+
+/* Acesso rápido e filtros da central de notificações. */
+.notification-bell{position:relative;display:grid;place-items:center;width:34px;height:34px;padding:0;border:1px solid #e2eae7;border-radius:9px;background:#fff;color:#28765f;font-size:18px}
+.notification-bell:hover{background:#f1f8f5;border-color:#b9d9cc}
+.notification-bell>span{position:absolute;top:-6px;right:-7px;display:grid;place-items:center;min-width:17px;height:17px;padding:0 4px;border:2px solid #fff;border-radius:12px;background:#d35e69;color:#fff;font-size:9px;font-weight:700}
+.notification-filters{display:flex;gap:7px;margin:12px 0}
+.notification-filter{border:1px solid #e3ebe7;border-radius:20px;background:#fff;color:#73858d;padding:7px 11px;font-size:10px;font-weight:700}
+.notification-filter.active{border-color:#c5e2d5;background:#edf7f2;color:#197b61}
+@media(max-width:760px){.top-actions{gap:8px}.notification-bell{width:31px;height:31px}}
