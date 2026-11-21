@@ -43,6 +43,12 @@ O catálogo também pode exibir registros preliminares de Alagoas identificados 
 - Receita Federal: https://www.gov.br/receitafederal/pt-br/acesso-a-informacao/servidores/concurso-publico-2026
 - CGU: https://www.gov.br/cgu/pt-br/acesso-a-informacao/concursos/concursos-publicos/
 
+## Monitoramento automático das fontes
+
+O GitHub Actions verifica diariamente os links de origem cadastrados em `src/data/concursos.js`. Alterações no conteúdo ou falhas de acesso geram uma issue para revisão editorial e um relatório de execução. O monitor **não** altera automaticamente o catálogo: vagas, requisitos, inscrições, cronogramas e status só devem mudar após conferência humana na fonte oficial. A primeira execução cria a linha de base; depois, diferenças de conteúdo são sinalizadas.
+
+Para executar manualmente: Actions → **Monitorar fontes de concursos** → Run workflow.
+
 ## Desenvolvimento
 
 Requisitos: Node.js 22+ e npm.
