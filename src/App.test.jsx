@@ -20,6 +20,51 @@ describe("EditalRadar", () => {
 
     expect(await screen.findByRole("heading", { level: 2, name: latest.cargo })).toBeInTheDocument();
   });
+  it("filtra, marca como lidas e limpa notificações", async () => {
+    localStorage.clear();
+    localStorage.setItem("er-catalog-snapshot:visitor", JSON.stringify(buildCatalogSnapshot(concursos)));
+    localStorage.setItem("er-notifications:visitor", JSON.stringify([
+      {
+        id: "notification-unread",
+        type: "new",
+        itemId: String(concursos[0].id),
+        title: "Notificação recente",
+        message: "Novo concurso para acompanhar",
+        createdAt: "2026-11-21T12:00:00.000Z",
+        read: false
+      },
+      {
+        id: "notification-read",
+        type: "favorite-update",
+        itemId: String(concursos[1].id),
+        title: "Notificação antiga",
+        message: "Uma atualização já conferida",
+        createdAt: "2026-11-20T12:00:00.000Z",
+        read: true
+      }
+    ]));
+
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Ver notificações/ }));
+    expect(screen.getByRole("region", { name: "Notificações do EditalRadar" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /Notificação recente/ })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Não lidas \(1\)/ }));
+    expect(screen.getByRole("button", { name: /Notificação recente/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Notificação antiga/ })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Marcar como lidas/ }));
+    expect(screen.getByText(/Não há notificações não lidas/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Todas \(2\)/ }));
+    expect(screen.getByRole("button", { name: /Notificação antiga/ })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Limpar histórico/ }));
+    expect(screen.getByText(/Nenhuma novidade por enquanto/)).toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem("er-notifications:visitor"))).toEqual([]);
+  });
+
   it("renderiza a página inicial e os concursos oficiais", () => {
     render(<App />);
 
