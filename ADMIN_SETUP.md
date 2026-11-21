@@ -34,6 +34,18 @@ A pessoa deve entrar novamente para que o token reflita a mudança.
 ## Cuidados
 
 - Conceda o papel somente a pessoas de confiança.
-- Não coloque `service_role` no site, no GitHub ou em variáveis `VITE_`.
+- Nunca coloque `service_role` no frontend, em variáveis `VITE_`, no código ou em arquivos do repositório. Para o monitor automático, use-a somente como **GitHub Actions secret** `SUPABASE_SERVICE_ROLE_KEY`.
 - O formulário exige link oficial HTTPS.
 - O catálogo original do repositório é mantido; edições e remoções são sobreposições no banco.
+
+## 4. Ativar a fila automática de revisão
+
+1. No SQL Editor do Supabase, execute integralmente `supabase/migrations/202611220003_contest_discoveries.sql`, depois da migração `202611220002_admin_catalog.sql`.
+2. No GitHub, abra o repositório → **Settings → Secrets and variables → Actions → New repository secret**.
+3. Crie o secret `SUPABASE_URL` com a URL do projeto Supabase.
+4. Crie o secret `SUPABASE_SERVICE_ROLE_KEY` com a chave **service_role/secret** do projeto (Project Settings → API Keys). Não a compartilhe nem a coloque no frontend.
+5. No repositório, abra **Actions → Monitorar fontes de concursos → Run workflow** para executar a verificação manual.
+
+O monitor acompanha páginas oficiais cadastradas no catálogo, identifica novos links com termos relacionados a editais/concursos e registra mudanças de conteúdo como itens pendentes. A fila aparece aqui no painel Administração. A primeira execução com o novo detector atualiza a linha de base dos links existentes; novos links publicados depois dessa linha de base serão sinalizados. O sistema não interpreta automaticamente o conteúdo de PDFs nem publica fichas: o administrador precisa abrir o link, conferir órgão, cargo, escolaridade, vagas, situação e cronograma, preencher os dados e salvar. Ao salvar, a descoberta é marcada como publicada. O botão Descartar encerra itens irrelevantes.
+
+Sem os dois secrets do GitHub, o monitor continua gerando relatório/issue, mas não envia novos itens à fila do Supabase.
