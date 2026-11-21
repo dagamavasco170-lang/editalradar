@@ -93,7 +93,7 @@ test("detecta página alterada e links novos após a linha de base", () => {
   const discoveries = buildDiscoveriesForSource(url, {
     sha256: "old",
     opportunityLinks: [oldLink],
-    opportunityLinkFilterVersion: 3
+    opportunityLinkFilterVersion: 4
   }, {
     ok: true, sha256: "new", opportunityLinks: [oldLink, newLink]
   });
