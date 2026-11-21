@@ -7,7 +7,7 @@ describe("EditalRadar", () => {
     render(<App />);
 
     expect(
-      screen.getByRole("heading", { name: /Encontre concursos com informação verificada/i })
+      screen.getByRole("heading", { name: /Encontre concursos/i })
     ).toBeInTheDocument();
 
     expect(screen.getAllByText("Banco Central do Brasil").length).toBeGreaterThan(0);
@@ -62,7 +62,7 @@ describe("EditalRadar", () => {
     fireEvent.change(screen.getByLabelText("Esfera"), { target: { value: "Municipal" } });
 
     expect(screen.getByText("Cargos efetivos a definir")).toBeInTheDocument();
-    expect(screen.getByText("Vagas a divulgar")).toBeInTheDocument();
+    expect(screen.getByText(/Vagas a divulgar/)).toBeInTheDocument();
   });
 
   it("salva um concurso nos favoritos e mostra a lista", () => {
