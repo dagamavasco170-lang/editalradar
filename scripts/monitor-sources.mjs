@@ -50,7 +50,7 @@ function decodeHtmlText(value) {
 }
 
 export function extractOpportunityLinks(html, sourceUrl) {
-  const keywords = /\b(edital|concurso|processo seletivo|seleção|selecao|inscrições|inscricoes|vagas|provimento|nomeação|nomeacao|autorização|autorizacao)\b/i;
+  const keywords = /\b(editais?|concursos?|processos? seletivos?|seleção|selecao|seleções|selecoes|inscrições|inscricoes|vagas|provimentos?|nomeações|nomeacoes|autorização|autorizacoes|autorizações)\b/i;
   const found = new Map();
   const anchors = String(html).matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a\s*>/gi);
 
