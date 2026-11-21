@@ -259,7 +259,17 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
 
     const existing = readStore(notificationStorageKey, []);
     const knownIds = new Set(existing.map((item) => item.id));
-    const fresh = detected.notifications.filter((item) => !knownIds.has(item.id));
+    const hasRecommendationProfile = Boolean(
+      authUser?.user_metadata?.interest_area
+      || authUser?.user_metadata?.education_level
+      || authUser?.user_metadata?.state
+    );
+    const fresh = detected.notifications.filter((notice) => {
+      if (knownIds.has(notice.id)) return false;
+      if (notice.type !== "new" || !hasRecommendationProfile) return true;
+      const contest = concursos.find((item) => String(item.id) === String(notice.itemId));
+      return contest && scoreRecommendation(contest, authUser.user_metadata || {}) >= 70;
+    });
     if (fresh.length === 0) return;
 
     const next = [...fresh, ...existing].slice(0, 50);
@@ -288,7 +298,11 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     browserNotificationsEnabled,
     notificationPermission,
     notificationStorageKey,
-    catalogSnapshotStorageKey
+    catalogSnapshotStorageKey,
+    authUser?.user_metadata?.interest_area,
+    authUser?.user_metadata?.education_level,
+    authUser?.user_metadata?.state,
+    authUser?.user_metadata?.city
   ]);
 
   const estados = [...new Set(concursos.map((item) => item.estado || "Brasil"))].sort();
