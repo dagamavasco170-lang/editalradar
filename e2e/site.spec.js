@@ -94,6 +94,7 @@ test("abre a experiência de cadastro e login conforme a integração configurad
   if (hasEmailForm > 0) {
     await expect(dialog.getByLabel("E-mail")).toBeVisible();
     await expect(dialog.getByLabel("Senha")).toBeVisible();
+    await expect(dialog.getByRole("button", { name: "Continuar com Google" })).toBeVisible();
     await expect(dialog.getByRole("button", { name: "Entrar", exact: true })).toBeVisible();
 
     await dialog.getByRole("button", { name: "Não tem conta? Criar conta" }).click();
