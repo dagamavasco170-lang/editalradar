@@ -31,6 +31,8 @@ jobs:
         run: npm install
       - name: Executar testes
         run: npm test
+      - name: Testar monitoramento de fontes
+        run: npm run test:monitor
 
   build:
     name: Compilar aplicação
