@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildCatalogSnapshot, detectCatalogNotifications } from "./notifications";
+import { buildCatalogSnapshot, detectCatalogNotifications, dismissNotificationHistory, getVisibleNotifications, mergeNotificationHistory } from "./notifications";
 
 const contest = (overrides = {}) => ({
   id: 10,
@@ -142,5 +142,46 @@ describe("Notificações do catálogo", () => {
     });
 
     expect(result.notifications).toEqual([]);
+  });
+});
+
+
+describe("Histórico de notificações dispensadas", () => {
+  it("guarda apenas o identificador ao limpar e não o mostra novamente", () => {
+    const original = [
+      { id: "new-21", title: "Novo concurso", message: "Aviso", read: false },
+      { id: "retification-10-2026-11-21", title: "Retificação", message: "Aviso", read: true }
+    ];
+    const dismissed = dismissNotificationHistory(original, "2026-11-21T19:00:00.000Z");
+
+    expect(dismissed).toEqual([
+      { id: "new-21", read: true, dismissedAt: "2026-11-21T19:00:00.000Z" },
+      { id: "retification-10-2026-11-21", read: true, dismissedAt: "2026-11-21T19:00:00.000Z" }
+    ]);
+    expect(getVisibleNotifications(dismissed)).toEqual([]);
+  });
+
+  it("não restaura do servidor uma notificação que já foi apagada localmente", () => {
+    const remote = [{ id: "new-21", title: "Novo concurso", message: "Aviso", read: false }];
+    const local = [{ id: "new-21", read: true, dismissedAt: "2026-11-21T19:00:00.000Z" }];
+
+    expect(mergeNotificationHistory(remote, local)).toEqual(local);
+  });
+
+  it("preserva no histórico as notificações dispensadas durante uma sincronização", () => {
+    const remote = [
+      { id: "new-20", title: "Concurso anterior", read: false },
+      { id: "new-21", title: "Concurso novo", read: false }
+    ];
+    const local = [
+      { id: "new-20", read: true, dismissedAt: "2026-11-21T19:00:00.000Z" },
+      { id: "new-22", title: "Outro concurso", read: false }
+    ];
+
+    expect(mergeNotificationHistory(remote, local)).toEqual([
+      local[0],
+      remote[1],
+      local[1]
+    ]);
   });
 });
