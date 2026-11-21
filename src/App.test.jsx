@@ -3,8 +3,27 @@ import { describe, expect, it } from "vitest";
 import App from "./App.jsx";
 import { concursos } from "./data/concursos.js";
 import { scoreRecommendation } from "./App.jsx";
+import { buildCatalogSnapshot } from "./lib/notifications";
 
 describe("EditalRadar", () => {
+  it("detecta um novo concurso e abre seus detalhes pela central de notificações", async () => {
+    localStorage.clear();
+    const latest = [...concursos].reverse().find((item) => !/concurso listado\\s*·\\s*verificar/i.test(item.status || ""));
+    const previous = buildCatalogSnapshot(concursos.filter((item) => String(item.id) !== String(latest.id)));
+    localStorage.setItem("er-catalog-snapshot:visitor", JSON.stringify(previous));
+
+    render(<App />);
+
+    const notification = await screen.findByRole("button", {
+      name: new RegExp(latest.cargo.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\describe("EditalRadar", () => {
+"))
+    });
+    expect(notification).toHaveTextContent("Novo concurso no catálogo");
+    fireEvent.click(notification);
+
+    expect(await screen.findByRole("heading", { level: 2, name: latest.cargo })).toBeInTheDocument();
+  });
+
   it("renderiza a página inicial e os concursos oficiais", () => {
     render(<App />);
 
