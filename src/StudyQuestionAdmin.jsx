@@ -1,4 +1,5 @@
 import React,{useState} from "react";
+import { isTrustedOfficialUrl, parseHttpsUrl } from "./lib/official-sources.js";
 
 const blank=()=>({exam_name:"",exam_year:String(new Date().getFullYear()),board:"Cebraspe",discipline:"Língua Portuguesa",topic:"",difficulty:"Intermediária",prompt:"",options:["","","","",""],answer:"a",explanation:"",source_url:"",rights_holder:"",license_status:"permission_granted",license_proof_url:""});
 export default function StudyQuestionAdmin({authClient,userId}){
@@ -14,7 +15,8 @@ export default function StudyQuestionAdmin({authClient,userId}){
   const options=form.options.map((text,index)=>({id:String.fromCharCode(97+index),text:text.trim()})).filter(item=>item.text);
   const source=form.source_url.trim(),proof=form.license_proof_url.trim();
   if(!form.exam_name.trim()||!form.prompt.trim()||!form.topic.trim()||!form.rights_holder.trim()){setMessage("Preencha prova, tema, enunciado e titular dos direitos.");setKind("error");return;}
-  if(!/^https:\/\//i.test(source)||!/^https:\/\//i.test(proof)){setMessage("Informe fonte oficial e comprovante de licença, ambos com https://.");setKind("error");return;}
+  if(!isTrustedOfficialUrl(source)){setMessage("A fonte da questão precisa ser um domínio oficial de órgão público ou banca organizadora.");setKind("error");return;}
+  if(!parseHttpsUrl(proof)){setMessage("O comprovante de licença precisa ter um link HTTPS válido, sem credenciais na URL.");setKind("error");return;}
   if(options.length<2||!options.some(option=>option.id===form.answer)){setMessage("Preencha pelo menos duas alternativas e selecione um gabarito válido.");setKind("error");return;}
   if(!confirmed){setMessage("Confirme que existe autorização/licença válida para reproduzir o conteúdo.");setKind("error");return;}
   const year=Number(form.exam_year);
