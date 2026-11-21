@@ -313,29 +313,6 @@ export const concursos = [
     "sourceUrl": "https://paripueira.al.gov.br/public/noticias/147/prefeitura-de-paripueira-anuncia-concurso-publico-com-previsao-de-conclusao-ate-novembro-de-2027",
     "observacao": "A Prefeitura anunciou concurso para cargos efetivos, em cumprimento ao TAC nº 01/2026 firmado com o Ministério Público de Alagoas. Até a atualização desta ficha, não haviam sido divulgados quantidade de vagas, cargos, requisitos ou edital. A conclusão do processo foi prevista até 30 de novembro de 2027."
   },
-];
-export const materias = [
-  {
-    "nome": "Língua Portuguesa",
-    "descricao": "Interpretação e gramática",
-    "icon": "Aa"
-  },
-  {
-    "nome": "Raciocínio lógico",
-    "descricao": "Lógica e matemática",
-    "icon": "∑"
-  },
-  {
-    "nome": "Direito constitucional",
-    "descricao": "Princípios e fundamentos",
-    "icon": "§"
-  },
-  {
-    "nome": "Informática",
-    "descricao": "Conceitos e ferramentas",
-    "icon": "⌘"
-  },
-
   {
     "id": 412,
     "sigla": "PROCON/AL",
@@ -384,4 +361,27 @@ export const materias = [
     "sourceUrl": "https://igeduc.selecao.net.br/informacoes/186/",
     "observacao": "O edital oferta 205 vagas em 11 cargos da Secretaria Municipal de Educação. As inscrições ocorreram de 27/08 a 12/10/2026. A página oficial do IGEDUC registra resultado preliminar da prova objetiva publicado em 18/11/2026 e gabarito definitivo. Consulte a página oficial para acompanhar recursos e próximas etapas."
   },
+];
+export const materias = [
+  {
+    "nome": "Língua Portuguesa",
+    "descricao": "Interpretação e gramática",
+    "icon": "Aa"
+  },
+  {
+    "nome": "Raciocínio lógico",
+    "descricao": "Lógica e matemática",
+    "icon": "∑"
+  },
+  {
+    "nome": "Direito constitucional",
+    "descricao": "Princípios e fundamentos",
+    "icon": "§"
+  },
+  {
+    "nome": "Informática",
+    "descricao": "Conceitos e ferramentas",
+    "icon": "⌘"
+  },
+
 ];
