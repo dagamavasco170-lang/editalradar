@@ -103,10 +103,11 @@ export function extractOpportunityLinks(html, sourceUrl) {
 export function buildDiscoveriesForSource(url, previous, current) {
   if (!current?.ok) return [];
   const discoveries = [];
-  const needsLinkBaseline = previous?.opportunityLinkFilterVersion !== 2;
+  const needsLinkBaseline = previous?.opportunityLinkFilterVersion !== 3;
 
   if (needsLinkBaseline) {
-    for (const item of current.opportunityLinks || []) {
+    const opportunityLinks = current.opportunityLinks || [];
+    for (const item of opportunityLinks) {
       discoveries.push({
         source_url: url,
         candidate_url: item.candidate_url,
@@ -114,6 +115,16 @@ export function buildDiscoveriesForSource(url, previous, current) {
         title: item.title,
         context: item.context + " · Oportunidade encontrada na carga inicial da fila; confirme se ainda está vigente.",
         discovery_type: "new_link"
+      });
+    }
+    if (opportunityLinks.length === 0) {
+      discoveries.push({
+        source_url: url,
+        candidate_url: url,
+        discovery_key: "source-baseline:" + current.sha256,
+        title: "Fonte oficial para verificação inicial: " + new URL(url).hostname,
+        context: "Página oficial monitorada sem link de edital identificável pelo detector. Abra a fonte e confira manualmente se há edital, autorização, seleção ou cronograma novo.",
+        discovery_type: "source_baseline"
       });
     }
     return discoveries;
@@ -177,7 +188,7 @@ async function fetchSource(url) {
     ok: true,
     sha256: fingerprintContent(content, contentType),
     opportunityLinks,
-    opportunityLinkFilterVersion: 2,
+    opportunityLinkFilterVersion: 3,
     status: response.status,
     finalUrl: response.url,
     contentType,
