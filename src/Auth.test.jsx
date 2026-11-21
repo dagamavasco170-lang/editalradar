@@ -107,6 +107,56 @@ describe("Autenticação EditalRadar", () => {
     await waitFor(() => expect(screen.getByText("Dados sincronizados")).toBeInTheDocument());
   });
 
+  it("permite editar e salvar o nome de exibição no perfil da conta", async () => {
+    const client = createAuthClient();
+    render(<App authClient={client} authConfigured />);
+    await waitFor(() => expect(client.callback).toBeTypeOf("function"));
+    client.callback("SIGNED_IN", {
+      user: {
+        id: "user-profile",
+        email: "aluno@exemplo.com",
+        user_metadata: { full_name: "Nome Antigo" }
+      }
+    });
+
+    await screen.findByText("Dados sincronizados");
+    expect(screen.getByText("Nome Antigo")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Editar perfil" }));
+
+    const nameInput = await screen.findByLabelText("Nome de exibição");
+    expect(nameInput).toHaveValue("Nome Antigo");
+    fireEvent.change(nameInput, { target: { value: "Maria Concurseira" } });
+    fireEvent.click(screen.getByRole("button", { name: "Salvar perfil" }));
+
+    await waitFor(() => expect(client.auth.updateUser).toHaveBeenCalledWith({
+      data: { full_name: "Maria Concurseira" }
+    }));
+    expect(await screen.findByText("Maria Concurseira")).toBeInTheDocument();
+  });
+
+  it("mostra erro e mantém a edição aberta se o Supabase rejeitar a alteração do perfil", async () => {
+    const client = createAuthClient();
+    client.auth.updateUser.mockResolvedValueOnce({
+      data: { user: null },
+      error: { message: "Falha ao salvar perfil" }
+    });
+    render(<App authClient={client} authConfigured />);
+    await waitFor(() => expect(client.callback).toBeTypeOf("function"));
+    client.callback("SIGNED_IN", {
+      user: { id: "user-profile-error", email: "aluno@exemplo.com", user_metadata: {} }
+    });
+
+    await screen.findByText("Dados sincronizados");
+    fireEvent.click(screen.getByRole("button", { name: "Editar perfil" }));
+    fireEvent.change(await screen.findByLabelText("Nome de exibição"), {
+      target: { value: "Nome de Teste" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Salvar perfil" }));
+
+    expect(await screen.findByText("Falha ao salvar perfil")).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Editar perfil" })).toBeInTheDocument();
+  });
+
   it("mostra mensagem quando o provedor Google ainda não está habilitado", async () => {
     const client = createAuthClient();
     client.auth.signInWithOAuth.mockResolvedValueOnce({
