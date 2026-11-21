@@ -53,6 +53,20 @@ test("extrai links HTTPS relevantes de edital e ignora links comuns ou inseguros
   assert.match(links[0].title, /Edital 2026/);
 });
 
+
+test("detecta links oficiais de retificação, errata e aditivo", () => {
+  const html =
+    "<a href='/concursos/edital-01-2026/retificacao-1.pdf'>1ª Retificação do Edital 01/2026</a>" +
+    "<a href='/concursos/edital-01-2026/errata.pdf'>Errata do concurso público</a>" +
+    "<a href='/concursos/edital-01-2026/aditivo.pdf'>Aditivo ao edital</a>";
+  const links = extractOpportunityLinks(html, "https://orgao.gov.br/concursos");
+
+  assert.equal(links.length, 3);
+  assert.ok(links.some(item => /retificacao-1\.pdf/.test(item.candidate_url)));
+  assert.ok(links.some(item => /errata\.pdf/.test(item.candidate_url)));
+  assert.ok(links.some(item => /aditivo\.pdf/.test(item.candidate_url)));
+});
+
 test("semeia a fila com links oficiais atuais na primeira execução do detector filtrado", () => {
   const url = "https://orgao.gov.br/concursos";
   const currentLink = {
