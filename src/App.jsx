@@ -72,7 +72,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     return Array.isArray(stored) ? stored : [];
   });
   const [notifications, setNotifications] = useState(() => {
-    const stored = readStore("er-notifications", []);
+    const stored = readStore("er-notifications:visitor", []);
     return Array.isArray(stored) ? stored : [];
   });
   const [notificationPermission, setNotificationPermission] = useState(() =>
