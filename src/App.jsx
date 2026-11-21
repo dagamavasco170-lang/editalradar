@@ -36,6 +36,8 @@ const describeAlert = (filters) => {
   return parts.length ? parts.join(" · ") : "Todos os concursos";
 };
 
+const isPreliminary = (item) => /concurso listado\s*·\s*verificar/i.test(item?.status || "");
+
 export default function App({ authClient = supabase, authConfigured = isSupabaseConfigured } = {}) {
   const [page, setPage] = useState("concursos");
   const [query, setQuery] = useState("");
@@ -273,7 +275,10 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     void syncUserData({ tasks: next });
   };
   const progress = Math.round(tasks.filter(Boolean).length / tasks.length * 100);
-  const totalVagas = concursos.reduce((sum, item) => sum + (Number(item.vagas) || 0), 0);
+  const catalogCount = concursos.filter(Boolean).length;
+  const preliminaryCount = concursos.filter(isPreliminary).length;
+  const verifiedRecords = concursos.filter((item) => item && !isPreliminary(item));
+  const totalVagas = verifiedRecords.reduce((sum, item) => sum + (Number(item.vagas) || 0), 0);
 
   return (
     <div className="app-shell">
@@ -325,15 +330,15 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
               <div className="hero-art"><div className="art-circle">✦</div><div className="art-card"><span>✧</span><strong>Seu esforço<br/>vai valer a pena.</strong><small>Um dia de cada vez.</small></div></div>
             </div>
             <div className="source-notice">
-              <div><strong>Confira a etapa e a origem de cada oportunidade.</strong><p>O catálogo está começando a incorporar concursos estaduais e municipais de Alagoas. Cada cartão leva à fonte oficial; vagas não divulgadas aparecem como “A divulgar”.</p></div>
+              <div><strong>Confira a etapa e a origem de cada oportunidade.</strong><p>{preliminaryCount} registro(s) são preliminares e vêm de uma listagem secundária: não são confirmação de edital ou de vagas e ficam fora da soma de vagas. Os demais registros levam à página da seleção ou do órgão responsável.</p></div>
               <a href={sourceUrl} target="_blank" rel="noreferrer">Consultar base federal do MGI ↗</a>
             </div>
             <div className="stats-row">
-              <div className="stat"><span className="stat-icon blue">▦</span><div><strong>{concursos.length}</strong><small>Oportunidades verificadas</small></div></div>
-              <div className="stat"><span className="stat-icon green">⌁</span><div><strong>{new Intl.NumberFormat("pt-BR").format(totalVagas)}</strong><small>Vagas informadas (sem cadastro reserva)</small></div></div>
+              <div className="stat"><span className="stat-icon blue">▦</span><div><strong>{catalogCount}</strong><small>Registros no catálogo</small></div></div>
+              <div className="stat"><span className="stat-icon green">⌁</span><div><strong>{new Intl.NumberFormat("pt-BR").format(totalVagas)}</strong><small>Vagas em fichas com fonte oficial</small></div></div>
               <div className="stat"><span className="stat-icon gold">☆</span><div><strong>{favorites.length}</strong><small>Oportunidades salvas</small></div></div>
             </div>
-            <div className="section-title"><div><div className="eyebrow">ACOMPANHAMENTO NACIONAL</div><h2>{page === "favoritos" ? "Seus concursos favoritos" : "Concursos com fontes oficiais"}</h2></div><span className="results">{(page === "favoritos" ? filtered.filter(c => favorites.includes(c.id)) : filtered).length} registros</span></div>
+            <div className="section-title"><div><div className="eyebrow">CATÁLOGO DE OPORTUNIDADES</div><h2>{page === "favoritos" ? "Seus concursos favoritos" : "Concursos e avisos no catálogo"}</h2></div><span className="results">{(page === "favoritos" ? filtered.filter(c => favorites.includes(c.id)) : filtered).length} registros</span></div>
             <div className="filters">
               <label className="search-filter"><span>⌕</span><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar cargo ou órgão..." /></label>
               <select aria-label="Esfera" value={esfera} onChange={(e) => setEsfera(e.target.value)}><option>Todas as esferas</option>{["Federal", "Estadual", "Municipal"].map(x => <option key={x}>{x}</option>)}</select>
@@ -370,14 +375,14 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
             <div className="cards">
               {(page === "favoritos" ? filtered.filter(c => favorites.includes(c.id)) : filtered).map((item) => <article className="contest-card" key={item.id}>
                 <div className="card-top"><div className="org-icon">{item.sigla}</div><button className={favorites.includes(item.id) ? "heart saved" : "heart"} onClick={() => toggleFavorite(item.id)} aria-label="Salvar favorito">{favorites.includes(item.id) ? "♥" : "♡"}</button></div>
-                <span className="status"><i />{item.status}</span><h3>{item.cargo}</h3><p className="org-name">{item.orgao}</p>
+                <span className={`status ${isPreliminary(item) ? "preliminary" : ""}`}><i />{item.status}</span><h3>{item.cargo}</h3><p className="org-name">{item.orgao}</p>
                 <div className="card-meta"><span>⌁ {item.vagas == null ? "Vagas a divulgar" : `${item.vagas} vaga(s) informada(s)`}</span><span>▤ {item.nivel}</span><span>⌖ {item.localidade || "Brasil"}</span></div>
-                <div className="card-bottom"><div><small>Referência oficial</small><strong>{item.atoOficial || "Consulte a fonte"}</strong></div><button className="detail-btn" onClick={() => setSelected(item)}>Ver detalhes ↗</button></div>
+                <div className="card-bottom"><div><small>{isPreliminary(item) ? "Listagem de referência" : "Fonte oficial"}</small><strong>{item.atoOficial || "Não informado"}</strong></div><button className="detail-btn" onClick={() => setSelected(item)}>Ver detalhes ↗</button></div>
               </article>)}
               {((page === "favoritos" && filtered.filter(c => favorites.includes(c.id)).length === 0) || (page !== "favoritos" && filtered.length === 0)) && <div className="empty">Nenhum concurso encontrado. Experimente ajustar os filtros.</div>}
             </div>
             <div className="source-footnote"><span>Fontes: órgãos federais, Governo de Alagoas, Cebraspe, IGEDUC e portais municipais.</span><span>Conferência editorial: {sourceUpdated} · Dados compilados em: {fetchedAt ? new Date(fetchedAt).toLocaleString("pt-BR") : "não informado"}</span><a href={sourceUrl} target="_blank" rel="noreferrer">Ver página geral do MGI ↗</a></div>
-            <p className="disclaimer">Este catálogo é uma amostra inicial: reúne registros federais e seleções estaduais/municipais de Alagoas já identificadas em fontes oficiais. Ainda não cobre todos os estados e municípios do Brasil. “Vagas a divulgar” indica que o órgão ainda não publicou o quantitativo. Confirme sempre datas, requisitos, lotação e etapas na página oficial de cada seleção.</p>
+            <p className="disclaimer">Este catálogo é uma amostra inicial e não cobre todos os estados e municípios do Brasil. Registros marcados como preliminares vêm de listagem secundária e ainda não foram confirmados individualmente em edital oficial; não considere suas vagas, requisitos ou cronograma como definitivos. Eles não entram na soma de vagas. “Vagas a divulgar” indica que o quantitativo não foi informado nesta ficha. Confirme sempre datas, requisitos, lotação e etapas na publicação oficial.</p>
           </section>
         )}
         <footer>© 2026 EditalRadar · Feito para apoiar sua jornada até a aprovação.</footer>
@@ -412,7 +417,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
           )}
         </section>
       </div>}
-            {selected && <div className="modal-backdrop" onClick={() => setSelected(null)}><div className="modal" onClick={(e) => e.stopPropagation()}><button className="modal-close" onClick={() => setSelected(null)}>×</button><span className="status"><i />{selected.status}</span><div className="eyebrow">DETALHES DA SELEÇÃO</div><h2>{selected.cargo}</h2><p className="org-name">{selected.orgao}</p><div className="modal-facts"><div><small>Vagas informadas</small><strong>{selected.vagas == null ? "A divulgar" : selected.vagas}</strong></div><div><small>Escolaridade</small><strong>{selected.nivel}</strong></div><div><small>Vínculo</small><strong>{selected.vinculo || "Não informado"}</strong></div><div><small>Ato oficial</small><strong>{selected.atoOficial || "Consulte a planilha"}</strong></div></div><p className="muted">{selected.observacao}</p><a className="primary-btn full modal-source-link" href={selected.sourceUrl || sourceUrl} target="_blank" rel="noreferrer">Consultar página oficial do concurso ↗</a><button className="detail-btn full" onClick={() => toggleFavorite(selected.id)}>{favorites.includes(selected.id) ? "Remover dos favoritos" : "Salvar nos favoritos"}</button></div></div>}
+            {selected && <div className="modal-backdrop" onClick={() => setSelected(null)}><div className="modal" onClick={(e) => e.stopPropagation()}><button className="modal-close" onClick={() => setSelected(null)}>×</button><span className={`status ${isPreliminary(selected) ? "preliminary" : ""}`}><i />{selected.status}</span><div className="eyebrow">DETALHES DA SELEÇÃO</div><h2>{selected.cargo}</h2><p className="org-name">{selected.orgao}</p><div className="modal-facts"><div><small>Vagas informadas</small><strong>{selected.vagas == null ? "A divulgar" : selected.vagas}</strong></div><div><small>Escolaridade</small><strong>{selected.nivel}</strong></div><div><small>Vínculo</small><strong>{selected.vinculo || "Não informado"}</strong></div><div><small>{isPreliminary(selected) ? "Referência cadastrada" : "Ato oficial"}</small><strong>{selected.atoOficial || "Não informado"}</strong></div></div><p className="muted">{selected.observacao}</p><a className="primary-btn full modal-source-link" href={selected.sourceUrl || sourceUrl} target="_blank" rel="noreferrer">{isPreliminary(selected) ? "Abrir listagem de referência — não é edital ↗" : "Consultar página oficial do concurso ↗"}</a><button className="detail-btn full" onClick={() => toggleFavorite(selected.id)}>{favorites.includes(selected.id) ? "Remover dos favoritos" : "Salvar nos favoritos"}</button></div></div>}
     </div>
   );
 }
