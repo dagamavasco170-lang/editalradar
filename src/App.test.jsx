@@ -167,7 +167,7 @@ describe("EditalRadar", () => {
     render(<App />);
 
     const verifiedVacancies = concursos
-      .filter((item) => item && !/concurso listado\\s*·\\s*verificar/i.test(item.status || ""))
+      .filter((item) => item && !/concurso listado\s*·\s*verificar/i.test(item.status || ""))
       .reduce((sum, item) => sum + (Number(item.vagas) || 0), 0);
     const metric = screen.getByText("Vagas em fichas com fonte oficial").closest(".stat");
 
