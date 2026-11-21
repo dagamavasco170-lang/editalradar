@@ -1,5 +1,10 @@
 # EditalRadar
 
+## Licença e propriedade intelectual
+
+O EditalRadar é um software proprietário, de código fechado e uso restrito. O código-fonte e os componentes originais do projeto não podem ser copiados, modificados, redistribuídos ou explorados comercialmente sem autorização prévia e expressa do titular, observadas as licenças de componentes de terceiros e as exceções previstas em lei. Consulte o arquivo [LICENSE](./LICENSE).
+
+
 Plataforma web demonstrativa para acompanhar concursos públicos com links para fontes oficiais e organizar a preparação.
 
 ## Cobertura inicial
