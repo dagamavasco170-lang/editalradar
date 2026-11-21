@@ -274,12 +274,12 @@ export function classifyDiscovery(discovery, document, responseUrl = discovery?.
   }
 
   const orgao = inferOrganization(title + "\n" + text);
-  const cargo = firstMatch(text, [
+  const cargo = detectedRoles[0] || firstMatch(text, [
     /\bcargos?\s*(?:ofertados?|disponíveis?)?\s*[:\-]\s*([^.;\n]{3,150})/i,
     /\bcargo\s+(?:de|para)\s+([^.;\n]{3,120}?)(?=\s+(?:do|da)\s+(?:Tribunal|Prefeitura|Secretaria|Ministério|Defensoria|Procuradoria)\b|[.;\n]|$)/i,
     /\bvagas?\s+para\s+([^.;\n]{3,120})/i,
     /\bfunções?\s*(?:de|:)\s*([^.;\n]{3,120})/i
-  ]) || detectedRoles[0] || "";
+  ]) || detectedRoles[0]);
   const jurisdiction = orgao ? inferJurisdiction(candidate.hostname, orgao, title + "\n" + text) : null;
   if (!orgao || !cargo || !jurisdiction) {
     const missing = [!orgao && "órgão", !cargo && "cargo/função", !jurisdiction && "esfera/estado"].filter(Boolean).join(", ");
@@ -333,7 +333,7 @@ export function classifyDiscovery(discovery, document, responseUrl = discovery?.
         sinais: ["publicação oficial", "edital", recruitmentType.toLowerCase(), "órgão identificado", "cargo identificado", "jurisdição identificada"]
       },
       observacao: "Registro estruturado automaticamente pelo EditalRadar a partir da publicação oficial. A situação das inscrições permanece a confirmar porque a página pode conter referências históricas. Confira o edital e suas retificações antes de tomar decisões."
-        + (tableRoles.length > 1 ? " Cargos identificados na tabela oficial: " + tableRoles.slice(0, 12).join("; ") + (tableRoles.length > 12 ? "; entre outros" : "") + "." : "")
+        + (detectedRoles.length > 1 ? " Cargos identificados na publicação oficial: " + detectedRoles.slice(0, 12).join("; ") + (detectedRoles.length > 12 ? "; entre outros" : "") + "." : "")
         + (vacancies.fromTable ? " Quantidade extraída da coluna de quantidade da tabela oficial; cadastro de reserva não somado quando não quantificado." : "")
         + " Fonte monitorada: " + String(discovery?.source_url || "").slice(0, 500)
     }

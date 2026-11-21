@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { appendContext, buildPendingDiscoveriesUrl, buildRetificationUpdate, classifyDiscovery, extractDocumentText, extractVacancyDetails, fetchCandidateWithRetry, findMatchingContestForRetification, inferOrganization, mapWithConcurrency, normalizeContestIdentity, prepareDiscoveryDocument, summarizeFetchError } from "./auto-resolve-discoveries.mjs";
+import { appendContext, buildPendingDiscoveriesUrl, buildRetificationUpdate, classifyDiscovery, extractDocumentText, extractRoleNamesFromText, extractVacancyDetails, fetchCandidateWithRetry, findMatchingContestForRetification, inferOrganization, mapWithConcurrency, normalizeContestIdentity, prepareDiscoveryDocument, summarizeFetchError } from "./auto-resolve-discoveries.mjs";
 
 const discovery = {
   id: 1,
@@ -10,6 +10,7 @@ const discovery = {
 };
 
 test("extrai título, cabeçalho e conteúdo de uma página HTML", () => {
+  assert.equal(extractRoleNamesFromText("Cargo/Área/Especialidade\n- Analista Judiciário - Área Judiciária - Subescrivão\n- Técnico Judiciário - Escrevente de Cartório")[0], "Analista Judiciário - Área Judiciária - Subescrivão");
   const doc = extractDocumentText("<html><head><title>Edital 01</title></head><body><nav>Menu</nav><h1>Concurso público</h1><p>30 vagas</p></body></html>");
   assert.equal(doc.title, "Edital 01");
   assert.equal(doc.heading, "Concurso público");
