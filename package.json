@@ -11,7 +11,8 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "monitor:sources": "node scripts/monitor-sources.mjs",
-    "test:monitor": "node --test scripts/monitor-sources.node-test.mjs"
+    "test:monitor": "node --test scripts/*.node-test.mjs",
+    "publish:discoveries": "node scripts/publish-discoveries.mjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.3.4",
