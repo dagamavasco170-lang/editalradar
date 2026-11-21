@@ -316,3 +316,68 @@ test("mantém grade, filtros e páginas alinhados sem rolagem horizontal em dife
     expect(detailOverflow, `rolagem horizontal nos detalhes a ${width}px`).toBeLessThanOrEqual(1);
   }
 });
+
+
+test("alinha a coluna lateral e distribui os itens e o rodapé no desktop", async ({ page }) => {
+  for (const width of [1440, 1024, 820]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("./");
+    const measurements = await page.evaluate(() => {
+      const box = (element) => {
+        if (!element) return null;
+        const r = element.getBoundingClientRect();
+        return { x:r.x, y:r.y, width:r.width, height:r.height, right:r.right, bottom:r.bottom };
+      };
+      const sidebar = document.querySelector(".sidebar");
+      const nav = sidebar?.querySelector(".sidebar-nav");
+      const items = [...(nav?.querySelectorAll(".nav-item") || [])].map(box);
+      return {
+        sidebar:box(sidebar), main:box(document.querySelector(".main")),
+        brand:box(sidebar?.querySelector(".brand")),
+        label:box(sidebar?.querySelector(".side-label")),
+        nav:box(nav), items,
+        help:box(sidebar?.querySelector(".help-card")),
+        profile:box(sidebar?.querySelector(".profile")),
+        viewport:document.documentElement.clientWidth,
+        document:document.documentElement.scrollWidth
+      };
+    });
+    expect(measurements.sidebar.width, `largura da coluna a ${width}px`).toBe(width >= 1181 ? 264 : width >= 901 ? 244 : 224);
+    expect(measurements.main.x).toBeGreaterThanOrEqual(measurements.sidebar.right - 1);
+    expect(Math.abs(measurements.brand.x - measurements.nav.x)).toBeLessThanOrEqual(1);
+    expect(measurements.items.length).toBeGreaterThan(2);
+    for (const item of measurements.items) {
+      expect(Math.abs(item.x - measurements.nav.x)).toBeLessThanOrEqual(1);
+      expect(Math.abs(item.width - measurements.nav.width)).toBeLessThanOrEqual(1);
+      expect(item.height).toBeGreaterThanOrEqual(47);
+    }
+    expect(measurements.help.bottom).toBeLessThanOrEqual(measurements.profile.y + 1);
+    expect(measurements.profile.bottom).toBeLessThanOrEqual(measurements.sidebar.bottom + 1);
+    expect(measurements.document).toBeLessThanOrEqual(measurements.viewport);
+  }
+});
+
+test("mantém a navegação inferior centralizada e sem overflow no celular", async ({ page }) => {
+  for (const width of [360, 390, 430]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto("./");
+    const geometry = await page.evaluate(() => {
+      const nav = document.querySelector(".sidebar-nav");
+      const sidebar = document.querySelector(".sidebar");
+      const items = [...nav.querySelectorAll(".nav-item")].map((el) => {
+        const r = el.getBoundingClientRect();
+        return { left:r.left,right:r.right,width:r.width };
+      });
+      const s = sidebar.getBoundingClientRect();
+      return { items, sidebarLeft:s.left, sidebarRight:s.right, navWidth:nav.getBoundingClientRect().width,
+        documentWidth:document.documentElement.scrollWidth, viewport:document.documentElement.clientWidth };
+    });
+    expect(geometry.sidebarLeft).toBe(0);
+    expect(geometry.sidebarRight).toBeLessThanOrEqual(width);
+    expect(geometry.items.length).toBeGreaterThan(2);
+    expect(geometry.items.every(item => item.width > 0)).toBeTruthy();
+    expect(geometry.items[0].left).toBeGreaterThanOrEqual(0);
+    expect(geometry.items.at(-1).right).toBeLessThanOrEqual(width);
+    expect(geometry.documentWidth).toBeLessThanOrEqual(geometry.viewport);
+  }
+});
