@@ -38,6 +38,8 @@ if (!rootElement) {
   throw new Error("Elemento #root não encontrado no index.html");
 }
 
+document.documentElement.dataset.appCommit = __EDITALRADAR_COMMIT__;
+
 createRoot(rootElement).render(
   <React.StrictMode>
     <AppErrorBoundary>

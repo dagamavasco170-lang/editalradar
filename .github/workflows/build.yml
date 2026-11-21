@@ -55,6 +55,8 @@ jobs:
       - name: Instalar Chromium para testes de navegador
         run: npx playwright install --with-deps chromium
       - name: Testar site compilado em navegador real
+        env:
+          EXPECTED_APP_COMMIT: ${{ github.sha }}
         run: npm run test:e2e
       - name: Salvar relatório dos testes de navegador
         if: always()
@@ -106,6 +108,7 @@ jobs:
       - name: Testar o endereço público após o deploy
         env:
           PLAYWRIGHT_BASE_URL: https://dagamavasco170-lang.github.io/editalradar/
+          EXPECTED_APP_COMMIT: ${{ github.sha }}
         run: npm run test:e2e
       - name: Salvar evidências do teste em produção
         if: always()
@@ -118,7 +121,7 @@ jobs:
           if-no-files-found: ignore
 
   vercel-production-test:
-    name: Testar produção na Vercel
+    name: Verificar produção na Vercel (versão e navegador)
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: deploy
     runs-on: ubuntu-latest
@@ -138,9 +141,21 @@ jobs:
           PLAYWRIGHT_BASE_URL: https://editalradar-gamma.vercel.app/
         run: |
           curl --fail --location --retry 18 --retry-delay 10 --retry-all-errors "$PLAYWRIGHT_BASE_URL"
-      - name: Executar testes de navegador no domínio da Vercel
+      - name: Conferir se a Vercel publicou o commit esperado
+        id: vercel_version
+        continue-on-error: true
         env:
           PLAYWRIGHT_BASE_URL: https://editalradar-gamma.vercel.app/
+          EXPECTED_APP_COMMIT: ${{ github.sha }}
+        run: npx playwright test e2e/version.spec.js
+      - name: Avisar quando a Vercel estiver em uma versão antiga
+        if: steps.vercel_version.outcome != 'success'
+        run: echo "::warning::A Vercel respondeu, mas ainda não está servindo o commit ${{ github.sha }}. Os testes completos desse domínio foram ignorados; o GitHub Pages já foi validado."
+      - name: Executar testes de navegador no domínio da Vercel
+        if: steps.vercel_version.outcome == 'success'
+        env:
+          PLAYWRIGHT_BASE_URL: https://editalradar-gamma.vercel.app/
+          EXPECTED_APP_COMMIT: ${{ github.sha }}
         run: npm run test:e2e
       - name: Salvar evidências dos testes na Vercel
         if: always()
