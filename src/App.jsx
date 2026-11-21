@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { isSupabaseConfigured, supabase } from "./lib/supabaseClient";
 import { concursos, materias, sourceUrl, sourceUpdated, fetchedAt } from "./data/concursos";
 
@@ -60,6 +60,11 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   const [checkedAnswer, setCheckedAnswer] = useState(false);
   const [authUser, setAuthUser] = useState(null);
   const [authReady, setAuthReady] = useState(false);
+  const [syncStatus, setSyncStatus] = useState("local");
+  const syncQueueRef = useRef(Promise.resolve());
+  const syncReadyUserRef = useRef(null);
+  const pendingChangesRef = useRef({});
+  const pendingWritesRef = useRef(0);
   const [showAuth, setShowAuth] = useState(false);
   const [authMode, setAuthMode] = useState("login");
   const [authEmail, setAuthEmail] = useState("");
@@ -105,50 +110,81 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   }, []);
 
   useEffect(() => {
-    if (!authClient || !authUser) return undefined;
+    if (!authClient || !authUser) {
+      syncReadyUserRef.current = null;
+      pendingChangesRef.current = {};
+      pendingWritesRef.current = 0;
+      setSyncStatus("local");
+      return undefined;
+    }
+
+    const userId = authUser.id;
     let cancelled = false;
+    syncReadyUserRef.current = null;
+    pendingChangesRef.current = {};
+    pendingWritesRef.current = 0;
+    setSyncStatus("loading");
 
     const loadAccountData = async () => {
       const { data, error } = await authClient
         .from("user_data")
         .select("favorites, alerts, tasks")
-        .eq("user_id", authUser.id)
+        .eq("user_id", userId)
         .maybeSingle();
 
       if (cancelled) return;
       if (error) {
-        setAuthMessage("Conta conectada, mas não foi possível carregar os dados. Confira a migração do banco no guia de configuração.");
+        syncReadyUserRef.current = userId;
+        setSyncStatus("error");
+        setAuthMessage("Conta conectada, mas não foi possível carregar os dados. Confira a tabela e as políticas de acesso do Supabase.");
         setAuthMessageType("error");
         return;
       }
 
-      if (data) {
-        const nextFavorites = Array.isArray(data.favorites) ? data.favorites : [];
-        const nextAlerts = Array.isArray(data.alerts) ? data.alerts : [];
-        const nextTasks = Array.isArray(data.tasks) ? data.tasks : [false, false, false, false];
-        setFavorites(nextFavorites);
-        setAlerts(nextAlerts);
-        setTasks(nextTasks);
-        localStorage.setItem("er-favorites", JSON.stringify(nextFavorites));
-        localStorage.setItem("er-alerts", JSON.stringify(nextAlerts));
-        localStorage.setItem("er-tasks", JSON.stringify(nextTasks));
-      } else {
-        const { error: insertError } = await authClient.from("user_data").upsert({
-          user_id: authUser.id,
-          favorites,
-          alerts,
-          tasks,
+      // Preserve actions made while the cloud row was loading instead of
+      // replacing those fresh local changes with an older remote snapshot.
+      const pending = { ...pendingChangesRef.current };
+      const resolved = {
+        favorites: Array.isArray(data?.favorites) ? data.favorites : favorites,
+        alerts: Array.isArray(data?.alerts) ? data.alerts : alerts,
+        tasks: Array.isArray(data?.tasks) ? data.tasks : tasks,
+        ...pending
+      };
+
+      setFavorites(resolved.favorites);
+      setAlerts(resolved.alerts);
+      setTasks(resolved.tasks);
+      localStorage.setItem("er-favorites", JSON.stringify(resolved.favorites));
+      localStorage.setItem("er-alerts", JSON.stringify(resolved.alerts));
+      localStorage.setItem("er-tasks", JSON.stringify(resolved.tasks));
+
+      syncReadyUserRef.current = userId;
+      if (!data || Object.keys(pending).length > 0) {
+        const { error: saveError } = await authClient.from("user_data").upsert({
+          user_id: userId,
+          ...resolved,
           updated_at: new Date().toISOString()
         });
-        if (insertError && !cancelled) {
-          setAuthMessage("Não foi possível sincronizar seus dados iniciais. Confira a tabela e as políticas de acesso do Supabase.");
+        if (cancelled) return;
+        if (saveError) {
+          setSyncStatus("error");
+          setAuthMessage("Não foi possível salvar os dados na nuvem. Eles continuam disponíveis neste navegador.");
           setAuthMessageType("error");
+          return;
         }
+      }
+
+      if (!cancelled) {
+        setSyncStatus("synced");
+        setAuthMessage("");
       }
     };
 
     loadAccountData();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      if (syncReadyUserRef.current === userId) syncReadyUserRef.current = null;
+    };
   }, [authUser?.id]);
 
   const estados = [...new Set(concursos.map((item) => item.estado || "Brasil"))].sort();
@@ -162,13 +198,37 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
 
   const syncUserData = async (changes) => {
     if (!authClient || !authUser) return;
-    const { error } = await authClient.from("user_data").upsert({
-      user_id: authUser.id,
-      ...changes,
-      updated_at: new Date().toISOString()
+    const userId = authUser.id;
+
+    // Buffer changes made while the initial account snapshot is being loaded.
+    if (syncReadyUserRef.current !== userId) {
+      pendingChangesRef.current = { ...pendingChangesRef.current, ...changes };
+      return;
+    }
+
+    pendingWritesRef.current += 1;
+    setSyncStatus("syncing");
+    const write = syncQueueRef.current.catch(() => {}).then(async () => {
+      const { error } = await authClient.from("user_data").upsert({
+        user_id: userId,
+        ...changes,
+        updated_at: new Date().toISOString()
+      });
+      if (error) throw error;
     });
-    if (error) {
-      setAuthMessage("Não foi possível sincronizar seus dados. Eles continuam salvos neste navegador.");
+    syncQueueRef.current = write.catch(() => {});
+
+    try {
+      await write;
+      pendingWritesRef.current = Math.max(0, pendingWritesRef.current - 1);
+      if (pendingWritesRef.current === 0 && syncReadyUserRef.current === userId) {
+        setSyncStatus("synced");
+        setAuthMessage("");
+      }
+    } catch (error) {
+      pendingWritesRef.current = Math.max(0, pendingWritesRef.current - 1);
+      setSyncStatus("error");
+      setAuthMessage(error?.message || "Não foi possível sincronizar seus dados. Eles continuam salvos neste navegador.");
       setAuthMessageType("error");
     }
   };
@@ -314,7 +374,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
         <button className={page === "favoritos" ? "nav-item active" : "nav-item"} onClick={() => setPage("favoritos")}><span>♡</span> Meus favoritos <b>{favorites.length}</b></button>
         <div className="sidebar-bottom">
           <div className="help-card"><span className="help-icon">✦</span><strong>Seu futuro começa com planejamento.</strong><p>Organize sua preparação e acompanhe suas oportunidades.</p><button onClick={() => setPage("estudos")}>Ver meu plano →</button></div>
-          <div className="profile"><div className="avatar">{authUser?.email?.[0]?.toUpperCase() || "C"}</div><div className="profile-copy"><strong>{authUser?.email || "Concurseiro"}</strong><small>{authUser ? "Conta conectada" : "Modo visitante"}</small></div><span className="dots">•••</span></div>
+          <div className="profile"><div className="avatar">{authUser?.email?.[0]?.toUpperCase() || "C"}</div><div className="profile-copy"><strong>{authUser?.email || "Concurseiro"}</strong><small>{!authUser ? "Modo visitante" : syncStatus === "loading" || syncStatus === "syncing" ? "Sincronizando dados..." : syncStatus === "synced" ? "Dados sincronizados" : syncStatus === "error" ? "Falha na sincronização" : "Conta conectada"}</small></div><span className="dots">•••</span></div>
         </div>
       </aside>
 
@@ -403,7 +463,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                   ))}
                 </div>
               ) : <p className="alerts-empty">Você ainda não salvou alertas. Ajuste os filtros acima e clique em “Salvar alerta”.</p>}
-              <small className="alerts-note">{authUser ? "Alertas sincronizados com sua conta. As correspondências são calculadas a partir do catálogo disponível." : "No modo visitante, os alertas ficam salvos neste navegador. Entre na sua conta para sincronizá-los entre aparelhos."}</small>
+              <small className="alerts-note">{!authUser ? "No modo visitante, os alertas ficam salvos neste navegador. Entre na sua conta para sincronizá-los entre aparelhos." : syncStatus === "synced" ? "Alertas sincronizados com sua conta. As correspondências são calculadas a partir do catálogo disponível." : syncStatus === "error" ? "Não foi possível confirmar a sincronização. Seus alertas continuam salvos neste navegador." : "Sincronizando seus alertas com a conta..."}</small>
             </section>
             <div className="cards">
               {(page === "favoritos" ? filtered.filter(c => favorites.includes(c.id)) : filtered).map((item) => <article className="contest-card" key={item.id}>
