@@ -7,12 +7,30 @@ const APP_SHELL = [
   "./pwa-icon.svg"
 ];
 
+async function precacheAppShell() {
+  const cache = await caches.open(CACHE_NAME);
+  const shellUrls = APP_SHELL.map((path) => new URL(path, self.registration.scope).href);
+  await cache.addAll(shellUrls);
+
+  // Include Vite's fingerprinted JS/CSS bundles so the app can boot offline
+  // immediately after its first successful online visit.
+  const indexUrl = new URL("./index.html", self.registration.scope).href;
+  const indexResponse = await cache.match(indexUrl);
+  if (!indexResponse) return;
+
+  const markup = await indexResponse.text();
+  const assetPaths = [...markup.matchAll(/(?:src|href)\s*=\s*["']([^"']+\.(?:m?js|css)(?:\?[^"']*)?)["']/gi)]
+    .map((match) => new URL(match[1], self.registration.scope))
+    .filter((url) => url.origin === self.location.origin)
+    .map((url) => url.href);
+
+  if (assetPaths.length > 0) {
+    await cache.addAll([...new Set(assetPaths)]);
+  }
+}
+
 self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(APP_SHELL))
-      .then(() => self.skipWaiting())
-  );
+  event.waitUntil(precacheAppShell().then(() => self.skipWaiting()));
 });
 
 self.addEventListener("activate", (event) => {
