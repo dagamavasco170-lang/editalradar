@@ -81,7 +81,7 @@ jobs:
 
       - name: Abrir ou atualizar issue para revisão
         if: steps.monitor.outputs.changed_count != '0' || steps.monitor.outputs.failed_count != '0'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         env:
           REPORT_PATH: .cache/source-monitor-report.json
         with:
