@@ -262,3 +262,57 @@ test("cronômetro de foco permite iniciar, pausar e reiniciar", async ({ page })
   await page.getByRole("button", { name: /50 min/ }).click();
   await expect(page.getByRole("timer")).toContainText("50:00");
 });
+
+
+test("mantém eixos alinhados e cartões com dimensões uniformes no desktop", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto("./");
+  const geometry = await page.evaluate(() => {
+    const rect = (selector) => {
+      const element = document.querySelector(selector);
+      if (!element) return null;
+      const box = element.getBoundingClientRect();
+      return { left: box.left, right: box.right, top: box.top, bottom: box.bottom, width: box.width, height: box.height };
+    };
+    const cards = [...document.querySelectorAll(".contest-card")].slice(0, 3).map((element) => {
+      const box = element.getBoundingClientRect();
+      const footer = element.querySelector(".card-bottom").getBoundingClientRect();
+      return { left: box.left, right: box.right, top: box.top, bottom: box.bottom, width: box.width, footerBottom: footer.bottom };
+    });
+    return {
+      breadcrumb: rect(".breadcrumb"),
+      hero: rect(".hero"),
+      stats: rect(".stats-row"),
+      filters: rect(".catalog-filter-panel"),
+      cards: rect(".cards"),
+      items: cards,
+      viewportWidth: document.documentElement.clientWidth,
+      documentWidth: document.documentElement.scrollWidth
+    };
+  });
+  expect(geometry).not.toBeNull();
+  expect(Math.abs(geometry.breadcrumb.left - geometry.hero.left)).toBeLessThanOrEqual(2);
+  expect(Math.abs(geometry.hero.left - geometry.stats.left)).toBeLessThanOrEqual(2);
+  expect(Math.abs(geometry.hero.left - geometry.filters.left)).toBeLessThanOrEqual(2);
+  expect(Math.abs(geometry.hero.left - geometry.cards.left)).toBeLessThanOrEqual(2);
+  expect(Math.max(...geometry.items.map(item => item.width)) - Math.min(...geometry.items.map(item => item.width))).toBeLessThanOrEqual(2);
+  expect(Math.max(...geometry.items.map(item => item.bottom)) - Math.min(...geometry.items.map(item => item.bottom))).toBeLessThanOrEqual(2);
+  expect(Math.max(...geometry.items.map(item => item.footerBottom)) - Math.min(...geometry.items.map(item => item.footerBottom))).toBeLessThanOrEqual(2);
+  expect(geometry.documentWidth).toBeLessThanOrEqual(geometry.viewportWidth);
+});
+
+test("mantém grade, filtros e páginas alinhados sem rolagem horizontal em diferentes larguras", async ({ page }) => {
+  for (const width of [390, 560, 768, 900, 1024, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("./");
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(overflow, `rolagem horizontal no catálogo a ${width}px`).toBeLessThanOrEqual(1);
+    await page.getByRole("button", { name: /Área de estudos/ }).click();
+    const studyOverflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(studyOverflow, `rolagem horizontal nos estudos a ${width}px`).toBeLessThanOrEqual(1);
+    await page.goto("./");
+    await page.getByRole("button", { name: /Ver detalhes/ }).first().click();
+    const detailOverflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(detailOverflow, `rolagem horizontal nos detalhes a ${width}px`).toBeLessThanOrEqual(1);
+  }
+});
