@@ -41,11 +41,12 @@ A pessoa deve entrar novamente para que o token reflita a mudança.
 ## 4. Ativar a fila automática de revisão
 
 1. No SQL Editor do Supabase, execute integralmente `supabase/migrations/202611220003_contest_discoveries.sql`, depois da migração `202611220002_admin_catalog.sql`.
-2. No GitHub, abra o repositório → **Settings → Secrets and variables → Actions → New repository secret**.
-3. Crie o secret `SUPABASE_URL` com a URL do projeto Supabase.
-4. Crie o secret `SUPABASE_SERVICE_ROLE_KEY` com a chave **service_role/secret** do projeto (Project Settings → API Keys). Não a compartilhe nem a coloque no frontend.
-5. No repositório, abra **Actions → Monitorar fontes de concursos → Run workflow** para executar a verificação manual.
+2. Em seguida, execute `supabase/migrations/202611220004_auto_publish.sql` para conceder ao robô do GitHub Actions permissão de inserir fichas no catálogo.
+3. No GitHub, abra o repositório → **Settings → Secrets and variables → Actions → New repository secret**.
+4. Crie o secret `SUPABASE_URL` com a URL do projeto Supabase.
+5. Crie o secret `SUPABASE_SERVICE_ROLE_KEY` com a chave **service_role/secret** do projeto (Project Settings → API Keys). Não a compartilhe nem a coloque no frontend.
+6. No repositório, abra **Actions → Monitorar fontes de concursos → Run workflow** para executar a verificação manual.
 
-O monitor acompanha páginas oficiais cadastradas no catálogo, identifica novos links com termos relacionados a editais/concursos e registra mudanças de conteúdo como itens pendentes. A fila aparece aqui no painel Administração. A primeira execução com o filtro novo semeia a fila com links relevantes já existentes. Quando uma página oficial não expõe links específicos que o detector consiga identificar, a própria página entra na fila como fonte para verificação inicial — isso não representa um concurso confirmado. Depois, novos links e páginas alteradas serão sinalizados. O sistema não interpreta automaticamente o conteúdo de PDFs nem publica fichas: o administrador precisa abrir o link, conferir órgão, cargo, escolaridade, vagas, situação e cronograma, preencher os dados e salvar. Ao salvar, a descoberta é marcada como publicada. O botão Descartar encerra itens irrelevantes.
+O monitor acompanha páginas oficiais cadastradas no catálogo, identifica novos links e verifica automaticamente o conteúdo das páginas. Quando encontra evidências suficientes de edital de concurso/processo seletivo, órgão, cargo e esfera/estado, cria a ficha no catálogo e encerra a descoberta como publicada. Links claramente alheios a concursos são descartados automaticamente. Páginas ambíguas, PDFs e documentos cujos dados não possam ser extraídos com segurança permanecem na fila do painel Administração para revisão. O robô não inventa vagas, escolaridade ou datas: campos ausentes ficam marcados como a confirmar ou o item aguarda revisão.
 
 Se houver descobertas e os dois secrets ainda não estiverem configurados, a etapa de envio falha intencionalmente e o workflow não salva a nova linha de base. Assim, as descobertas são detectadas novamente quando você cadastrar as credenciais e executar o workflow outra vez.
