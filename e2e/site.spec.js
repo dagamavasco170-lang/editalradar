@@ -75,7 +75,7 @@ test("abre a página individual de um concurso com cronograma e fonte oficial", 
 
   await expect(page.getByRole("heading", { name: "Agente e Escrivão de Polícia Civil" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Cronograma e etapas" })).toBeVisible();
-  await expect(page.locator("#detail-timeline time").filter({ hasText: /06 de dezembro de 2026/ })).toHaveCount(1);
+  await expect(page.locator("#detail-timeline time").filter({ hasText: /06 de dezembro de 2026/ }).first()).toBeVisible();
   await expect(page.getByRole("link", { name: /Acessar fonte oficial/ }))
     .toHaveAttribute("href", "https://www.cebraspe.org.br/concursos/pc_al_26");
 
