@@ -110,12 +110,12 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
   const loadLicensedQuestions=async()=>{
    try{
     const {data,error}=await authClient.from("study_questions")
-      .select("id, discipline, topic, difficulty, board, exam_name, exam_year, prompt, options, source_url, license_status")
+      .select("id, discipline, topic, difficulty, board, exam_name, exam_year, prompt, options, source_url, license_status, origin, review_status")
       .eq("published",true).order("exam_year",{ascending:false}).limit(250);
     if(error)throw error;
     if(cancelled)return;
     const rows=(Array.isArray(data)?data:[]).map(record=>({
-     id:"licensed-"+record.id,databaseId:record.id,origin:"licensed",
+     id:"licensed-"+record.id,databaseId:record.id,origin:record.origin==="ai_generated"?"generated":"licensed",
      discipline:record.discipline,topic:record.topic,difficulty:record.difficulty,
      board:record.board,examName:record.exam_name,examYear:record.exam_year,
      prompt:record.prompt,
@@ -243,8 +243,9 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
   setChecking(true);setAnswerFeedback(null);
   try{
    let correct=false,explanation="";
-   if(question.origin==="licensed"){
-    if(!activeUserId)throw new Error("Entre na sua conta para corrigir questões reais licenciadas.");
+   if(question.databaseId){
+    if(!activeUserId)throw new Error("Entre na sua conta para corrigir questões armazenadas no banco de provas.");
+
     const {data,error}=await authClient.rpc("check_study_question_answer",{
      p_question_id:question.databaseId,p_selected_answer:answer
     });
@@ -256,7 +257,7 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
    }
    updateQuestionProgress(current=>({
     ...current,
-    attempts:[...current.attempts,{id:"attempt-"+Date.now()+"-"+question.id,questionId:question.id,answer,correct,at:new Date().toISOString(),source:question.origin==="licensed"?"prova-real":"autoral"}].slice(-500)
+    attempts:[...current.attempts,{id:"attempt-"+Date.now()+"-"+question.id,questionId:question.id,answer,correct,at:new Date().toISOString(),source:question.origin==="licensed"?"prova-real":question.origin==="generated"?"autoral-gerada":"autoral"}].slice(-500)
    }));
    setAnswerFeedback({correct,explanation});setChecked(true);
   }catch(error){setAnswerFeedback({error:error?.message||"Não foi possível corrigir esta questão."});}
@@ -346,7 +347,7 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
    </div>
    {question?<div className="question-card">
     <div className="question-card-heading">
-     <div className="question-meta"><span>{question.discipline}</span><span>{question.origin==="licensed"?"Prova real autorizada":"Questão autoral · estilo "+question.board}</span><span>{question.origin==="licensed"?(question.examName+" · "+question.examYear):question.topic}</span><span className={"question-difficulty difficulty-"+question.difficulty.toLowerCase().replace("á","a").replace("í","i")}>{question.difficulty}</span></div>
+     <div className="question-meta"><span>{question.discipline}</span><span>{question.origin==="licensed"?"Prova real autorizada":question.origin==="generated"?"Questão autoral · revisada por IA":"Questão autoral · estilo "+question.board}</span><span>{question.origin==="licensed"?(question.examName+" · "+question.examYear):question.topic}</span><span className={"question-difficulty difficulty-"+question.difficulty.toLowerCase().replace("á","a").replace("í","i")}>{question.difficulty}</span></div>
      <button type="button" className={"question-bookmark"+(savedQuestions.has(question.id)?" saved":"")} aria-label={savedQuestions.has(question.id)?"Remover questão salva":"Salvar questão"} aria-pressed={savedQuestions.has(question.id)} onClick={toggleSavedQuestion}>{savedQuestions.has(question.id)?"★":"☆"}</button>
     </div>
     <div className="question-index">Questão {index+1} de {filtered.length}{questionAttempt?" · "+(questionAttempt.correct?"Última resposta correta":"Última resposta incorreta"):" · Ainda não respondida"}</div>
