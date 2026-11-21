@@ -226,7 +226,7 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
    </div>
    {question?<div className="question-card">
     <div className="question-card-heading">
-     <div className="question-meta"><span>{question.discipline}</span><span>Estilo {question.board}</span><span>{question.topic}</span><span className={"question-difficulty difficulty-"+question.difficulty.toLowerCase().replace("á","a").replace("í","i")}>{question.difficulty}</span></div>
+     <div className="question-meta"><span>{question.discipline}</span><span>Formato inspirado em {question.board}</span><span>{question.topic}</span><span className={"question-difficulty difficulty-"+question.difficulty.toLowerCase().replace("á","a").replace("í","i")}>{question.difficulty}</span></div>
      <button type="button" className={"question-bookmark"+(savedQuestions.has(question.id)?" saved":"")} aria-label={savedQuestions.has(question.id)?"Remover questão salva":"Salvar questão"} aria-pressed={savedQuestions.has(question.id)} onClick={toggleSavedQuestion}>{savedQuestions.has(question.id)?"★":"☆"}</button>
     </div>
     <div className="question-index">Questão {index+1} de {filtered.length}{questionAttempt?" · "+(questionAttempt.correct?"Última resposta correta":"Última resposta incorreta"):" · Ainda não respondida"}</div>
