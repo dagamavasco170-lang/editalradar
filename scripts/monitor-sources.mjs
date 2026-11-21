@@ -103,6 +103,22 @@ export function extractOpportunityLinks(html, sourceUrl) {
 export function buildDiscoveriesForSource(url, previous, current) {
   if (!current?.ok) return [];
   const discoveries = [];
+  const needsLinkBaseline = previous?.opportunityLinkFilterVersion !== 2;
+
+  if (needsLinkBaseline) {
+    for (const item of current.opportunityLinks || []) {
+      discoveries.push({
+        source_url: url,
+        candidate_url: item.candidate_url,
+        discovery_key: "link:" + item.candidate_url,
+        title: item.title,
+        context: item.context + " · Oportunidade encontrada na carga inicial da fila; confirme se ainda está vigente.",
+        discovery_type: "new_link"
+      });
+    }
+    return discoveries;
+  }
+
   if (previous?.sha256 && previous.sha256 !== current.sha256) {
     discoveries.push({
       source_url: url,
@@ -114,19 +130,17 @@ export function buildDiscoveriesForSource(url, previous, current) {
     });
   }
 
-  if (Array.isArray(previous?.opportunityLinks)) {
-    const knownLinks = new Set(previous.opportunityLinks.map((item) => item.candidate_url));
-    for (const item of current.opportunityLinks || []) {
-      if (knownLinks.has(item.candidate_url)) continue;
-      discoveries.push({
-        source_url: url,
-        candidate_url: item.candidate_url,
-        discovery_key: "link:" + item.candidate_url,
-        title: item.title,
-        context: item.context,
-        discovery_type: "new_link"
-      });
-    }
+  const knownLinks = new Set((previous?.opportunityLinks || []).map((item) => item.candidate_url));
+  for (const item of current.opportunityLinks || []) {
+    if (knownLinks.has(item.candidate_url)) continue;
+    discoveries.push({
+      source_url: url,
+      candidate_url: item.candidate_url,
+      discovery_key: "link:" + item.candidate_url,
+      title: item.title,
+      context: item.context,
+      discovery_type: "new_link"
+    });
   }
   return discoveries;
 }
@@ -163,6 +177,7 @@ async function fetchSource(url) {
     ok: true,
     sha256: fingerprintContent(content, contentType),
     opportunityLinks,
+    opportunityLinkFilterVersion: 2,
     status: response.status,
     finalUrl: response.url,
     contentType,
