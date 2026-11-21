@@ -53,7 +53,6 @@ export function extractDocumentText(html) {
     .replace(/\n{2,}/g, "\n").trim();
   return { title, heading, text, tableRows };
 }
-}
 
 function firstMatch(text, patterns) {
   for (const pattern of patterns) {
@@ -97,7 +96,6 @@ function inferState(hostname, text) {
     if (new RegExp("\\b" + name.replace(/[.*+?^$()|[\]\\]/g, "\\$&") + "\\b", "i").test(text)) return name;
   }
   return "";
-}
 }
 
 function inferJurisdiction(hostname, organization, text) {
@@ -214,7 +212,6 @@ export function extractVacancyDetails(text, tableRows = []) {
       : imediatas;
   return { total, imediatas, reserva };
 }
-}
 
 export function classifyDiscovery(discovery, document, responseUrl = discovery?.candidate_url) {
   let candidate;
@@ -251,7 +248,8 @@ export function classifyDiscovery(discovery, document, responseUrl = discovery?.
     /\bcargo\s+(?:de|para)\s+([^.;\n]{3,120})/i,
     /\bvagas?\s+para\s+([^.;\n]{3,120})/i,
     /\bfunções?\s*(?:de|:)\s*([^.;\n]{3,120})/i
-  ]) || tableRoles[0] || "";  const jurisdiction = orgao ? inferJurisdiction(candidate.hostname, orgao, title + "\n" + text) : null;
+  ]) || tableRoles[0] || "";
+  const jurisdiction = orgao ? inferJurisdiction(candidate.hostname, orgao, title + "\n" + text) : null;
   if (!orgao || !cargo || !jurisdiction) {
     const missing = [!orgao && "órgão", !cargo && "cargo/função", !jurisdiction && "esfera/estado"].filter(Boolean).join(", ");
     return { decision: "review", reason: "O edital parece relacionado a seleção pública, mas faltam dados confiáveis para cadastro automático: " + missing + "." };
