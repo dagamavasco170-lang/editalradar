@@ -132,3 +132,17 @@
 .notification-filter{border:1px solid #e3ebe7;border-radius:20px;background:#fff;color:#73858d;padding:7px 11px;font-size:10px;font-weight:700}
 .notification-filter.active{border-color:#c5e2d5;background:#edf7f2;color:#197b61}
 @media(max-width:760px){.top-actions{gap:8px}.notification-bell{width:31px;height:31px}}
+
+
+/* Instalação como aplicativo e estado de conexão. */
+.install-trigger{border:1px solid #dce8e3;background:#f6faf8;color:#176f59;border-radius:8px;padding:8px 10px;font-size:10px;font-weight:700;white-space:nowrap}
+.install-trigger:hover{background:#edf7f2;border-color:#b9d9cc}
+.install-trigger:disabled{opacity:.65;cursor:default}
+.offline-status{margin:0 26px;padding:10px 13px;border:1px solid #eed8aa;border-radius:8px;background:#fff8e9;color:#815b1c;font-size:11px;line-height:1.5}
+.install-modal>p{font-size:11px;line-height:1.6;margin:0 0 14px}
+.install-steps{display:grid;gap:9px;margin:0 0 17px}
+.install-steps>div{padding:11px 12px;border:1px solid #e4ece8;border-radius:9px;background:#f8fbf9}
+.install-steps strong{font-size:11px;color:#244559}
+.install-steps p{font-size:10px;line-height:1.55;color:#71838c;margin:5px 0 0}
+@media(max-width:760px){.install-trigger{padding:7px 8px;font-size:9px}.offline-status{margin:0 16px}}
+@media(max-width:480px){.install-trigger{font-size:8px;padding:7px 6px}.offline-status{font-size:10px}}
