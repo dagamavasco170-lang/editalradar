@@ -125,6 +125,26 @@ describe("EditalRadar", () => {
     expect(JSON.parse(localStorage.getItem("er-alerts"))).toHaveLength(0);
   });
 
+  it("mostra como ativar cadastro e login quando o Supabase ainda não está conectado", () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Entrar \/ cadastrar/ }));
+
+    expect(screen.getByRole("dialog", { name: /Entrar na sua conta/ })).toBeInTheDocument();
+    expect(screen.getByText(/falta conectar o projeto ao Supabase/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Abrir guia de configuração/ }))
+      .toHaveAttribute("href", "https://github.com/dagamavasco170-lang/editalradar/blob/main/SUPABASE_SETUP.md");
+  });
+
+  it("fecha o modal de autenticação pelo botão de fechar", () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Entrar \/ cadastrar/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Fechar cadastro e login" }));
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
   it("salva um concurso nos favoritos e mostra a lista", () => {
     render(<App />);
 
