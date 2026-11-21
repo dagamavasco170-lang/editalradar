@@ -16,6 +16,10 @@ Cada cartão leva à página oficial do respectivo órgão. Status e datas devem
 
 Esta é uma seleção inicial de concursos federais, não uma lista completa de todos os concursos do Brasil. Ainda não inclui uma cobertura sistemática de estados, municípios, outros Poderes e empresas públicas. O aplicativo não afirma que inscrições estão abertas sem confirmação na fonte.
 
+## Registros preliminares
+
+O catálogo também pode exibir registros preliminares de Alagoas identificados em listagens secundárias. Eles são marcados como “Concurso listado · verificar edital e cronograma”, não representam confirmação individual por edital oficial e não devem ser usados como prova de vagas, requisitos, inscrições ou datas. Esses registros ficam fora da soma de vagas exibida no aplicativo. A publicação oficial do órgão ou da banca deve ser consultada antes de qualquer decisão.
+
 ## Funcionalidades
 
 - Busca por cargo, órgão, ato e escolaridade.
