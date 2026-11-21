@@ -30,10 +30,39 @@ describe("EditalRadar", () => {
   it("filtra concursos por escolaridade", () => {
     render(<App />);
 
-    fireEvent.change(screen.getByRole("combobox"), { target: { value: "Médio" } });
+    fireEvent.change(screen.getByLabelText("Escolaridade"), { target: { value: "Médio" } });
 
     expect(screen.getByText("Técnico — Carreira de Especialista")).toBeInTheDocument();
     expect(screen.queryByText("Auditor — Carreira de Especialista")).not.toBeInTheDocument();
+  });
+
+  it("filtra oportunidades pela esfera estadual", () => {
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText("Esfera"), { target: { value: "Estadual" } });
+
+    expect(screen.getAllByText("Polícia Civil do Estado de Alagoas").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Banco Central do Brasil")).not.toBeInTheDocument();
+  });
+
+  it("filtra por cidade e mostra oportunidades de Paripueira", () => {
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText("Cidade"), { target: { value: "Paripueira" } });
+
+    expect(screen.getByText("Cargos efetivos a definir")).toBeInTheDocument();
+    expect(screen.getByText("Professor — Matemática (lotação em Paripueira)")).toBeInTheDocument();
+    expect(screen.getByText("Professor — Português (lotação em Paripueira)")).toBeInTheDocument();
+    expect(screen.queryByText("Banco Central do Brasil")).not.toBeInTheDocument();
+  });
+
+  it("identifica concurso municipal sem vagas publicadas", () => {
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText("Esfera"), { target: { value: "Municipal" } });
+
+    expect(screen.getByText("Cargos efetivos a definir")).toBeInTheDocument();
+    expect(screen.getByText("Vagas a divulgar")).toBeInTheDocument();
   });
 
   it("salva um concurso nos favoritos e mostra a lista", () => {
