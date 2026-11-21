@@ -664,7 +664,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                     ? "O navegador bloqueou os avisos de desktop; os avisos internos continuam disponíveis."
                     : notificationPermission === "unsupported"
                       ? "Seu navegador não oferece notificações de desktop."
-                      : "Ative os avisos do navegador para receber uma notificação enquanto o EditalRadar estiver aberto."}
+                      : "Ative os avisos do navegador para receber uma notificação quando o EditalRadar detectar novidades."}
                 {" "}Os avisos são detectados quando você abre ou atualiza o site após uma mudança no catálogo.
               </small>
               {notificationMessage && <small className="notification-feedback" role="status">{notificationMessage}</small>}
