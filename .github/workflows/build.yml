@@ -114,3 +114,38 @@ jobs:
             playwright-report/
             test-results/
           if-no-files-found: ignore
+
+  vercel-production-test:
+    name: Testar produção na Vercel
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Configurar Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Instalar dependências
+        run: npm install
+      - name: Instalar Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Aguardar a Vercel publicar a versão mais recente
+        env:
+          PLAYWRIGHT_BASE_URL: https://editalradar-gamma.vercel.app/
+        run: |
+          curl --fail --location --retry 18 --retry-delay 10 --retry-all-errors "$PLAYWRIGHT_BASE_URL"
+      - name: Executar testes de navegador no domínio da Vercel
+        env:
+          PLAYWRIGHT_BASE_URL: https://editalradar-gamma.vercel.app/
+        run: npm run test:e2e
+      - name: Salvar evidências dos testes na Vercel
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-vercel-production-report
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
