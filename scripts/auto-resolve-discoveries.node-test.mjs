@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { appendContext, buildRetificationUpdate, classifyDiscovery, extractDocumentText, fetchCandidateWithRetry, findMatchingContestForRetification, inferOrganization, normalizeContestIdentity, summarizeFetchError } from "./auto-resolve-discoveries.mjs";
+import { appendContext, buildPendingDiscoveriesUrl, buildRetificationUpdate, classifyDiscovery, extractDocumentText, fetchCandidateWithRetry, findMatchingContestForRetification, inferOrganization, mapWithConcurrency, normalizeContestIdentity, prepareDiscoveryDocument, summarizeFetchError } from "./auto-resolve-discoveries.mjs";
 
 const discovery = {
   id: 1,
@@ -234,4 +234,52 @@ test("prioriza correspondência exata de URL quando existem registros homônimos
   });
 
   assert.equal(match?.id, 702);
+});
+
+
+test("limita a concorrência e mantém a ordem dos resultados", async () => {
+  let active = 0;
+  let peak = 0;
+  const results = await mapWithConcurrency([1, 2, 3, 4, 5, 6], 3, async value => {
+    active += 1;
+    peak = Math.max(peak, active);
+    await new Promise(resolve => setTimeout(resolve, 5));
+    active -= 1;
+    return value * 10;
+  });
+
+  assert.deepEqual(results, [10, 20, 30, 40, 50, 60]);
+  assert.equal(peak, 3);
+});
+
+test("consulta apenas pendências novas ou cujo intervalo de retentativa venceu", () => {
+  const url = new URL(buildPendingDiscoveriesUrl(
+    "https://example.supabase.co",
+    new Date("2026-11-21T18:00:00.000Z")
+  ));
+
+  assert.equal(url.searchParams.get("status"), "eq.pending");
+  assert.match(url.searchParams.get("or"), /reviewed_at\.is\.null/);
+  assert.match(url.searchParams.get("or"), /reviewed_at\.lt\.2026-11-21T12:00:00/);
+  assert.equal(url.searchParams.get("limit"), "200");
+});
+
+test("prepara documento oficial para triagem sem escrever no banco", async () => {
+  const html = "<html><head><title>Edital 01/2026</title></head><body><h1>Concurso público</h1><p>Edital da Prefeitura Municipal de Igaci. 20 vagas.</p></body></html>";
+  let calls = 0;
+  const prepared = await prepareDiscoveryDocument(discovery, async url => {
+    calls += 1;
+    return {
+      ok: true,
+      status: 200,
+      url,
+      headers: new Headers({ "content-type": "text/html; charset=utf-8" }),
+      arrayBuffer: async () => new TextEncoder().encode(html).buffer
+    };
+  }, { fallbackRequest: async () => { throw new Error("fallback não deveria ser chamado"); } });
+
+  assert.equal(calls, 1);
+  assert.equal(prepared.stage, "ready");
+  assert.equal(prepared.candidateUrl, discovery.candidate_url);
+  assert.match(prepared.document.text, /20 vagas/);
 });
