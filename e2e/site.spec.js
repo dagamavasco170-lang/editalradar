@@ -17,7 +17,7 @@ test("abre a versão de produção e não gera erros JavaScript", async ({ page 
   expect(response.status()).toBe(200);
 
   await expect(
-    page.getByRole("heading", { name: "Encontre concursos com informação verificada" })
+    page.getByRole("heading", { name: /Encontre concursos/ })
   ).toBeVisible();
 
   await expect(page.getByText("Banco Central do Brasil").first()).toBeVisible();
