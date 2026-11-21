@@ -388,7 +388,7 @@ test("banco de questões filtra, salva, registra erros e mantém o caderno após
   await page.getByRole("button", { name: /Área de estudos/ }).click();
   const bank = page.getByRole("region", { name: "Banco de questões" });
   await expect(bank.getByRole("heading", { name: "Banco de questões" })).toBeVisible();
-  await expect(bank.getByText("26 questões autorais", { exact: false })).toBeVisible();
+  await expect(bank.getByText("80 questões autorais", { exact: false })).toBeVisible();
 
   await bank.getByPlaceholder("Tema, assunto ou enunciado...").fill("crase");
   await expect(bank.getByRole("heading", { name: /dirigiu-se a comissão/ })).toBeVisible();
@@ -409,4 +409,30 @@ test("banco de questões filtra, salva, registra erros e mantém o caderno após
   await restoredBank.getByRole("button", { name: /Salvas/ }).click();
   await expect(restoredBank.getByRole("heading", { name: /dirigiu-se a comissão/ })).toBeVisible();
   await expect(restoredBank.getByText(/Última resposta incorreta/)).toBeVisible();
+});
+
+
+test("simulados completos permitem iniciar, finalizar e analisar o desempenho", async ({ page }) => {
+  await page.goto("./");
+  await page.getByRole("button", { name: /Área de estudos/ }).click();
+  const simulator = page.getByRole("region", { name: "Simulados completos" });
+  await expect(simulator.getByRole("heading", { name: "Simulados completos" })).toBeVisible();
+  await expect(simulator.getByRole("button", { name: /80/ })).toBeEnabled();
+  await simulator.getByRole("button", { name: /Iniciar simulado/ }).click();
+  await expect(simulator.getByRole("timer")).toBeVisible();
+  await expect(simulator.getByText(/Questão 1 de 20/)).toBeVisible();
+  await simulator.getByRole("button", { name: /Finalizar e corrigir/ }).click();
+  await expect(simulator.getByRole("heading", { name: /de 20 acertos/ })).toBeVisible();
+  await simulator.getByRole("button", { name: /Revisar questões/ }).click();
+  await expect(simulator.getByText(/Gabarito:/).first()).toBeVisible();
+});
+
+test("catálogo de provas reais aponta para fontes oficiais de provas e gabaritos", async ({ page }) => {
+  await page.goto("./");
+  await page.getByRole("button", { name: /Área de estudos/ }).click();
+  const sources = page.getByRole("region", { name: "Provas reais oficiais" });
+  await expect(sources.getByRole("heading", { name: "Provas reais e gabaritos oficiais" })).toBeVisible();
+  await expect(sources.getByText(/TRE\/GO/).first()).toBeVisible();
+  await expect(sources.getByRole("link", { name: /Abrir caderno de prova/ }).first()).toHaveAttribute("href", /^https:\/\//);
+  await expect(sources.getByRole("link", { name: /Abrir gabarito/ }).first()).toHaveAttribute("href", /^https:\/\//);
 });
