@@ -1118,6 +1118,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                 <button type="button" className={notificationView === "unread" ? "notification-filter active" : "notification-filter"} aria-pressed={notificationView === "unread"} onClick={() => { setNotificationView("unread"); setNotificationLimit(8); }}>Não lidas ({unreadNotificationCount})</button>
               </div>
               {visibleNotifications.length > 0 ? (
+                <>
                 <div className="notification-list">
                   {displayedNotifications.map((notification) => (
                     <div className="notification-entry" key={notification.id} role="group" aria-label={notification.title}>
@@ -1147,6 +1148,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                     </button>
                   </div>
                 )}
+                </>
               ) : <p className="alerts-empty">{activeNotifications.length === 0 ? "Nenhuma novidade por enquanto. Quando o catálogo receber novos concursos ou um favorito for atualizado, o aviso aparecerá aqui." : "Não há notificações não lidas. Você já conferiu todas as novidades."}</p>}
               <small className="alerts-note">
                 {notificationPermission === "granted" && browserNotificationsEnabled
