@@ -80,6 +80,7 @@ test("abre o painel de cadastro e login e apresenta o estado da integração", a
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole("heading", { name: /Entrar na sua conta/ })).toBeVisible();
 
+  await expect(dialog.getByText(/recuperação de senha estão preparados/i)).toBeVisible();
   const hasEmailForm = await dialog.getByLabel("E-mail").count();
   const hasSetupGuide = await dialog.getByRole("link", { name: /Abrir guia de configuração/ }).count();
   expect(hasEmailForm + hasSetupGuide).toBeGreaterThan(0);
