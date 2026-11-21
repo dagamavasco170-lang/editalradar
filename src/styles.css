@@ -2051,3 +2051,41 @@ button,.detail-btn,.primary-btn{line-height:1.35}
 
 .discovery-web-review-note{display:inline-block;max-width:220px;padding:7px 9px;border:1px solid #e7e8d7;border-radius:7px;background:#fbfaf1;color:#887640;font-size:9px;line-height:1.45}
 @media(max-width:560px){.discovery-web-review-note{max-width:none;width:100%}}
+
+/* Geração e revisão automática do banco de questões. */
+.study-question-admin-stack{display:grid;gap:18px}
+.question-ai-automation{display:grid;gap:17px}
+.question-ai-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.question-ai-summary>div{padding:13px;border:1px solid #e5eceb;border-radius:11px;background:#f8fbfa;display:grid;gap:4px}
+.question-ai-summary strong{font-size:21px;color:#1a775f}
+.question-ai-summary span,.question-ai-how p,.question-ai-form small,.question-ai-topic small,.question-ai-runs small{font-size:11px;color:#71818a;line-height:1.5}
+.question-ai-how{padding:14px 16px;border-radius:10px;background:#f7faf9;border:1px solid #e7eeec}
+.question-ai-how>strong,.question-ai-form>div:first-child strong,.question-ai-subheading strong{display:block;font-size:13px;color:#244052}
+.question-ai-how p{margin:7px 0 0}
+.question-ai-form{display:grid;gap:12px;padding:16px;border:1px solid #e4ebea;border-radius:12px}
+.question-ai-form>div:first-child{display:grid;gap:4px}
+.question-ai-form label{display:grid;gap:6px;font-size:11px;font-weight:700;color:#526773}
+.question-ai-form input,.question-ai-form select,.question-ai-form textarea{width:100%;min-width:0;border:1px solid #dce6e5;border-radius:8px;padding:10px 11px;background:#fff;color:#1d3b4d;font:inherit;font-size:12px}
+.question-ai-form textarea{resize:vertical;line-height:1.55}
+.question-ai-form input:focus,.question-ai-form select:focus,.question-ai-form textarea:focus{outline:2px solid #c4e5d9;border-color:#58a98e}
+.question-ai-form-footer{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.question-ai-form-footer small{font-size:10px;color:#7a8b92}
+.question-ai-topics,.question-ai-review-queue,.question-ai-runs{display:grid;gap:10px}
+.question-ai-subheading{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.question-ai-subheading>span{font-size:11px;color:#70818a}
+.question-ai-topic{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px;border:1px solid #e5eceb;border-radius:10px}
+.question-ai-topic>div:first-child{display:grid;gap:4px;min-width:0}
+.question-ai-topic>div:first-child strong{font-size:12px;color:#254052}
+.question-ai-topic-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.question-ai-review-item{padding:13px;border:1px solid #eadfd5;border-radius:10px;background:#fffdfa;display:grid;gap:8px}
+.question-ai-review-head{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.question-ai-review-head strong{font-size:12px;color:#284457}
+.question-ai-review-head span{font-size:10px;color:#936d36}
+.question-ai-review-item p{font-size:12px;line-height:1.55;color:#385263;margin:0}
+.question-ai-review-item ul{padding-left:18px;margin:0;color:#885f3b;font-size:11px;line-height:1.5}
+.question-ai-review-actions{display:flex;gap:8px;flex-wrap:wrap}
+.question-ai-runs>strong{font-size:12px;color:#244052}
+.question-ai-runs>div{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid #edf1f1;flex-wrap:wrap}
+.question-ai-runs>div span{font-size:10px;color:#526874}
+.question-ai-runs>div small{font-size:10px}
+@media(max-width:700px){.question-ai-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.question-ai-topic{align-items:flex-start;flex-direction:column}.question-ai-topic-actions{width:100%}.question-ai-topic-actions button{flex:1}.question-ai-form{padding:12px}.question-ai-form-footer{align-items:flex-start;flex-direction:column}.question-ai-form-footer button{width:100%}}

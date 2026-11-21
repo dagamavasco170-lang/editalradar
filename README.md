@@ -100,3 +100,10 @@ O monitoramento compara retificações oficiais com concursos já cadastrados. A
 ### Remuneração e vagas
 
 Os valores remuneratórios estruturados incluem natureza do valor (por exemplo, inicial, após curso de formação ou até determinado teto), periodicidade, observação, fonte e data de verificação. A remuneração só é exibida quando há fonte oficial identificável. Vagas imediatas e cadastro de reserva são campos separados; a ausência de um campo significa que a informação não está discriminada nesta ficha.
+
+
+## Geração e revisão automática de questões
+
+O painel administrativo permite cadastrar temas de geração recorrente com disciplina, dificuldade, fonte oficial HTTPS e trecho de referência. Uma Edge Function privada gera questões inéditas e executa uma segunda chamada independente para revisar fundamentação, gabarito, alternativas e justificativa. Validações determinísticas conferem estrutura, citação literal do texto-base e duplicidade. Apenas questões com nota mínima de 90/100 e todos os critérios aprovados são publicadas automaticamente; casos incertos ficam bloqueados na fila de exceções.
+
+Para ativar a IA, configure `OPENAI_API_KEY` em Supabase → Edge Functions → Secrets. Opcionalmente, configure `OPENAI_MODEL` (padrão: `gpt-4o-mini`). O segredo nunca deve ser colocado no navegador nem no repositório. A execução recorrente diária usa GitHub Actions → **Gerar e revisar questões automaticamente**, com os secrets existentes `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY`. Cada tema define quantas questões gerar (1 a 5) e a frequência (1 a 30 dias). A automação usa exclusivamente o trecho oficial fornecido na configuração como base factual; as questões geradas são conteúdo original do EditalRadar, não cópias de provas reais.

@@ -1,0 +1,53 @@
+name: Gerar e revisar questões automaticamente
+
+on:
+  schedule:
+    - cron: "30 10 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: question-automation
+  cancel-in-progress: false
+
+jobs:
+  generate-and-review:
+    name: Gerar questões e executar revisão independente
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Chamar automação protegida do Supabase
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SUPABASE_URL:-}" ] || [ -z "${SUPABASE_SERVICE_ROLE_KEY:-}" ]; then
+            echo "::error::Configure SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY nos segredos do repositório."
+            exit 1
+          fi
+
+          response="$(curl --silent --show-error --fail-with-body \
+            --request POST "${SUPABASE_URL}/functions/v1/question-factory" \
+            --header "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            --header "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+            --header "Content-Type: application/json" \
+            --data '{"mode":"scheduled"}')"
+
+          printf '%s\n' "$response" | node --input-type=module -e '
+            let raw = "";
+            for await (const chunk of process.stdin) raw += chunk;
+            const result = JSON.parse(raw);
+            if (result.setup_required || result.skipped) {
+              console.log("Automação não executada: " + (result.message || "nenhum tema está vencido."));
+              process.exit(0);
+            }
+            if (result.ok !== true) {
+              console.error(JSON.stringify(result));
+              process.exit(1);
+            }
+            for (const item of result.results || []) console.log(JSON.stringify(item));
+            console.log("Temas processados: " + result.processed);
+          '
