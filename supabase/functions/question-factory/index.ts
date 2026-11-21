@@ -36,7 +36,6 @@ const questionSchema = {
       type: "array",
       items: {
         type: "object",
-        additionalProperties: false,
         required: ["prompt", "options", "answer", "explanation", "evidence_excerpt"],
         properties: {
           prompt: { type: "string" },
@@ -44,7 +43,6 @@ const questionSchema = {
             type: "array",
             items: {
               type: "object",
-              additionalProperties: false,
               required: ["id", "text"],
               properties: {
                 id: { type: "string", enum: ["a", "b", "c", "d"] },
@@ -70,7 +68,6 @@ const reviewSchema = {
       type: "array",
       items: {
         type: "object",
-        additionalProperties: false,
         required: ["index", "score", "approved", "factual_support", "single_correct_answer", "explanation_consistent", "issues"],
         properties: {
           index: { type: "integer" },
