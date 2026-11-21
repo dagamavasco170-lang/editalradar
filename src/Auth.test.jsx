@@ -126,12 +126,24 @@ describe("Autenticação EditalRadar", () => {
     const nameInput = await screen.findByLabelText("Nome de exibição");
     expect(nameInput).toHaveValue("Nome Antigo");
     fireEvent.change(nameInput, { target: { value: "Maria Concurseira" } });
+    fireEvent.change(screen.getByLabelText("Cidade"), { target: { value: "Maceió" } });
+    fireEvent.change(screen.getByLabelText("Estado"), { target: { value: "Alagoas" } });
+    fireEvent.change(screen.getByLabelText("Escolaridade"), { target: { value: "Superior completo" } });
+    fireEvent.change(screen.getByLabelText("Área de interesse"), { target: { value: "Tribunais" } });
     fireEvent.click(screen.getByRole("button", { name: "Salvar perfil" }));
 
     await waitFor(() => expect(client.auth.updateUser).toHaveBeenCalledWith({
-      data: { full_name: "Maria Concurseira" }
+      data: {
+        full_name: "Maria Concurseira",
+        city: "Maceió",
+        state: "Alagoas",
+        education_level: "Superior completo",
+        interest_area: "Tribunais"
+      }
     }));
     expect(await screen.findByText("Maria Concurseira")).toBeInTheDocument();
+    expect(screen.getByLabelText("Cidade")).toHaveValue("Maceió");
+    expect(screen.getByLabelText("Estado")).toHaveValue("Alagoas");
   });
 
   it("mostra erro e mantém a edição aberta se o Supabase rejeitar a alteração do perfil", async () => {
