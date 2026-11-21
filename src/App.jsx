@@ -1086,7 +1086,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                 <div>
                   <div className="eyebrow">AVISOS DO EDITALRADAR</div>
                   <h2>Notificações {unreadNotificationCount > 0 && <span className="notification-count">{unreadNotificationCount}</span>}</h2>
-                  <p>Novos concursos no catálogo e atualizações dos seus favoritos.</p>
+                  <p>Novos concursos, retificações oficiais e atualizações dos seus favoritos.</p>
                   {authUser && !notificationCloudSyncAvailable && <p className="notification-sync-hint">Para sincronizar este histórico entre aparelhos, execute no SQL Editor do Supabase o arquivo <strong>supabase/migrations/202611220001_user_notifications.sql</strong> e depois atualize o aplicativo.</p>}
                 </div>
                 <div className="notification-actions">
