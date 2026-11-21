@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { isSupabaseConfigured, supabase } from "./lib/supabaseClient";
 import { concursos, materias, sourceUrl, sourceUpdated, fetchedAt } from "./data/concursos";
+import { detectCatalogNotifications } from "./lib/notifications";
 
 export const scoreRecommendation = (item, profile = {}) => {
  const area=(profile.interest_area||"").toLowerCase(), text=[item.cargo,item.orgao,item.area,item.nivel,item.estado,item.localidade,item.status].join(" ").toLowerCase();
@@ -70,6 +71,17 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     const stored = readStore("er-alerts", []);
     return Array.isArray(stored) ? stored : [];
   });
+  const [notifications, setNotifications] = useState(() => {
+    const stored = readStore("er-notifications", []);
+    return Array.isArray(stored) ? stored : [];
+  });
+  const [notificationPermission, setNotificationPermission] = useState(() =>
+    typeof window !== "undefined" && "Notification" in window ? window.Notification.permission : "unsupported"
+  );
+  const [browserNotificationsEnabled, setBrowserNotificationsEnabled] = useState(() =>
+    readStore("er-browser-notifications", false) === true
+  );
+  const [notificationMessage, setNotificationMessage] = useState("");
   const [favorites, setFavorites] = useState(() => readStore("er-favorites", []));
   const [tasks, setTasks] = useState(() => readStore("er-tasks", [false, false, false, false]));
   const [selected, setSelected] = useState(null);
@@ -96,7 +108,6 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   const [profileState, setProfileState] = useState("");
   const [profileEducation, setProfileEducation] = useState("");
   const [profileArea, setProfileArea] = useState("");
-  const [profileEmailNotifications, setProfileEmailNotifications] = useState(false);
   const [profileBusy, setProfileBusy] = useState(false);
   const [profileMessage, setProfileMessage] = useState("");
   const [profileMessageType, setProfileMessageType] = useState("info");
@@ -225,6 +236,52 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     };
   }, [authUser?.id]);
 
+  useEffect(() => {
+    if (!authReady) return;
+    // Wait for the cloud favorites snapshot before comparing this browser's catalog.
+    if (authUser && syncStatus !== "error" && syncReadyUserRef.current !== authUser.id) return;
+
+    const previousSnapshot = readStore("er-catalog-snapshot", null);
+    const detected = detectCatalogNotifications({
+      catalog: concursos,
+      previousSnapshot,
+      favoriteIds: favorites
+    });
+    localStorage.setItem("er-catalog-snapshot", JSON.stringify(detected.snapshot));
+    if (detected.notifications.length === 0) return;
+
+    const existing = readStore("er-notifications", notifications);
+    const knownIds = new Set(existing.map((item) => item.id));
+    const fresh = detected.notifications.filter((item) => !knownIds.has(item.id));
+    if (fresh.length === 0) return;
+
+    const next = [...fresh, ...existing].slice(0, 50);
+    setNotifications(next);
+    localStorage.setItem("er-notifications", JSON.stringify(next));
+
+    if (browserNotificationsEnabled && notificationPermission === "granted" && "Notification" in window) {
+      fresh.slice(0, 3).forEach((item) => {
+        const browserNotice = new window.Notification(item.title, {
+          body: item.message,
+          tag: item.id
+        });
+        browserNotice.onclick = () => {
+          window.focus();
+          const contest = concursos.find((entry) => String(entry.id) === String(item.itemId));
+          if (contest) setSelected(contest);
+          browserNotice.close();
+        };
+      });
+    }
+  }, [
+    authReady,
+    authUser?.id,
+    syncStatus,
+    favorites,
+    browserNotificationsEnabled,
+    notificationPermission
+  ]);
+
   const estados = [...new Set(concursos.map((item) => item.estado || "Brasil"))].sort();
   const cidades = [...new Set(concursos.map((item) => item.localidade || "Brasil"))].sort();
 
@@ -343,7 +400,6 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     setProfileState(metadata.state || "");
     setProfileEducation(metadata.education_level || "");
     setProfileArea(metadata.interest_area || "");
-    setProfileEmailNotifications(metadata.email_notifications_enabled === true);
     setProfileMessage("");
     setProfileMessageType("info");
     setShowProfile(true);
@@ -364,11 +420,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
       city: profileCity.trim(),
       state: profileState,
       education_level: profileEducation,
-      interest_area: profileArea,
-      email_notifications_enabled: profileEmailNotifications,
-      email_notifications_consent_at: profileEmailNotifications
-        ? (authUser.user_metadata?.email_notifications_consent_at || new Date().toISOString())
-        : null
+      interest_area: profileArea
     };
 
     setProfileBusy(true);
@@ -384,9 +436,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
       });
       setProfileName(name);
       setProfileCity(profileData.city);
-      setProfileMessage(profileEmailNotifications
-        ? "Perfil atualizado. Você autorizou alertas por e-mail; o envio será ativado após a configuração do serviço."
-        : "Perfil atualizado com sucesso.");
+      setProfileMessage("Perfil atualizado com sucesso.");
       setProfileMessageType("success");
     } catch (error) {
       setProfileMessage(error.message || "Não foi possível atualizar seu perfil.");
@@ -457,6 +507,52 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   const toggleFavorite = (id) => {
     saveFavorites(favorites.includes(id) ? favorites.filter((item) => item !== id) : [...favorites, id]);
   };
+  const enableBrowserNotifications = async () => {
+    if (typeof window === "undefined" || !("Notification" in window)) {
+      setNotificationPermission("unsupported");
+      setNotificationMessage("Este navegador não oferece notificações de desktop.");
+      return;
+    }
+    if (window.Notification.permission === "denied") {
+      setNotificationPermission("denied");
+      setNotificationMessage("A permissão está bloqueada. Altere-a nas configurações do navegador para este site.");
+      return;
+    }
+    try {
+      const permission = await window.Notification.requestPermission();
+      setNotificationPermission(permission);
+      const enabled = permission === "granted";
+      setBrowserNotificationsEnabled(enabled);
+      localStorage.setItem("er-browser-notifications", JSON.stringify(enabled));
+      setNotificationMessage(enabled
+        ? "Notificações do navegador ativadas neste dispositivo."
+        : "A permissão não foi concedida. Você continuará vendo os avisos dentro do EditalRadar.");
+      if (enabled) {
+        new window.Notification("EditalRadar", {
+          body: "Notificações ativadas. Avisaremos quando houver novidades no catálogo."
+        });
+      }
+    } catch {
+      setNotificationMessage("Não foi possível solicitar a permissão neste navegador.");
+    }
+  };
+
+  const markAllNotificationsRead = () => {
+    const next = notifications.map((item) => ({ ...item, read: true }));
+    setNotifications(next);
+    localStorage.setItem("er-notifications", JSON.stringify(next));
+  };
+
+  const openNotification = (notification) => {
+    const next = notifications.map((item) => item.id === notification.id ? { ...item, read: true } : item);
+    setNotifications(next);
+    localStorage.setItem("er-notifications", JSON.stringify(next));
+    const contest = concursos.find((item) => String(item.id) === String(notification.itemId));
+    if (contest) setSelected(contest);
+  };
+
+  const unreadNotificationCount = notifications.filter((item) => !item.read).length;
+
   const toggleTask = (index) => {
     const next = tasks.map((done, i) => i === index ? !done : done);
     setTasks(next);
@@ -527,6 +623,43 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
               <div className="stat"><span className="stat-icon green">⌁</span><div><strong>{new Intl.NumberFormat("pt-BR").format(totalVagas)}</strong><small>Vagas em fichas com fonte oficial</small></div></div>
               <div className="stat"><span className="stat-icon gold">☆</span><div><strong>{favorites.length}</strong><small>Oportunidades salvas</small></div></div>
             </div>
+            <section className="notification-panel" aria-label="Notificações do EditalRadar">
+              <div className="notification-heading">
+                <div>
+                  <div className="eyebrow">AVISOS DO EDITALRADAR</div>
+                  <h2>Notificações {unreadNotificationCount > 0 && <span className="notification-count">{unreadNotificationCount}</span>}</h2>
+                  <p>Novos concursos no catálogo e atualizações dos seus favoritos.</p>
+                </div>
+                <div className="notification-actions">
+                  <button className="detail-btn" type="button" onClick={enableBrowserNotifications} disabled={notificationPermission === "unsupported" || (notificationPermission === "granted" && browserNotificationsEnabled)}>
+                    {notificationPermission === "granted" && browserNotificationsEnabled ? "Notificações ativadas" : notificationPermission === "denied" ? "Permissão bloqueada" : "Ativar no navegador"}
+                  </button>
+                  {unreadNotificationCount > 0 && <button className="alert-remove" type="button" onClick={markAllNotificationsRead}>Marcar como lidas</button>}
+                </div>
+              </div>
+              {notifications.length > 0 ? (
+                <div className="notification-list">
+                  {notifications.slice(0, 8).map((notification) => (
+                    <button className={notification.read ? "notification-item read" : "notification-item"} type="button" key={notification.id} onClick={() => openNotification(notification)}>
+                      <span className="notification-dot" aria-hidden="true" />
+                      <span className="notification-copy"><strong>{notification.title}</strong><small>{notification.message}</small></span>
+                      <span className="notification-open">Ver ↗</span>
+                    </button>
+                  ))}
+                </div>
+              ) : <p className="alerts-empty">Nenhuma novidade por enquanto. Quando o catálogo receber novos concursos ou um favorito for atualizado, o aviso aparecerá aqui.</p>}
+              <small className="alerts-note">
+                {notificationPermission === "granted" && browserNotificationsEnabled
+                  ? "Notificações de desktop ativadas neste navegador."
+                  : notificationPermission === "denied"
+                    ? "O navegador bloqueou os avisos de desktop; os avisos internos continuam disponíveis."
+                    : notificationPermission === "unsupported"
+                      ? "Seu navegador não oferece notificações de desktop."
+                      : "Ative os avisos do navegador para receber uma notificação enquanto o EditalRadar estiver aberto."}
+                {" "}Os avisos são detectados quando você abre ou atualiza o site após uma mudança no catálogo.
+              </small>
+              {notificationMessage && <small className="notification-feedback" role="status">{notificationMessage}</small>}
+            </section>
             {authUser && profileRecommendations.length>0 && page!=="favoritos" && (
               <section className="recommendations-panel" aria-label="Recomendações personalizadas">
                 <div className="recommendations-heading"><div><div className="eyebrow">PARA O SEU PERFIL</div><h2>Concursos recomendados</h2><p>Prioridade calculada com sua área de interesse, escolaridade e localização informadas.</p></div><button className="recommendations-edit" onClick={openProfileEditor}>Atualizar perfil</button></div>
@@ -654,10 +787,6 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
               <label>Escolaridade<select value={profileEducation} onChange={(event) => setProfileEducation(event.target.value)}><option value="">Selecione</option>{["Ensino fundamental", "Ensino médio", "Técnico", "Superior incompleto", "Superior completo", "Pós-graduação"].map((level) => <option key={level} value={level}>{level}</option>)}</select></label>
               <label>Área de interesse<select value={profileArea} onChange={(event) => setProfileArea(event.target.value)}><option value="">Selecione</option>{["Administrativa", "Policial", "Tribunais", "Fiscal e controle", "Bancária", "Educação", "Saúde", "Jurídica", "Tecnologia", "Outras"].map((area) => <option key={area} value={area}>{area}</option>)}</select></label>
             </div>
-            <label className="email-alert-consent">
-              <span className="email-alert-copy"><strong>Receber alertas por e-mail</strong><small>Envie uma mensagem quando o catálogo receber um concurso compatível com seu perfil. Você pode cancelar quando quiser.</small></span>
-              <input type="checkbox" aria-label="Receber alertas por e-mail" checked={profileEmailNotifications} onChange={(event) => setProfileEmailNotifications(event.target.checked)} />
-            </label>
             <button className="primary-btn full" type="submit" disabled={profileBusy}>{profileBusy ? "Salvando..." : "Salvar perfil"}</button>
             {profileMessage && <p className={`auth-message ${profileMessageType}`} role="status">{profileMessage}</p>}
           </form>
