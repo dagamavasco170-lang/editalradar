@@ -39,3 +39,28 @@
 .alert-remove{border:0;background:transparent;color:#a05c56;font-size:9px;white-space:nowrap;padding:5px}
 .alerts-note{display:block;color:#9aa5aa;font-size:9px;margin-top:11px}
 @media(max-width:650px){.alerts-intro{align-items:flex-start;flex-direction:column;gap:10px}.saved-alerts{grid-template-columns:1fr}.alert-save{width:100%}}
+
+
+/* Cadastro e login */
+.auth-trigger{border:1px solid #dce8e3;background:#fff;color:#176f59;border-radius:8px;padding:8px 11px;font-size:10px;font-weight:700;white-space:nowrap}
+.auth-trigger:hover{background:#f2f8f5}
+.auth-trigger:disabled{opacity:.55;cursor:wait}
+.profile-copy{min-width:0;max-width:145px}
+.profile-copy strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.auth-modal{position:relative;max-width:430px;width:calc(100% - 32px);padding:28px}
+.auth-modal h2{font:800 22px Manrope,sans-serif;color:#19384d;margin:12px 0 18px}
+.auth-form{display:grid;gap:13px}
+.auth-form label{display:grid;gap:6px;font-size:11px;color:#536a78;font-weight:700}
+.auth-form input{height:42px;width:100%;border:1px solid #dfe7e8;border-radius:8px;padding:0 12px;background:#fff;color:#19384d;font-size:13px}
+.auth-form input:focus{outline:2px solid #c4e5d9;border-color:#58a98e}
+.auth-mode-toggle{border:0;background:transparent;color:#17795e;font-size:11px;font-weight:700;padding:8px}
+.auth-message{margin:0;padding:10px 12px;border-radius:8px;font-size:11px;line-height:1.5}
+.auth-message.success{background:#edf8f2;color:#276747}
+.auth-message.error{background:#fff1ef;color:#9e423c}
+.auth-message.info{background:#eef4f8;color:#436273}
+.auth-setup p,.auth-setup li{font-size:11px;line-height:1.65;color:#637783}
+.auth-setup ol{padding-left:20px;margin:12px 0}
+.auth-setup a{display:inline-block;color:#18775e;font-weight:700;font-size:11px;margin-top:6px}
+.auth-setup code{font-size:10px;overflow-wrap:anywhere}
+@media(max-width:760px){.auth-trigger{padding:7px 8px;font-size:9px}.profile-copy{display:none}}
+@media(max-width:480px){.auth-trigger{font-size:8px}.auth-modal{padding:23px 18px}}
