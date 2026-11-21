@@ -54,11 +54,12 @@ export default function StudyQuestionAdmin({authClient,userId}){
   event.preventDefault();setAutomationMessage("");
   if(!authClient||!userId){setAutomationMessage("Entre com uma conta administrativa.");setAutomationKind("error");return;}
   if(!isTrustedOfficialUrl(topicForm.source_url)){setAutomationMessage("Use uma fonte HTTPS de órgão público ou banca reconhecida.");setAutomationKind("error");return;}
-  if(topicForm.source_excerpt.trim().length<200){setAutomationMessage("Cole pelo menos 200 caracteres do material oficial.");setAutomationKind("error");return;}
+  if(topicForm.source_excerpt.trim().length>0&&topicForm.source_excerpt.trim().length<200){setAutomationMessage("O trecho manual precisa ter pelo menos 200 caracteres. Deixe-o vazio para tentar a extração automática da página.");setAutomationKind("error");return;}
+  if(topicForm.source_excerpt.trim().length>12000){setAutomationMessage("O trecho manual não pode ultrapassar 12.000 caracteres.");setAutomationKind("error");return;}
   setBusyId("save-topic");
   try{
    const {error}=await authClient.from("study_question_automation_topics").insert({
-    ...topicForm,topic:topicForm.topic.trim(),source_url:topicForm.source_url.trim(),source_excerpt:topicForm.source_excerpt.trim(),
+    ...topicForm,topic:topicForm.topic.trim(),source_url:topicForm.source_url.trim(),source_excerpt:topicForm.source_excerpt.trim()||null,
     questions_per_run:Number(topicForm.questions_per_run),cadence_days:Number(topicForm.cadence_days),created_by:userId
    });
    if(error)throw error;
@@ -143,7 +144,7 @@ export default function StudyQuestionAdmin({authClient,userId}){
    </div>
    <div className="question-ai-how"><strong>Revisão em duas etapas</strong><p>Um modelo elabora a questão e um segundo passe revisa a resposta, os distratores, a justificativa e a aderência à fonte. Há validação automática de evidência literal e duplicidade. Somente questões com nota mínima de 90/100 e todos os critérios atendidos são publicadas.</p></div>
    <form className="question-ai-form" onSubmit={saveTopic}>
-    <div><strong>Configurar tema recorrente</strong><small>Informe a fonte oficial e cole o texto-base; a automação não deve inventar conteúdo fora dele.</small></div>
+    <div><strong>Configurar tema recorrente</strong><small>Informe a fonte oficial. O sistema tenta extrair o texto automaticamente; o trecho manual é uma alternativa para PDFs e imagens.</small></div>
     <div className="study-admin-grid">
      <label>Disciplina<select value={topicForm.discipline} onChange={e=>updateTopic("discipline",e.target.value)}>{["Língua Portuguesa","Raciocínio lógico","Direito Constitucional","Direito Administrativo","Informática","Direito Civil","Direito Penal","Direito Processual","Conhecimentos específicos"].map(item=><option key={item}>{item}</option>)}</select></label>
      <label>Dificuldade<select value={topicForm.difficulty} onChange={e=>updateTopic("difficulty",e.target.value)}>{["Fácil","Intermediária","Avançada"].map(item=><option key={item}>{item}</option>)}</select></label>
@@ -152,8 +153,8 @@ export default function StudyQuestionAdmin({authClient,userId}){
      <label>Questões por execução<select value={topicForm.questions_per_run} onChange={e=>updateTopic("questions_per_run",Number(e.target.value))}>{[1,2,3,4,5].map(value=><option key={value} value={value}>{value}</option>)}</select></label>
      <label>Frequência<select value={topicForm.cadence_days} onChange={e=>updateTopic("cadence_days",Number(e.target.value))}>{[{value:1,label:"Diária"},{value:2,label:"A cada 2 dias"},{value:7,label:"Semanal"},{value:14,label:"A cada 14 dias"},{value:30,label:"Mensal"}].map(item=><option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
     </div>
-    <label>Trecho do material oficial<textarea rows={6} minLength={200} maxLength={12000} required value={topicForm.source_excerpt} onChange={e=>updateTopic("source_excerpt",e.target.value)} placeholder="Cole pelo menos 200 caracteres do texto normativo, edital ou documento oficial."/></label>
-    <div className="question-ai-form-footer"><small>{topicForm.source_excerpt.trim().length}/12.000 caracteres · mínimo 200</small><button className="primary-btn" type="submit" disabled={busyId==="save-topic"}>{busyId==="save-topic"?"Salvando…":"Adicionar tema"}</button></div>
+    <label>Trecho do material oficial (opcional)<textarea rows={5} maxLength={12000} value={topicForm.source_excerpt} onChange={e=>updateTopic("source_excerpt",e.target.value)} placeholder="Deixe vazio para a automação extrair o texto da página oficial. Para PDF ou imagem, cole aqui um trecho de 200 a 12.000 caracteres."/></label>
+    <div className="question-ai-form-footer"><small>{topicForm.source_excerpt.trim().length}/12.000 caracteres · extração automática quando vazio</small><button className="primary-btn" type="submit" disabled={busyId==="save-topic"}>{busyId==="save-topic"?"Salvando…":"Adicionar tema"}</button></div>
    </form>
    <div className="question-ai-topics">
     <div className="question-ai-subheading"><strong>Temas agendados</strong><button type="button" className="detail-btn" onClick={()=>refreshAutomation()} disabled={loading}>{loading?"Atualizando…":"Atualizar"}</button></div>

@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { isDuplicateQuestion, isTrustedOfficialUrl, validateQuestion, type GeneratedQuestion } from "./validation.ts";
+import { extractReadableSourceText } from "./source-utils.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -188,6 +189,52 @@ async function authenticate(req: Request, mode: string) {
   return { userId: data.user.id, scheduled: false };
 }
 
+async function fetchOfficialSourceExcerpt(sourceUrl: string): Promise<string> {
+  let currentUrl = sourceUrl;
+  let response: Response | null = null;
+  const redirectStatuses = new Set([301, 302, 303, 307, 308]);
+
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    if (!isTrustedOfficialUrl(currentUrl)) {
+      throw new Error("O redirecionamento saiu dos domínios oficiais permitidos. Cole manualmente o trecho oficial.");
+    }
+    response = await fetch(currentUrl, {
+      method: "GET",
+      redirect: "manual",
+      signal: AbortSignal.timeout(20000),
+      headers: {
+        "User-Agent": "EditalRadar-QuestionFactory/1.0",
+        "Accept": "text/html, text/plain, application/xhtml+xml;q=0.9"
+      }
+    });
+
+    if (!redirectStatuses.has(response.status)) break;
+    const location = response.headers.get("location");
+    if (!location || attempt === 4) {
+      throw new Error("A página oficial redirecionou muitas vezes ou não informou o destino.");
+    }
+    const nextUrl = new URL(location, currentUrl);
+    if (nextUrl.protocol !== "https:" || nextUrl.username || nextUrl.password || !isTrustedOfficialUrl(nextUrl.href)) {
+      throw new Error("A página oficial tentou redirecionar para um domínio não permitido.");
+    }
+    currentUrl = nextUrl.href;
+  }
+
+  if (!response) throw new Error("Não foi possível abrir a fonte oficial.");
+  if (!response.ok) throw new Error("A fonte oficial respondeu HTTP " + response.status + ".");
+  const contentLength = Number(response.headers.get("content-length") || 0);
+  if (contentLength > 5 * 1024 * 1024) throw new Error("A página oficial excede o limite de 5 MB.");
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  if (bytes.byteLength > 5 * 1024 * 1024) throw new Error("A página oficial excede o limite de 5 MB.");
+
+  const contentType = response.headers.get("content-type") || "";
+  const pageText = extractReadableSourceText(contentType, new TextDecoder("utf-8").decode(bytes));
+  if (pageText.length < 200) {
+    throw new Error("Não foi possível extrair texto suficiente desta página. Se a fonte for PDF ou imagem, cole manualmente um trecho de 200 a 12.000 caracteres.");
+  }
+  return pageText.slice(0, 12000);
+}
+
 function isDue(topic: any, now: Date) {
   if (!topic.active) return false;
   if (!topic.last_run_at) return true;
@@ -201,10 +248,11 @@ async function runTopic(topic: any, triggerMode: "manual" | "scheduled", userId:
   if (!isTrustedOfficialUrl(topic.source_url)) {
     return { topicId: topic.id, status: "skipped", reason: "A fonte não pertence a um domínio oficial permitido." };
   }
-  const excerpt = String(topic.source_excerpt || "").trim();
-  if (excerpt.length < 200 || excerpt.length > 12000) {
-    return { topicId: topic.id, status: "skipped", reason: "O material de referência precisa ter entre 200 e 12.000 caracteres." };
+  const configuredExcerpt = String(topic.source_excerpt || "").trim();
+  if (configuredExcerpt && (configuredExcerpt.length < 200 || configuredExcerpt.length > 12000)) {
+    return { topicId: topic.id, status: "skipped", reason: "O trecho manual precisa ter entre 200 e 12.000 caracteres." };
   }
+  const excerpt = configuredExcerpt || await fetchOfficialSourceExcerpt(topic.source_url);
   const requested = Math.max(1, Math.min(5, Number(topic.questions_per_run) || 3));
   const runInsert = await adminDb.from("study_question_automation_runs").insert({
     topic_id: topic.id,
