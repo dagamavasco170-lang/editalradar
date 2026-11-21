@@ -172,6 +172,100 @@ export function classifyDiscovery(discovery, document, responseUrl = discovery?.
   };
 }
 
+
+export function normalizeContestIdentity(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\\u0300-\\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/\\s+/g, " ");
+}
+
+function normalizeOfficialUrl(value) {
+  try {
+    const url = new URL(value);
+    url.hash = "";
+    url.pathname = url.pathname.replace(/\\/+$/, "") || "/";
+    return url.toString();
+  } catch {
+    return "";
+  }
+}
+
+export function buildRetificationUpdate(existingData, extractedData, discovery, document) {
+  const text = String(document?.text || "");
+  const evidence = [discovery?.title, document?.title, document?.heading, text].filter(Boolean).join("\\n");
+  const isRetification = /\\b(retifica(?:ç(?:ã|a)o|ç(?:õ|o)es|do|da|dos|das)?|errata|aditivo|alteraç(?:ã|a)o do edital)\\b/i.test(evidence);
+  if (!isRetification) {
+    return { updated: false, reason: "A publicação não apresenta evidência explícita de retificação ou errata." };
+  }
+
+  const sameOrganization = normalizeContestIdentity(existingData?.orgao) !== ""
+    && normalizeContestIdentity(existingData?.orgao) === normalizeContestIdentity(extractedData?.orgao);
+  const samePosition = normalizeContestIdentity(existingData?.cargo) !== ""
+    && normalizeContestIdentity(existingData?.cargo) === normalizeContestIdentity(extractedData?.cargo);
+  if (!sameOrganization || !samePosition) {
+    return { updated: false, reason: "A retificação foi identificada, mas o órgão e o cargo não correspondem exatamente ao registro existente." };
+  }
+
+  const updatedData = { ...existingData };
+  const changes = [];
+  const setIfChanged = (field, nextValue) => {
+    if (nextValue === undefined || nextValue === null || nextValue === "") return;
+    const previous = updatedData[field] ?? null;
+    if (String(previous) === String(nextValue)) return;
+    changes.push({ field, oldValue: previous, newValue: nextValue });
+    updatedData[field] = nextValue;
+  };
+
+  const explicitVacancy = text.match(/(?:leia-se|passa(?:m)? a ser|passa(?:m)? para|totalizando|retifica(?:-se)?(?: o total de)?)\\D{0,80}(\\d{1,5})\\s+vagas?\\b/i);
+  const vacancyMentions = [...text.matchAll(/\\b(\\d{1,5})\\s+vagas?\\b/gi)].map(match => Number(match[1]));
+  const uniqueVacancies = [...new Set(vacancyMentions)];
+  const nextVacancies = explicitVacancy
+    ? Number(explicitVacancy[1])
+    : uniqueVacancies.length === 1 ? uniqueVacancies[0] : null;
+  if (nextVacancies !== null && Number.isInteger(nextVacancies) && nextVacancies >= 0) {
+    setIfChanged("vagas", nextVacancies);
+  }
+
+  const saysOpen = /inscriç(?:ã|a)ões?\\s+(?:estão\\s+)?abertas|período de inscriç(?:ã|a)ões?\\s+aberto/i.test(text);
+  const saysClosed = /inscriç(?:ã|a)ões?\\s+(?:estão\\s+)?encerradas|período de inscriç(?:ã|a)ões?\\s+encerrado/i.test(text);
+  if (saysOpen !== saysClosed) {
+    setIfChanged("status", saysOpen
+      ? "Edital publicado · inscrições abertas"
+      : "Edital publicado · inscrições encerradas");
+  }
+
+  if (!changes.length) {
+    return {
+      updated: false,
+      reason: "Retificação identificada, mas não há campo objetivo que possa ser atualizado com segurança. O item permanece para revisão."
+    };
+  }
+
+  const history = Array.isArray(existingData?.historicoAtualizacoes)
+    ? existingData.historicoAtualizacoes
+    : [];
+  const historyEntry = {
+    at: new Date().toISOString(),
+    type: "retificacao",
+    title: String(discovery?.title || document?.title || "Retificação oficial").slice(0, 240),
+    sourceUrl: normalizeOfficialUrl(discovery?.source_url || ""),
+    candidateUrl: normalizeOfficialUrl(discovery?.candidate_url || extractedData?.sourceUrl || ""),
+    changes
+  };
+  updatedData.historicoAtualizacoes = [...history, historyEntry].slice(-30);
+
+  return {
+    updated: true,
+    data: updatedData,
+    changes,
+    reason: "Retificação oficial confirmada para o mesmo órgão e cargo; campos objetivos atualizados e versão anterior preservada no histórico."
+  };
+}
+
 function readPdfText(buffer) {
   try {
     return execFileSync("pdftotext", ["-layout", "-", "-"], {
@@ -371,7 +465,7 @@ export async function autoResolvePending(options = {}) {
   if (!discoveries.length) return { inspected: 0, published: 0, dismissed: 0, pending: 0, errors: 0 };
 
   const existingRows = await requestJson(request, baseUrl + "/rest/v1/contest_catalog?select=id,data,deleted&limit=1000", key) || [];
-  const result = { inspected: 0, published: 0, dismissed: 0, pending: 0, errors: 0, pendingReasons: {} };
+  const result = { inspected: 0, published: 0, updated: 0, dismissed: 0, pending: 0, errors: 0, pendingReasons: {} };
   const keepPending = async (item, reason) => {
     result.pending += 1;
     const label = String(reason || "Não foi possível confirmar os dados na fonte oficial.").slice(0, 500);
@@ -395,26 +489,6 @@ export async function autoResolvePending(options = {}) {
         await updateDiscovery(request, baseUrl, key, item, {
           status: "dismissed",
           context: appendContext(item.context, "Link descartado porque não pertence a um domínio oficial autorizado.")
-        });
-        result.dismissed += 1;
-        continue;
-      }
-
-      const existing = existingRows.find(row => !row.deleted && row.data?.sourceUrl === candidate.toString());
-      if (existing) {
-        await updateDiscovery(request, baseUrl, key, item, {
-          status: "published",
-          published_catalog_id: Number(existing.id),
-          context: appendContext(item.context, "Duplicata identificada: o link já existe no catálogo.")
-        });
-        result.published += 1;
-        continue;
-      }
-      const staticDuplicate = concursos.some(row => row.sourceUrl === candidate.toString());
-      if (staticDuplicate) {
-        await updateDiscovery(request, baseUrl, key, item, {
-          status: "dismissed",
-          context: appendContext(item.context, "O link já está representado no catálogo-base do aplicativo.")
         });
         result.dismissed += 1;
         continue;
@@ -468,6 +542,86 @@ export async function autoResolvePending(options = {}) {
       }
       if (decision.decision !== "publish") {
         await keepPending(item, decision.reason || "A evidência não é suficiente para preencher a ficha automaticamente.");
+        continue;
+      }
+
+      const candidateKey = normalizeOfficialUrl(candidate.toString());
+      const matchingDatabase = existingRows.find(row =>
+        !row.deleted
+        && normalizeOfficialUrl(row.data?.sourceUrl) === candidateKey
+        && normalizeContestIdentity(row.data?.orgao) === normalizeContestIdentity(decision.data.orgao)
+        && normalizeContestIdentity(row.data?.cargo) === normalizeContestIdentity(decision.data.cargo)
+      );
+      const matchingStatic = !matchingDatabase
+        ? concursos.find(row =>
+          normalizeOfficialUrl(row.sourceUrl) === candidateKey
+          && normalizeContestIdentity(row.orgao) === normalizeContestIdentity(decision.data.orgao)
+          && normalizeContestIdentity(row.cargo) === normalizeContestIdentity(decision.data.cargo)
+        )
+        : null;
+      const sameSourceAlreadyCatalogued = existingRows.some(row =>
+        !row.deleted && normalizeOfficialUrl(row.data?.sourceUrl) === candidateKey
+      ) || concursos.some(row => normalizeOfficialUrl(row.sourceUrl) === candidateKey);
+
+      if (matchingDatabase || matchingStatic) {
+        const currentRecord = matchingDatabase || matchingStatic;
+        const retification = buildRetificationUpdate(currentRecord.data || currentRecord, decision.data, item, document);
+        const isRetification = /\\b(retifica|errata|aditivo|alteraç(?:ã|a)o do edital)\\b/i
+          .test([item.title, document.title, document.heading, document.text].filter(Boolean).join(" "));
+        if (retification.updated) {
+          const targetId = Number(currentRecord.id);
+          if (matchingDatabase) {
+            await requestJson(request, baseUrl + "/rest/v1/contest_catalog?id=eq." + encodeURIComponent(targetId), key, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json", Prefer: "return=minimal" },
+              body: JSON.stringify({ data: retification.data, deleted: false, updated_at: new Date().toISOString() })
+            });
+            matchingDatabase.data = retification.data;
+          } else {
+            const savedOverride = await requestJson(request, baseUrl + "/rest/v1/contest_catalog?on_conflict=id", key, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Prefer: "resolution=merge-duplicates,return=representation" },
+              body: JSON.stringify({ id: targetId, data: retification.data, deleted: false, updated_at: new Date().toISOString() })
+            });
+            const override = Array.isArray(savedOverride) ? savedOverride[0] : savedOverride;
+            if (override?.id == null) throw new Error("O Supabase não confirmou a atualização do concurso-base.");
+            existingRows.push({ id: targetId, data: retification.data, deleted: false });
+          }
+          await updateDiscovery(request, baseUrl, key, item, {
+            status: "published",
+            published_catalog_id: targetId,
+            context: appendContext(item.context, retification.reason + " Campos: " + retification.changes.map(change => change.field).join(", ") + ".")
+          });
+          result.updated += 1;
+          result.published += 1;
+          continue;
+        }
+
+        if (isRetification) {
+          await keepPending(item, retification.reason);
+        } else {
+          await updateDiscovery(request, baseUrl, key, item, {
+            status: "dismissed",
+            published_catalog_id: Number(currentRecord.id),
+            context: appendContext(item.context, "Duplicata identificada: a publicação já corresponde a um concurso cadastrado e não apresenta retificação atualizável.")
+          });
+          result.dismissed += 1;
+        }
+        continue;
+      }
+
+      if (sameSourceAlreadyCatalogued) {
+        const isRetification = /\\b(retifica|errata|aditivo|alteraç(?:ã|a)o do edital)\\b/i
+          .test([item.title, document.title, document.heading, document.text].filter(Boolean).join(" "));
+        if (isRetification) {
+          await keepPending(item, "Retificação detectada em fonte já cadastrada, mas o órgão e o cargo extraídos não correspondem com segurança a um registro específico do catálogo.");
+        } else {
+          await updateDiscovery(request, baseUrl, key, item, {
+            status: "dismissed",
+            context: appendContext(item.context, "A fonte oficial já está representada no catálogo.")
+          });
+          result.dismissed += 1;
+        }
         continue;
       }
 
