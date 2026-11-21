@@ -7,7 +7,7 @@ test("abre a versão de produção e não gera erros JavaScript", async ({ page 
   page.on("pageerror", (error) => pageErrors.push(error.message));
   page.on("response", (response) => {
     const url = response.url();
-    if (url.includes("/editalradar/assets/") && !response.ok()) {
+    if (url.includes("/assets/") && !response.ok()) {
       failedAssets.push(`${response.status()} ${url}`);
     }
   });
