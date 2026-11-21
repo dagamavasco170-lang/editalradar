@@ -1,5 +1,8 @@
 import { pathToFileURL } from "node:url";
-import { execFileSync } from "node:child_process";
+import { execFile, execFileSync } from "node:child_process";
+import { promisify } from "node:util";
+
+const execFileAsync = promisify(execFile);
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -7,7 +10,7 @@ import { concursos } from "../src/data/concursos.js";
 import { isTrustedOfficialHost } from "./monitor-sources.mjs";
 
 const MAX_BYTES = 4 * 1024 * 1024;
-const TIMEOUT_MS = 15000;
+const TIMEOUT_MS = 8000;
 
 const STATE_NAMES = {
   ac: "Acre", al: "Alagoas", ap: "Amapá", am: "Amazonas", ba: "Bahia",
@@ -169,7 +172,7 @@ export function classifyDiscovery(discovery, document, responseUrl = discovery?.
       area: jurisdiction.area,
       estado: jurisdiction.estado,
       localidade: jurisdiction.localidade,
-      sourceUrl: candidate.toString(),
+      sourceUrl: candidateUrl,
       observacao: "Registro estruturado automaticamente pelo EditalRadar a partir da publicação oficial. Confira o edital e suas retificações antes de tomar decisões. Fonte monitorada: " + String(discovery?.source_url || "").slice(0, 500)
     }
   };
@@ -380,15 +383,15 @@ export async function fetchCandidateWithCurl(candidateUrl, options = {}) {
   const headersPath = join(directory, "response-headers.txt");
 
   try {
-    const metadata = execFileSync("curl", [
+    const { stdout: metadata } = await execFileAsync("curl", [
       "--silent",
       "--show-error",
       "--location",
       "--max-redirs", "5",
-      "--connect-timeout", String(Math.min(10, Math.ceil(timeoutMs / 1000))),
+      "--connect-timeout", String(Math.min(5, Math.ceil(timeoutMs / 1000))),
       "--max-time", String(Math.ceil(timeoutMs / 1000)),
       "--max-filesize", String(MAX_BYTES),
-      "--user-agent", "Mozilla/5.0 (compatible; EditalRadar-AutoReview/1.2; +https://github.com/dagamavasco170-lang/editalradar)",
+      "--user-agent", "Mozilla/5.0 (compatible; EditalRadar-AutoReview/1.3; +https://github.com/dagamavasco170-lang/editalradar)",
       "--header", "Accept: text/html,application/xhtml+xml,text/plain,application/pdf;q=0.9,*/*;q=0.7",
       "--dump-header", headersPath,
       "--output", bodyPath,
@@ -396,11 +399,11 @@ export async function fetchCandidateWithCurl(candidateUrl, options = {}) {
       candidateUrl
     ], {
       encoding: "utf8",
-      timeout: timeoutMs + 5000,
+      timeout: timeoutMs + 1500,
       maxBuffer: 64 * 1024
     });
 
-    const metadataLines = metadata.trim().split("\n");
+    const metadataLines = metadata.trim().split("\\n");
     const status = Number(metadataLines[0]);
     const finalUrl = metadataLines[1] || candidateUrl;
     const contentType = metadataLines[2] || "";
@@ -442,7 +445,7 @@ export async function fetchCandidateWithCurl(candidateUrl, options = {}) {
 }
 
 export async function fetchCandidateWithRetry(request, candidateUrl, options = {}) {
-  const attempts = Math.max(1, Number(options.attempts) || 2);
+  const attempts = Math.max(1, Number(options.attempts) || 1);
   const timeoutMs = Math.max(1000, Number(options.timeoutMs) || TIMEOUT_MS);
   const retryDelayMs = Math.max(0, Number(options.retryDelayMs ?? 500));
   let lastError = null;
@@ -487,6 +490,105 @@ export async function fetchCandidateWithRetry(request, candidateUrl, options = {
   if (lastResponse) return lastResponse;
   throw lastError || new Error("Falha de rede sem detalhes adicionais.");
 }
+
+export async function mapWithConcurrency(items, limit, worker) {
+  const output = new Array(items.length);
+  let next = 0;
+  const concurrency = Math.max(1, Math.min(items.length || 1, Number(limit) || 1));
+  await Promise.all(Array.from({ length: concurrency }, async () => {
+    while (next < items.length) {
+      const index = next++;
+      output[index] = await worker(items[index], index);
+    }
+  }));
+  return output;
+}
+
+export function buildPendingDiscoveriesUrl(baseUrl, now = new Date(), cooldownMs = 12 * 60 * 60 * 1000) {
+  const url = new URL("/rest/v1/contest_discoveries", baseUrl);
+  const retryBefore = new Date(now.getTime() - cooldownMs).toISOString();
+  url.searchParams.set("select", "id,source_url,candidate_url,title,context,discovery_type,status");
+  url.searchParams.set("status", "eq.pending");
+  url.searchParams.set("or", "(reviewed_at.is.null,reviewed_at.lt." + retryBefore + ")");
+  url.searchParams.set("order", "detected_at.asc");
+  url.searchParams.set("limit", "200");
+  return url.toString();
+}
+
+export async function prepareDiscoveryDocument(item, request = fetch, options = {}) {
+  let candidate;
+  try {
+    candidate = new URL(item?.candidate_url);
+  } catch {
+    return { stage: "review", reason: "O link armazenado não é uma URL válida." };
+  }
+
+  if (candidate.protocol !== "https:" || !isTrustedOfficialHost(candidate.hostname)) {
+    return { stage: "dismiss", reason: "Link descartado porque não pertence a um domínio oficial autorizado." };
+  }
+
+  let response;
+  try {
+    response = await fetchCandidateWithRetry(request, candidateUrl, {
+      attempts: options.attempts ?? 1,
+      timeoutMs: options.timeoutMs ?? TIMEOUT_MS,
+      retryDelayMs: options.retryDelayMs ?? 0,
+      fallbackRequest: options.fallbackRequest || fetchCandidateWithCurl
+    });
+  } catch (error) {
+    return {
+      stage: "review",
+      reason: "Não foi possível abrir a publicação oficial: " + summarizeFetchError(error)
+    };
+  }
+
+  const finalUrl = response.url || candidateUrl;
+  let finalHost;
+  try {
+    finalHost = new URL(finalUrl).hostname;
+  } catch {
+    return { stage: "review", reason: "O endereço final após redirecionamento é inválido." };
+  }
+
+  const contentType = response.headers?.get?.("content-type") || "";
+  const isPdf = /application\\/pdf/i.test(contentType) || /\\.pdf(?:$|[?#])/i.test(finalUrl);
+  if (!response.ok) {
+    return { stage: "review", reason: "A fonte oficial respondeu HTTP " + response.status + "." };
+  }
+  if (!isTrustedOfficialHost(finalHost)) {
+    return { stage: "review", reason: "O link redirecionou para um domínio que não está na lista de fontes oficiais autorizadas." };
+  }
+  if (!isPdf && !/(text\\/html|application\\/xhtml\\+xml|text\\/plain)/i.test(contentType)) {
+    return {
+      stage: "review",
+      reason: "Formato ainda não suportado pela extração automática: " + (contentType || "tipo de conteúdo não informado") + "."
+    };
+  }
+
+  let document;
+  try {
+    document = await extractCandidateDocument(response, item, finalUrl, contentType);
+  } catch (error) {
+    return { stage: "review", reason: "Falha ao extrair o documento oficial: " + summarizeFetchError(error) };
+  }
+  if (!document) {
+    return {
+      stage: "review",
+      reason: isPdf
+        ? "O PDF não contém texto extraível suficiente; pode estar digitalizado como imagem ou protegido."
+        : "Não foi possível extrair texto legível da página oficial."
+    };
+  }
+
+  return {
+    stage: "ready",
+    candidateUrl,
+    finalUrl,
+    contentType,
+    document
+  };
+}
+
 function headersFor(key, extra = {}) {
   return {
     apikey: key,
@@ -532,7 +634,7 @@ export async function autoResolvePending(options = {}) {
   if (new URL(baseUrl).protocol !== "https:") throw new Error("SUPABASE_URL precisa usar HTTPS.");
 
   const request = options.fetchImpl || fetch;
-  const pending = await requestJson(request, baseUrl + "/rest/v1/contest_discoveries?select=id,source_url,candidate_url,title,context,discovery_type,status&status=eq.pending&order=detected_at.asc&limit=200", key);
+  const pending = await requestJson(request, buildPendingDiscoveriesUrl(baseUrl), key);
   const discoveries = Array.isArray(pending) ? pending : [];
   if (!discoveries.length) return { inspected: 0, published: 0, dismissed: 0, pending: 0, errors: 0 };
 
@@ -549,60 +651,40 @@ export async function autoResolvePending(options = {}) {
     });
   };
 
-  for (const item of discoveries) {
+  const concurrency = Math.max(1, Math.min(8, Number(options.concurrency) || 5));
+  const preparedDiscoveries = await mapWithConcurrency(discoveries, concurrency, async item => {
+    try {
+      return await prepareDiscoveryDocument(item, request, {
+        timeoutMs: options.timeoutMs ?? TIMEOUT_MS,
+        attempts: options.attempts ?? 1,
+        retryDelayMs: options.retryDelayMs ?? 0,
+        fallbackRequest: options.fallbackRequest || fetchCandidateWithCurl
+      });
+    } catch (error) {
+      return { stage: "review", reason: "Falha técnica ao consultar a fonte: " + summarizeFetchError(error) };
+    }
+  });
+  console.log("Pré-análise concluída: " + discoveries.length + " oportunidades, concorrência " + concurrency + ".");
+
+  for (let index = 0; index < discoveries.length; index += 1) {
+    const item = discoveries[index];
+    const prepared = preparedDiscoveries[index];
     result.inspected += 1;
     try {
-      let candidate;
-      try { candidate = new URL(item.candidate_url); } catch {
-        await keepPending(item, "O link armazenado não é uma URL válida.");
-        continue;
-      }
-      if (candidate.protocol !== "https:" || !isTrustedOfficialHost(candidate.hostname)) {
+      if (prepared.stage === "dismiss") {
         await updateDiscovery(request, baseUrl, key, item, {
           status: "dismissed",
-          context: appendContext(item.context, "Link descartado porque não pertence a um domínio oficial autorizado.")
+          context: appendContext(item.context, prepared.reason)
         });
         result.dismissed += 1;
         continue;
       }
-
-      let response;
-      try {
-        response = await fetchCandidateWithRetry(request, candidate.toString(), {
-          fallbackRequest: fetchCandidateWithCurl
-        });
-      } catch (error) {
-        await keepPending(item, "Não foi possível abrir a publicação oficial após 2 tentativas: " + summarizeFetchError(error));
-        continue;
-      }
-      const finalUrl = response.url || candidate.toString();
-      let finalHost;
-      try { finalHost = new URL(finalUrl).hostname; } catch {
-        await keepPending(item, "O endereço final após redirecionamento é inválido.");
-        continue;
-      }
-      const contentType = response.headers?.get?.("content-type") || "";
-      const isPdf = /application\/pdf/i.test(contentType) || /\.pdf(?:$|[?#])/i.test(finalUrl);
-      if (!response.ok) {
-        await keepPending(item, "A fonte oficial respondeu HTTP " + response.status + ".");
-        continue;
-      }
-      if (!isTrustedOfficialHost(finalHost)) {
-        await keepPending(item, "O link redirecionou para um domínio que não está na lista de fontes oficiais autorizadas.");
-        continue;
-      }
-      if (!isPdf && !/(text\/html|application\/xhtml\+xml|text\/plain)/i.test(contentType)) {
-        await keepPending(item, "Formato ainda não suportado pela extração automática: " + (contentType || "tipo de conteúdo não informado") + ".");
-        continue;
-      }
-      const document = await extractCandidateDocument(response, item, finalUrl, contentType);
-      if (!document) {
-        await keepPending(item, isPdf
-          ? "O PDF não contém texto extraível suficiente; pode ser digitalizado como imagem ou estar protegido."
-          : "Não foi possível extrair texto legível da página oficial.");
+      if (prepared.stage !== "ready") {
+        await keepPending(item, prepared.reason || "Não foi possível analisar a publicação oficial.");
         continue;
       }
 
+      const { candidateUrl, finalUrl, document } = prepared;
       const decision = classifyDiscovery(item, document, finalUrl);
       if (decision.decision === "dismiss") {
         await updateDiscovery(request, baseUrl, key, item, {
@@ -618,15 +700,15 @@ export async function autoResolvePending(options = {}) {
       }
 
       const matchingContest = findMatchingContestForRetification({
-        candidateUrl: candidate.toString(),
+        candidateUrl,
         extractedData: decision.data,
         existingRows
       });
       const matchingDatabase = matchingContest?.kind === "database" ? matchingContest : null;
       const matchingStatic = matchingContest?.kind === "static" ? matchingContest : null;
       const sameSourceAlreadyCatalogued = existingRows.some(row =>
-        !row.deleted && normalizeOfficialUrl(row.data?.sourceUrl) === normalizeOfficialUrl(candidate.toString())
-      ) || concursos.some(row => normalizeOfficialUrl(row.sourceUrl) === normalizeOfficialUrl(candidate.toString()));
+        !row.deleted && normalizeOfficialUrl(row.data?.sourceUrl) === normalizeOfficialUrl(candidateUrl)
+      ) || concursos.some(row => normalizeOfficialUrl(row.sourceUrl) === normalizeOfficialUrl(candidateUrl));
 
       if (matchingDatabase || matchingStatic) {
         const currentRecord = matchingDatabase || matchingStatic;
