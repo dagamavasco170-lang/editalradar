@@ -1118,7 +1118,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
               {visibleNotifications.length > 0 ? (
                 <div className="notification-list">
                   {visibleNotifications.slice(0, 8).map((notification) => (
-                    <div className="notification-entry" key={notification.id}>
+                    <div className="notification-entry" key={notification.id} role="group" aria-label={notification.title}>
                       <button className={notification.read ? "notification-item read" : "notification-item"} type="button" onClick={() => openNotification(notification)}>
                         <span className="notification-dot" aria-hidden="true" />
                         <span className="notification-copy"><strong>{notification.title}</strong><small>{notification.message}</small></span>
