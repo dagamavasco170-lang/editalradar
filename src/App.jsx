@@ -133,15 +133,29 @@ const getAdditionalOfficialDocuments = (item) => {
 };
 
 
-const getContestSalary = (item) => {
+const getContestRemuneration = (item) => {
   const raw = item?.remuneracao ?? item?.salario ?? item?.salarioInicial
     ?? item?.remuneracaoInicial ?? item?.vencimento ?? item?.salarioBase;
-  if (raw == null || String(raw).trim() === "") return "Não informado nesta ficha";
-  if (typeof raw === "number" || (typeof raw === "string" && /^\s*R?\$?\s*[\d.,]+\s*$/.test(raw))) {
-    const numeric = typeof raw === "number" ? raw : Number(raw.replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(",", "."));
-    if (Number.isFinite(numeric)) return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(numeric);
-  }
-  return String(raw).trim();
+  if (raw == null || raw === "") return null;
+  return raw && typeof raw === "object" && !Array.isArray(raw) ? raw : { valor: raw };
+};
+
+const formatContestMoney = (value) => {
+  if (value == null || value === "") return "";
+  const numeric = typeof value === "number"
+    ? value
+    : Number(String(value).replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(",", "."));
+  return Number.isFinite(numeric)
+    ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(numeric)
+    : String(value).trim();
+};
+
+const getContestSalary = (item) => {
+  const remuneration = getContestRemuneration(item);
+  if (!remuneration?.valor) return "Não informado nesta ficha";
+  const amount = formatContestMoney(remuneration.valor);
+  const nature = remuneration.natureza ? " · " + remuneration.natureza : "";
+  return amount + nature;
 };
 
 const brazilianStates = [
@@ -246,6 +260,10 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   const selectedTimeline = useMemo(() => extractContestTimeline(selected), [selected]);
   const selectedDocuments = useMemo(() => getAdditionalOfficialDocuments(selected), [selected]);
   const selectedSourceUrl = /^https:\/\//i.test(selected?.sourceUrl || "") ? selected.sourceUrl : sourceUrl;
+  const selectedRemuneration = getContestRemuneration(selected);
+  const selectedSalarySourceUrl = /^https:\/\//i.test(selectedRemuneration?.sourceUrl || "")
+    ? selectedRemuneration.sourceUrl
+    : "";
   const comparisonItems = useMemo(
     () => (Array.isArray(comparisonIds) ? comparisonIds : [])
       .map((id) => catalog.find((item) => String(item.id) === String(id)))
@@ -1191,7 +1209,8 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                 <h1>{selected.cargo}</h1>
                 <p>{selected.orgao}{selected.vinculo ? " · " + selected.vinculo : ""}</p>
                 <div className="detail-hero-facts">
-                  <span><small>VAGAS</small><strong>{selected.vagas == null ? "A divulgar" : new Intl.NumberFormat("pt-BR").format(selected.vagas)}</strong></span>
+                  <span><small>VAGAS</small><strong>{selected.vagasTotais ?? selected.vagas ?? "A divulgar"}</strong></span>
+                  <span><small>REMUNERAÇÃO</small><strong>{getContestSalary(selected)}</strong></span>
                   <span><small>ESCOLARIDADE</small><strong>{selected.nivel || "Não informada"}</strong></span>
                   <span><small>LOCALIDADE</small><strong>{selected.localidade || selected.estado || "Brasil"}</strong></span>
                 </div>
@@ -1220,7 +1239,13 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                   <div className="detail-facts-grid">
                     <div><small>Órgão responsável</small><strong>{selected.orgao || "Não informado"}</strong></div>
                     <div><small>Cargo / especialidade</small><strong>{selected.cargo || "Não informado"}</strong></div>
-                    <div><small>Quantidade de vagas</small><strong>{selected.vagas == null ? "Não divulgada nesta ficha" : new Intl.NumberFormat("pt-BR").format(selected.vagas)}</strong></div>
+                    <div><small>Vagas informadas na ficha</small><strong>{selected.vagasTotais ?? selected.vagas ?? "Não divulgadas nesta ficha"}</strong></div>
+                    <div><small>Vagas imediatas</small><strong>{selected.vagasImediatas == null ? "Não discriminadas nesta ficha" : new Intl.NumberFormat("pt-BR").format(selected.vagasImediatas)}</strong></div>
+                    <div><small>Cadastro de reserva</small><strong>{selected.cadastroReserva == null ? "Não informado nesta ficha" : new Intl.NumberFormat("pt-BR").format(selected.cadastroReserva)}</strong></div>
+                    <div><small>Remuneração</small><strong>{getContestSalary(selected)}</strong>
+                      {selectedRemuneration?.observacao && <small>{selectedRemuneration.observacao}</small>}
+                      {selectedSalarySourceUrl && <a href={selectedSalarySourceUrl} target="_blank" rel="noopener noreferrer">{selectedRemuneration.sourceLabel || "Fonte do valor remuneratório"} ↗</a>}
+                    </div>
                     <div><small>Escolaridade</small><strong>{selected.nivel || "Não informada"}</strong></div>
                     <div><small>Esfera</small><strong>{selected.area || "Não informada"}</strong></div>
                     <div><small>Localidade</small><strong>{[selected.localidade, selected.estado].filter(Boolean).join(" · ") || "Não informada"}</strong></div>

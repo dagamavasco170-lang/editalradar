@@ -90,7 +90,17 @@ export const concursos = [
     "area": "Federal",
     "estado": "Brasil",
     "sourceUrl": "https://www.gov.br/cgu/pt-br/acesso-a-informacao/concursos/concursos-publicos/",
-    "observacao": "O edital foi publicado em 09/10/2026. As inscrições ocorreram de 10/10 a 04/11/2026 e estão encerradas. Prova prevista para 13/12/2026. São 30 vagas na área geral."
+    "observacao": "O edital foi publicado em 09/10/2026. As inscrições ocorreram de 10/10 a 04/11/2026 e estão encerradas. Prova prevista para 13/12/2026. São 30 vagas na área geral.",
+    "remuneracao": {
+      "valor": 20000,
+      "moeda": "BRL",
+      "periodicidade": "mensal",
+      "natureza": "Inicial",
+      "observacao": "Remuneração inicial informada pela CGU; jornada de 40 horas semanais.",
+      "sourceUrl": "https://www.gov.br/cgu/pt-br/assuntos/noticias/2026/defeso-eleitoral/cgu-publica-edital-de-concurso-para-60-vagas-de-auditor-federal-de-financas-e-controle",
+      "sourceLabel": "CGU — notícia oficial de 09/10/2026",
+      "verificadoEm": "2026-11-21"
+    }
   },
   {
     "id": 302,
@@ -105,7 +115,17 @@ export const concursos = [
     "area": "Federal",
     "estado": "Brasil",
     "sourceUrl": "https://www.gov.br/cgu/pt-br/acesso-a-informacao/concursos/concursos-publicos/",
-    "observacao": "O edital foi publicado em 09/10/2026. As inscrições ocorreram de 10/10 a 04/11/2026 e estão encerradas. Prova prevista para 13/12/2026. Esta especialidade tem 10 vagas."
+    "observacao": "O edital foi publicado em 09/10/2026. As inscrições ocorreram de 10/10 a 04/11/2026 e estão encerradas. Prova prevista para 13/12/2026. Esta especialidade tem 10 vagas.",
+    "remuneracao": {
+      "valor": 20000,
+      "moeda": "BRL",
+      "periodicidade": "mensal",
+      "natureza": "Inicial",
+      "observacao": "Remuneração inicial informada pela CGU; jornada de 40 horas semanais.",
+      "sourceUrl": "https://www.gov.br/cgu/pt-br/assuntos/noticias/2026/defeso-eleitoral/cgu-publica-edital-de-concurso-para-60-vagas-de-auditor-federal-de-financas-e-controle",
+      "sourceLabel": "CGU — notícia oficial de 09/10/2026",
+      "verificadoEm": "2026-11-21"
+    }
   },
   {
     "id": 303,
@@ -120,7 +140,17 @@ export const concursos = [
     "area": "Federal",
     "estado": "Brasil",
     "sourceUrl": "https://www.gov.br/cgu/pt-br/acesso-a-informacao/concursos/concursos-publicos/",
-    "observacao": "O edital foi publicado em 09/10/2026. As inscrições ocorreram de 10/10 a 04/11/2026 e estão encerradas. Prova prevista para 13/12/2026. Esta especialidade tem 10 vagas."
+    "observacao": "O edital foi publicado em 09/10/2026. As inscrições ocorreram de 10/10 a 04/11/2026 e estão encerradas. Prova prevista para 13/12/2026. Esta especialidade tem 10 vagas.",
+    "remuneracao": {
+      "valor": 20000,
+      "moeda": "BRL",
+      "periodicidade": "mensal",
+      "natureza": "Inicial",
+      "observacao": "Remuneração inicial informada pela CGU; jornada de 40 horas semanais.",
+      "sourceUrl": "https://www.gov.br/cgu/pt-br/assuntos/noticias/2026/defeso-eleitoral/cgu-publica-edital-de-concurso-para-60-vagas-de-auditor-federal-de-financas-e-controle",
+      "sourceLabel": "CGU — notícia oficial de 09/10/2026",
+      "verificadoEm": "2026-11-21"
+    }
   },
   {
     "id": 304,
@@ -135,7 +165,17 @@ export const concursos = [
     "area": "Federal",
     "estado": "Brasil",
     "sourceUrl": "https://www.gov.br/cgu/pt-br/acesso-a-informacao/concursos/concursos-publicos/",
-    "observacao": "O edital foi publicado em 09/10/2026. As inscrições ocorreram de 10/10 a 04/11/2026 e estão encerradas. Prova prevista para 13/12/2026. Esta especialidade tem 10 vagas."
+    "observacao": "O edital foi publicado em 09/10/2026. As inscrições ocorreram de 10/10 a 04/11/2026 e estão encerradas. Prova prevista para 13/12/2026. Esta especialidade tem 10 vagas.",
+    "remuneracao": {
+      "valor": 20000,
+      "moeda": "BRL",
+      "periodicidade": "mensal",
+      "natureza": "Inicial",
+      "observacao": "Remuneração inicial informada pela CGU; jornada de 40 horas semanais.",
+      "sourceUrl": "https://www.gov.br/cgu/pt-br/assuntos/noticias/2026/defeso-eleitoral/cgu-publica-edital-de-concurso-para-60-vagas-de-auditor-federal-de-financas-e-controle",
+      "sourceLabel": "CGU — notícia oficial de 09/10/2026",
+      "verificadoEm": "2026-11-21"
+    }
   },
   {
     "id": 401,
@@ -151,7 +191,18 @@ export const concursos = [
     "estado": "Alagoas",
     "localidade": "Alagoas (diversas lotações)",
     "sourceUrl": "https://www.cebraspe.org.br/concursos/pc_al_26",
-    "observacao": "São 150 vagas para Agente e Escrivão, além de cadastro de reserva. Ambos os cargos exigem nível superior. Provas objetiva e discursiva previstas para 6 de dezembro de 2026, em Arapiraca e Maceió. Consulte o edital e os comunicados do Cebraspe para confirmar as etapas."
+    "observacao": "São 150 vagas para Agente e Escrivão, além de cadastro de reserva. Ambos os cargos exigem nível superior. Provas objetiva e discursiva previstas para 6 de dezembro de 2026, em Arapiraca e Maceió. Consulte o edital e os comunicados do Cebraspe para confirmar as etapas.",
+    "remuneracao": {
+      "valor": 5318.63,
+      "moeda": "BRL",
+      "periodicidade": "mensal",
+      "natureza": "Informada para o cargo",
+      "observacao": "Remuneração divulgada pelo Cebraspe para Agente e Escrivão; jornada de 40 horas semanais.",
+      "sourceUrl": "https://www.cebraspe.org.br/cebraspe-noticias-103/",
+      "sourceLabel": "Cebraspe — notícia oficial sobre PC/AL",
+      "verificadoEm": "2026-11-21"
+    },
+    "vagasImediatas": 150
   },
   {
     "id": 402,
@@ -167,7 +218,18 @@ export const concursos = [
     "estado": "Alagoas",
     "localidade": "Alagoas (diversas lotações)",
     "sourceUrl": "https://www.cebraspe.org.br/concursos/pm_al_26",
-    "observacao": "São 30 vagas imediatas para Oficial de Estado-Maior, além de cadastro de reserva. As provas objetiva e discursiva estão previstas para 17 de janeiro de 2027 em Arapiraca e Maceió. Confira no edital os requisitos específicos do CFO."
+    "observacao": "São 30 vagas imediatas para Oficial de Estado-Maior, além de cadastro de reserva. As provas objetiva e discursiva estão previstas para 17 de janeiro de 2027 em Arapiraca e Maceió. Confira no edital os requisitos específicos do CFO.",
+    "remuneracao": {
+      "valor": 11563.77,
+      "moeda": "BRL",
+      "periodicidade": "mensal",
+      "natureza": "Após conclusão do CFO",
+      "observacao": "Durante a formação: Cadete 1º ano R$ 3.874,43; 2º ano R$ 4.163,78; 3º ano R$ 4.716,51.",
+      "sourceUrl": "https://www.cebraspe.org.br/pmal-reabre-inscricoes-em-concurso-publico-para-admissao-aos-cursos-de-formacao-de-oficiais-e-pracas/",
+      "sourceLabel": "Cebraspe — retificação e remuneração oficial da PMAL",
+      "verificadoEm": "2026-11-21"
+    },
+    "vagasImediatas": 30
   },
   {
     "id": 403,
@@ -183,7 +245,18 @@ export const concursos = [
     "estado": "Alagoas",
     "localidade": "Alagoas (diversas lotações)",
     "sourceUrl": "https://www.cebraspe.org.br/concursos/pm_al_26",
-    "observacao": "São 500 vagas imediatas para Soldado do Quadro de Praças, além de cadastro de reserva. As provas objetiva e discursiva estão previstas para 17 de janeiro de 2027 em Arapiraca e Maceió. Confira no edital os requisitos específicos do CFP."
+    "observacao": "São 500 vagas imediatas para Soldado do Quadro de Praças, além de cadastro de reserva. As provas objetiva e discursiva estão previstas para 17 de janeiro de 2027 em Arapiraca e Maceió. Confira no edital os requisitos específicos do CFP.",
+    "remuneracao": {
+      "valor": 6067.51,
+      "moeda": "BRL",
+      "periodicidade": "mensal",
+      "natureza": "Após conclusão do CFP",
+      "observacao": "Durante a formação, a remuneração bruta como Soldado-Aluno é R$ 2.354,67.",
+      "sourceUrl": "https://www.cebraspe.org.br/pmal-reabre-inscricoes-em-concurso-publico-para-admissao-aos-cursos-de-formacao-de-oficiais-e-pracas/",
+      "sourceLabel": "Cebraspe — retificação e remuneração oficial da PMAL",
+      "verificadoEm": "2026-11-21"
+    },
+    "vagasImediatas": 500
   },
   {
     "id": 404,
@@ -199,7 +272,18 @@ export const concursos = [
     "estado": "Alagoas",
     "localidade": "Alagoas (diversas lotações)",
     "sourceUrl": "https://www.cebraspe.org.br/concursos/cbm_al_26",
-    "observacao": "São 22 vagas imediatas para Oficial de Estado-Maior, além de cadastro de reserva. O cronograma retificado prevê provas objetiva e discursiva em 24 de janeiro de 2027, em Arapiraca e Maceió."
+    "observacao": "São 22 vagas imediatas para Oficial de Estado-Maior, além de cadastro de reserva. O cronograma retificado prevê provas objetiva e discursiva em 24 de janeiro de 2027, em Arapiraca e Maceió.",
+    "remuneracao": {
+      "valor": 11563.77,
+      "moeda": "BRL",
+      "periodicidade": "mensal",
+      "natureza": "Após conclusão do CFO",
+      "observacao": "Durante a formação: Cadete 1º ano R$ 3.874,43; 2º ano R$ 4.163,78; 3º ano R$ 4.716,51.",
+      "sourceUrl": "https://www.cebraspe.org.br/cbm-al-tem-concurso-publico-aberto-destinado-aos-cursos-de-formacao-de-oficiais-e-de-pracas/",
+      "sourceLabel": "Cebraspe — remuneração oficial do CBM/AL",
+      "verificadoEm": "2026-11-21"
+    },
+    "vagasImediatas": 22
   },
   {
     "id": 405,
@@ -215,7 +299,18 @@ export const concursos = [
     "estado": "Alagoas",
     "localidade": "Alagoas (diversas lotações)",
     "sourceUrl": "https://www.cebraspe.org.br/concursos/cbm_al_26",
-    "observacao": "São 105 vagas imediatas para Soldado — QPBM/1, além de cadastro de reserva. O cronograma retificado prevê provas objetiva e discursiva em 24 de janeiro de 2027, em Arapiraca e Maceió."
+    "observacao": "São 105 vagas imediatas para Soldado — QPBM/1, além de cadastro de reserva. O cronograma retificado prevê provas objetiva e discursiva em 24 de janeiro de 2027, em Arapiraca e Maceió.",
+    "remuneracao": {
+      "valor": 6067.53,
+      "moeda": "BRL",
+      "periodicidade": "mensal",
+      "natureza": "Após conclusão do CFP",
+      "observacao": "Durante o curso, a remuneração de Aluno-Soldado é R$ 2.354,67.",
+      "sourceUrl": "https://www.cebraspe.org.br/cbm-al-tem-concurso-publico-aberto-destinado-aos-cursos-de-formacao-de-oficiais-e-de-pracas/",
+      "sourceLabel": "Cebraspe — remuneração oficial do CBM/AL",
+      "verificadoEm": "2026-11-21"
+    },
+    "vagasImediatas": 105
   },
   {
     "id": 406,
@@ -231,7 +326,18 @@ export const concursos = [
     "estado": "Alagoas",
     "localidade": "Alagoas (diversas lotações)",
     "sourceUrl": "https://www.cebraspe.org.br/concursos/cbm_al_26",
-    "observacao": "São 45 vagas imediatas para Soldado — QPBM/2, além de cadastro de reserva. O cronograma retificado prevê provas objetiva e discursiva em 24 de janeiro de 2027, em Arapiraca e Maceió."
+    "observacao": "São 45 vagas imediatas para Soldado — QPBM/2, além de cadastro de reserva. O cronograma retificado prevê provas objetiva e discursiva em 24 de janeiro de 2027, em Arapiraca e Maceió.",
+    "remuneracao": {
+      "valor": 6067.53,
+      "moeda": "BRL",
+      "periodicidade": "mensal",
+      "natureza": "Após conclusão do CFP",
+      "observacao": "Durante o curso, a remuneração de Aluno-Soldado é R$ 2.354,67.",
+      "sourceUrl": "https://www.cebraspe.org.br/cbm-al-tem-concurso-publico-aberto-destinado-aos-cursos-de-formacao-de-oficiais-e-de-pracas/",
+      "sourceLabel": "Cebraspe — remuneração oficial do CBM/AL",
+      "verificadoEm": "2026-11-21"
+    },
+    "vagasImediatas": 45
   },
   {
     "id": 407,
@@ -263,7 +369,20 @@ export const concursos = [
     "estado": "Alagoas",
     "localidade": "Alagoas (diversas lotações)",
     "sourceUrl": "https://www.cebraspe.org.br/concursos/sefaz_al_26",
-    "observacao": "O edital prevê 40 vagas imediatas e 60 para cadastro de reserva (100 no total). Exige graduação de nível superior em qualquer área. Prova objetiva prevista para 20 de dezembro de 2026 e prova discursiva para 10 de janeiro de 2027. A lotação pode ocorrer em unidades da SEFAZ em Alagoas."
+    "observacao": "O edital prevê 40 vagas imediatas e 60 para cadastro de reserva (100 no total). Exige graduação de nível superior em qualquer área. Prova objetiva prevista para 20 de dezembro de 2026 e prova discursiva para 10 de janeiro de 2027. A lotação pode ocorrer em unidades da SEFAZ em Alagoas.",
+    "remuneracao": {
+      "valor": 25270.68,
+      "moeda": "BRL",
+      "periodicidade": "mensal",
+      "natureza": "Informada no concurso",
+      "observacao": "Remuneração divulgada para Auditor Fiscal da Administração Tributária Estadual; jornada de 40 horas semanais.",
+      "sourceUrl": "https://www.cebraspe.org.br/sefaz-al-abre-oportunidades-para-auditor-fiscal-da-administracao-tributaria-estadual/",
+      "sourceLabel": "Cebraspe — notícia oficial da SEFAZ/AL",
+      "verificadoEm": "2026-11-21"
+    },
+    "vagasImediatas": 40,
+    "cadastroReserva": 60,
+    "vagasTotais": 100
   },
   {
     "id": 409,
@@ -552,6 +671,33 @@ export const concursos = [
     "estado": "Alagoas",
     "sourceUrl": "https://concursor.com.br/editais?uf=AL",
     "observacao": "Registro preliminar baseado em listagem de oportunidades para Alagoas. A ficha ainda não foi confirmada individualmente no edital oficial; consulte a fonte indicada e o órgão responsável antes de considerar vagas, requisitos ou cronograma como definitivos."
+  },
+  {
+    "id": 515,
+    "sigla": "PGE/AL",
+    "cargo": "Procurador do Estado de Alagoas — 1ª Classe",
+    "orgao": "Procuradoria-Geral do Estado de Alagoas",
+    "vinculo": "Concurso público PGE/AL 2026",
+    "nivel": "A confirmar no edital",
+    "vagas": 10,
+    "vagasImediatas": 10,
+    "atoOficial": "Consultar edital e retificações na página oficial da banca",
+    "status": "Concurso listado pela banca · acompanhar etapas",
+    "area": "Estadual",
+    "estado": "Alagoas",
+    "localidade": "Alagoas",
+    "sourceUrl": "https://www.cebraspe.org.br/concursos/PGE_AL_26",
+    "remuneracao": {
+      "valor": 35877.28,
+      "moeda": "BRL",
+      "periodicidade": "mensal",
+      "natureza": "Até",
+      "observacao": "Valor máximo informado na página de acompanhamento do Cebraspe para Procurador do Estado de Alagoas — 1ª Classe; confira composição e requisitos no edital.",
+      "sourceUrl": "https://www.cebraspe.org.br/concursos/PGE_AL_26",
+      "sourceLabel": "Cebraspe — página oficial de acompanhamento PGE/AL 2026",
+      "verificadoEm": "2026-11-21"
+    },
+    "observacao": "A página oficial de acompanhamento do Cebraspe informa 10 vagas e remuneração de até R$ 35.877,28 para Procurador do Estado de Alagoas — 1ª Classe. Consulte edital e retificações para confirmar requisitos, cronograma e composição da remuneração."
   }
 ];
 export const materias = [
