@@ -351,7 +351,7 @@ describe("EditalRadar", () => {
     render(<App />);
 
     fireEvent.change(screen.getByPlaceholderText("Buscar cargo ou órgão..."), {
-      target: { value: "Agência Reguladora" }
+      target: { value: "Departamento de Estradas e Rodagem" }
     });
 
     expect(screen.getByText("Listagem de referência")).toBeInTheDocument();
