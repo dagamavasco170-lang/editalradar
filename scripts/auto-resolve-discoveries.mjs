@@ -549,8 +549,10 @@ export async function fetchCandidateWithRetry(request, candidateUrl, options = {
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     try {
       lastResponse = await requestWithSafeRedirects(request, safeStartUrl, timeoutMs);
-      if (lastResponse.ok || (lastResponse.status < 500 && lastResponse.status !== 429)) return lastResponse;
+      const blockedByProvider = [401, 403].includes(lastResponse.status);
+      if (lastResponse.ok || (!blockedByProvider && lastResponse.status < 500 && lastResponse.status !== 429)) return lastResponse;
       lastError = new Error("HTTP " + lastResponse.status);
+      if (blockedByProvider) break;
     } catch (error) {
       if (error?.code === "UNSAFE_REDIRECT") throw error;
       lastError = error;
