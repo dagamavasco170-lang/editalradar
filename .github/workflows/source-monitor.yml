@@ -6,6 +6,9 @@ on:
     paths:
       - src/data/concursos.js
       - scripts/monitor-sources.mjs
+      - scripts/monitor-sources.node-test.mjs
+      - scripts/publish-discoveries.mjs
+      - scripts/publish-discoveries.node-test.mjs
       - .github/workflows/source-monitor.yml
   schedule:
     - cron: "0 11 * * *"
