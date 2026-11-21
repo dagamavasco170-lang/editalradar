@@ -9,6 +9,10 @@ on:
       - scripts/monitor-sources.node-test.mjs
       - scripts/publish-discoveries.mjs
       - scripts/publish-discoveries.node-test.mjs
+      - scripts/auto-resolve-discoveries.mjs
+      - scripts/auto-resolve-discoveries.node-test.mjs
+      - package.json
+      - supabase/migrations/202611220004_auto_publish.sql
       - .github/workflows/source-monitor.yml
   schedule:
     - cron: "0 11 * * *"
@@ -57,6 +61,13 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
 
+
+      - name: Triar e cadastrar automaticamente oportunidades confirmadas
+        run: npm run auto:resolve
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
       - name: Salvar histórico da verificação
         uses: actions/cache/save@v4
         with:
@@ -96,9 +107,9 @@ jobs:
               "",
               details,
               "",
-              "**Próxima ação:** abrir cada link, conferir a publicação oficial e atualizar manualmente src/data/concursos.js somente após validação.",
+              "**Triagem automática:** o EditalRadar verifica as páginas oficiais e cadastra no catálogo somente os casos com evidências suficientes de edital, órgão, cargo e esfera. Links irrelevantes são descartados; casos incompletos e PDFs ficam na fila para revisão.",
               "",
-              "Este monitor detecta alteração/indisponibilidade de páginas; ele não interpreta editais nem modifica automaticamente vagas, requisitos, datas ou status.",
+              "O sistema não inventa vagas, requisitos, datas ou situação de inscrições. Confira sempre o edital oficial antes de tomar decisões.",
               "",
               "Relatório da execução: " + context.serverUrl + "/" + owner + "/" + repo + "/actions/runs/" + context.runId
             ].join("\n");
