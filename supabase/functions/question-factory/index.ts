@@ -17,8 +17,11 @@ const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
 const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
 const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_PUBLISHABLE_KEY") || "";
-const openAiKey = Deno.env.get("OPENAI_API_KEY") || "";
-const model = Deno.env.get("OPENAI_MODEL") || "gpt-4o-mini";
+const geminiKey = Deno.env.get("GEMINI_API_KEY") || "";
+// Fixed to a free-tier Flash-Lite model. No paid provider or fallback is used.
+const model = "gemini-3.1-flash-lite";
+const MAX_DAILY_RUNS = 3;
+const MAX_QUESTIONS_PER_RUN = 3;
 
 const adminDb = createClient(supabaseUrl, serviceKey, {
   auth: { persistSession: false, autoRefreshToken: false }
@@ -91,33 +94,37 @@ function extractMessage(payload: any): string {
 }
 
 async function callStructuredModel(schemaName: string, schema: unknown, systemPrompt: string, userPrompt: string) {
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+  if (!geminiKey) throw new Error("GEMINI_API_KEY ainda não está configurada em Supabase → Edge Functions → Secrets.");
+
+  // Gemini JSON structured output. Fixed model and endpoint; never falls back to a paid provider.
+  const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent", {
     method: "POST",
     headers: {
-      "Authorization": "Bearer " + openAiKey,
+      "x-goog-api-key": geminiKey,
       "Content-Type": "application/json"
     },
     signal: AbortSignal.timeout(65000),
     body: JSON.stringify({
-      model,
-      temperature: 0.2,
-      response_format: {
-        type: "json_schema",
-        json_schema: { name: schemaName, strict: true, schema }
-      },
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt }
-      ]
+      systemInstruction: { parts: [{ text: systemPrompt }] },
+      contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+      generationConfig: {
+        temperature: 0.2,
+        responseMimeType: "application/json",
+        responseSchema: schema,
+        maxOutputTokens: 8192
+      }
     })
   });
 
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const message = String(payload?.error?.message || "Falha no provedor de IA").slice(0, 500);
-    throw new Error("Provedor de IA HTTP " + response.status + ": " + message);
+    const message = String(payload?.error?.message || "Falha no provedor gratuito de IA").slice(0, 500);
+    throw new Error("Gemini API HTTP " + response.status + ": " + message + ". Nenhum provedor pago será acionado.");
   }
-  return JSON.parse(extractMessage(payload));
+  const parts = payload?.candidates?.[0]?.content?.parts || [];
+  const content = parts.map((part: any) => typeof part?.text === "string" ? part.text : "").join("").trim();
+  if (!content) throw new Error("Gemini não retornou conteúdo estruturado.");
+  return JSON.parse(content);
 }
 
 function generationPrompts(topic: any, count: number) {
@@ -244,6 +251,16 @@ function isDue(topic: any, now: Date) {
   return now.getTime() - last >= cadence * 24 * 60 * 60 * 1000;
 }
 
+async function dailyRunBudgetAvailable(): Promise<{ allowed: boolean; count: number }> {
+  const now = new Date();
+  const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())).toISOString();
+  const { data, error } = await adminDb.from("study_question_automation_runs")
+    .select("id").gte("started_at", start).limit(MAX_DAILY_RUNS);
+  if (error) throw new Error("Não foi possível verificar o limite diário da automação: " + error.message);
+  const count = (data || []).length;
+  return { allowed: count < MAX_DAILY_RUNS, count };
+}
+
 async function runTopic(topic: any, triggerMode: "manual" | "scheduled", userId: string | null) {
   if (!isTrustedOfficialUrl(topic.source_url)) {
     return { topicId: topic.id, status: "skipped", reason: "A fonte não pertence a um domínio oficial permitido." };
@@ -253,7 +270,7 @@ async function runTopic(topic: any, triggerMode: "manual" | "scheduled", userId:
     return { topicId: topic.id, status: "skipped", reason: "O trecho manual precisa ter entre 200 e 12.000 caracteres." };
   }
   const excerpt = configuredExcerpt || await fetchOfficialSourceExcerpt(topic.source_url);
-  const requested = Math.max(1, Math.min(5, Number(topic.questions_per_run) || 3));
+  const requested = Math.max(1, Math.min(MAX_QUESTIONS_PER_RUN, Number(topic.questions_per_run) || 3));
   const runInsert = await adminDb.from("study_question_automation_runs").insert({
     topic_id: topic.id,
     trigger_mode: triggerMode,
@@ -474,8 +491,18 @@ Deno.serve(async (req: Request) => {
     return json({ error: String(error?.message || error) }, 401);
   }
 
-  if (!openAiKey) {
-    const message = "OPENAI_API_KEY ainda não está configurada em Supabase → Edge Functions → Secrets.";
+  let dailyBudget: { allowed: boolean; count: number };
+  try {
+    dailyBudget = await dailyRunBudgetAvailable();
+  } catch (error) {
+    return json({ error: String(error?.message || error) }, 500);
+  }
+  if (!dailyBudget.allowed) {
+    return json({ error: "Limite gratuito diário atingido: no máximo " + MAX_DAILY_RUNS + " execuções por dia. Aguarde a próxima janela UTC.", free_tier_only: true, daily_limit: MAX_DAILY_RUNS }, 429);
+  }
+
+  if (!geminiKey) {
+    const message = "GEMINI_API_KEY ainda não está configurada em Supabase → Edge Functions → Secrets.";
     return mode === "scheduled"
       ? json({ ok: true, skipped: true, setup_required: true, message })
       : json({ error: message, setup_required: true }, 503);
@@ -498,7 +525,7 @@ Deno.serve(async (req: Request) => {
 
   const now = new Date();
   const { data: topics, error } = await adminDb.from("study_question_automation_topics")
-    .select("*").eq("active", true).order("created_at", { ascending: true }).limit(8);
+    .select("*").eq("active", true).order("created_at", { ascending: true }).limit(1);
   if (error) return json({ error: error.message }, 500);
   const due = (topics || []).filter((topic: any) => isDue(topic, now));
   const results = [];
