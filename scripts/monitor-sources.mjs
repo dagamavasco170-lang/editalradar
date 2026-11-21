@@ -591,6 +591,26 @@ export async function searchInternetForContestLeads(options = {}) {
   };
 }
 
+
+export function filterUnseenWebSearchDiscoveries(discoveries = [], previousKeys = [], maxKeys = 1500) {
+  const limit = Math.max(100, Math.min(5000, Number(maxKeys) || 1500));
+  const previous = Array.isArray(previousKeys) ? previousKeys : [];
+  const known = new Set(previous.filter(key => typeof key === "string" && key.length > 0).slice(-limit));
+  const fresh = [];
+
+  for (const item of Array.isArray(discoveries) ? discoveries : []) {
+    const key = String(item?.discovery_key || "");
+    if (!key || known.has(key)) continue;
+    known.add(key);
+    fresh.push(item);
+  }
+
+  return {
+    discoveries: fresh,
+    keys: [...known].slice(-limit)
+  };
+}
+
 async function runMonitor() {
   const urls = collectSourceUrls();
   await mkdir(dirname(resolve(STATE_PATH)), { recursive: true });
@@ -626,7 +646,11 @@ async function runMonitor() {
   }
 
   const internetSearch = await searchInternetForContestLeads();
-  discoveries.push(...internetSearch.discoveries);
+  const unseenWebSearch = filterUnseenWebSearchDiscoveries(
+    internetSearch.discoveries,
+    oldState.webSearchKeys
+  );
+  discoveries.push(...unseenWebSearch.discoveries);
 
   const prunedState = pruneSourceState(nextSources, urls);
   const removed = prunedState.removed.map((url) => ({
@@ -645,7 +669,8 @@ async function runMonitor() {
     internetSearch: {
       provider: internetSearch.provider,
       feedsChecked: internetSearch.feedsChecked,
-      leadCount: internetSearch.leadCount,
+      foundCount: internetSearch.leadCount,
+      leadCount: unseenWebSearch.discoveries.length,
       errors: internetSearch.errors
     },
     changed,
@@ -654,7 +679,11 @@ async function runMonitor() {
     removed,
     discoveries
   };
-  await writeFile(STATE_PATH, JSON.stringify({ version: 1, sources: prunedState.sources }, null, 2) + "\n");
+  await writeFile(STATE_PATH, JSON.stringify({
+    version: 1,
+    sources: prunedState.sources,
+    webSearchKeys: unseenWebSearch.keys
+  }, null, 2) + "\n");
   await writeFile(REPORT_PATH, JSON.stringify(report, null, 2) + "\n");
 
   const groups = [
@@ -662,7 +691,7 @@ async function runMonitor() {
     ["Fontes indisponíveis", unavailable],
     ["Novas fontes no catálogo", added],
     ["Novos links de oportunidades em fontes oficiais", discoveries.filter((item) => item.discovery_type === "new_link")],
-    ["Pistas da busca automática na internet (não confirmadas)", internetSearch.discoveries],
+    ["Pistas novas da busca automática na internet (não confirmadas)", unseenWebSearch.discoveries],
     ["Páginas atualizadas para revisão", discoveries.filter((item) => item.discovery_type === "page_change")],
     ["Fontes removidas do catálogo", removed]
   ];
@@ -673,7 +702,7 @@ async function runMonitor() {
     "Fontes acompanhadas: " + report.monitoredCount,
     "Concorrência: " + report.concurrency + " · tentativas por fonte: 3",
     "Consultas recuperadas pelo transporte alternativo: " + report.fallbackCount,
-    "Buscas automáticas na internet: " + internetSearch.feedsChecked + " consultas · " + internetSearch.leadCount + " pistas novas.",
+    "Buscas automáticas na internet: " + internetSearch.feedsChecked + " consultas · " + internetSearch.leadCount + " resultados atuais · " + unseenWebSearch.discoveries.length + " pistas novas.",
     "Falhas de consulta na internet: " + internetSearch.errors.length,
     ...(firstRun ? ["Esta foi a primeira leitura; os resultados formam a linha de base."] : []),
     ""

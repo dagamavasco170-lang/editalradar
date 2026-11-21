@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { concursos } from "../src/data/concursos.js";
-import { collectSourceUrls, compareSource, fingerprintContent, normalizeHtml, extractOpportunityLinks, buildDiscoveriesForSource, fetchOfficialSource, isTrustedOfficialHost, pruneSourceState, buildGoogleNewsRssUrl, parseGoogleNewsRss, searchInternetForContestLeads } from "./monitor-sources.mjs";
+import { collectSourceUrls, compareSource, fingerprintContent, normalizeHtml, extractOpportunityLinks, buildDiscoveriesForSource, fetchOfficialSource, isTrustedOfficialHost, pruneSourceState, buildGoogleNewsRssUrl, parseGoogleNewsRss, searchInternetForContestLeads, filterUnseenWebSearchDiscoveries } from "./monitor-sources.mjs";
 
 test("coleta somente URLs HTTPS únicas", () => {
   const urls = collectSourceUrls([
@@ -344,4 +344,19 @@ test("consulta a busca pública com HTTPS, bloqueio de redirecionamentos e trata
   assert.equal(result.leadCount, 1);
   assert.equal(result.errors.length, 1);
   assert.equal(result.discoveries[0].discovery_type, "web_search_lead");
+});
+
+test("não reenfileira notícias já vistas em execuções anteriores do monitor", () => {
+  const previousKeys = ["web-search:old-1", "web-search:old-2"];
+  const items = [
+    { discovery_key: "web-search:old-1", title: "Notícia repetida" },
+    { discovery_key: "web-search:new-1", title: "Nova notícia" },
+    { discovery_key: "web-search:new-1", title: "Duplicada na mesma consulta" }
+  ];
+  const result = filterUnseenWebSearchDiscoveries(items, previousKeys);
+  assert.equal(result.discoveries.length, 1);
+  assert.equal(result.discoveries[0].title, "Nova notícia");
+  assert.deepEqual(result.keys, ["web-search:old-1", "web-search:old-2", "web-search:new-1"]);
+  const nextRun = filterUnseenWebSearchDiscoveries(items, result.keys);
+  assert.equal(nextRun.discoveries.length, 0);
 });
