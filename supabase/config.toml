@@ -1,4 +1,0 @@
-project_id = "xrdtqbatynoofkjtjgeq"
-
-[functions.send-contest-email-alerts]
-verify_jwt = false
