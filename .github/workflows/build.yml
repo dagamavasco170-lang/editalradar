@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Configurar Node.js
         uses: actions/setup-node@v6
         with:
@@ -40,7 +40,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Configurar Node.js
         uses: actions/setup-node@v6
         with:
@@ -91,7 +91,7 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v5
       - name: Checkout para teste pós-publicação
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Configurar Node.js para teste pós-publicação
         uses: actions/setup-node@v6
         with:
@@ -127,7 +127,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Configurar Node.js
         uses: actions/setup-node@v6
         with:
