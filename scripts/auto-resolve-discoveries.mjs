@@ -144,10 +144,13 @@ export function extractVacancyDetails(text) {
   const imediatas = immediateValues.length === 1 ? immediateValues[0] : null;
   const reserva = reserveValues.length === 1 ? reserveValues[0] : null;
   const explicitTotal = totalValues.length === 1 ? totalValues[0] : null;
-  const total = explicitTotal !== null
-    ? explicitTotal
-    : imediatas !== null && reserva !== null
-      ? imediatas + reserva
+  // When both categories are explicit, their sum is the total. Some
+  // notices repeat "prevê 40 vagas" immediately before "40 imediatas e 60 CR";
+  // that generic phrase must not override the explicit breakdown.
+  const total = imediatas !== null && reserva !== null
+    ? imediatas + reserva
+    : explicitTotal !== null
+      ? explicitTotal
       : imediatas;
 
   return { total, imediatas, reserva };
