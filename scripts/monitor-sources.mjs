@@ -135,7 +135,7 @@ async function fetchSource(url) {
   if (contentLength > MAX_BYTES) throw new Error("Resposta excede o limite de 12 MB.");
   const bytes = new Uint8Array(await response.arrayBuffer());
   if (bytes.byteLength > MAX_BYTES) throw new Error("Resposta excede o limite de 12 MB.");
-  const content = /html|text\\//i.test(contentType) ? new TextDecoder("utf-8").decode(bytes) : bytes;
+  const content = /html|text\//i.test(contentType) ? new TextDecoder("utf-8").decode(bytes) : bytes;
   const opportunityLinks = /html/i.test(contentType)
     ? extractOpportunityLinks(content, response.url || url)
     : [];
