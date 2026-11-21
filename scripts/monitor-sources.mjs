@@ -62,7 +62,7 @@ function decodeHtmlText(value) {
 }
 
 export function extractOpportunityLinks(html, sourceUrl) {
-  const keywords = /\b(edital|editais|processos? seletivos?|seleção|selecao|seleções|selecoes|inscrições|inscricoes|vagas|provimentos?|nomeações|nomeacoes|autorização|autorizacao|autorizações|autorizacoes)\b/i;
+  const keywords = /\b(edital|editais|processos? seletivos?|seleção|selecao|seleções|selecoes|inscrições|inscricoes|vagas|provimentos?|nomeações|nomeacoes|autorização|autorizacao|autorizações|autorizacoes|retificação|retificações|retificacao|retificacoes|errata|aditivo|aditivos|alteração|alterações|alteracao|alteracoes)\b/i;
   const contestKeyword = /\bconcursos?\b/i;
   const found = new Map();
   const anchors = String(html).matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a\s*>/gi);
@@ -188,7 +188,7 @@ async function fetchSource(url) {
     ok: true,
     sha256: fingerprintContent(content, contentType),
     opportunityLinks,
-    opportunityLinkFilterVersion: 4,
+    opportunityLinkFilterVersion: 5,
     status: response.status,
     finalUrl: response.url,
     contentType,
