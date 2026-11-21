@@ -85,21 +85,21 @@ export default function App() {
         ) : (
           <section className="content">
             <div className="hero">
-              <div><div className="eyebrow light">FONTE OFICIAL · GOVERNO FEDERAL</div><h1>Acompanhe concursos<br/>autorizados pelo MGI.</h1><p>Consulte cargos e vagas autorizadas diretamente da planilha oficial do Ministério.</p>
+              <div><div className="eyebrow light">FONTES OFICIAIS · GOVERNO FEDERAL</div><h1>Encontre concursos<br/>com informação verificada.</h1><p>Acompanhe autorizações, editais publicados e etapas de seleções federais.</p>
                 <div className="hero-search"><span>⌕</span><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Cargo, órgão ou palavra-chave..." /><button onClick={() => setPage("concursos")}>Buscar concursos</button></div>
               </div>
               <div className="hero-art"><div className="art-circle">✦</div><div className="art-card"><span>✧</span><strong>Seu esforço<br/>vai valer a pena.</strong><small>Um dia de cada vez.</small></div></div>
             </div>
             <div className="source-notice">
-              <div><strong>O que significa “autorizado”?</strong><p>Autorização é uma etapa anterior ao edital. Ela não confirma publicação do edital, inscrições abertas, salário ou data de prova.</p></div>
-              <a href={sourceUrl} target="_blank" rel="noreferrer">Consultar fonte do MGI ↗</a>
+              <div><strong>Confira a etapa de cada seleção.</strong><p>“Autorizado” significa que o órgão pode avançar para as próximas etapas. Edital publicado e inscrições encerradas são situações diferentes — veja o status e consulte a fonte oficial de cada concurso.</p></div>
+              <a href={sourceUrl} target="_blank" rel="noreferrer">Consultar orientações do MGI ↗</a>
             </div>
             <div className="stats-row">
-              <div className="stat"><span className="stat-icon blue">▦</span><div><strong>{concursos.length}</strong><small>Registros oficiais importados</small></div></div>
-              <div className="stat"><span className="stat-icon green">⌁</span><div><strong>{new Intl.NumberFormat("pt-BR").format(totalVagas)}</strong><small>Vagas autorizadas listadas</small></div></div>
+              <div className="stat"><span className="stat-icon blue">▦</span><div><strong>{concursos.length}</strong><small>Oportunidades verificadas</small></div></div>
+              <div className="stat"><span className="stat-icon green">⌁</span><div><strong>{new Intl.NumberFormat("pt-BR").format(totalVagas)}</strong><small>Vagas deste recorte</small></div></div>
               <div className="stat"><span className="stat-icon gold">☆</span><div><strong>{favorites.length}</strong><small>Oportunidades salvas</small></div></div>
             </div>
-            <div className="section-title"><div><div className="eyebrow">AUTORIZAÇÕES FEDERAIS</div><h2>{page === "favoritos" ? "Seus registros favoritos" : "Concursos autorizados pelo MGI"}</h2></div><span className="results">{(page === "favoritos" ? filtered.filter(c => favorites.includes(c.id)) : filtered).length} registros</span></div>
+            <div className="section-title"><div><div className="eyebrow">ACOMPANHAMENTO FEDERAL</div><h2>{page === "favoritos" ? "Seus concursos favoritos" : "Concursos com fontes oficiais"}</h2></div><span className="results">{(page === "favoritos" ? filtered.filter(c => favorites.includes(c.id)) : filtered).length} registros</span></div>
             <div className="filters">
               <label className="search-filter"><span>⌕</span><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar cargo ou órgão..." /></label>
               <select value={nivel} onChange={(e) => setNivel(e.target.value)}><option>Todos os níveis</option>{[...new Set(concursos.map(c => c.nivel))].map(x => <option key={x}>{x}</option>)}</select>
@@ -107,20 +107,20 @@ export default function App() {
             <div className="cards">
               {(page === "favoritos" ? filtered.filter(c => favorites.includes(c.id)) : filtered).map((item) => <article className="contest-card" key={item.id}>
                 <div className="card-top"><div className="org-icon">{item.sigla}</div><button className={favorites.includes(item.id) ? "heart saved" : "heart"} onClick={() => toggleFavorite(item.id)} aria-label="Salvar favorito">{favorites.includes(item.id) ? "♥" : "♡"}</button></div>
-                <span className="status"><i />Autorizado pelo MGI</span><h3>{item.cargo}</h3><p className="org-name">{item.orgao}</p>
+                <span className="status"><i />{item.status}</span><h3>{item.cargo}</h3><p className="org-name">{item.orgao}</p>
                 <div className="card-meta"><span>⌁ {item.vagas} vaga(s) autorizada(s)</span><span>▤ {item.nivel}</span></div>
                 <div className="card-bottom"><div><small>Ato de autorização</small><strong>{item.atoOficial || "Consulte a fonte"}</strong></div><button className="detail-btn" onClick={() => setSelected(item)}>Ver detalhes ↗</button></div>
               </article>)}
               {((page === "favoritos" && filtered.filter(c => favorites.includes(c.id)).length === 0) || (page !== "favoritos" && filtered.length === 0)) && <div className="empty">Nenhum concurso encontrado. Experimente ajustar os filtros.</div>}
             </div>
-            <div className="source-footnote"><span>Fonte: Ministério da Gestão e da Inovação em Serviços Públicos (MGI).</span><span>Planilha: {sourceUpdated || "consulte o MGI"} · Sincronizado em: {fetchedAt ? new Date(fetchedAt).toLocaleString("pt-BR") : "aguardando sincronização"}</span><a href={sourceUrl} target="_blank" rel="noreferrer">Abrir fonte oficial ↗</a></div>
-            <p className="disclaimer">Esta integração cobre autorizações do Poder Executivo Federal publicadas pelo MGI. Não é uma relação completa de concursos estaduais, municipais, de outros Poderes ou de empresas públicas. Autorização não significa edital publicado nem inscrições abertas. Confirme as informações no órgão responsável.</p>
+            <div className="source-footnote"><span>Fontes: Banco Central, Receita Federal, CGU e MGI.</span><span>Conferência editorial: {sourceUpdated} · Dados compilados em: {fetchedAt ? new Date(fetchedAt).toLocaleString("pt-BR") : "não informado"}</span><a href={sourceUrl} target="_blank" rel="noreferrer">Ver página geral do MGI ↗</a></div>
+            <p className="disclaimer">Esta é uma seleção inicial de concursos federais identificados em páginas oficiais, não uma lista completa do Brasil. Concursos estaduais, municipais, de outros Poderes e de empresas públicas ainda serão adicionados. Confirme sempre as datas, requisitos e etapas na página oficial de cada órgão.</p>
           </section>
         )}
         <footer>© 2026 EditalRadar · Feito para apoiar sua jornada até a aprovação.</footer>
       </main>
 
-      {selected && <div className="modal-backdrop" onClick={() => setSelected(null)}><div className="modal" onClick={(e) => e.stopPropagation()}><button className="modal-close" onClick={() => setSelected(null)}>×</button><span className="status"><i />Autorizado pelo MGI</span><div className="eyebrow">REGISTRO DE AUTORIZAÇÃO OFICIAL</div><h2>{selected.cargo}</h2><p className="org-name">{selected.orgao}</p><div className="modal-facts"><div><small>Vagas autorizadas</small><strong>{selected.vagas}</strong></div><div><small>Escolaridade</small><strong>{selected.nivel}</strong></div><div><small>Vínculo</small><strong>{selected.vinculo || "Não informado"}</strong></div><div><small>Ato oficial</small><strong>{selected.atoOficial || "Consulte a planilha"}</strong></div></div><p className="muted">A autorização não é o edital e não significa que as inscrições estejam abertas. Confirme as próximas etapas diretamente com o órgão responsável.</p><a className="primary-btn full modal-source-link" href={sourceUrl} target="_blank" rel="noreferrer">Consultar fonte oficial do MGI ↗</a><button className="detail-btn full" onClick={() => toggleFavorite(selected.id)}>{favorites.includes(selected.id) ? "Remover dos favoritos" : "Salvar nos favoritos"}</button></div></div>}
+      {selected && <div className="modal-backdrop" onClick={() => setSelected(null)}><div className="modal" onClick={(e) => e.stopPropagation()}><button className="modal-close" onClick={() => setSelected(null)}>×</button><span className="status"><i />{selected.status}</span><div className="eyebrow">DETALHES DA SELEÇÃO</div><h2>{selected.cargo}</h2><p className="org-name">{selected.orgao}</p><div className="modal-facts"><div><small>Vagas autorizadas</small><strong>{selected.vagas}</strong></div><div><small>Escolaridade</small><strong>{selected.nivel}</strong></div><div><small>Vínculo</small><strong>{selected.vinculo || "Não informado"}</strong></div><div><small>Ato oficial</small><strong>{selected.atoOficial || "Consulte a planilha"}</strong></div></div><p className="muted">{selected.observacao}</p><a className="primary-btn full modal-source-link" href={selected.sourceUrl || sourceUrl} target="_blank" rel="noreferrer">Consultar página oficial do concurso ↗</a><button className="detail-btn full" onClick={() => toggleFavorite(selected.id)}>{favorites.includes(selected.id) ? "Remover dos favoritos" : "Salvar nos favoritos"}</button></div></div>}
     </div>
   );
 }

@@ -1,32 +1,37 @@
 # EditalRadar
 
-Plataforma web para acompanhar autorizações oficiais de concursos públicos e organizar a preparação.
+Plataforma web demonstrativa para acompanhar concursos públicos com links para fontes oficiais e organizar a preparação.
 
-## Integração oficial implementada
+## Cobertura inicial
 
-O site sincroniza a planilha de **Autorizações e Provimentos** do Ministério da Gestão e da Inovação em Serviços Públicos (MGI).
+A primeira curadoria reúne oportunidades federais verificadas em páginas oficiais do Banco Central, Receita Federal e CGU, conferidas em 21/11/2026.
 
-1. Consulta a página oficial do MGI e localiza a planilha XLSX de 2026.
-2. Baixa e lê a planilha no GitHub Actions.
-3. Importa as linhas classificadas como **Concurso Público**.
-4. Gera os dados usados na compilação.
-5. Compila e publica o site no GitHub Pages.
+- Banco Central 2026: 170 vagas autorizadas — 100 Auditor, 50 Técnico e 20 Procurador. Edital ainda não publicado; inscrições aguardam edital.
+- Receita Federal 2026: 146 vagas autorizadas — 116 Analista-Tributário e 30 Auditor-Fiscal. Situação pré-edital nas informações consultadas.
+- CGU 2026: 60 vagas de Auditor Federal de Finanças e Controle. Edital publicado em 09/10/2026; inscrições encerradas em 04/11/2026; prova prevista para 13/12/2026.
 
-A sincronização está agendada diariamente às 09:00 UTC, além de cada push e execução manual.
+Cada cartão leva à página oficial do respectivo órgão. Status e datas devem sempre ser conferidos na fonte oficial, pois podem mudar.
 
-Fonte oficial: https://www.gov.br/gestao/pt-br/acesso-a-informacao/servidores/concursos-publicos/autorizacoes-e-provimentos
+## Limites da cobertura
 
-## Importante sobre os dados
-
-A planilha do MGI informa autorizações de concursos do Poder Executivo Federal. **Autorização não significa edital publicado nem inscrições abertas.** Ela não é uma lista nacional completa: concursos estaduais, municipais, de outros Poderes e de empresas públicas podem não estar incluídos.
+Esta é uma seleção inicial de concursos federais, não uma lista completa de todos os concursos do Brasil. Ainda não inclui uma cobertura sistemática de estados, municípios, outros Poderes e empresas públicas. O aplicativo não afirma que inscrições estão abertas sem confirmação na fonte.
 
 ## Funcionalidades
 
-- Busca por cargo, órgão e vínculo.
+- Busca por cargo, órgão, ato e escolaridade.
 - Filtro por escolaridade.
-- Detalhes da autorização e link para a fonte oficial.
-- Favoritos salvos no navegador.
+- Status por etapa da seleção.
+- Links oficiais por concurso e detalhes.
+- Favoritos guardados no navegador.
 - Área de estudos com checklist e questão demonstrativa.
+- Interface responsiva.
+
+## Fontes oficiais consultadas
+
+- MGI: https://www.gov.br/gestao/pt-br/acesso-a-informacao/servidores/concursos-publicos/autorizacoes-e-provimentos
+- Banco Central: https://www.bcb.gov.br/acessoinformacao/concursospublicos
+- Receita Federal: https://www.gov.br/receitafederal/pt-br/acesso-a-informacao/servidores/concurso-publico-2026
+- CGU: https://www.gov.br/cgu/pt-br/acesso-a-informacao/concursos/concursos-publicos/
 
 ## Desenvolvimento
 
@@ -34,10 +39,9 @@ Requisitos: Node.js 22+ e npm.
 
 ```bash
 npm install
-npm run sync:mgi
 npm run dev
 ```
 
 Compilar: `npm run build`.
 
-O workflow **Sync, build and deploy EditalRadar** sincroniza os dados oficiais, compila e publica o site automaticamente.
+O GitHub Actions compila e publica o site no GitHub Pages a cada atualização da branch `main`.
