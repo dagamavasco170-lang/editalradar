@@ -18,7 +18,7 @@ describe("EditalRadar", () => {
     expect(notification).toHaveTextContent(latest.cargo);
     fireEvent.click(notification);
 
-    expect(await screen.findByRole("heading", { level: 2, name: latest.cargo })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name: latest.cargo })).toBeInTheDocument();
   });
   it("filtra, marca como lidas e limpa notificações", async () => {
     localStorage.clear();
@@ -295,7 +295,7 @@ describe("EditalRadar", () => {
     expect(within(document.querySelector(".cards")).getByText("Analista e Fiscal de Proteção e Defesa do Consumidor")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Ver detalhes/ }));
 
-    expect(screen.getByRole("link", { name: /Consultar página oficial do concurso/ }))
+    expect(screen.getByRole("link", { name: /Acessar fonte oficial/ }))
       .toHaveAttribute("href", "https://www.cebraspe.org.br/concursos/SEPLAG_AL_26_PROCON");
   });
 

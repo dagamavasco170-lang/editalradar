@@ -482,7 +482,7 @@ describe("Autenticação EditalRadar", () => {
 
     expect(await screen.findByRole("heading", { level: 1, name: "Agente e Escrivão de Polícia Civil" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Cronograma e etapas" })).toBeInTheDocument();
-    expect(screen.getByText(/06 de dezembro de 2026/)).toBeInTheDocument();
+    expect(document.querySelector("#detail-timeline time")).toHaveTextContent(/06 de dezembro de 2026/);
     expect(screen.getByRole("link", { name: /Acessar fonte oficial/ })).toHaveAttribute("href", "https://www.cebraspe.org.br/concursos/pc_al_26");
 
     fireEvent.click(screen.getByRole("button", { name: "Preparar para este concurso" }));
