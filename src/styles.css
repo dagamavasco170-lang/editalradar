@@ -68,3 +68,10 @@
 /* Registros preliminares: diferenciar visualmente referências ainda não confirmadas. */
 .status.preliminary{background:#fff5e5;color:#8a621d}
 .status.preliminary i{background:#c38b2b}
+
+
+/* Preferência para ocultar registros preliminares do catálogo. */
+.filter-options{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin:-5px 0 15px;padding:9px 11px;border:1px solid #e7ecea;border-radius:8px;background:#fff}
+.preliminary-toggle{display:inline-flex;align-items:center;gap:8px;color:#536a78;font-size:11px;font-weight:600;cursor:pointer}
+.preliminary-toggle input{width:15px;height:15px;margin:0;accent-color:#197b61;cursor:pointer}
+.filter-hint{font-size:10px;color:#197b61;font-weight:700}
