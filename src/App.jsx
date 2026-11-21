@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { isSupabaseConfigured, supabase } from "./lib/supabaseClient";
 import { concursos, materias, sourceUrl, sourceUpdated, fetchedAt } from "./data/concursos";
 
 const readStore = (key, fallback) => {
@@ -52,6 +53,90 @@ export default function App() {
   const [selected, setSelected] = useState(null);
   const [answer, setAnswer] = useState("");
   const [checkedAnswer, setCheckedAnswer] = useState(false);
+  const [authUser, setAuthUser] = useState(null);
+  const [authReady, setAuthReady] = useState(false);
+  const [showAuth, setShowAuth] = useState(false);
+  const [authMode, setAuthMode] = useState("login");
+  const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authBusy, setAuthBusy] = useState(false);
+  const [authMessage, setAuthMessage] = useState("");
+  const [authMessageType, setAuthMessageType] = useState("info");
+
+  useEffect(() => {
+    if (!supabase) {
+      setAuthReady(true);
+      return undefined;
+    }
+
+    let mounted = true;
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (!mounted) return;
+      setAuthUser(data.session?.user || null);
+      setAuthReady(true);
+      if (error) {
+        setAuthMessage("Não foi possível recuperar sua sessão. Entre novamente.");
+        setAuthMessageType("error");
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setAuthUser(session?.user || null);
+      setAuthReady(true);
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!supabase || !authUser) return undefined;
+    let cancelled = false;
+
+    const loadAccountData = async () => {
+      const { data, error } = await supabase
+        .from("user_data")
+        .select("favorites, alerts, tasks")
+        .eq("user_id", authUser.id)
+        .maybeSingle();
+
+      if (cancelled) return;
+      if (error) {
+        setAuthMessage("Conta conectada, mas não foi possível carregar os dados. Confira a migração do banco no guia de configuração.");
+        setAuthMessageType("error");
+        return;
+      }
+
+      if (data) {
+        const nextFavorites = Array.isArray(data.favorites) ? data.favorites : [];
+        const nextAlerts = Array.isArray(data.alerts) ? data.alerts : [];
+        const nextTasks = Array.isArray(data.tasks) ? data.tasks : [false, false, false, false];
+        setFavorites(nextFavorites);
+        setAlerts(nextAlerts);
+        setTasks(nextTasks);
+        localStorage.setItem("er-favorites", JSON.stringify(nextFavorites));
+        localStorage.setItem("er-alerts", JSON.stringify(nextAlerts));
+        localStorage.setItem("er-tasks", JSON.stringify(nextTasks));
+      } else {
+        const { error: insertError } = await supabase.from("user_data").upsert({
+          user_id: authUser.id,
+          favorites,
+          alerts,
+          tasks,
+          updated_at: new Date().toISOString()
+        });
+        if (insertError && !cancelled) {
+          setAuthMessage("Não foi possível sincronizar seus dados iniciais. Confira a tabela e as políticas de acesso do Supabase.");
+          setAuthMessageType("error");
+        }
+      }
+    };
+
+    loadAccountData();
+    return () => { cancelled = true; };
+  }, [authUser?.id]);
 
   const estados = [...new Set(concursos.map((item) => item.estado || "Brasil"))].sort();
   const cidades = [...new Set(concursos.map((item) => item.localidade || "Brasil"))].sort();
@@ -61,6 +146,70 @@ export default function App() {
     () => concursos.filter((item) => matchesFilters(item, currentFilters)),
     [query, nivel, esfera, estado, localidade, situacao]
   );
+
+  const syncUserData = async (changes) => {
+    if (!supabase || !authUser) return;
+    const { error } = await supabase.from("user_data").upsert({
+      user_id: authUser.id,
+      ...changes,
+      updated_at: new Date().toISOString()
+    });
+    if (error) {
+      setAuthMessage("Não foi possível sincronizar seus dados. Eles continuam salvos neste navegador.");
+      setAuthMessageType("error");
+    }
+  };
+
+  const handleAuthSubmit = async (event) => {
+    event.preventDefault();
+    if (!supabase) return;
+    setAuthBusy(true);
+    setAuthMessage("");
+    try {
+      if (authMode === "signup") {
+        const { data, error } = await supabase.auth.signUp({
+          email: authEmail.trim(),
+          password: authPassword,
+          options: { emailRedirectTo: window.location.origin + window.location.pathname }
+        });
+        if (error) throw error;
+        if (data.session) {
+          setAuthMessage("Conta criada e acesso realizado com sucesso.");
+          setAuthMessageType("success");
+        } else {
+          setAuthMessage("Cadastro iniciado. Confira seu e-mail para confirmar a conta antes de entrar.");
+          setAuthMessageType("success");
+        }
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({
+          email: authEmail.trim(),
+          password: authPassword
+        });
+        if (error) throw error;
+        setAuthMessage("Login realizado com sucesso.");
+        setAuthMessageType("success");
+      }
+    } catch (error) {
+      setAuthMessage(error.message || "Não foi possível concluir a autenticação.");
+      setAuthMessageType("error");
+    } finally {
+      setAuthBusy(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    if (!supabase) return;
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      setAuthMessage("Não foi possível sair da conta. Tente novamente.");
+      setAuthMessageType("error");
+      return;
+    }
+    setAuthUser(null);
+    setShowAuth(false);
+    setAuthMessage("Você saiu da sua conta. Seus dados locais continuam neste navegador.");
+    setAuthMessageType("success");
+  };
 
   const matchingAlert = (alert) => concursos.filter((item) => matchesFilters(item, alert.filters)).length;
   const currentAlertName = describeAlert(currentFilters);
@@ -74,16 +223,19 @@ export default function App() {
     }];
     setAlerts(next);
     localStorage.setItem("er-alerts", JSON.stringify(next));
+    void syncUserData({ alerts: next });
   };
   const removeAlert = (id) => {
     const next = alerts.filter((alert) => alert.id !== id);
     setAlerts(next);
     localStorage.setItem("er-alerts", JSON.stringify(next));
+    void syncUserData({ alerts: next });
   };
 
   const saveFavorites = (next) => {
     setFavorites(next);
     localStorage.setItem("er-favorites", JSON.stringify(next));
+    void syncUserData({ favorites: next });
   };
   const toggleFavorite = (id) => {
     saveFavorites(favorites.includes(id) ? favorites.filter((item) => item !== id) : [...favorites, id]);
@@ -92,6 +244,7 @@ export default function App() {
     const next = tasks.map((done, i) => i === index ? !done : done);
     setTasks(next);
     localStorage.setItem("er-tasks", JSON.stringify(next));
+    void syncUserData({ tasks: next });
   };
   const progress = Math.round(tasks.filter(Boolean).length / tasks.length * 100);
   const totalVagas = concursos.reduce((sum, item) => sum + (Number(item.vagas) || 0), 0);
@@ -109,14 +262,14 @@ export default function App() {
         <button className={page === "favoritos" ? "nav-item active" : "nav-item"} onClick={() => setPage("favoritos")}><span>♡</span> Meus favoritos <b>{favorites.length}</b></button>
         <div className="sidebar-bottom">
           <div className="help-card"><span className="help-icon">✦</span><strong>Seu futuro começa com planejamento.</strong><p>Organize sua preparação e acompanhe suas oportunidades.</p><button onClick={() => setPage("estudos")}>Ver meu plano →</button></div>
-          <div className="profile"><div className="avatar">C</div><div><strong>Concurseiro</strong><small>Plano gratuito</small></div><span className="dots">•••</span></div>
+          <div className="profile"><div className="avatar">{authUser?.email?.[0]?.toUpperCase() || "C"}</div><div className="profile-copy"><strong>{authUser?.email || "Concurseiro"}</strong><small>{authUser ? "Conta conectada" : "Modo visitante"}</small></div><span className="dots">•••</span></div>
         </div>
       </aside>
 
       <main className="main">
         <header className="topbar">
           <div className="breadcrumb">Início <span>/</span> {page === "concursos" ? "Concursos" : page === "estudos" ? "Área de estudos" : "Meus favoritos"}</div>
-          <div className="top-actions"><span className="date-chip">◷ &nbsp;Sua jornada começa hoje</span><div className="mini-avatar">C</div></div>
+          <div className="top-actions"><span className="date-chip">◷ &nbsp;Sua jornada começa hoje</span>{authUser ? <button className="auth-trigger" onClick={handleSignOut} disabled={!authReady}>Sair da conta</button> : <button className="auth-trigger" onClick={() => { setShowAuth(true); setAuthMessage(""); }}>Entrar / cadastrar</button>}<div className="mini-avatar">{authUser?.email?.[0]?.toUpperCase() || "C"}</div></div>
         </header>
 
         {page === "estudos" ? (
@@ -186,7 +339,7 @@ export default function App() {
                   ))}
                 </div>
               ) : <p className="alerts-empty">Você ainda não salvou alertas. Ajuste os filtros acima e clique em “Salvar alerta”.</p>}
-              <small className="alerts-note">Os alertas ficam salvos neste navegador. Não enviam e-mail nem notificações push.</small>
+              <small className="alerts-note">{authUser ? "Alertas sincronizados com sua conta. As correspondências são calculadas a partir do catálogo disponível." : "No modo visitante, os alertas ficam salvos neste navegador. Entre na sua conta para sincronizá-los entre aparelhos."}</small>
             </section>
             <div className="cards">
               {(page === "favoritos" ? filtered.filter(c => favorites.includes(c.id)) : filtered).map((item) => <article className="contest-card" key={item.id}>
@@ -204,6 +357,32 @@ export default function App() {
         <footer>© 2026 EditalRadar · Feito para apoiar sua jornada até a aprovação.</footer>
       </main>
 
+      {showAuth && <div className="modal-backdrop" onClick={() => setShowAuth(false)}>
+        <section className="modal auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title" onClick={(event) => event.stopPropagation()}>
+          <button className="modal-close" onClick={() => setShowAuth(false)} aria-label="Fechar cadastro e login">×</button>
+          <div className="eyebrow">SUA CONTA EDITALRADAR</div>
+          <h2 id="auth-title">{authMode === "signup" ? "Criar sua conta" : "Entrar na sua conta"}</h2>
+          {isSupabaseConfigured ? (
+            <form className="auth-form" onSubmit={handleAuthSubmit}>
+              <label>E-mail<input type="email" value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} autoComplete="email" required placeholder="voce@exemplo.com" /></label>
+              <label>Senha<input type="password" value={authPassword} onChange={(event) => setAuthPassword(event.target.value)} autoComplete={authMode === "signup" ? "new-password" : "current-password"} minLength={8} required placeholder="Pelo menos 8 caracteres" /></label>
+              <button className="primary-btn full" type="submit" disabled={authBusy}>{authBusy ? "Aguarde..." : authMode === "signup" ? "Criar conta" : "Entrar"}</button>
+              <button className="auth-mode-toggle" type="button" onClick={() => { setAuthMode(authMode === "signup" ? "login" : "signup"); setAuthMessage(""); }}>{authMode === "signup" ? "Já tenho uma conta — entrar" : "Ainda não tenho conta — cadastrar"}</button>
+              {authMessage && <p className={`auth-message ${authMessageType}`} role="status">{authMessage}</p>}
+            </form>
+          ) : (
+            <div className="auth-setup">
+              <p>O cadastro está preparado, mas falta conectar o projeto ao Supabase para ativar as contas e o banco de dados.</p>
+              <ol>
+                <li>Crie um projeto gratuito no Supabase.</li>
+                <li>Execute o SQL de <code>supabase/migrations/202611210001_user_data.sql</code> no SQL Editor.</li>
+                <li>Adicione <code>VITE_SUPABASE_URL</code> e <code>VITE_SUPABASE_PUBLISHABLE_KEY</code> nas Actions Variables do GitHub.</li>
+              </ol>
+              <a href="https://github.com/dagamavasco170-lang/editalradar/blob/main/SUPABASE_SETUP.md" target="_blank" rel="noreferrer">Abrir guia de configuração ↗</a>
+            </div>
+          )}
+        </section>
+      </div>}
       {selected && <div className="modal-backdrop" onClick={() => setSelected(null)}><div className="modal" onClick={(e) => e.stopPropagation()}><button className="modal-close" onClick={() => setSelected(null)}>×</button><span className="status"><i />{selected.status}</span><div className="eyebrow">DETALHES DA SELEÇÃO</div><h2>{selected.cargo}</h2><p className="org-name">{selected.orgao}</p><div className="modal-facts"><div><small>Vagas informadas</small><strong>{selected.vagas == null ? "A divulgar" : selected.vagas}</strong></div><div><small>Escolaridade</small><strong>{selected.nivel}</strong></div><div><small>Vínculo</small><strong>{selected.vinculo || "Não informado"}</strong></div><div><small>Ato oficial</small><strong>{selected.atoOficial || "Consulte a planilha"}</strong></div></div><p className="muted">{selected.observacao}</p><a className="primary-btn full modal-source-link" href={selected.sourceUrl || sourceUrl} target="_blank" rel="noreferrer">Consultar página oficial do concurso ↗</a><button className="detail-btn full" onClick={() => toggleFavorite(selected.id)}>{favorites.includes(selected.id) ? "Remover dos favoritos" : "Salvar nos favoritos"}</button></div></div>}
     </div>
   );
