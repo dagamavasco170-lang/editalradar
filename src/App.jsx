@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { concursos, materias, sourceUrl, sourceUpdated, fetchedAt } from "./data/concursos";
 
 const readStore = (key, fallback) => {
