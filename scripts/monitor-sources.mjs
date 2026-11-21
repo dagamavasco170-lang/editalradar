@@ -103,7 +103,7 @@ export function extractOpportunityLinks(html, sourceUrl) {
 export function buildDiscoveriesForSource(url, previous, current) {
   if (!current?.ok) return [];
   const discoveries = [];
-  const needsLinkBaseline = previous?.opportunityLinkFilterVersion !== 4;
+  const needsLinkBaseline = previous?.opportunityLinkFilterVersion !== 5;
 
   if (needsLinkBaseline) {
     const opportunityLinks = current.opportunityLinks || [];
