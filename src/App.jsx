@@ -5,6 +5,8 @@ import { detectCatalogNotifications, dismissNotificationById, dismissNotificatio
 import { applyCatalogOverrides } from "./lib/catalog";
 import { isTrustedOfficialUrl, officialSourceLabel, parseHttpsUrl } from "./lib/official-sources.js";
 import { getUpcomingMilestones } from "./lib/dashboard";
+import { parseBrazilianNumber } from "./lib/brazilian-numbers.js";
+import { buildCsv } from "./lib/csv-export.js";
 const StudyArea = React.lazy(() => import("./StudyArea.jsx"));
 const StudyQuestionAdmin = React.lazy(() => import("./StudyQuestionAdmin.jsx"));
 
@@ -171,18 +173,11 @@ const getContestSalary = (item) => {
 };
 const getSalaryAmount = (item) => {
   const raw = getContestRemuneration(item)?.valor;
-  if (raw == null || raw === "") return null;
-  if (typeof raw === "number") return Number.isFinite(raw) ? raw : null;
-  const normalized = String(raw).replace(/[^\\d,.-]/g, "").replace(/\\./g, "").replace(",", ".");
-  if (!normalized || !/[\\d]/.test(normalized)) return null;
-  const parsed = Number(normalized);
-  return Number.isFinite(parsed) ? parsed : null;
+  return parseBrazilianNumber(raw, { pick: "highest" });
 };
 const getVacancyAmount = (item) => {
   const raw = item?.vagasTotais ?? item?.vagas;
-  if (raw == null || raw === "") return null;
-  const parsed = Number(raw);
-  return Number.isFinite(parsed) ? parsed : null;
+  return parseBrazilianNumber(raw);
 };
 const getStatusPriority = (item) => ({
   "status-open": 0,
@@ -772,18 +767,13 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
       ["Vagas", "vagas"], ["Remuneração", "salary"], ["Escolaridade", "nivel"],
       ["Localidade", "localidade"], ["Estado", "estado"], ["Fonte", "source"]
     ];
-    const escapeCell = (value) => {
-      const raw = String(value ?? "");
-      const safe = /^[=+@\\-\\t\\r]/.test(raw) ? "'" + raw : raw;
-      return '"' + safe.replace(/"/g, '""') + '"';
-    };
     const rows = [
       columns.map(([label]) => label),
       ...favoriteItems.map((item) => columns.map(([, key]) => key === "salary"
         ? getContestSalary(item)
         : key === "source" ? (item.sourceUrl || item.url || sourceUrl) : item[key]))
     ];
-    const csv = "\\uFEFF" + rows.map((row) => row.map(escapeCell).join(";")).join("\\r\\n");
+    const csv = buildCsv(rows);
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement("a");
