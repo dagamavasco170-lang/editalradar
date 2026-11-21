@@ -65,6 +65,39 @@ describe("EditalRadar", () => {
     expect(screen.getAllByText(/Vagas a divulgar/).length).toBeGreaterThan(0);
   });
 
+  it("lista concursos municipais de Pão de Açúcar e Teotônio Vilela", () => {
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText("Esfera"), { target: { value: "Municipal" } });
+
+    expect(screen.getByText("Diversos cargos efetivos (31 cargos)")).toBeInTheDocument();
+    expect(screen.getByText("Cargos da Secretaria Municipal de Educação (11 cargos)")).toBeInTheDocument();
+    expect(screen.getByText("Cargos efetivos a definir")).toBeInTheDocument();
+  });
+
+  it("filtra oportunidades municipais por cidade", () => {
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText("Cidade"), { target: { value: "Pão de Açúcar" } });
+
+    expect(screen.getByText("Diversos cargos efetivos (31 cargos)")).toBeInTheDocument();
+    expect(screen.queryByText("Banco Central do Brasil")).not.toBeInTheDocument();
+  });
+
+  it("inclui o PROCON/AL na esfera estadual com link oficial", () => {
+    render(<App />);
+
+    fireEvent.change(screen.getByPlaceholderText("Buscar cargo ou órgão..."), {
+      target: { value: "PROCON" }
+    });
+
+    expect(screen.getByText("Analista e Fiscal de Proteção e Defesa do Consumidor")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Ver detalhes/ }));
+
+    expect(screen.getByRole("link", { name: /Consultar página oficial do concurso/ }))
+      .toHaveAttribute("href", "https://www.cebraspe.org.br/concursos/SEPLAG_AL_26_PROCON");
+  });
+
   it("salva um concurso nos favoritos e mostra a lista", () => {
     render(<App />);
 
