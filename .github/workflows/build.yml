@@ -1,4 +1,4 @@
-name: Build and deploy EditalRadar
+name: Test, build and deploy EditalRadar
 
 on:
   push:
@@ -17,27 +17,49 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  test:
+    name: Testes automatizados
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-      - name: Configure Node.js
+      - name: Configurar Node.js
         uses: actions/setup-node@v6
         with:
           node-version: 22
-      - name: Install dependencies
+      - name: Instalar dependências
         run: npm install
-      - name: Build production app
+      - name: Executar testes
+        run: npm test
+
+  build:
+    name: Compilar aplicação
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Configurar Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Instalar dependências
+        run: npm install
+      - name: Compilar para produção
         run: npm run build
-      - name: Configure GitHub Pages
+      - name: Verificar caminhos do GitHub Pages
+        run: |
+          test -s dist/index.html
+          grep -q "/editalradar/assets/" dist/index.html
+      - name: Configurar GitHub Pages
         uses: actions/configure-pages@v6
-      - name: Upload Pages artifact
+      - name: Enviar artefato do Pages
         uses: actions/upload-pages-artifact@v5
         with:
           path: ./dist
 
   deploy:
+    name: Publicar no GitHub Pages
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
@@ -45,6 +67,6 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Deploy to GitHub Pages
+      - name: Publicar site
         id: deployment
         uses: actions/deploy-pages@v5

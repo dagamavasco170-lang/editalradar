@@ -45,3 +45,16 @@ npm run dev
 Compilar: `npm run build`.
 
 O GitHub Actions compila e publica o site no GitHub Pages a cada atualização da branch `main`.
+
+## Testes automatizados
+
+A suíte usa Vitest, jsdom e Testing Library para verificar renderização, pesquisa, filtros, favoritos, detalhes dos concursos e checklist de estudos.
+
+Executar localmente:
+
+```bash
+npm install
+npm test
+```
+
+O GitHub Actions executa os testes antes do build. A publicação só é realizada se os testes e a verificação do caminho dos arquivos do GitHub Pages passarem.
