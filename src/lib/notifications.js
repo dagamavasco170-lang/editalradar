@@ -60,6 +60,15 @@ export function detectCatalogNotifications({
     if (previous.atoOficial !== item.atoOficial) {
       changes.push("Ato ou edital atualizado");
     }
+    if (previous.cargo !== item.cargo || previous.orgao !== item.orgao) {
+      changes.push("Cargo ou órgão atualizado");
+    }
+    if (previous.nivel !== item.nivel || previous.localidade !== item.localidade || previous.estado !== item.estado) {
+      changes.push("Requisito ou localidade atualizado");
+    }
+    if (previous.sourceUrl !== item.sourceUrl) {
+      changes.push("Link da fonte atualizado");
+    }
     if (changes.length) {
       notifications.push({
         id: `favorite-${item.id}-${encodeURIComponent(changes.join("|")).slice(0, 100)}`,
