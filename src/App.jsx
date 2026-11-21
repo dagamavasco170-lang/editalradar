@@ -226,6 +226,31 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     };
   }, []);
 
+  // Atualiza os claims após uma mudança de papel no Supabase (por exemplo,
+  // quando o usuário recebe app_metadata.role = "admin").
+  useEffect(() => {
+    if (!authClient || !authUser?.id || typeof authClient.auth.refreshSession !== "function") {
+      return undefined;
+    }
+
+    let cancelled = false;
+    const refreshAccountClaims = async () => {
+      try {
+        const { data, error } = await authClient.auth.refreshSession();
+        if (error) throw error;
+        const refreshedUser = data?.user || data?.session?.user || null;
+        if (!cancelled && refreshedUser?.id === authUser.id) {
+          setAuthUser(refreshedUser);
+        }
+      } catch {
+        // Mantém a sessão atual; as políticas RLS continuam protegendo o catálogo.
+      }
+    };
+
+    void refreshAccountClaims();
+    return () => { cancelled = true; };
+  }, [authClient, authUser?.id]);
+
   useEffect(() => {
     if (!authClient || !authUser) {
       syncReadyUserRef.current = null;
