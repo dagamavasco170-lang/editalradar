@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { isSupabaseConfigured, supabase } from "./lib/supabaseClient";
 import { concursos, materias, sourceUrl, sourceUpdated, fetchedAt } from "./data/concursos";
 import { detectCatalogNotifications } from "./lib/notifications";
+import { applyCatalogOverrides } from "./lib/catalog";
 
 export const scoreRecommendation = (item, profile = {}) => {
  const area=(profile.interest_area||"").toLowerCase(), text=[item.cargo,item.orgao,item.area,item.nivel,item.estado,item.localidade,item.status].join(" ").toLowerCase();
@@ -84,6 +85,13 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   const [isAppInstalled, setIsAppInstalled] = useState(false);
   const [showInstallHelp, setShowInstallHelp] = useState(false);
   const [isOnline, setIsOnline] = useState(() => typeof navigator === "undefined" ? true : navigator.onLine);
+  const [catalogOverrides, setCatalogOverrides] = useState([]);
+  const [catalogSyncMessage, setCatalogSyncMessage] = useState("");
+  const [adminDraft, setAdminDraft] = useState(null);
+  const [adminEditingId, setAdminEditingId] = useState(null);
+  const [adminBusy, setAdminBusy] = useState(false);
+  const [adminMessage, setAdminMessage] = useState("");
+  const [adminMessageType, setAdminMessageType] = useState("info");
   const [notificationPermission, setNotificationPermission] = useState(() =>
     typeof window !== "undefined" && "Notification" in window ? window.Notification.permission : "unsupported"
   );
@@ -126,6 +134,8 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   const [profileMessageType, setProfileMessageType] = useState("info");
   const notificationStorageKey = "er-notifications:" + (authUser?.id || "visitor");
   const catalogSnapshotStorageKey = "er-catalog-snapshot:" + (authUser?.id || "visitor");
+  const catalog = useMemo(() => applyCatalogOverrides(concursos, catalogOverrides), [catalogOverrides]);
+  const isAdmin = authUser?.app_metadata?.role === "admin";
 
   useEffect(() => {
     const handleBeforeInstallPrompt = (event) => {
@@ -160,6 +170,25 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
     };
+  }, []);
+
+  useEffect(() => {
+    if (!supabase) return undefined;
+    let cancelled = false;
+    const loadCatalogOverrides = async () => {
+      try {
+        const { data, error } = await supabase.from("contest_catalog").select("id, data, deleted, updated_at");
+        if (error) throw error;
+        if (!cancelled) {
+          setCatalogOverrides(Array.isArray(data) ? data : []);
+          setCatalogSyncMessage("");
+        }
+      } catch (error) {
+        if (!cancelled) setCatalogSyncMessage(error?.message || "Não foi possível carregar as alterações do catálogo. A lista base continua disponível.");
+      }
+    };
+    void loadCatalogOverrides();
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
@@ -336,7 +365,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
 
     const previousSnapshot = readStore(catalogSnapshotStorageKey, null);
     const detected = detectCatalogNotifications({
-      catalog: concursos,
+      catalog: catalog,
       previousSnapshot,
       favoriteIds: favorites
     });
@@ -353,7 +382,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     const fresh = detected.notifications.filter((notice) => {
       if (knownIds.has(notice.id)) return false;
       if (notice.type !== "new" || !hasRecommendationProfile) return true;
-      const contest = concursos.find((item) => String(item.id) === String(notice.itemId));
+      const contest = catalog.find((item) => String(item.id) === String(notice.itemId));
       return contest && scoreRecommendation(contest, authUser.user_metadata || {}) >= 70;
     });
     if (fresh.length === 0) return;
@@ -371,7 +400,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
         });
         browserNotice.onclick = () => {
           window.focus();
-          const contest = concursos.find((entry) => String(entry.id) === String(item.itemId));
+          const contest = catalog.find((entry) => String(entry.id) === String(item.itemId));
           if (contest) setSelected(contest);
           browserNotice.close();
         };
@@ -386,23 +415,24 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     notificationPermission,
     notificationStorageKey,
     catalogSnapshotStorageKey,
+    catalog,
     authUser?.user_metadata?.interest_area,
     authUser?.user_metadata?.education_level,
     authUser?.user_metadata?.state,
     authUser?.user_metadata?.city
   ]);
 
-  const estados = [...new Set(concursos.map((item) => item.estado || "Brasil"))].sort();
-  const cidades = [...new Set(concursos.map((item) => item.localidade || "Brasil"))].sort();
+  const estados = [...new Set(catalog.map((item) => item.estado || "Brasil"))].sort();
+  const cidades = [...new Set(catalog.map((item) => item.localidade || "Brasil"))].sort();
 
   const recommendationProfile=authUser?.user_metadata||{};
   const profileRecommendations=useMemo(()=>{
     if(!authUser||(!recommendationProfile.interest_area&&!recommendationProfile.education_level&&!recommendationProfile.state))return [];
-    return concursos.map(item=>({item,score:scoreRecommendation(item,recommendationProfile)})).sort((a,b)=>b.score-a.score||(Number(b.item.vagas)||0)-(Number(a.item.vagas)||0)).slice(0,3);
+    return catalog.map(item=>({item,score:scoreRecommendation(item,recommendationProfile)})).sort((a,b)=>b.score-a.score||(Number(b.item.vagas)||0)-(Number(a.item.vagas)||0)).slice(0,3);
   },[authUser?.id,authUser?.user_metadata?.interest_area,authUser?.user_metadata?.education_level,authUser?.user_metadata?.state,authUser?.user_metadata?.city]);
   const currentFilters = { query, nivel, esfera, estado, localidade, situacao, ocultarPreliminares };
   const filtered = useMemo(
-    () => concursos.filter((item) => matchesFilters(item, currentFilters)),
+    () => catalog.filter((item) => matchesFilters(item, currentFilters)),
     [query, nivel, esfera, estado, localidade, situacao, ocultarPreliminares]
   );
 
@@ -609,7 +639,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     setAuthMessageType("success");
   };
 
-  const matchingAlert = (alert) => concursos.filter((item) => matchesFilters(item, alert.filters)).length;
+  const matchingAlert = (alert) => catalog.filter((item) => matchesFilters(item, alert.filters)).length;
   const currentAlertName = describeAlert(currentFilters);
   const alertAlreadySaved = alerts.some((alert) => JSON.stringify(alert.filters) === JSON.stringify(currentFilters));
   const saveCurrentAlert = () => {
@@ -680,7 +710,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     setNotifications(next);
     localStorage.setItem(notificationStorageKey, JSON.stringify(next));
     void syncUserData({ notifications: next });
-    const contest = concursos.find((item) => String(item.id) === String(notification.itemId));
+    const contest = catalog.find((item) => String(item.id) === String(notification.itemId));
     if (contest) setSelected(contest);
   };
 
@@ -706,6 +736,97 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     setJumpToNotifications(false);
   }, [page, jumpToNotifications]);
 
+  const openAdminEditor = (item = null) => {
+    setAdminEditingId(item?.id ?? null);
+    setAdminDraft({
+      cargo: "", orgao: "", sigla: "", vagas: "", nivel: "", area: "Federal",
+      estado: "Brasil", localidade: "Brasil", status: "Pré-edital / anunciado",
+      atoOficial: "", sourceUrl: "", observacao: "", vinculo: "",
+      ...(item || {}),
+      vagas: item?.vagas == null ? "" : String(item.vagas)
+    });
+    setAdminMessage("");
+    setAdminMessageType("info");
+  };
+
+  const saveAdminContest = async (event) => {
+    event.preventDefault();
+    if (!isAdmin || !authClient) return;
+    const cargo = String(adminDraft.cargo || "").trim();
+    const orgao = String(adminDraft.orgao || "").trim();
+    const sourceUrlValue = String(adminDraft.sourceUrl || "").trim();
+    if (!cargo || !orgao || !adminDraft.nivel || !adminDraft.area || !adminDraft.status) {
+      setAdminMessage("Preencha cargo, órgão, escolaridade, esfera e situação.");
+      setAdminMessageType("error");
+      return;
+    }
+    if (!/^https:\/\//i.test(sourceUrlValue)) {
+      setAdminMessage("Informe um link oficial iniciado por https://.");
+      setAdminMessageType("error");
+      return;
+    }
+    const vacancyText = String(adminDraft.vagas ?? "").trim();
+    const vagas = vacancyText === "" ? null : Number(vacancyText);
+    if (vagas !== null && (!Number.isInteger(vagas) || vagas < 0)) {
+      setAdminMessage("O número de vagas deve ser um inteiro igual ou maior que zero.");
+      setAdminMessageType("error");
+      return;
+    }
+    const data = {
+      cargo, orgao,
+      sigla: String(adminDraft.sigla || "").trim().slice(0,12) || orgao.slice(0,6).toUpperCase(),
+      vagas, nivel: String(adminDraft.nivel).trim(), area: String(adminDraft.area).trim(),
+      estado: String(adminDraft.estado || "Brasil").trim(),
+      localidade: String(adminDraft.localidade || "Brasil").trim(),
+      status: String(adminDraft.status).trim(),
+      atoOficial: String(adminDraft.atoOficial || "").trim(),
+      sourceUrl: sourceUrlValue,
+      observacao: String(adminDraft.observacao || "").trim(),
+      vinculo: String(adminDraft.vinculo || "").trim()
+    };
+    setAdminBusy(true);
+    setAdminMessage("");
+    try {
+      const payload = { data, deleted: false, updated_at: new Date().toISOString() };
+      if (adminEditingId !== null) payload.id = Number(adminEditingId);
+      const { data: saved, error } = await authClient.from("contest_catalog")
+        .upsert(payload).select("id, data, deleted, updated_at").single();
+      if (error) throw error;
+      const record = { ...saved, id: Number(saved.id), data: { ...saved.data, id: Number(saved.id) }, deleted: false };
+      setCatalogOverrides(current => [...current.filter(row => String(row.id)!==String(record.id)),record]);
+      const editing = adminEditingId !== null;
+      setAdminDraft(null);
+      setAdminMessage(editing ? "Concurso atualizado com sucesso." : "Concurso cadastrado com sucesso.");
+      setAdminMessageType("success");
+    } catch(error) {
+      setAdminMessage(error?.message || "Não foi possível salvar. Confira a migração e sua permissão.");
+      setAdminMessageType("error");
+    } finally {
+      setAdminBusy(false);
+    }
+  };
+
+  const removeAdminContest = async (item) => {
+    if (!isAdmin || !authClient || !window.confirm(`Remover "${item.cargo}" do catálogo?`)) return;
+    setAdminBusy(true);
+    setAdminMessage("");
+    try {
+      const payload = { id: Number(item.id), data: { ...item }, deleted: true, updated_at: new Date().toISOString() };
+      const { data: saved, error } = await authClient.from("contest_catalog")
+        .upsert(payload).select("id, data, deleted, updated_at").single();
+      if (error) throw error;
+      const record = { ...saved, id: Number(saved.id), data: { ...saved.data, id: Number(saved.id) }, deleted: true };
+      setCatalogOverrides(current => [...current.filter(row => String(row.id)!==String(record.id)),record]);
+      setAdminMessage("Concurso removido do catálogo.");
+      setAdminMessageType("success");
+    } catch(error) {
+      setAdminMessage(error?.message || "Não foi possível remover este concurso.");
+      setAdminMessageType("error");
+    } finally {
+      setAdminBusy(false);
+    }
+  };
+
   const toggleTask = (index) => {
     const next = tasks.map((done, i) => i === index ? !done : done);
     setTasks(next);
@@ -713,9 +834,9 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     void syncUserData({ tasks: next });
   };
   const progress = Math.round(tasks.filter(Boolean).length / tasks.length * 100);
-  const catalogCount = concursos.filter(Boolean).length;
-  const preliminaryCount = concursos.filter(isPreliminary).length;
-  const verifiedRecords = concursos.filter((item) => item && !isPreliminary(item));
+  const catalogCount = catalog.filter(Boolean).length;
+  const preliminaryCount = catalog.filter(isPreliminary).length;
+  const verifiedRecords = catalog.filter((item) => item && !isPreliminary(item));
   const totalVagas = verifiedRecords.reduce((sum, item) => sum + (Number(item.vagas) || 0), 0);
 
   return (
@@ -729,6 +850,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
         <button className={page === "concursos" ? "nav-item active" : "nav-item"} onClick={() => setPage("concursos")}><span>▦</span> Concursos</button>
         <button className={page === "estudos" ? "nav-item active" : "nav-item"} onClick={() => setPage("estudos")}><span>◷</span> Área de estudos</button>
         <button className={page === "favoritos" ? "nav-item active" : "nav-item"} onClick={() => setPage("favoritos")}><span>♡</span> Meus favoritos <b>{favorites.length}</b></button>
+        {isAdmin && <button className={page === "admin" ? "nav-item active" : "nav-item"} onClick={() => setPage("admin")}><span>⚙</span> Administração</button>}
         <div className="sidebar-bottom">
           <div className="help-card"><span className="help-icon">✦</span><strong>Seu futuro começa com planejamento.</strong><p>Organize sua preparação e acompanhe suas oportunidades.</p><button onClick={() => setPage("estudos")}>Ver meu plano →</button></div>
           <div className="profile"><div className="avatar">{(authUser?.user_metadata?.full_name || authUser?.user_metadata?.name || authUser?.email || "C")[0]?.toUpperCase() || "C"}</div><div className="profile-copy" title={authUser?.email || "Modo visitante"}><strong>{authUser?.user_metadata?.full_name || authUser?.user_metadata?.name || authUser?.email || "Concurseiro"}</strong><small>{!authUser ? "Modo visitante" : syncStatus === "loading" || syncStatus === "syncing" ? "Sincronizando dados..." : syncStatus === "synced" ? "Dados sincronizados" : syncStatus === "error" ? "Falha na sincronização" : "Conta conectada"}</small></div><button className="dots profile-edit" type="button" onClick={openProfileEditor} aria-label={authUser ? "Editar perfil" : "Entrar para editar perfil"}>Editar</button></div>
@@ -737,7 +859,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
 
       <main className="main">
         <header className="topbar">
-          <div className="breadcrumb">Início <span>/</span> {page === "concursos" ? "Concursos" : page === "estudos" ? "Área de estudos" : "Meus favoritos"}</div>
+          <div className="breadcrumb">Início <span>/</span> {page === "concursos" ? "Concursos" : page === "estudos" ? "Área de estudos" : page === "admin" ? "Administração" : "Meus favoritos"}</div>
           <div className="top-actions"><span className="date-chip">◷ &nbsp;Sua jornada começa hoje</span><button className="install-trigger" type="button" onClick={handleInstallApp} disabled={isAppInstalled}>{isAppInstalled ? "App instalado" : deferredInstallPrompt ? "Instalar app" : "Como instalar"}</button><button className="notification-bell" type="button" onClick={openNotifications} aria-label={`Ver notificações (${unreadNotificationCount} não lidas)`} title="Ver notificações">♧{unreadNotificationCount > 0 && <span>{unreadNotificationCount > 9 ? "9+" : unreadNotificationCount}</span>}</button>{authUser ? <button className="auth-trigger" onClick={handleSignOut} disabled={!authReady}>Sair da conta</button> : <button className="auth-trigger" onClick={() => { setShowAuth(true); setAuthMessage(""); }}>Entrar / cadastrar</button>}<div className="mini-avatar">{(authUser?.user_metadata?.full_name || authUser?.user_metadata?.name || authUser?.email || "C")[0]?.toUpperCase() || "C"}</div></div>
         </header>
         {!isOnline && <div className="offline-status" role="status">Você está offline. O catálogo em cache e os dados locais continuam acessíveis; login e sincronização precisam de internet.</div>}
@@ -759,6 +881,30 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
               </div>
             </div>
             <div className="panel subjects"><div className="panel-head"><div><div className="eyebrow">ORGANIZE SUA PREPARAÇÃO</div><h2>Matérias para acompanhar</h2></div><span className="muted">Sugestões iniciais</span></div><div className="subject-grid">{materias.map((m) => <div className="subject" key={m.nome}><span>{m.icon}</span><div><strong>{m.nome}</strong><small>{m.descricao}</small></div><span className="subject-arrow">↗</span></div>)}</div></div>
+          </section>
+        ) : page === "admin" && isAdmin ? (
+          <section className="content admin-page">
+            <div className="eyebrow">GESTÃO DO CATÁLOGO</div>
+            <h1>Administração</h1>
+            <p className="subhead">Cadastre, revise e remova oportunidades. As alterações são exibidas para todos os usuários.</p>
+            <div className="panel admin-panel">
+              <div className="admin-panel-heading">
+                <div><strong>Concursos cadastrados</strong><small>{catalog.length} oportunidade(s) no catálogo</small></div>
+                <button className="primary-btn" type="button" onClick={() => openAdminEditor()}>＋ Novo concurso</button>
+              </div>
+              {catalogSyncMessage && <p className="auth-message info" role="status">Catálogo base mantido. {catalogSyncMessage}</p>}
+              <div className="admin-list">
+                {catalog.map(item => <article className="admin-row" key={item.id}>
+                  <div className="admin-row-copy"><strong>{item.cargo}</strong><span>{item.orgao} · {item.estado || "Brasil"} · {item.status}</span></div>
+                  <div className="admin-row-actions">
+                    <button className="detail-btn" type="button" onClick={() => openAdminEditor(item)} disabled={adminBusy}>Editar</button>
+                    <button className="alert-remove" type="button" onClick={() => removeAdminContest(item)} disabled={adminBusy}>Remover</button>
+                  </div>
+                </article>)}
+              </div>
+              {adminMessage && <p className={`auth-message ${adminMessageType}`} role="status">{adminMessage}</p>}
+            </div>
+            <p className="disclaimer">Confira sempre o edital e a página oficial do órgão ou banca antes de alterar a situação de uma oportunidade.</p>
           </section>
         ) : (
           <section className="content">
@@ -838,7 +984,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
               <select aria-label="Esfera" value={esfera} onChange={(e) => setEsfera(e.target.value)}><option>Todas as esferas</option>{["Federal", "Estadual", "Municipal"].map(x => <option key={x}>{x}</option>)}</select>
               <select aria-label="Estado" value={estado} onChange={(e) => setEstado(e.target.value)}><option>Todos os estados</option>{estados.map(x => <option key={x}>{x}</option>)}</select>
               <select aria-label="Cidade" value={localidade} onChange={(e) => setLocalidade(e.target.value)}><option>Todas as cidades</option>{cidades.map(x => <option key={x}>{x}</option>)}</select>
-              <select aria-label="Escolaridade" value={nivel} onChange={(e) => setNivel(e.target.value)}><option>Todos os níveis</option>{[...new Set(concursos.map(c => c.nivel))].sort().map(x => <option key={x}>{x}</option>)}</select>
+              <select aria-label="Escolaridade" value={nivel} onChange={(e) => setNivel(e.target.value)}><option>Todos os níveis</option>{[...new Set(catalog.map(c => c.nivel))].sort().map(x => <option key={x}>{x}</option>)}</select>
               <select aria-label="Situação" value={situacao} onChange={(e) => setSituacao(e.target.value)}><option>Todas as situações</option>{["Pré-edital / anunciado", "Inscrições abertas", "Inscrições encerradas", "Provas / resultados"].map(x => <option key={x}>{x}</option>)}</select>
             </div>
             <div className="filter-options">
@@ -894,6 +1040,31 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
         <footer>© 2026 EditalRadar · Software proprietário. Todos os direitos reservados.</footer>
       </main>
 
+      {adminDraft && isAdmin && <div className="modal-backdrop" onClick={() => !adminBusy && setAdminDraft(null)}>
+        <section className="modal auth-modal admin-modal" role="dialog" aria-modal="true" aria-labelledby="admin-editor-title" onClick={e => e.stopPropagation()}>
+          <button className="modal-close" type="button" onClick={() => !adminBusy && setAdminDraft(null)} aria-label="Fechar formulário do concurso">×</button>
+          <div className="eyebrow">GESTÃO DO CATÁLOGO</div><h2 id="admin-editor-title">{adminEditingId === null ? "Novo concurso" : "Editar concurso"}</h2>
+          <form className="auth-form admin-form" onSubmit={saveAdminContest}>
+            <label>Cargo<input aria-label="Cargo" value={adminDraft.cargo} onChange={e=>setAdminDraft(d=>({...d,cargo:e.target.value}))} required maxLength={160}/></label>
+            <label>Órgão<input aria-label="Órgão" value={adminDraft.orgao} onChange={e=>setAdminDraft(d=>({...d,orgao:e.target.value}))} required maxLength={160}/></label>
+            <div className="admin-form-grid">
+              <label>Sigla<input aria-label="Sigla" value={adminDraft.sigla} onChange={e=>setAdminDraft(d=>({...d,sigla:e.target.value}))} maxLength={12}/></label>
+              <label>Vagas<input aria-label="Vagas" type="number" min="0" step="1" value={adminDraft.vagas} onChange={e=>setAdminDraft(d=>({...d,vagas:e.target.value}))} placeholder="A divulgar"/></label>
+              <label>Escolaridade<select aria-label="Escolaridade" value={adminDraft.nivel} onChange={e=>setAdminDraft(d=>({...d,nivel:e.target.value}))} required><option value="">Selecione</option>{["Fundamental","Médio","Técnico","Superior","Todos os níveis","Não informado"].map(x=><option key={x}>{x}</option>)}</select></label>
+              <label>Esfera<select aria-label="Esfera do concurso" value={adminDraft.area} onChange={e=>setAdminDraft(d=>({...d,area:e.target.value}))} required>{["Federal","Estadual","Municipal"].map(x=><option key={x}>{x}</option>)}</select></label>
+              <label>Estado<input aria-label="Estado" value={adminDraft.estado} onChange={e=>setAdminDraft(d=>({...d,estado:e.target.value}))} maxLength={80}/></label>
+              <label>Cidade<input aria-label="Cidade" value={adminDraft.localidade} onChange={e=>setAdminDraft(d=>({...d,localidade:e.target.value}))} maxLength={100}/></label>
+              <label>Situação<input aria-label="Situação" value={adminDraft.status} onChange={e=>setAdminDraft(d=>({...d,status:e.target.value}))} required maxLength={100}/></label>
+              <label>Vínculo<input aria-label="Vínculo" value={adminDraft.vinculo} onChange={e=>setAdminDraft(d=>({...d,vinculo:e.target.value}))} maxLength={100}/></label>
+            </div>
+            <label>Edital ou ato oficial<input aria-label="Edital ou ato oficial" value={adminDraft.atoOficial} onChange={e=>setAdminDraft(d=>({...d,atoOficial:e.target.value}))} maxLength={180}/></label>
+            <label>Link oficial (HTTPS)<input aria-label="Link oficial (HTTPS)" type="url" value={adminDraft.sourceUrl} onChange={e=>setAdminDraft(d=>({...d,sourceUrl:e.target.value}))} required placeholder="https://..."/></label>
+            <label>Observações<textarea aria-label="Observações" rows={3} maxLength={1200} value={adminDraft.observacao} onChange={e=>setAdminDraft(d=>({...d,observacao:e.target.value}))}/></label>
+            <button className="primary-btn full" type="submit" disabled={adminBusy}>{adminBusy ? "Salvando..." : "Salvar concurso"}</button>
+            {adminMessage && <p className={`auth-message ${adminMessageType}`} role="status">{adminMessage}</p>}
+          </form>
+        </section>
+      </div>}
       {showInstallHelp && <div className="modal-backdrop" onClick={() => setShowInstallHelp(false)}>
         <section className="modal auth-modal install-modal" role="dialog" aria-modal="true" aria-labelledby="install-title" onClick={(event) => event.stopPropagation()}>
           <button className="modal-close" onClick={() => setShowInstallHelp(false)} aria-label="Fechar instruções de instalação">×</button>
