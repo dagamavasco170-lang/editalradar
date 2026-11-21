@@ -672,6 +672,13 @@ export async function autoResolvePending(options = {}) {
         continue;
       }
 
+      const isRetificationDocument = /\b(retifica|errata|aditivo|alteraç(?:ã|a)o do edital)\b/i
+        .test([item.title, document.title, document.heading, document.text].filter(Boolean).join(" "));
+      if (isRetificationDocument && !matchingContest) {
+        await keepPending(item, "Retificação identificada, mas não foi possível associar com segurança a um único concurso já cadastrado. Nenhum novo concurso foi criado.");
+        continue;
+      }
+
       if (sameSourceAlreadyCatalogued) {
         const isRetification = /\b(retifica|errata|aditivo|alteraç(?:ã|a)o do edital)\b/i
           .test([item.title, document.title, document.heading, document.text].filter(Boolean).join(" "));
