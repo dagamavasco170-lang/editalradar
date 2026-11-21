@@ -141,7 +141,7 @@ test("cadastra automaticamente somente quando edital, seleção, cargo, órgão 
   assert.equal(result.data.vagas, 30);
   assert.equal(result.data.area, "Municipal");
   assert.equal(result.data.estado, "Alagoas");
-  assert.equal(result.data.status, "Edital publicado · situação a confirmar");
+  assert.equal(result.data.status, "Inscrições abertas");
 });
 
 
