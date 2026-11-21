@@ -415,8 +415,9 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
               {authMode === "reset" && <label>Confirmar nova senha<input type="password" value={authPasswordConfirm} onChange={(event) => setAuthPasswordConfirm(event.target.value)} autoComplete="new-password" minLength={8} required placeholder="Digite a nova senha novamente" /></label>}
               <button className="primary-btn full" type="submit" disabled={authBusy}>{authBusy ? "Aguarde..." : authMode === "signup" ? "Criar conta" : authMode === "recovery" ? "Enviar link de recuperação" : authMode === "reset" ? "Salvar nova senha" : "Entrar"}</button>
               {authMode === "login" && <button className="auth-mode-toggle" type="button" onClick={() => { setAuthMode("recovery"); setAuthMessage(""); }}>Esqueci minha senha</button>}
-              {authMode !== "login" && authMode !== "reset" && <button className="auth-mode-toggle" type="button" onClick={() => { setAuthMode("login"); setAuthPassword(""); setAuthPasswordConfirm(""); setAuthMessage(""); }}>Voltar ao login</button>}
-              {authMode === "signup" && <button className="auth-mode-toggle" type="button" onClick={() => { setAuthMode("login"); setAuthMessage(""); }}>Já tenho uma conta — entrar</button>}
+              {authMode === "login" && <button className="auth-mode-toggle" type="button" onClick={() => { setAuthMode("signup"); setAuthPassword(""); setAuthMessage(""); }}>Não tem conta? Criar conta</button>}
+              {authMode === "recovery" && <button className="auth-mode-toggle" type="button" onClick={() => { setAuthMode("login"); setAuthPassword(""); setAuthPasswordConfirm(""); setAuthMessage(""); }}>Voltar ao login</button>}
+              {authMode === "signup" && <button className="auth-mode-toggle" type="button" onClick={() => { setAuthMode("login"); setAuthPassword(""); setAuthPasswordConfirm(""); setAuthMessage(""); }}>Já tenho uma conta — entrar</button>}
               {authMessage && <p className={`auth-message ${authMessageType}`} role="status">{authMessage}</p>}
             </form>
           ) : (
