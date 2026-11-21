@@ -44,7 +44,7 @@ test("envia descobertas para PostgREST usando conflito idempotente", async () =>
     }
   });
   assert.equal(result.published, 1);
-  assert.match(request.url, /contest_discoveries\\?on_conflict=/);
+  assert.match(request.url, /contest_discoveries\?on_conflict=/);
   assert.equal(request.options.headers.Authorization, "Bearer secret-test");
   assert.equal(JSON.parse(request.options.body)[0].status, "pending");
 });
