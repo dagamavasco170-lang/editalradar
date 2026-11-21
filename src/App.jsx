@@ -896,7 +896,8 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
       atoOficial: String(adminDraft.atoOficial || "").trim(),
       sourceUrl: sourceUrlValue,
       observacao: String(adminDraft.observacao || "").trim(),
-      vinculo: String(adminDraft.vinculo || "").trim()
+      vinculo: String(adminDraft.vinculo || "").trim(),
+      historicoAtualizacoes: Array.isArray(adminDraft.historicoAtualizacoes) ? adminDraft.historicoAtualizacoes : []
     };
     setAdminBusy(true);
     setAdminMessage("");
@@ -1024,7 +1025,9 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
               {catalogSyncMessage && <p className="auth-message info" role="status">Catálogo base mantido. {catalogSyncMessage}</p>}
               <div className="admin-list">
                 {catalog.map(item => <article className="admin-row" key={item.id}>
-                  <div className="admin-row-copy"><strong>{item.cargo}</strong><span>{item.orgao} · {item.estado || "Brasil"} · {item.status}</span></div>
+                  <div className="admin-row-copy"><strong>{item.cargo}</strong><span>{item.orgao} · {item.estado || "Brasil"} · {item.status}</span>
+                    {Array.isArray(item.historicoAtualizacoes) && item.historicoAtualizacoes.length > 0 && <small>Histórico de {item.historicoAtualizacoes.length} atualização(ões). Última: {item.historicoAtualizacoes[item.historicoAtualizacoes.length - 1].at ? new Date(item.historicoAtualizacoes[item.historicoAtualizacoes.length - 1].at).toLocaleString("pt-BR") : "data não informada"}.</small>}
+                  </div>
                   <div className="admin-row-actions">
                     <button className="detail-btn" type="button" onClick={() => openAdminEditor(item)} disabled={adminBusy}>Editar</button>
                     <button className="alert-remove" type="button" onClick={() => removeAdminContest(item)} disabled={adminBusy}>Remover</button>
