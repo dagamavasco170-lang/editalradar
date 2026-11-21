@@ -203,6 +203,28 @@ describe("Autenticação EditalRadar", () => {
     await waitFor(() => expect(screen.getByText("Dados sincronizados")).toBeInTheDocument());
   });
 
+  it("renova os claims do Supabase e reconhece a permissão administrativa", async () => {
+    const client = createAuthClient();
+    const refreshedAdmin = {
+      id: "admin-refresh",
+      email: "admin@example.com",
+      app_metadata: { role: "admin" }
+    };
+    client.auth.refreshSession = vi.fn().mockResolvedValue({
+      data: { user: refreshedAdmin, session: { user: refreshedAdmin } },
+      error: null
+    });
+
+    render(<App authClient={client} authConfigured />);
+    await waitFor(() => expect(client.callback).toBeTypeOf("function"));
+    client.callback("SIGNED_IN", {
+      user: { id: "admin-refresh", email: "admin@example.com", app_metadata: {} }
+    });
+
+    expect(await screen.findByRole("button", { name: "Administração" })).toBeInTheDocument();
+    expect(client.auth.refreshSession).toHaveBeenCalled();
+  });
+
   it("permite ao administrador cadastrar concurso com link HTTPS", async () => {
     const client = createAuthClient();
     render(<App authClient={client} authConfigured />);
