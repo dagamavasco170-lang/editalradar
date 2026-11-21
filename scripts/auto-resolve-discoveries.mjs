@@ -172,7 +172,7 @@ export function classifyDiscovery(discovery, document, responseUrl = discovery?.
       area: jurisdiction.area,
       estado: jurisdiction.estado,
       localidade: jurisdiction.localidade,
-      sourceUrl: candidateUrl,
+      sourceUrl: candidate.toString(),
       observacao: "Registro estruturado automaticamente pelo EditalRadar a partir da publicação oficial. Confira o edital e suas retificações antes de tomar decisões. Fonte monitorada: " + String(discovery?.source_url || "").slice(0, 500)
     }
   };
@@ -527,6 +527,7 @@ export async function prepareDiscoveryDocument(item, request = fetch, options = 
     return { stage: "dismiss", reason: "Link descartado porque não pertence a um domínio oficial autorizado." };
   }
 
+  const candidateUrl = candidate.toString();
   let response;
   try {
     response = await fetchCandidateWithRetry(request, candidateUrl, {
