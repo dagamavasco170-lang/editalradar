@@ -427,6 +427,25 @@ test("simulados completos permitem iniciar, finalizar e analisar o desempenho", 
   await expect(simulator.getByText(/Gabarito:/).first()).toBeVisible();
 });
 
+test("simulado em andamento recupera respostas, posição e cronômetro após recarregar", async ({ page }) => {
+  await page.goto("./");
+  await page.getByRole("button", { name: /Área de estudos/ }).click();
+  const simulator = page.getByRole("region", { name: "Simulados completos" });
+  await simulator.getByRole("button", { name: /Iniciar simulado/ }).click();
+  await simulator.locator(".simulator-question-main .option").first().click();
+  await simulator.getByRole("button", { name: "Próxima" }).click();
+  await expect(simulator.getByText("1 de 20 respondidas")).toBeVisible();
+  await expect(simulator.getByText("Questão 2 de 20")).toBeVisible();
+
+  await page.reload();
+  await page.getByRole("button", { name: /Área de estudos/ }).click();
+  const restored = page.getByRole("region", { name: "Simulados completos" });
+  await expect(restored.getByText("Simulado em andamento recuperado")).toBeVisible();
+  await expect(restored.getByText("1 de 20 respondidas")).toBeVisible();
+  await expect(restored.getByText("Questão 2 de 20")).toBeVisible();
+  await expect(restored.getByRole("timer")).toBeVisible();
+});
+
 test("catálogo de provas reais aponta para fontes oficiais de provas e gabaritos", async ({ page }) => {
   await page.goto("./");
   await page.getByRole("button", { name: /Área de estudos/ }).click();

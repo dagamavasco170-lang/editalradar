@@ -9,8 +9,6 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: pages-${{ github.event.pull_request.number || github.ref }}
@@ -19,10 +17,14 @@ concurrency:
 jobs:
   test:
     name: Testes automatizados
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          persist-credentials: false
       - name: Configurar Node.js
         uses: actions/setup-node@v6
         with:
@@ -40,11 +42,16 @@ jobs:
 
   build:
     name: Compilar aplicação
+    permissions:
+      contents: read
+      pages: write
     needs: test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          persist-credentials: false
       - name: Configurar Node.js
         uses: actions/setup-node@v6
         with:
@@ -90,6 +97,10 @@ jobs:
     name: Publicar no GitHub Pages
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: build
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -100,6 +111,8 @@ jobs:
         uses: actions/deploy-pages@v5
       - name: Checkout para teste pós-publicação
         uses: actions/checkout@v6
+        with:
+          persist-credentials: false
       - name: Configurar Node.js para teste pós-publicação
         uses: actions/setup-node@v6
         with:
@@ -136,10 +149,14 @@ jobs:
     name: Verificar produção na Vercel (versão e navegador)
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: deploy
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          persist-credentials: false
       - name: Configurar Node.js
         uses: actions/setup-node@v6
         with:

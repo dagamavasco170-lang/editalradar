@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
+import { clearActiveSimulation, loadActiveSimulation, remainingSimulationSeconds, saveActiveSimulation } from "./lib/simulator-progress.js";
 
 const shuffle = (items) => {
   const result=[...items];
@@ -7,11 +8,12 @@ const shuffle = (items) => {
 };
 const clock = seconds => String(Math.floor(seconds/60)).padStart(2,"0")+":"+String(seconds%60).padStart(2,"0");
 
-export default function SimulatorPanel({questionBank,history=[],onComplete}) {
-  const [size,setSize]=useState(20);
-  const [minutes,setMinutes]=useState(40);
-  const [run,setRun]=useState(null);
-  const [remaining,setRemaining]=useState(40*60);
+export default function SimulatorPanel({questionBank,history=[],onComplete,userId=null}) {
+  const [initialRun] = useState(() => loadActiveSimulation(userId, questionBank));
+  const [size,setSize]=useState(initialRun?.questions.length || 20);
+  const [minutes,setMinutes]=useState(initialRun?.durationMinutes || 40);
+  const [run,setRun]=useState(initialRun);
+  const [remaining,setRemaining]=useState(() => initialRun ? remainingSimulationSeconds(initialRun.deadlineAt) : 40*60);
   const [result,setResult]=useState(null);
   const [reviewOpen,setReviewOpen]=useState(false);
   const current=run?.questions?.[run.currentIndex]||null;
@@ -29,15 +31,23 @@ export default function SimulatorPanel({questionBank,history=[],onComplete}) {
       return {discipline,correct:hits,total:rows.length,percentage:Math.round(hits/rows.length*100)};
     }).sort((a,b)=>a.percentage-b.percentage||a.discipline.localeCompare(b.discipline,"pt-BR"));
     const completedAt=new Date().toISOString();
-    const summary={id:run.id,questionIds:run.questions.map(question=>question.id),answers:{...run.answers},correct,total:review.length,percentage:Math.round(correct/review.length*100),byDiscipline,startedAt:run.startedAt,completedAt,durationSeconds:Math.max(0,minutes*60-remaining),finishReason:reason};
+    const summary={id:run.id,questionIds:run.questions.map(question=>question.id),answers:{...run.answers},correct,total:review.length,percentage:Math.round(correct/review.length*100),byDiscipline,startedAt:run.startedAt,completedAt,durationSeconds:Math.max(0,run.durationMinutes*60-remaining),finishReason:reason};
     setRun({...run,finished:true});setResult({...summary,review});setReviewOpen(false);onComplete?.(summary);
-  },[run,minutes,remaining,onComplete]);
+  },[run,remaining,onComplete]);
+
+  useEffect(()=>{
+    if(!run||run.finished){clearActiveSimulation(userId);return undefined;}
+    saveActiveSimulation(userId,run);
+    return undefined;
+  },[run,userId]);
 
   useEffect(()=>{
     if(!run||run.finished)return undefined;
-    const id=window.setInterval(()=>setRemaining(value=>Math.max(0,value-1)),1000);
+    const tick=()=>setRemaining(remainingSimulationSeconds(run.deadlineAt));
+    tick();
+    const id=window.setInterval(tick,1000);
     return ()=>window.clearInterval(id);
-  },[run?.id,run?.finished]);
+  },[run?.id,run?.deadlineAt,run?.finished]);
   useEffect(()=>{
     if(run&&!run.finished&&remaining===0)finish("time");
   },[run,remaining,finish]);
@@ -45,17 +55,20 @@ export default function SimulatorPanel({questionBank,history=[],onComplete}) {
   const start=()=>{
     if(questionBank.length<size)return;
     const duration=Math.max(size,minutes);
+    const startedAt=new Date();
+    const deadlineAt=new Date(startedAt.getTime()+duration*60*1000).toISOString();
     setMinutes(duration);setRemaining(duration*60);setResult(null);setReviewOpen(false);
-    setRun({id:"sim-"+Date.now(),questions:shuffle(questionBank).slice(0,size),answers:{},currentIndex:0,startedAt:new Date().toISOString(),finished:false});
+    setRun({id:"sim-"+Date.now(),questions:shuffle(questionBank).slice(0,size),answers:{},currentIndex:0,startedAt:startedAt.toISOString(),deadlineAt,durationMinutes:duration,finished:false});
   };
   const setAnswer=value=>{
     if(!run||run.finished||!current)return;
     setRun(old=>({...old,answers:{...old.answers,[current.id]:value}}));
   };
-  const reset=()=>{setRun(null);setResult(null);setRemaining(minutes*60);setReviewOpen(false);};
+  const reset=()=>{clearActiveSimulation(userId);setRun(null);setResult(null);setRemaining(minutes*60);setReviewOpen(false);};
 
   return <section className="panel simulator-panel" aria-label="Simulados completos">
     <div className="panel-head"><div><div className="eyebrow">TREINO EM CONDIÇÕES DE PROVA</div><h2>Simulados completos</h2><p className="question-bank-subtitle">Questões autorais sorteadas sem repetição dentro de cada prova.</p></div><span className="soft-pill">20 · 40 · 80 questões</span></div>
+    {initialRun&&run&&!run.finished&&<p className="simulator-warning" role="status">Simulado em andamento recuperado. Suas respostas, posição e tempo restante foram restaurados.</p>}
     {!run&&!result&&<div className="simulator-setup">
       <div className="simulator-size-options" role="group" aria-label="Quantidade de questões">
         {[20,40,80].map(value=><button type="button" key={value} className={size===value?"active":""} aria-pressed={size===value} disabled={questionBank.length<value} onClick={()=>{setSize(value);setMinutes(value*2);}}><strong>{value}</strong><span>questões</span></button>)}

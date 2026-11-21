@@ -314,7 +314,7 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
   </div>
 
   <React.Suspense fallback={<section className="panel simulator-panel"><p className="muted">Carregando simulados…</p></section>}>
-   <SimulatorPanel questionBank={questionBank} history={questionProgress.simulations} onComplete={completeSimulation}/>
+   <SimulatorPanel key={activeUserId || "visitor"} userId={activeUserId} questionBank={questionBank} history={questionProgress.simulations} onComplete={completeSimulation}/>
   </React.Suspense>
   <React.Suspense fallback={<section className="panel official-exams-panel"><p className="muted">Carregando catálogo de provas oficiais…</p></section>}>
    <ExamSourcesPanel authClient={authClient}/>

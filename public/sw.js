@@ -53,22 +53,21 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return;
 
   if (request.mode === "navigate") {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          if (response.ok) {
-            const copy = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
-          }
-          return response;
-        })
-        .catch(async () => {
+    event.respondWith((async () => {
+      try {
+        const response = await fetch(request);
+        if (response.ok) {
           const cache = await caches.open(CACHE_NAME);
-          const exactPage = await cache.match(request);
-          const appShell = await cache.match(new URL("./index.html", self.registration.scope).href);
-          return exactPage || appShell || Response.error();
-        })
-    );
+          await cache.put(request, response.clone());
+        }
+        return response;
+      } catch {
+        const cache = await caches.open(CACHE_NAME);
+        const exactPage = await cache.match(request);
+        const appShell = await cache.match(new URL("./index.html", self.registration.scope).href);
+        return exactPage || appShell || Response.error();
+      }
+    })());
     return;
   }
 
