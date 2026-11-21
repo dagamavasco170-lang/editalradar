@@ -24,7 +24,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
       - name: Configurar Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: 22
       - name: Instalar dependências
@@ -42,7 +42,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
       - name: Configurar Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: 22
       - name: Instalar dependências
@@ -93,7 +93,7 @@ jobs:
       - name: Checkout para teste pós-publicação
         uses: actions/checkout@v6
       - name: Configurar Node.js para teste pós-publicação
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: 22
       - name: Instalar dependências dos testes
@@ -129,7 +129,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
       - name: Configurar Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: 22
       - name: Instalar dependências
