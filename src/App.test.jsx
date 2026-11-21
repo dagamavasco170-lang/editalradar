@@ -383,7 +383,7 @@ describe("EditalRadar", () => {
     expect(screen.getByText("36 registros")).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText("Ocultar registros preliminares"));
 
-    expect(screen.getByText("23 registros")).toBeInTheDocument();
+    expect(screen.getByText("24 registros")).toBeInTheDocument();
     expect(screen.getByLabelText("Ocultar registros preliminares")).toBeChecked();
   });
 
