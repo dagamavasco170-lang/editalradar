@@ -64,3 +64,7 @@
 .auth-setup code{font-size:10px;overflow-wrap:anywhere}
 @media(max-width:760px){.auth-trigger{padding:7px 8px;font-size:9px}.profile-copy{display:none}}
 @media(max-width:480px){.auth-trigger{font-size:8px}.auth-modal{padding:23px 18px}}
+
+/* Registros preliminares: diferenciar visualmente referências ainda não confirmadas. */
+.status.preliminary{background:#fff5e5;color:#8a621d}
+.status.preliminary i{background:#c38b2b}
