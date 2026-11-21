@@ -2,8 +2,9 @@
 
 ## Licença e propriedade intelectual
 
-O EditalRadar é um software proprietário, de código fechado e uso restrito. O código-fonte e os componentes originais do projeto não podem ser copiados, modificados, redistribuídos ou explorados comercialmente sem autorização prévia e expressa do titular, observadas as licenças de componentes de terceiros e as exceções previstas em lei. Consulte o arquivo [LICENSE](./LICENSE).
+O EditalRadar mantém seu código-fonte publicamente visível no GitHub, mas é um software proprietário. A visibilidade pública permite consulta e fork dentro dos limites dos Termos de Serviço do GitHub; isso não concede licença open source nem autorização adicional para comercializar, sublicenciar ou reutilizar os componentes proprietários fora dessas permissões. Bibliotecas e demais componentes de terceiros permanecem sujeitos às respectivas licenças.
 
+Consulte o arquivo [LICENSE](./LICENSE) para conhecer os termos aplicáveis.
 
 Plataforma web demonstrativa para acompanhar concursos públicos com links para fontes oficiais e organizar a preparação.
 
