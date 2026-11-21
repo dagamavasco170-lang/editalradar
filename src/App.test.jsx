@@ -52,7 +52,7 @@ describe("EditalRadar", () => {
 
     fireEvent.click(screen.getAllByRole("button", { name: /Ver detalhes/ })[0]);
 
-    expect(screen.getByRole("heading", { name: "Auditor — Carreira de Especialista" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 2, name: "Auditor — Carreira de Especialista" })).toBeInTheDocument();
     expect(screen.getByText(/100 vagas autorizadas para Auditor/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Consultar página oficial do concurso/ }))
       .toHaveAttribute("href", "https://www.bcb.gov.br/acessoinformacao/concursospublicos");
