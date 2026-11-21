@@ -50,7 +50,7 @@ function decodeHtmlText(value) {
 }
 
 export function extractOpportunityLinks(html, sourceUrl) {
-  const keywords = /\b(editais?|concursos?|processos? seletivos?|seleção|selecao|seleções|selecoes|inscrições|inscricoes|vagas|provimentos?|nomeações|nomeacoes|autorização|autorizacoes|autorizações)\b/i;
+  const keywords = /\b(edital|editais|concursos?|processos? seletivos?|seleção|selecao|seleções|selecoes|inscrições|inscricoes|vagas|provimentos?|nomeações|nomeacoes|autorização|autorizacao|autorizações|autorizacoes)\b/i;
   const found = new Map();
   const anchors = String(html).matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a\s*>/gi);
 
@@ -225,7 +225,13 @@ async function runMonitor() {
   for (const [heading, entries] of groups) {
     lines.push("## " + heading + " (" + entries.length + ")");
     if (entries.length) {
-      for (const entry of entries) lines.push("- [" + entry.url + "](" + entry.url + ") — " + entry.message);
+      for (const entry of entries) {
+        const url = entry.candidate_url || entry.url;
+        const message = entry.title
+          ? entry.title + (entry.context ? " — " + entry.context : "")
+          : entry.message;
+        lines.push("- [" + url + "](" + url + ") — " + message);
+      }
     } else lines.push("- Nenhuma.");
     lines.push("");
   }
