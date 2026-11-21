@@ -82,7 +82,7 @@ test("salva e remove um alerta personalizado no navegador", async ({ page }) => 
   await expect(page.getByText(/Você ainda não salvou alertas/)).toBeVisible();
 });
 
-test("abre o painel de cadastro e login e apresenta o estado da integração", async ({ page }) => {
+test("abre a experiência de cadastro e login conforme a integração configurada", async ({ page }) => {
   await page.goto("./");
   await page.getByRole("button", { name: /Entrar \/ cadastrar/ }).click();
 
@@ -90,8 +90,17 @@ test("abre o painel de cadastro e login e apresenta o estado da integração", a
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole("heading", { name: /Entrar na sua conta/ })).toBeVisible();
 
-  await expect(dialog.getByText(/recuperação de senha estão preparados/i)).toBeVisible();
   const hasEmailForm = await dialog.getByLabel("E-mail").count();
-  const hasSetupGuide = await dialog.getByRole("link", { name: /Abrir guia de configuração/ }).count();
-  expect(hasEmailForm + hasSetupGuide).toBeGreaterThan(0);
+  if (hasEmailForm > 0) {
+    await expect(dialog.getByLabel("E-mail")).toBeVisible();
+    await expect(dialog.getByLabel("Senha")).toBeVisible();
+    await expect(dialog.getByRole("button", { name: "Entrar", exact: true })).toBeVisible();
+
+    await dialog.getByRole("button", { name: "Esqueci minha senha" }).click();
+    await expect(dialog.getByRole("heading", { name: "Recuperar senha" })).toBeVisible();
+    await expect(dialog.getByRole("button", { name: "Enviar link de recuperação" })).toBeVisible();
+  } else {
+    await expect(dialog.getByText(/recuperação de senha estão preparados/i)).toBeVisible();
+    await expect(dialog.getByRole("link", { name: /Abrir guia de configuração/ })).toBeVisible();
+  }
 });
