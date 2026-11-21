@@ -37,7 +37,7 @@ O catálogo também pode exibir registros preliminares de Alagoas identificados 
 - Área de estudos com checklist e questão demonstrativa.
 - Interface responsiva.
 - Aplicativo instalável (PWA), com cache do catálogo e da interface para acesso básico sem conexão após a primeira visita.
-- Painel administrativo com controle por função e cadastro, edição e remoção de concursos.
+- Painel administrativo com controle por função, cadastro/edição/remoção de concursos e fila de revisão de oportunidades detectadas pelo monitor de fontes oficiais.
 
 ## Fontes oficiais consultadas
 
@@ -54,7 +54,7 @@ O usuário pode autorizar notificações do navegador, consultar avisos não lid
 
 ## Monitoramento automático das fontes
 
-O GitHub Actions verifica diariamente os links de origem cadastrados em `src/data/concursos.js`. Alterações no conteúdo ou falhas de acesso geram uma issue para revisão editorial e um relatório de execução. O monitor **não** altera automaticamente o catálogo: vagas, requisitos, inscrições, cronogramas e status só devem mudar após conferência humana na fonte oficial. A primeira execução cria a linha de base; depois, diferenças de conteúdo são sinalizadas.
+O GitHub Actions verifica diariamente os links de origem cadastrados em `src/data/concursos.js`. Alterações no conteúdo ou falhas de acesso geram uma issue para revisão editorial e um relatório de execução. O monitor **não** altera automaticamente o catálogo: vagas, requisitos, inscrições, cronogramas e status só devem mudar após conferência humana na fonte oficial. A primeira execução cria a linha de base; depois, diferenças de conteúdo e novos links relacionados a concursos/editais são encaminhados à revisão. Com a migração `202611220003_contest_discoveries.sql` e os secrets `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` configurados no GitHub Actions, novos itens aparecem na fila protegida do painel Administração. A detecção é baseada em mudanças de página e links; não interpreta automaticamente PDFs nem publica concursos sem aprovação e preenchimento manual.
 
 Para executar manualmente: Actions → **Monitorar fontes de concursos** → Run workflow.
 
