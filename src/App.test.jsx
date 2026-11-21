@@ -358,7 +358,7 @@ describe("EditalRadar", () => {
     expect(screen.getByText(/Concurso listado · verificar edital e cronograma/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Ver detalhes/ }));
 
-    expect(screen.getByRole("link", { name: /Abrir listagem de referência — não é edital/ }))
+    expect(screen.getByRole("link", { name: /Abrir referência externa — confirme no órgão/ }))
       .toHaveAttribute("href", "https://concursor.com.br/editais?uf=AL");
     expect(screen.getByText(/ainda não foram confirmados individualmente em edital oficial/i)).toBeInTheDocument();
   });
