@@ -176,18 +176,18 @@ export function classifyDiscovery(discovery, document, responseUrl = discovery?.
 export function normalizeContestIdentity(value) {
   return String(value || "")
     .normalize("NFD")
-    .replace(/[\\u0300-\\u036f]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, " ")
     .trim()
-    .replace(/\\s+/g, " ");
+    .replace(/\s+/g, " ");
 }
 
 function normalizeOfficialUrl(value) {
   try {
     const url = new URL(value);
     url.hash = "";
-    url.pathname = url.pathname.replace(/\\/+$/, "") || "/";
+    url.pathname = url.pathname.replace(/\/+$/, "") || "/";
     return url.toString();
   } catch {
     return "";
@@ -196,8 +196,8 @@ function normalizeOfficialUrl(value) {
 
 export function buildRetificationUpdate(existingData, extractedData, discovery, document) {
   const text = String(document?.text || "");
-  const evidence = [discovery?.title, document?.title, document?.heading, text].filter(Boolean).join("\\n");
-  const isRetification = /\\b(retifica(?:ç(?:ã|a)o|ç(?:õ|o)es|do|da|dos|das)?|errata|aditivo|alteraç(?:ã|a)o do edital)\\b/i.test(evidence);
+  const evidence = [discovery?.title, document?.title, document?.heading, text].filter(Boolean).join("\n");
+  const isRetification = /\b(retifica(?:ç(?:ã|a)o|ç(?:õ|o)es|do|da|dos|das)?|errata|aditivo|alteraç(?:ã|a)o do edital)\b/i.test(evidence);
   if (!isRetification) {
     return { updated: false, reason: "A publicação não apresenta evidência explícita de retificação ou errata." };
   }
@@ -220,8 +220,8 @@ export function buildRetificationUpdate(existingData, extractedData, discovery, 
     updatedData[field] = nextValue;
   };
 
-  const explicitVacancy = text.match(/(?:leia-se|passa(?:m)? a ser|passa(?:m)? para|totalizando|retifica(?:-se)?(?: o total de)?)\\D{0,80}(\\d{1,5})\\s+vagas?\\b/i);
-  const vacancyMentions = [...text.matchAll(/\\b(\\d{1,5})\\s+vagas?\\b/gi)].map(match => Number(match[1]));
+  const explicitVacancy = text.match(/(?:leia-se|passa(?:m)? a ser|passa(?:m)? para|totalizando|retifica(?:-se)?(?: o total de)?)\D{0,80}(\d{1,5})\s+vagas?\b/i);
+  const vacancyMentions = [...text.matchAll(/\b(\d{1,5})\s+vagas?\b/gi)].map(match => Number(match[1]));
   const uniqueVacancies = [...new Set(vacancyMentions)];
   const nextVacancies = explicitVacancy
     ? Number(explicitVacancy[1])
@@ -230,8 +230,8 @@ export function buildRetificationUpdate(existingData, extractedData, discovery, 
     setIfChanged("vagas", nextVacancies);
   }
 
-  const saysOpen = /inscriç(?:ã|a)ões?\\s+(?:estão\\s+)?abertas|período de inscriç(?:ã|a)ões?\\s+aberto/i.test(text);
-  const saysClosed = /inscriç(?:ã|a)ões?\\s+(?:estão\\s+)?encerradas|período de inscriç(?:ã|a)ões?\\s+encerrado/i.test(text);
+  const saysOpen = /inscriç(?:ã|a)ões?\s+(?:estão\s+)?abertas|período de inscriç(?:ã|a)ões?\s+aberto/i.test(text);
+  const saysClosed = /inscriç(?:ã|a)ões?\s+(?:estão\s+)?encerradas|período de inscriç(?:ã|a)ões?\s+encerrado/i.test(text);
   if (saysOpen !== saysClosed) {
     setIfChanged("status", saysOpen
       ? "Edital publicado · inscrições abertas"
@@ -566,7 +566,7 @@ export async function autoResolvePending(options = {}) {
       if (matchingDatabase || matchingStatic) {
         const currentRecord = matchingDatabase || matchingStatic;
         const retification = buildRetificationUpdate(currentRecord.data || currentRecord, decision.data, item, document);
-        const isRetification = /\\b(retifica|errata|aditivo|alteraç(?:ã|a)o do edital)\\b/i
+        const isRetification = /\b(retifica|errata|aditivo|alteraç(?:ã|a)o do edital)\b/i
           .test([item.title, document.title, document.heading, document.text].filter(Boolean).join(" "));
         if (retification.updated) {
           const targetId = Number(currentRecord.id);
@@ -611,7 +611,7 @@ export async function autoResolvePending(options = {}) {
       }
 
       if (sameSourceAlreadyCatalogued) {
-        const isRetification = /\\b(retifica|errata|aditivo|alteraç(?:ã|a)o do edital)\\b/i
+        const isRetification = /\b(retifica|errata|aditivo|alteraç(?:ã|a)o do edital)\b/i
           .test([item.title, document.title, document.heading, document.text].filter(Boolean).join(" "));
         if (isRetification) {
           await keepPending(item, "Retificação detectada em fonte já cadastrada, mas o órgão e o cargo extraídos não correspondem com segurança a um registro específico do catálogo.");
