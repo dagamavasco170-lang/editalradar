@@ -9,12 +9,24 @@ const REPORT_PATH = process.env.SOURCE_MONITOR_REPORT || ".cache/source-monitor-
 const MARKDOWN_PATH = process.env.SOURCE_MONITOR_MARKDOWN || ".cache/source-monitor-report.md";
 const MAX_BYTES = 12 * 1024 * 1024;
 
-export function collectSourceUrls(items = concursos) {
-  return [...new Set(items.map((item) => item?.sourceUrl).filter((value) => {
-    try { return new URL(value).protocol === "https:"; } catch { return false; }
-  }))].sort();
+export function isTrustedOfficialHost(hostname) {
+  const host = String(hostname || "").toLowerCase().replace(/\.$/, "");
+  const officialSuffixes = [".gov.br", ".jus.br", ".leg.br", ".mp.br", ".mil.br", ".def.br"];
+  const approvedProviders = ["cebraspe.org.br", "igeduc.selecao.net.br"];
+  return officialSuffixes.some((suffix) => host.endsWith(suffix))
+    || approvedProviders.some((domain) => host === domain || host.endsWith("." + domain));
 }
 
+export function collectSourceUrls(items = concursos) {
+  return [...new Set(items.map((item) => item?.sourceUrl).filter((value) => {
+    try {
+      const url = new URL(value);
+      return url.protocol === "https:" && isTrustedOfficialHost(url.hostname);
+    } catch {
+      return false;
+    }
+  }))].sort();
+}
 export function normalizeHtml(html) {
   return String(html)
     .replace(/<!--[\s\S]*?-->/g, " ")
@@ -60,14 +72,17 @@ export function extractOpportunityLinks(html, sourceUrl) {
     if (!hrefMatch) continue;
     const href = decodeHtmlText(hrefMatch[1] ?? hrefMatch[2] ?? hrefMatch[3] ?? "");
     const title = decodeHtmlText(match[2]);
-    const searchable = title + " " + href;
-    const explicitContest = contestKeyword.test(searchable)
-      && /(20\d{2}|cargo|vagas?|publicad[oa]|abert[oa]|edital)/i.test(searchable);
-    if (!href || !title || (!keywords.test(searchable) && !explicitContest)) continue;
+    if (!href || !title) continue;
 
     try {
       const candidateUrl = new URL(href, sourceUrl);
-      if (candidateUrl.protocol !== "https:") continue;
+      if (candidateUrl.protocol !== "https:" || !isTrustedOfficialHost(candidateUrl.hostname)) continue;
+      const pathAndTitle = title + " " + candidateUrl.pathname;
+      const registrationLink = /\b(cadastro|cadastrar|register|login|entrar|signup|sign[-_]?in|account|conta)\b/i.test(pathAndTitle);
+      const explicitContest = contestKeyword.test(pathAndTitle)
+        && /(20\d{2}|cargo|vagas?|publicad[oa]|abert[oa]|edital)/i.test(pathAndTitle);
+      const contestPage = /\/concursos?\/[a-z0-9_-]+/i.test(candidateUrl.pathname);
+      if (registrationLink || (!keywords.test(pathAndTitle) && !explicitContest && !contestPage)) continue;
       candidateUrl.hash = "";
       const normalizedUrl = candidateUrl.toString();
       if (normalizedUrl === new URL(sourceUrl).toString()) continue;
