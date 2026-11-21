@@ -3,6 +3,7 @@ import { isSupabaseConfigured, supabase } from "./lib/supabaseClient";
 import { concursos, sourceUrl, sourceUpdated, fetchedAt } from "./data/concursos";
 import { detectCatalogNotifications, dismissNotificationById, dismissNotificationHistory, getVisibleNotifications, mergeNotificationHistory } from "./lib/notifications";
 import { applyCatalogOverrides } from "./lib/catalog";
+import { isTrustedOfficialUrl, officialSourceLabel, parseHttpsUrl } from "./lib/official-sources.js";
 import { getUpcomingMilestones } from "./lib/dashboard";
 const StudyArea = React.lazy(() => import("./StudyArea.jsx"));
 const StudyQuestionAdmin = React.lazy(() => import("./StudyQuestionAdmin.jsx"));
@@ -135,7 +136,7 @@ const getAdditionalOfficialDocuments = (item) => {
     : Array.isArray(item?.documents) ? item.documents : [];
   return documents.filter((document) => {
     const url = typeof document === "string" ? document : document?.url || document?.href;
-    return typeof url === "string" && /^https:\/\//i.test(url);
+    return isTrustedOfficialUrl(url);
   }).map((document) => ({
     title: typeof document === "string" ? "Documento oficial" : document.title || document.titulo || document.label || "Documento oficial",
     url: typeof document === "string" ? document : document.url || document.href,
@@ -295,9 +296,11 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   };
   const selectedTimeline = useMemo(() => extractContestTimeline(selected), [selected]);
   const selectedDocuments = useMemo(() => getAdditionalOfficialDocuments(selected), [selected]);
-  const selectedSourceUrl = /^https:\/\//i.test(selected?.sourceUrl || "") ? selected.sourceUrl : sourceUrl;
+  const selectedSourceReference = parseHttpsUrl(selected?.sourceUrl);
+  const selectedSourceUrl = selectedSourceReference ? selectedSourceReference.href : sourceUrl;
+  const selectedSourceIsOfficial = isTrustedOfficialUrl(selectedSourceUrl);
   const selectedRemuneration = getContestRemuneration(selected);
-  const selectedSalarySourceUrl = /^https:\/\//i.test(selectedRemuneration?.sourceUrl || "")
+  const selectedSalarySourceUrl = isTrustedOfficialUrl(selectedRemuneration?.sourceUrl)
     ? selectedRemuneration.sourceUrl
     : "";
   const comparisonItems = useMemo(
@@ -1179,8 +1182,8 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
       setAdminMessageType("error");
       return;
     }
-    if (!/^https:\/\//i.test(sourceUrlValue)) {
-      setAdminMessage("Informe um link oficial iniciado por https://.");
+    if (!isTrustedOfficialUrl(sourceUrlValue)) {
+      setAdminMessage("Informe uma URL HTTPS de órgão público ou banca organizadora reconhecida.");
       setAdminMessageType("error");
       return;
     }
@@ -1325,7 +1328,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                   {favorites.includes(selected.id) ? "♥ Salvo nos favoritos" : "♡ Salvar oportunidade"}
                 </button>
                 <a className="detail-source-btn" href={selectedSourceUrl} target="_blank" rel="noopener noreferrer">
-                  {isPreliminary(selected) ? "Abrir listagem de referência — não é edital ↗" : "Acessar fonte oficial ↗"}
+                  {isPreliminary(selected) || !selectedSourceIsOfficial ? "Abrir referência externa — confirme no órgão ↗" : "Acessar fonte oficial ↗"}
                 </a>
               </div>
             </section>
@@ -1394,7 +1397,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                       <p>{isPreliminary(selected) ? "Esta não é uma confirmação de edital. Use a listagem apenas como ponto de partida para conferência." : "Acesse a publicação do órgão ou da banca para consultar edital, retificações, comunicados e arquivos disponibilizados."}</p>
                       <small>{selected.atoOficial || "Ato ou número de edital não informado nesta ficha"}</small>
                     </div>
-                    <a href={selectedSourceUrl} target="_blank" rel="noopener noreferrer">{isPreliminary(selected) ? "Abrir referência" : "Abrir fonte"} ↗</a>
+                    <a href={selectedSourceUrl} target="_blank" rel="noopener noreferrer">{isPreliminary(selected) || !selectedSourceIsOfficial ? "Abrir referência externa" : "Abrir fonte oficial"} ↗</a>
                   </article>
                   {selectedDocuments.length > 0 ? (
                     <div className="detail-extra-documents">
@@ -1863,7 +1866,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                   <span><small>ESCOLARIDADE</small><strong>{item.nivel || "Não informada"}</strong></span>
                   <span><small>LOCALIDADE</small><strong>{item.localidade || "Brasil"}</strong></span>
                 </div>
-                <div className="card-bottom"><div><small>{isPreliminary(item) ? "Listagem de referência" : "Fonte oficial"}</small><strong>{item.atoOficial || "Não informado"}</strong></div><button className="detail-btn" onClick={() => openContestDetails(item)}>Ver detalhes ↗</button></div>
+                <div className="card-bottom"><div><small>{isPreliminary(item) ? "Listagem de referência" : officialSourceLabel(item.sourceUrl)}</small><strong>{item.atoOficial || "Não informado"}</strong></div><button className="detail-btn" onClick={() => openContestDetails(item)}>Ver detalhes ↗</button></div>
               </article>;
               })}
               {visibleCatalog.length === 0 && <div className="empty">

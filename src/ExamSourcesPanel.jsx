@@ -1,4 +1,5 @@
 import React,{useEffect,useMemo,useState} from "react";
+import { isTrustedOfficialUrl } from "./lib/official-sources.js";
 
 const fallbackSources=[
 {id:"cebraspe-trego-2008",board:"Cebraspe",exam_name:"TRE/GO — Analista Judiciário — Caderno A",exam_year:2008,discipline:"Diversas disciplinas",role_name:"Analista Judiciário — Área Administrativa",source_url:"https://cdn.cebraspe.org.br/concursos/TRE_GO2008/",exam_url:"https://cdn.cebraspe.org.br/concursos/TRE_GO2008/arquivos/TREGO_CARGO_01_CADERNO_A.pdf",answer_key_url:"https://cdn.cebraspe.org.br/concursos/TRE_GO2008/arquivos/TREGO08_Gab_Definitivo_001_1.PDF",notes:"Caderno e gabarito definitivo publicados no arquivo oficial do Cebraspe."},
@@ -10,7 +11,7 @@ const fallbackSources=[
 {id:"vunesp-pmes-2026",board:"Vunesp",exam_name:"Polícia Militar de São Paulo — Aluno-Soldado",exam_year:2026,discipline:"Diversas disciplinas",role_name:"Aluno-Soldado PM do Quadro de Praças",source_url:"https://www.vunesp.com.br/PMES2601",notes:"Página oficial informa a publicação do caderno e do gabarito; consulte a seção de documentos."},
 {id:"cebraspe-pgeal-2008",board:"Cebraspe",exam_name:"Procuradoria-Geral do Estado de Alagoas — Procurador",exam_year:2008,discipline:"Direito",role_name:"Procurador do Estado",source_url:"https://cdn.cebraspe.org.br/concursos/PGE_AL2008/",notes:"Página oficial arquivada com cadernos e acesso ao gabarito/folha de respostas."}
 ];
-const secureUrl=url=>typeof url==="string"&&/^https:\/\//i.test(url);
+const secureUrl=url=>isTrustedOfficialUrl(url);
 
 export default function ExamSourcesPanel({authClient}){
  const [sources,setSources]=useState(fallbackSources);
