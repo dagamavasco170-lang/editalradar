@@ -1005,7 +1005,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     setDiscoveryDraftId(null);
     setAdminEditingId(item?.id ?? null);
     setAdminDraft({
-      cargo: "", orgao: "", sigla: "", vagas: "", nivel: "", area: "Federal",
+      cargo: "", orgao: "", sigla: "", nivel: "", area: "Federal",
       estado: "Brasil", localidade: "Brasil", status: "Pré-edital / anunciado",
       atoOficial: "", sourceUrl: "", observacao: "", vinculo: "",
       ...(item || {}),
