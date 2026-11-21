@@ -46,6 +46,9 @@ jobs:
       - name: Instalar dependências
         run: npm install
       - name: Compilar para produção
+        env:
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
         run: npm run build
       - name: Instalar Chromium para testes de navegador
         run: npx playwright install --with-deps chromium
