@@ -59,6 +59,7 @@ export default function App() {
   const [authMode, setAuthMode] = useState("login");
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
+  const [authPasswordConfirm, setAuthPasswordConfirm] = useState("");
   const [authBusy, setAuthBusy] = useState(false);
   const [authMessage, setAuthMessage] = useState("");
   const [authMessageType, setAuthMessageType] = useState("info");
@@ -80,9 +81,15 @@ export default function App() {
       }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setAuthUser(session?.user || null);
       setAuthReady(true);
+      if (event === "PASSWORD_RECOVERY") {
+        setAuthMode("reset");
+        setShowAuth(true);
+        setAuthMessage("Defina uma nova senha para concluir a recuperação da sua conta.");
+        setAuthMessageType("info");
+      }
     });
 
     return () => {
@@ -166,7 +173,25 @@ export default function App() {
     setAuthBusy(true);
     setAuthMessage("");
     try {
-      if (authMode === "signup") {
+      if (authMode === "recovery") {
+        const { error } = await supabase.auth.resetPasswordForEmail(authEmail.trim(), {
+          redirectTo: window.location.origin + window.location.pathname
+        });
+        if (error) throw error;
+        setAuthMessage("Se este e-mail estiver cadastrado, enviaremos um link para redefinir sua senha.");
+        setAuthMessageType("success");
+      } else if (authMode === "reset") {
+        if (!authUser) throw new Error("Abra o link de recuperação enviado ao seu e-mail antes de definir uma nova senha.");
+        if (authPassword !== authPasswordConfirm) throw new Error("As senhas não coincidem.");
+        const { error } = await supabase.auth.updateUser({ password: authPassword });
+        if (error) throw error;
+        setAuthPassword("");
+        setAuthPasswordConfirm("");
+        setAuthMode("login");
+        setShowAuth(false);
+        setAuthMessage("Senha atualizada com sucesso. Você já pode continuar usando sua conta.");
+        setAuthMessageType("success");
+      } else if (authMode === "signup") {
         const { data, error } = await supabase.auth.signUp({
           email: authEmail.trim(),
           password: authPassword,
@@ -361,18 +386,21 @@ export default function App() {
         <section className="modal auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title" onClick={(event) => event.stopPropagation()}>
           <button className="modal-close" onClick={() => setShowAuth(false)} aria-label="Fechar cadastro e login">×</button>
           <div className="eyebrow">SUA CONTA EDITALRADAR</div>
-          <h2 id="auth-title">{authMode === "signup" ? "Criar sua conta" : "Entrar na sua conta"}</h2>
+          <h2 id="auth-title">{authMode === "signup" ? "Criar sua conta" : authMode === "recovery" ? "Recuperar senha" : authMode === "reset" ? "Criar nova senha" : "Entrar na sua conta"}</h2>
           {isSupabaseConfigured ? (
             <form className="auth-form" onSubmit={handleAuthSubmit}>
-              <label>E-mail<input type="email" value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} autoComplete="email" required placeholder="voce@exemplo.com" /></label>
-              <label>Senha<input type="password" value={authPassword} onChange={(event) => setAuthPassword(event.target.value)} autoComplete={authMode === "signup" ? "new-password" : "current-password"} minLength={8} required placeholder="Pelo menos 8 caracteres" /></label>
-              <button className="primary-btn full" type="submit" disabled={authBusy}>{authBusy ? "Aguarde..." : authMode === "signup" ? "Criar conta" : "Entrar"}</button>
-              <button className="auth-mode-toggle" type="button" onClick={() => { setAuthMode(authMode === "signup" ? "login" : "signup"); setAuthMessage(""); }}>{authMode === "signup" ? "Já tenho uma conta — entrar" : "Ainda não tenho conta — cadastrar"}</button>
+              <label>E-mail<input type="email" value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} autoComplete="email" required placeholder="voce@exemplo.com" disabled={authMode === "reset"} /></label>
+              {authMode !== "recovery" && <label>{authMode === "reset" ? "Nova senha" : "Senha"}<input type="password" value={authPassword} onChange={(event) => setAuthPassword(event.target.value)} autoComplete={authMode === "signup" || authMode === "reset" ? "new-password" : "current-password"} minLength={8} required placeholder="Pelo menos 8 caracteres" /></label>}
+              {authMode === "reset" && <label>Confirmar nova senha<input type="password" value={authPasswordConfirm} onChange={(event) => setAuthPasswordConfirm(event.target.value)} autoComplete="new-password" minLength={8} required placeholder="Digite a nova senha novamente" /></label>}
+              <button className="primary-btn full" type="submit" disabled={authBusy}>{authBusy ? "Aguarde..." : authMode === "signup" ? "Criar conta" : authMode === "recovery" ? "Enviar link de recuperação" : authMode === "reset" ? "Salvar nova senha" : "Entrar"}</button>
+              {authMode === "login" && <button className="auth-mode-toggle" type="button" onClick={() => { setAuthMode("recovery"); setAuthMessage(""); }}>Esqueci minha senha</button>}
+              {authMode !== "login" && authMode !== "reset" && <button className="auth-mode-toggle" type="button" onClick={() => { setAuthMode("login"); setAuthPassword(""); setAuthPasswordConfirm(""); setAuthMessage(""); }}>Voltar ao login</button>}
+              {authMode === "signup" && <button className="auth-mode-toggle" type="button" onClick={() => { setAuthMode("login"); setAuthMessage(""); }}>Já tenho uma conta — entrar</button>}
               {authMessage && <p className={`auth-message ${authMessageType}`} role="status">{authMessage}</p>}
             </form>
           ) : (
             <div className="auth-setup">
-              <p>O cadastro está preparado, mas falta conectar o projeto ao Supabase para ativar as contas e o banco de dados.</p>
+              <p>O cadastro e a recuperação de senha estão preparados, mas falta conectar o projeto ao Supabase para ativar as contas.</p>
               <ol>
                 <li>Crie um projeto gratuito no Supabase.</li>
                 <li>Execute o SQL de <code>supabase/migrations/202611210001_user_data.sql</code> no SQL Editor.</li>
@@ -383,7 +411,7 @@ export default function App() {
           )}
         </section>
       </div>}
-      {selected && <div className="modal-backdrop" onClick={() => setSelected(null)}><div className="modal" onClick={(e) => e.stopPropagation()}><button className="modal-close" onClick={() => setSelected(null)}>×</button><span className="status"><i />{selected.status}</span><div className="eyebrow">DETALHES DA SELEÇÃO</div><h2>{selected.cargo}</h2><p className="org-name">{selected.orgao}</p><div className="modal-facts"><div><small>Vagas informadas</small><strong>{selected.vagas == null ? "A divulgar" : selected.vagas}</strong></div><div><small>Escolaridade</small><strong>{selected.nivel}</strong></div><div><small>Vínculo</small><strong>{selected.vinculo || "Não informado"}</strong></div><div><small>Ato oficial</small><strong>{selected.atoOficial || "Consulte a planilha"}</strong></div></div><p className="muted">{selected.observacao}</p><a className="primary-btn full modal-source-link" href={selected.sourceUrl || sourceUrl} target="_blank" rel="noreferrer">Consultar página oficial do concurso ↗</a><button className="detail-btn full" onClick={() => toggleFavorite(selected.id)}>{favorites.includes(selected.id) ? "Remover dos favoritos" : "Salvar nos favoritos"}</button></div></div>}
+            {selected && <div className="modal-backdrop" onClick={() => setSelected(null)}><div className="modal" onClick={(e) => e.stopPropagation()}><button className="modal-close" onClick={() => setSelected(null)}>×</button><span className="status"><i />{selected.status}</span><div className="eyebrow">DETALHES DA SELEÇÃO</div><h2>{selected.cargo}</h2><p className="org-name">{selected.orgao}</p><div className="modal-facts"><div><small>Vagas informadas</small><strong>{selected.vagas == null ? "A divulgar" : selected.vagas}</strong></div><div><small>Escolaridade</small><strong>{selected.nivel}</strong></div><div><small>Vínculo</small><strong>{selected.vinculo || "Não informado"}</strong></div><div><small>Ato oficial</small><strong>{selected.atoOficial || "Consulte a planilha"}</strong></div></div><p className="muted">{selected.observacao}</p><a className="primary-btn full modal-source-link" href={selected.sourceUrl || sourceUrl} target="_blank" rel="noreferrer">Consultar página oficial do concurso ↗</a><button className="detail-btn full" onClick={() => toggleFavorite(selected.id)}>{favorites.includes(selected.id) ? "Remover dos favoritos" : "Salvar nos favoritos"}</button></div></div>}
     </div>
   );
 }
