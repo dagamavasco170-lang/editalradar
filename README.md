@@ -20,7 +20,7 @@ Cada cartão leva à página oficial do respectivo órgão. Status e datas devem
 
 ## Limites da cobertura
 
-O catálogo combina concursos federais e oportunidades estaduais e municipais, com cobertura inicial concentrada em Alagoas e em seleções monitoradas pelo Cebraspe. A lista ainda não representa todos os concursos do Brasil. Registros sem confirmação individual continuam identificados como preliminares. O monitor automático mantém a situação das inscrições como 'a confirmar' quando não consegue validar o cronograma vigente.
+O catálogo combina concursos federais e oportunidades estaduais e municipais, com cobertura inicial concentrada em Alagoas e em seleções monitoradas pelo Cebraspe. No corte de 21/11/2026, o catálogo inicial possui 39 fichas; 11 continuam marcadas como preliminares e fora da soma de vagas confirmadas. A lista ainda não representa todos os concursos do Brasil. Registros sem confirmação individual continuam identificados como preliminares. O monitor automático mantém a situação das inscrições como 'a confirmar' quando não consegue validar o cronograma vigente.
 
 ## Registros preliminares
 
@@ -35,7 +35,7 @@ O catálogo também pode exibir registros preliminares de Alagoas identificados 
 - Links oficiais por concurso e detalhes.
 - Favoritos e filtros sincronizados para usuários autenticados.
 - Central de notificações com histórico local para visitantes e sincronizado entre dispositivos para usuários autenticados.
-- Área de estudos com checklist e questão demonstrativa.
+- Planejador semanal de estudos por carga horária e dias disponíveis, com sessões marcáveis e foco no concurso selecionado. O plano é salvo localmente e separado por conta neste navegador.\n- Banco de questões autorais por disciplina e estilo de banca; as questões são exercícios originais de treino, não questões oficiais nem reproduções de provas.
 - Interface responsiva.
 - Aplicativo instalável (PWA), com cache do catálogo e da interface para acesso básico sem conexão após a primeira visita.
 - Painel administrativo com controle por função, cadastro/edição/remoção de concursos e fila de revisão de oportunidades detectadas pelo monitor de fontes oficiais.
@@ -55,7 +55,7 @@ O usuário pode autorizar notificações do navegador, consultar avisos não lid
 
 ## Monitoramento automático das fontes
 
-O GitHub Actions verifica diariamente os links de origem cadastrados em `src/data/concursos.js`. Além de detectar páginas alteradas e novos links, o robô abre as páginas oficiais e faz uma triagem automática. Quando há evidências suficientes de edital de concurso/processo seletivo, órgão, cargo e esfera/estado, a ficha é estruturada e cadastrada no catálogo. Links claramente alheios a concursos são descartados. Páginas ambíguas, PDFs digitalizados como imagem e documentos sem dados suficientes permanecem na fila administrativa; PDFs pesquisáveis são extraídos automaticamente. O sistema não inventa vagas, escolaridade ou datas; dados não confirmados ficam marcados para conferência. Para ativar, execute as migrações `202611220003_contest_discoveries.sql` e `202611220004_auto_publish.sql` no SQL Editor e configure os secrets `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` no GitHub Actions. O robô roda diariamente e também pode ser iniciado em Actions → **Monitorar fontes de concursos** → Run workflow.
+O GitHub Actions verifica diariamente os links de origem cadastrados em `src/data/concursos.js` e no `sourceRegistry`. O registro inicial de fontes inclui páginas oficiais do Cebraspe, FGV, FCC, Vunesp e Instituto AOCP, além de órgãos e bancas já presentes no catálogo. Além de detectar páginas alteradas e novos links, o robô abre as páginas oficiais e faz uma triagem automática. Quando há evidências suficientes de edital de concurso/processo seletivo, órgão, cargo e esfera/estado, a ficha é estruturada e cadastrada no catálogo. Links claramente alheios a concursos são descartados. Páginas ambíguas, PDFs digitalizados como imagem e documentos sem dados suficientes permanecem na fila administrativa; PDFs pesquisáveis são extraídos automaticamente. O sistema não inventa vagas, escolaridade ou datas; dados não confirmados ficam marcados para conferência. Para ativar, execute as migrações `202611220003_contest_discoveries.sql` e `202611220004_auto_publish.sql` no SQL Editor e configure os secrets `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` no GitHub Actions. O robô roda diariamente e também pode ser iniciado em Actions → **Monitorar fontes de concursos** → Run workflow.
 
 ## Painel administrativo
 
