@@ -62,7 +62,7 @@ export function extractOpportunityLinks(html, sourceUrl) {
     const title = decodeHtmlText(match[2]);
     const searchable = title + " " + href;
     const explicitContest = contestKeyword.test(searchable)
-      && /(20\\d{2}|cargo|vagas?|publicad[oa]|abert[oa]|edital)/i.test(searchable);
+      && /(20\d{2}|cargo|vagas?|publicad[oa]|abert[oa]|edital)/i.test(searchable);
     if (!href || !title || (!keywords.test(searchable) && !explicitContest)) continue;
 
     try {
