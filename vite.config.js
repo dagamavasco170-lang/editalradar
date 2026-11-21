@@ -3,7 +3,8 @@ import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   plugins: [react()],
-  base: "/editalradar/",
+  // GitHub Pages publica em subpasta; Vercel e desenvolvimento usam a raiz.
+  base: process.env.GITHUB_ACTIONS === "true" ? "/editalradar/" : "/",
   test: {
     environment: "jsdom",
     setupFiles: "./src/test-setup.js",
