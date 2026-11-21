@@ -81,9 +81,13 @@ jobs:
                 category: item.discovery_type === "new_link" ? "Novo link de oportunidade" : "Página oficial alterada para revisão"
               }))
             ];
-            const details = findings.map(item =>
-              "- **" + item.category + ":** [" + item.url + "](" + item.url + ") — " + item.message
-            ).join("\n");
+            const details = findings.map(item => {
+              const url = item.candidate_url || item.url;
+              const message = item.title
+                ? item.title + (item.context ? " — " + item.context : "")
+                : item.message;
+              return "- **" + item.category + ":** [" + url + "](" + url + ") — " + message;
+            }).join("\n");
             const body = [
               "O monitor diário encontrou mudanças nas páginas vinculadas ao catálogo do EditalRadar.",
               "",
