@@ -126,57 +126,68 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     setSyncStatus("loading");
 
     const loadAccountData = async () => {
-      const { data, error } = await authClient
-        .from("user_data")
-        .select("favorites, alerts, tasks")
-        .eq("user_id", userId)
-        .maybeSingle();
+      let resolved = null;
+      try {
+        const { data, error } = await authClient
+          .from("user_data")
+          .select("favorites, alerts, tasks")
+          .eq("user_id", userId)
+          .maybeSingle();
 
-      if (cancelled) return;
-      if (error) {
-        syncReadyUserRef.current = userId;
-        setSyncStatus("error");
-        setAuthMessage("Conta conectada, mas não foi possível carregar os dados. Confira a tabela e as políticas de acesso do Supabase.");
-        setAuthMessageType("error");
-        return;
-      }
-
-      // Preserve actions made while the cloud row was loading instead of
-      // replacing those fresh local changes with an older remote snapshot.
-      const pending = { ...pendingChangesRef.current };
-      const resolved = {
-        favorites: Array.isArray(data?.favorites) ? data.favorites : favorites,
-        alerts: Array.isArray(data?.alerts) ? data.alerts : alerts,
-        tasks: Array.isArray(data?.tasks) ? data.tasks : tasks,
-        ...pending
-      };
-
-      setFavorites(resolved.favorites);
-      setAlerts(resolved.alerts);
-      setTasks(resolved.tasks);
-      localStorage.setItem("er-favorites", JSON.stringify(resolved.favorites));
-      localStorage.setItem("er-alerts", JSON.stringify(resolved.alerts));
-      localStorage.setItem("er-tasks", JSON.stringify(resolved.tasks));
-
-      syncReadyUserRef.current = userId;
-      if (!data || Object.keys(pending).length > 0) {
-        const { error: saveError } = await authClient.from("user_data").upsert({
-          user_id: userId,
-          ...resolved,
-          updated_at: new Date().toISOString()
-        });
         if (cancelled) return;
-        if (saveError) {
-          setSyncStatus("error");
-          setAuthMessage("Não foi possível salvar os dados na nuvem. Eles continuam disponíveis neste navegador.");
-          setAuthMessageType("error");
-          return;
-        }
-      }
+        if (error) throw error;
 
-      if (!cancelled) {
-        setSyncStatus("synced");
-        setAuthMessage("");
+        // Preserve actions made while the cloud row was loading instead of
+        // replacing those fresh local changes with an older remote snapshot.
+        const pending = { ...pendingChangesRef.current };
+        pendingChangesRef.current = {};
+        resolved = {
+          favorites: Array.isArray(data?.favorites) ? data.favorites : favorites,
+          alerts: Array.isArray(data?.alerts) ? data.alerts : alerts,
+          tasks: Array.isArray(data?.tasks) ? data.tasks : tasks,
+          ...pending
+        };
+
+        setFavorites(resolved.favorites);
+        setAlerts(resolved.alerts);
+        setTasks(resolved.tasks);
+        localStorage.setItem("er-favorites", JSON.stringify(resolved.favorites));
+        localStorage.setItem("er-alerts", JSON.stringify(resolved.alerts));
+        localStorage.setItem("er-tasks", JSON.stringify(resolved.tasks));
+
+        // Create the initial row, or persist any actions made during hydration.
+        if (!data || Object.keys(pending).length > 0) {
+          const { error: saveError } = await authClient.from("user_data").upsert({
+            user_id: userId,
+            ...resolved,
+            updated_at: new Date().toISOString()
+          });
+          if (saveError) throw saveError;
+        }
+
+        // Flush interactions that arrived while the first upsert was in flight.
+        while (Object.keys(pendingChangesRef.current).length > 0) {
+          const changes = { ...pendingChangesRef.current };
+          pendingChangesRef.current = {};
+          const { error: saveError } = await authClient.from("user_data").upsert({
+            user_id: userId,
+            ...changes,
+            updated_at: new Date().toISOString()
+          });
+          if (saveError) throw saveError;
+        }
+
+        if (!cancelled) {
+          syncReadyUserRef.current = userId;
+          setSyncStatus("synced");
+          setAuthMessage("");
+        }
+      } catch (error) {
+        if (cancelled) return;
+        if (resolved) pendingChangesRef.current = { ...resolved, ...pendingChangesRef.current };
+        setSyncStatus("error");
+        setAuthMessage(error?.message || "Conta conectada, mas não foi possível sincronizar os dados. Confira a tabela e as políticas de acesso do Supabase.");
+        setAuthMessageType("error");
       }
     };
 
