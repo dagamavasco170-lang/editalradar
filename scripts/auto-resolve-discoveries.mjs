@@ -57,7 +57,7 @@ function firstMatch(text, patterns) {
 
 export function inferOrganization(text) {
   const patterns = [
-    /\b(Prefeitura Municipal de\s+[\p{L}'’-]+(?:\s+[\p{L}'’-]+){0,3})/iu,
+    /\b(Prefeitura Municipal de\s+[\p{L}'’-]+(?:\s+(?!torna\b|publica\b|abre\b|oferta\b|realiza\b|divulga\b|lança\b|informa\b|oferece\b)[\p{L}'’-]+){0,3})/iu,
     /\b(Secretaria de Estado da\s+[\p{L}'’-]+(?:\s+[\p{L}'’-]+){0,4})/iu,
     /\b(Secretaria de Estado do\s+[\p{L}'’-]+(?:\s+[\p{L}'’-]+){0,4})/iu,
     /\b(Polícia Civil do Estado de\s+[\p{L} ]{2,40})/iu,
