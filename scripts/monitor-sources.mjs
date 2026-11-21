@@ -59,33 +59,64 @@ export function resolveTrustedOfficialUrl(currentUrl, location) {
   return validateTrustedOfficialUrl(target.href).href;
 }
 
+const RETRYABLE_SOURCE_STATUSES = new Set([408, 425, 429, 500, 502, 503, 504]);
+
+const retryAfterMilliseconds = (headers, now = Date.now()) => {
+  const value = headers?.get?.("retry-after");
+  if (!value) return null;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds) && seconds >= 0) return Math.min(10000, seconds * 1000);
+  const date = Date.parse(value);
+  return Number.isFinite(date) ? Math.max(0, Math.min(10000, date - now)) : null;
+};
+
 export async function fetchOfficialSource(url, options = {}) {
   const request = options.fetchImpl || fetch;
   const timeoutMs = Math.max(1000, Number(options.timeoutMs) || 20000);
   const maxRedirects = Math.max(0, Math.min(10, Number(options.maxRedirects ?? 5)));
-  let currentUrl = validateTrustedOfficialUrl(url).href;
+  const attempts = Math.max(1, Math.min(4, Number(options.attempts) || 3));
+  const retryDelayMs = Math.max(0, Math.min(5000, Number(options.retryDelayMs ?? 500)));
+  const wait = options.sleepImpl || (milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds)));
+  const startUrl = validateTrustedOfficialUrl(url).href;
+  let lastError = null;
 
-  for (let redirectCount = 0; redirectCount <= maxRedirects; redirectCount += 1) {
-    const response = await request(currentUrl, {
-      redirect: "manual",
-      signal: AbortSignal.timeout(timeoutMs),
-      headers: {
-        "User-Agent": "EditalRadar-SourceMonitor/1.0 (+https://github.com/dagamavasco170-lang/editalradar)",
-        Accept: "text/html,application/xhtml+xml,application/pdf;q=0.9,*/*;q=0.7"
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    let currentUrl = startUrl;
+    try {
+      let result = null;
+      for (let redirectCount = 0; redirectCount <= maxRedirects; redirectCount += 1) {
+        const response = await request(currentUrl, {
+          redirect: "manual",
+          signal: AbortSignal.timeout(timeoutMs),
+          headers: {
+            "User-Agent": "EditalRadar-SourceMonitor/1.0 (+https://github.com/dagamavasco170-lang/editalradar)",
+            Accept: "text/html,application/xhtml+xml,application/pdf;q=0.9,*/*;q=0.7"
+          }
+        });
+        if ([301, 302, 303, 307, 308].includes(response.status)) {
+          if (redirectCount === maxRedirects) {
+            const error = new Error("A fonte excedeu o limite de redirecionamentos seguros.");
+            error.code = "UNSAFE_REDIRECT";
+            throw error;
+          }
+          currentUrl = resolveTrustedOfficialUrl(currentUrl, response.headers?.get?.("location"));
+          continue;
+        }
+        result = { response, finalUrl: response.url || currentUrl };
+        break;
       }
-    });
-    if ([301, 302, 303, 307, 308].includes(response.status)) {
-      if (redirectCount === maxRedirects) {
-        const error = new Error("A fonte excedeu o limite de redirecionamentos seguros.");
-        error.code = "UNSAFE_REDIRECT";
-        throw error;
-      }
-      currentUrl = resolveTrustedOfficialUrl(currentUrl, response.headers?.get?.("location"));
-      continue;
+      if (!result) throw new Error("Não foi possível resolver o endereço oficial.");
+      if (!RETRYABLE_SOURCE_STATUSES.has(result.response.status) || attempt === attempts) return result;
+      lastError = new Error("HTTP " + result.response.status);
+      const retryAfter = retryAfterMilliseconds(result.response.headers);
+      await wait(retryAfter ?? retryDelayMs * (2 ** (attempt - 1)));
+    } catch (error) {
+      if (error?.code === "UNSAFE_REDIRECT") throw error;
+      lastError = error;
+      if (attempt < attempts) await wait(retryDelayMs * (2 ** (attempt - 1)));
     }
-    return { response, finalUrl: response.url || currentUrl };
   }
-  throw new Error("Não foi possível resolver o endereço oficial.");
+  throw lastError || new Error("Falha de rede sem detalhes adicionais.");
 }
 
 export function collectSourceUrls(items = concursos, additionalSources = sourceRegistry) {
@@ -298,7 +329,8 @@ async function runMonitor() {
   }
 
   const firstRun = Object.keys(oldState.sources).length === 0;
-  const checked = await mapWithConcurrency(urls, 3, async (url) => {
+  const concurrency = Math.max(1, Math.min(8, Number(process.env.MONITOR_CONCURRENCY) || 4));
+  const checked = await mapWithConcurrency(urls, concurrency, async (url) => {
     try { return { url, current: await fetchSource(url) }; }
     catch (error) { return { url, current: { ok: false, error: error.message, checkedAt: new Date().toISOString() } }; }
   });
@@ -326,7 +358,7 @@ async function runMonitor() {
     message: "A fonte deixou de estar vinculada ao catálogo."
   }));
 
-  const report = { generatedAt: new Date().toISOString(), monitoredCount: urls.length, firstRun, changed, unavailable, added, removed, discoveries };
+  const report = { generatedAt: new Date().toISOString(), monitoredCount: urls.length, concurrency, firstRun, changed, unavailable, added, removed, discoveries };
   await writeFile(STATE_PATH, JSON.stringify({ version: 1, sources: prunedState.sources }, null, 2) + "\n");
   await writeFile(REPORT_PATH, JSON.stringify(report, null, 2) + "\n");
 
@@ -343,6 +375,7 @@ async function runMonitor() {
     "",
     "Verificado em: " + report.generatedAt,
     "Fontes acompanhadas: " + report.monitoredCount,
+    "Concorrência: " + report.concurrency + " · tentativas por fonte: 3",
     ...(firstRun ? ["Esta foi a primeira leitura; os resultados formam a linha de base."] : []),
     ""
   ];

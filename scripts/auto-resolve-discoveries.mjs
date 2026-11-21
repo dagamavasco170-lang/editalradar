@@ -1,4 +1,5 @@
 import { pathToFileURL } from "node:url";
+import { appendFile } from "node:fs/promises";
 import { execFile, execFileSync } from "node:child_process";
 import { promisify } from "node:util";
 
@@ -745,8 +746,8 @@ export async function autoResolvePending(options = {}) {
     try {
       return await prepareDiscoveryDocument(item, request, {
         timeoutMs: options.timeoutMs ?? TIMEOUT_MS,
-        attempts: options.attempts ?? 1,
-        retryDelayMs: options.retryDelayMs ?? 0,
+        attempts: options.attempts ?? 3,
+        retryDelayMs: options.retryDelayMs ?? 750,
         fallbackRequest: options.fallbackRequest || fetchCandidateWithCurl
       });
     } catch (error) {
@@ -903,7 +904,36 @@ export async function autoResolvePending(options = {}) {
 
 async function main() {
   const result = await autoResolvePending();
+  const summary = [
+    "## Triagem automática de oportunidades",
+    "",
+    "- Analisadas: " + result.inspected,
+    "- Publicadas: " + result.published,
+    "- Atualizadas: " + (result.updated || 0),
+    "- Descartadas: " + result.dismissed,
+    "- Aguardando revisão: " + result.pending,
+    "- Falhas técnicas: " + result.errors,
+    "",
+    result.pendingReasons && Object.keys(result.pendingReasons).length
+      ? "Motivos: " + JSON.stringify(result.pendingReasons)
+      : "Sem pendências técnicas nesta execução."
+  ].join("\\n");
   console.log("Triagem automática concluída: " + JSON.stringify(result));
+  if (process.env.GITHUB_OUTPUT) {
+    const output = [
+      "inspected_count=" + result.inspected,
+      "published_count=" + result.published,
+      "updated_count=" + (result.updated || 0),
+      "dismissed_count=" + result.dismissed,
+      "pending_count=" + result.pending,
+      "error_count=" + result.errors,
+      ""
+    ].join("\\n");
+    await appendFile(process.env.GITHUB_OUTPUT, output);
+  }
+  if (process.env.GITHUB_STEP_SUMMARY) {
+    await appendFile(process.env.GITHUB_STEP_SUMMARY, summary + "\\n");
+  }
   if (result.errors > 0) process.exitCode = 1;
 }
 

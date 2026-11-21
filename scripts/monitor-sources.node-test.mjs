@@ -37,6 +37,51 @@ test("segue somente redirecionamentos para domínios HTTPS oficiais autorizados"
   assert.equal(result.finalUrl, "https://orgao.gov.br/concursos");
 });
 
+
+
+test("repete consulta após HTTP 503 e respeita Retry-After antes de aceitar 200", async () => {
+  const requested = [];
+  const waits = [];
+  const result = await fetchOfficialSource("https://orgao.gov.br/concursos", {
+    attempts: 3,
+    retryDelayMs: 10,
+    sleepImpl: async milliseconds => waits.push(milliseconds),
+    fetchImpl: async (url, options) => {
+      requested.push({url, redirect:options.redirect});
+      if (requested.length === 1) {
+        return {status:503,headers:new Headers({"retry-after":"2"}),url};
+      }
+      return {status:200,headers:new Headers(),url};
+    }
+  });
+  assert.equal(result.response.status,200);
+  assert.equal(requested.length,2);
+  assert.deepEqual(waits,[2000]);
+  assert.ok(requested.every(item=>item.redirect==="manual"));
+});
+
+test("repete erro transitório de rede, mas não repete resposta 404", async () => {
+  let calls=0;
+  const recovered=await fetchOfficialSource("https://orgao.gov.br/concursos",{
+    attempts:2,retryDelayMs:5,sleepImpl:async()=>{},
+    fetchImpl:async url=>{
+      calls+=1;
+      if(calls===1)throw new Error("ECONNRESET");
+      return {status:200,headers:new Headers(),url};
+    }
+  });
+  assert.equal(recovered.response.status,200);
+  assert.equal(calls,2);
+
+  calls=0;
+  const notFound=await fetchOfficialSource("https://orgao.gov.br/nao-existe",{
+    attempts:3,retryDelayMs:5,sleepImpl:async()=>{},
+    fetchImpl:async url=>{calls+=1;return {status:404,headers:new Headers(),url};}
+  });
+  assert.equal(notFound.response.status,404);
+  assert.equal(calls,1);
+});
+
 test("bloqueia redirecionamento para domínio externo antes da segunda requisição", async () => {
   const requested = [];
   await assert.rejects(() => fetchOfficialSource("https://orgao.gov.br/inicio", {
