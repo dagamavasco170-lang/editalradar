@@ -380,10 +380,10 @@ describe("EditalRadar", () => {
   it("oculta os registros preliminares e atualiza a quantidade exibida", () => {
     render(<App />);
 
-    expect(screen.getByText("37 registros")).toBeInTheDocument();
+    expect(screen.getByText("39 registros")).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText("Ocultar registros preliminares"));
 
-    expect(screen.getByText("26 registros")).toBeInTheDocument();
+    expect(screen.getByText("28 registros")).toBeInTheDocument();
     expect(screen.getByLabelText("Ocultar registros preliminares")).toBeChecked();
   });
 
@@ -394,7 +394,7 @@ describe("EditalRadar", () => {
     fireEvent.click(screen.getByRole("button", { name: /Salvar alerta/ }));
 
     expect(screen.getByText(/Somente fichas não preliminares/)).toBeInTheDocument();
-    expect(screen.getByText("26 oportunidade(s) correspondente(s)")).toBeInTheDocument();
+    expect(screen.getByText("28 oportunidade(s) correspondente(s)")).toBeInTheDocument();
     expect(JSON.parse(localStorage.getItem("er-alerts"))[0].filters.ocultarPreliminares).toBe(true);
   });
 

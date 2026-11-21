@@ -739,6 +739,62 @@ export const concursos = [
       "verificadoEm": "2026-11-21"
     },
     "observacao": "A Fundação Vunesp informa 2.000 vagas para Aluno-Soldado PM, inscrições de 09/11 a 22/12/2026 e exames de conhecimentos previstos para 28/02/2027. A ficha deve ser atualizada quando houver novas retificações."
+  },
+  {
+    "id": 517,
+    "sigla": "PMPE",
+    "cargo": "Soldado e Oficiais (QOPM e Oficiais da Saúde)",
+    "orgao": "Polícia Militar do Estado de Pernambuco",
+    "vinculo": "Concurso público PMPE 001/2026",
+    "nivel": "Médio e Superior",
+    "vagas": 1320,
+    "vagasTotais": 1320,
+    "vagasImediatas": 1320,
+    "atoOficial": "Concurso Público nº 001/2026 — edital e retificações no Instituto AOCP",
+    "status": "Inscrições abertas até 23/11/2026 às 14h",
+    "area": "Estadual",
+    "estado": "Pernambuco",
+    "localidade": "Pernambuco",
+    "sourceUrl": "https://beta.institutoaocp.org.br/",
+    "remuneracao": {
+      "valor": "R$ 5.617,92 (Soldado) a R$ 12.937,33 (Oficial)",
+      "moeda": "BRL",
+      "periodicidade": "mensal",
+      "natureza": "Faixa inicial por carreira",
+      "observacao": "A remuneração inicial varia por carreira: Soldado R$ 5.617,92; Oficial R$ 12.937,33. Consulte o edital para requisitos e composição remuneratória de cada especialidade.",
+      "sourceUrl": "https://noticias.institutoaocp.org.br/blog/pm-e-bombeiros-de-pernambuco-tem-prazo-de-inscricao-estendido",
+      "sourceLabel": "Instituto AOCP — prorrogação das inscrições PMPE e CBMPE",
+      "verificadoEm": "2026-11-21"
+    },
+    "observacao": "São 1.250 vagas para Soldado (nível médio) e 70 vagas para Oficiais, incluindo Oficial QOPM e Oficiais da Saúde. O salário inicial divulgado é de R$ 5.617,92 para Soldado e R$ 12.937,33 para Oficial. Prova objetiva prevista para 21/02/2027. Inscrições prorrogadas até 23/11/2026 às 14h, horário de Brasília."
+  },
+  {
+    "id": 518,
+    "sigla": "CBMPE",
+    "cargo": "Soldado e Oficial Combatente",
+    "orgao": "Corpo de Bombeiros Militar do Estado de Pernambuco",
+    "vinculo": "Concurso público CBMPE 002/2026",
+    "nivel": "Médio e Superior",
+    "vagas": 570,
+    "vagasTotais": 570,
+    "vagasImediatas": 570,
+    "atoOficial": "Concurso Público nº 002/2026 — edital e retificações no Instituto AOCP",
+    "status": "Inscrições abertas até 23/11/2026 às 14h",
+    "area": "Estadual",
+    "estado": "Pernambuco",
+    "localidade": "Pernambuco",
+    "sourceUrl": "https://beta.institutoaocp.org.br/",
+    "remuneracao": {
+      "valor": "R$ 5.617,92 (Soldado) a R$ 12.937,33 (Oficial)",
+      "moeda": "BRL",
+      "periodicidade": "mensal",
+      "natureza": "Faixa inicial por carreira",
+      "observacao": "A remuneração inicial varia por carreira: Soldado R$ 5.617,92; Oficial R$ 12.937,33. Consulte o edital para requisitos e composição remuneratória de cada especialidade.",
+      "sourceUrl": "https://noticias.institutoaocp.org.br/blog/pm-e-bombeiros-de-pernambuco-tem-prazo-de-inscricao-estendido",
+      "sourceLabel": "Instituto AOCP — prorrogação das inscrições PMPE e CBMPE",
+      "verificadoEm": "2026-11-21"
+    },
+    "observacao": "São 510 vagas para Soldado (nível médio) e 60 vagas para Oficial Combatente (nível superior). O salário inicial divulgado é de R$ 5.617,92 para Soldado e R$ 12.937,33 para Oficial. Prova objetiva prevista para 28/02/2027. Inscrições prorrogadas até 23/11/2026 às 14h, horário de Brasília."
   }
 ];
 
