@@ -403,7 +403,7 @@ export async function fetchCandidateWithCurl(candidateUrl, options = {}) {
       maxBuffer: 64 * 1024
     });
 
-    const metadataLines = metadata.trim().split("\\n");
+    const metadataLines = metadata.trim().split("\n");
     const status = Number(metadataLines[0]);
     const finalUrl = metadataLines[1] || candidateUrl;
     const contentType = metadataLines[2] || "";
@@ -504,7 +504,7 @@ export async function mapWithConcurrency(items, limit, worker) {
   return output;
 }
 
-export function buildPendingDiscoveriesUrl(baseUrl, now = new Date(), cooldownMs = 12 * 60 * 60 * 1000) {
+export function buildPendingDiscoveriesUrl(baseUrl, now = new Date(), cooldownMs = 6 * 60 * 60 * 1000) {
   const url = new URL("/rest/v1/contest_discoveries", baseUrl);
   const retryBefore = new Date(now.getTime() - cooldownMs).toISOString();
   url.searchParams.set("select", "id,source_url,candidate_url,title,context,discovery_type,status");
@@ -552,14 +552,14 @@ export async function prepareDiscoveryDocument(item, request = fetch, options = 
   }
 
   const contentType = response.headers?.get?.("content-type") || "";
-  const isPdf = /application\\/pdf/i.test(contentType) || /\\.pdf(?:$|[?#])/i.test(finalUrl);
+  const isPdf = /application\/pdf/i.test(contentType) || /\.pdf(?:$|[?#])/i.test(finalUrl);
   if (!response.ok) {
     return { stage: "review", reason: "A fonte oficial respondeu HTTP " + response.status + "." };
   }
   if (!isTrustedOfficialHost(finalHost)) {
     return { stage: "review", reason: "O link redirecionou para um domínio que não está na lista de fontes oficiais autorizadas." };
   }
-  if (!isPdf && !/(text\\/html|application\\/xhtml\\+xml|text\\/plain)/i.test(contentType)) {
+  if (!isPdf && !/(text\/html|application\/xhtml\+xml|text\/plain)/i.test(contentType)) {
     return {
       stage: "review",
       reason: "Formato ainda não suportado pela extração automática: " + (contentType || "tipo de conteúdo não informado") + "."
