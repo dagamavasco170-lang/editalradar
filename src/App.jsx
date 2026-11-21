@@ -167,6 +167,29 @@ const getContestSalary = (item) => {
   const nature = remuneration.natureza ? " · " + remuneration.natureza : "";
   return amount + nature;
 };
+const getSalaryAmount = (item) => {
+  const raw = getContestRemuneration(item)?.valor;
+  if (raw == null || raw === "") return null;
+  if (typeof raw === "number") return Number.isFinite(raw) ? raw : null;
+  const normalized = String(raw).replace(/[^\\d,.-]/g, "").replace(/\\./g, "").replace(",", ".");
+  if (!normalized || !/[\\d]/.test(normalized)) return null;
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+const getVacancyAmount = (item) => {
+  const raw = item?.vagasTotais ?? item?.vagas;
+  if (raw == null || raw === "") return null;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+const getStatusPriority = (item) => ({
+  "status-open": 0,
+  "status-upcoming": 1,
+  "status-stage": 2,
+  "status-neutral": 3,
+  "status-closed": 4
+}[getStatusTone(item?.status)] ?? 5);
+
 
 const brazilianStates = [
   "Acre", "Alagoas", "Amapá", "Amazonas", "Bahia", "Ceará", "Distrito Federal",
@@ -185,6 +208,10 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   const [localidade, setLocalidade] = useState("Todas as cidades");
   const [situacao, setSituacao] = useState("Todas as situações");
   const [ocultarPreliminares, setOcultarPreliminares] = useState(false);
+  const [sortMode, setSortMode] = useState(() => readStore("er-catalog-sort", "catalog"));
+  const [catalogView, setCatalogView] = useState(() => readStore("er-catalog-view", "grid"));
+  const [exportMessage, setExportMessage] = useState("");
+
   const [alerts, setAlerts] = useState(() => {
     const stored = readStore("er-alerts", []);
     return Array.isArray(stored) ? stored : [];
@@ -695,8 +722,76 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   };
   const filtered = useMemo(
     () => catalog.filter((item) => matchesFilters(item, currentFilters)),
-    [query, nivel, esfera, estado, localidade, situacao, ocultarPreliminares]
+    [catalog, query, nivel, esfera, estado, localidade, situacao, ocultarPreliminares]
   );
+  const visibleCatalog = useMemo(() => {
+    const items = page === "favoritos"
+      ? filtered.filter((item) => favorites.includes(item.id))
+      : filtered;
+    if (sortMode === "catalog") return items;
+    return [...items].sort((a, b) => {
+      if (sortMode === "salary") {
+        const aValue = getSalaryAmount(a), bValue = getSalaryAmount(b);
+        if (aValue == null && bValue == null) return 0;
+        if (aValue == null) return 1;
+        if (bValue == null) return -1;
+        return bValue - aValue;
+      }
+      if (sortMode === "vacancies") {
+        const aValue = getVacancyAmount(a), bValue = getVacancyAmount(b);
+        if (aValue == null && bValue == null) return 0;
+        if (aValue == null) return 1;
+        if (bValue == null) return -1;
+        return bValue - aValue;
+      }
+      if (sortMode === "status") {
+        return getStatusPriority(a) - getStatusPriority(b)
+          || String(a.cargo || "").localeCompare(String(b.cargo || ""), "pt-BR");
+      }
+      return String(a.cargo || "").localeCompare(String(b.cargo || ""), "pt-BR");
+    });
+  }, [filtered, page, favorites, sortMode]);
+
+  const updateSortMode = (value) => {
+    setSortMode(value);
+    try { localStorage.setItem("er-catalog-sort", JSON.stringify(value)); } catch { /* preferência temporária */ }
+  };
+  const updateCatalogView = (value) => {
+    setCatalogView(value);
+    try { localStorage.setItem("er-catalog-view", JSON.stringify(value)); } catch { /* preferência temporária */ }
+  };
+  const exportFavoriteContests = () => {
+    const favoriteItems = catalog.filter((item) => favorites.includes(item.id));
+    if (!favoriteItems.length) return;
+    const columns = [
+      ["Órgão", "orgao"], ["Cargo", "cargo"], ["Sigla", "sigla"], ["Situação", "status"],
+      ["Vagas", "vagas"], ["Remuneração", "salary"], ["Escolaridade", "nivel"],
+      ["Localidade", "localidade"], ["Estado", "estado"], ["Fonte", "source"]
+    ];
+    const escapeCell = (value) => {
+      const raw = String(value ?? "");
+      const safe = /^[=+@\\-\\t\\r]/.test(raw) ? "'" + raw : raw;
+      return '"' + safe.replace(/"/g, '""') + '"';
+    };
+    const rows = [
+      columns.map(([label]) => label),
+      ...favoriteItems.map((item) => columns.map(([, key]) => key === "salary"
+        ? getContestSalary(item)
+        : key === "source" ? (item.sourceUrl || item.url || sourceUrl) : item[key]))
+    ];
+    const csv = "\\uFEFF" + rows.map((row) => row.map(escapeCell).join(";")).join("\\r\\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "editalradar-favoritos-" + new Date().toISOString().slice(0, 10) + ".csv";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+    setExportMessage(favoriteItems.length + " oportunidade(s) exportada(s) para CSV.");
+  };
+
 
   const syncUserData = async (changes) => {
     if (!authClient || !authUser) return;
@@ -1658,7 +1753,29 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                 ))}</div>
               </section>
             )}
-            <div className="section-title"><div><div className="eyebrow">CATÁLOGO DE OPORTUNIDADES</div><h2>{page === "favoritos" ? "Seus concursos favoritos" : "Concursos e avisos no catálogo"}</h2></div><span className="results">{(page === "favoritos" ? filtered.filter(c => favorites.includes(c.id)) : filtered).length} registros</span></div>
+            <div className="section-title">
+              <div><div className="eyebrow">{page === "favoritos" ? "SUA LISTA PESSOAL" : "CATÁLOGO DE OPORTUNIDADES"}</div><h2>{page === "favoritos" ? "Seus concursos favoritos" : "Concursos e avisos no catálogo"}</h2></div>
+              <div className="section-heading-actions">
+                <span className="results">{visibleCatalog.length} registros</span>
+                {page === "favoritos" && <button className="export-favorites-btn" type="button" onClick={exportFavoriteContests} disabled={favorites.length === 0}>↓ Exportar CSV</button>}
+              </div>
+            </div>
+            <div className="catalog-view-toolbar">
+              <label className="catalog-sort">Ordenar por
+                <select aria-label="Ordenar concursos" value={sortMode} onChange={(event) => updateSortMode(event.target.value)}>
+                  <option value="catalog">Ordem do catálogo</option>
+                  <option value="salary">Maior remuneração</option>
+                  <option value="vacancies">Maior número de vagas</option>
+                  <option value="status">Situação da inscrição</option>
+                  <option value="name">Nome do cargo (A–Z)</option>
+                </select>
+              </label>
+              <div className="catalog-view-switch" role="group" aria-label="Modo de visualização">
+                <button type="button" aria-label="Visualização em grade" aria-pressed={catalogView === "grid"} className={catalogView === "grid" ? "active" : ""} onClick={() => updateCatalogView("grid")}>▦ <span>Grade</span></button>
+                <button type="button" aria-label="Visualização em lista" aria-pressed={catalogView === "list"} className={catalogView === "list" ? "active" : ""} onClick={() => updateCatalogView("list")}>☷ <span>Lista</span></button>
+              </div>
+            </div>
+            {exportMessage && page === "favoritos" && <p className="export-feedback" role="status">{exportMessage}</p>}
             <div className="catalog-filter-panel" aria-label="Filtros do catálogo">
               <div className="catalog-filter-heading">
                 <div>
@@ -1727,8 +1844,8 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                 </div>
               </section>
             )}
-            <div className="cards">
-              {(page === "favoritos" ? filtered.filter(c => favorites.includes(c.id)) : filtered).map((item) => {
+            <div className={"cards " + (catalogView === "list" ? "cards-list" : "cards-grid")} data-view={catalogView}>
+              {visibleCatalog.map((item) => {
                 const isComparing = comparisonItems.some((entry) => String(entry.id) === String(item.id));
                 const compareLimitReached = comparisonItems.length >= 3 && !isComparing;
                 return <article className="contest-card" key={item.id}>
@@ -1747,7 +1864,13 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                 <div className="card-bottom"><div><small>{isPreliminary(item) ? "Listagem de referência" : "Fonte oficial"}</small><strong>{item.atoOficial || "Não informado"}</strong></div><button className="detail-btn" onClick={() => openContestDetails(item)}>Ver detalhes ↗</button></div>
               </article>;
               })}
-              {((page === "favoritos" && filtered.filter(c => favorites.includes(c.id)).length === 0) || (page !== "favoritos" && filtered.length === 0)) && <div className="empty">Nenhum concurso encontrado. Experimente ajustar os filtros.</div>}
+              {visibleCatalog.length === 0 && <div className="empty">
+                <strong>{page === "favoritos" ? "Sua lista está pronta para começar." : "Nenhum concurso encontrado."}</strong>
+                <p>{page === "favoritos" ? "Salve oportunidades pelo ícone de coração para montar sua lista de acompanhamento." : "Experimente retirar algum filtro ou buscar por outro cargo ou órgão."}</p>
+                {page === "favoritos"
+                  ? <button className="primary-btn" type="button" onClick={() => setPage("concursos")}>Explorar concursos</button>
+                  : activeFilterCount > 0 && <button className="detail-btn" type="button" onClick={clearCatalogFilters}>Limpar filtros</button>}
+              </div>}
             </div>
             <div className="source-footnote"><span>Fontes: órgãos federais, Governo de Alagoas, Cebraspe, IGEDUC e portais municipais.</span><span>Conferência editorial: {sourceUpdated} · Dados compilados em: {fetchedAt ? new Date(fetchedAt).toLocaleString("pt-BR") : "não informado"}</span><a href={sourceUrl} target="_blank" rel="noreferrer">Ver página geral do MGI ↗</a></div>
             <p className="disclaimer">Este catálogo é uma amostra inicial e não cobre todos os estados e municípios do Brasil. Registros marcados como preliminares vêm de listagem secundária e ainda não foram confirmados individualmente em edital oficial; não considere suas vagas, requisitos ou cronograma como definitivos. Eles não entram na soma de vagas. “Vagas a divulgar” indica que o quantitativo não foi informado nesta ficha. Confirme sempre datas, requisitos, lotação e etapas na publicação oficial.</p>

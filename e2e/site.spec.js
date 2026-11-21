@@ -222,3 +222,43 @@ test("mantém o novo visual sem rolagem horizontal em celular e tablet", async (
     await expect(page.locator(".contest-card").first()).toBeVisible();
   }
 });
+
+
+test("ordena o catálogo e alterna entre grade e lista", async ({ page }) => {
+  await page.goto("./");
+  await page.getByLabel("Ordenar concursos").selectOption("name");
+  const cargoNames = await page.locator(".contest-card h3").allInnerTexts();
+  expect(cargoNames[0].localeCompare(cargoNames[1], "pt-BR")).toBeLessThanOrEqual(0);
+  await page.getByRole("button", { name: "Visualização em lista" }).click();
+  await expect(page.locator(".cards")).toHaveAttribute("data-view", "list");
+  await page.reload();
+  await expect(page.locator(".cards")).toHaveAttribute("data-view", "list");
+  await expect(page.getByLabel("Ordenar concursos")).toHaveValue("name");
+  await page.getByRole("button", { name: "Visualização em grade" }).click();
+  await expect(page.locator(".cards")).toHaveAttribute("data-view", "grid");
+});
+
+test("exporta favoritos para CSV", async ({ page }) => {
+  await page.goto("./");
+  await page.getByLabel("Salvar favorito").first().click();
+  await page.getByRole("button", { name: /Meus favoritos/ }).click();
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: /Exportar CSV/ }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toMatch(/^editalradar-favoritos-.*\\.csv$/);
+  await expect(page.getByRole("status").filter({ hasText: /exportada\(s\) para CSV/ })).toBeVisible();
+});
+
+test("cronômetro de foco permite iniciar, pausar e reiniciar", async ({ page }) => {
+  await page.goto("./");
+  await page.getByRole("button", { name: /Área de estudos/ }).click();
+  await expect(page.getByRole("heading", { name: "Hora de focar em você." })).toBeVisible();
+  await expect(page.getByRole("timer")).toContainText("25:00");
+  await page.getByRole("button", { name: "Iniciar foco" }).click();
+  await expect(page.getByRole("button", { name: "Pausar sessão" })).toBeVisible();
+  await page.getByRole("button", { name: "Pausar sessão" }).click();
+  await page.getByRole("button", { name: "Reiniciar" }).click();
+  await expect(page.getByRole("timer")).toContainText("25:00");
+  await page.getByRole("button", { name: /50 min/ }).click();
+  await expect(page.getByRole("timer")).toContainText("50:00");
+});

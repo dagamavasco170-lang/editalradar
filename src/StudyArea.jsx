@@ -12,6 +12,13 @@ const questionBank = [
 const subjects=["Língua Portuguesa","Direito Constitucional","Raciocínio lógico","Direito Administrativo","Informática"];
 const days=["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"];
 const storageKey=(userId)=>"er-study-plan:"+(userId||"visitor");
+const focusStorageKey=(userId)=>"er-focus-sessions:"+(userId||"visitor");
+const loadFocusSessions=(userId)=>{
+ try { const value=Number(localStorage.getItem(focusStorageKey(userId))||0); return Number.isFinite(value)&&value>0?Math.floor(value):0; }
+ catch { return 0; }
+};
+const formatClock=(seconds)=>String(Math.floor(seconds/60)).padStart(2,"0")+":"+String(seconds%60).padStart(2,"0");
+
 const loadPlan=(userId)=>{
  try {
   const value=JSON.parse(localStorage.getItem(storageKey(userId))||"{}");
@@ -26,7 +33,33 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
  const [answer,setAnswer]=useState("");
  const [checked,setChecked]=useState(false);
  const [stats,setStats]=useState({answered:0,correct:0});
+ const [timerMinutes,setTimerMinutes]=useState(25);
+ const [timerRemaining,setTimerRemaining]=useState(25*60);
+ const [timerRunning,setTimerRunning]=useState(false);
+ const [focusSessions,setFocusSessions]=useState(()=>loadFocusSessions(userId));
+ const [timerNotice,setTimerNotice]=useState("");
+
  useEffect(()=>setPlan(loadPlan(userId)),[userId]);
+ useEffect(()=>{
+  setTimerRunning(false);
+  setTimerRemaining(timerMinutes*60);
+  setFocusSessions(loadFocusSessions(userId));
+  setTimerNotice("");
+ },[userId]);
+ useEffect(()=>{
+  if(!timerRunning)return undefined;
+  const interval=window.setInterval(()=>setTimerRemaining(value=>Math.max(0,value-1)),1000);
+  return ()=>window.clearInterval(interval);
+ },[timerRunning]);
+ useEffect(()=>{
+  if(!timerRunning||timerRemaining!==0)return;
+  setTimerRunning(false);
+  const nextCount=focusSessions+1;
+  setFocusSessions(nextCount);
+  try{localStorage.setItem(focusStorageKey(userId),String(nextCount));}catch{}
+  setTimerNotice("Sessão concluída! Faça uma pausa e volte com energia.");
+ },[timerRunning,timerRemaining,userId]);
+
  useEffect(()=>{try{localStorage.setItem(storageKey(userId),JSON.stringify(plan));}catch{}},[plan,userId]);
  const filtered=useMemo(()=>questionBank.filter(q=>(discipline==="Todas"||q.discipline===discipline)&&(board==="Todas"||q.board===board)),[discipline,board]);
  const question=filtered.length?filtered[index%filtered.length]:null;
@@ -41,6 +74,19 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
   return chosen.map((day,i)=>{const subject=preferred[i%preferred.length];const slug=subject.toLowerCase().replace(/[^a-z0-9]+/g,"-");return {id:day+"-"+slug,day,subject,minutes:base+(i<rem?1:0)};});
  },[plan,selected]);
  const update=(patch)=>setPlan(current=>({...current,...patch}));
+ const chooseTimer=(minutes)=>{
+  setTimerMinutes(minutes);
+  setTimerRemaining(minutes*60);
+  setTimerRunning(false);
+  setTimerNotice("");
+ };
+ const resetTimer=()=>{
+  setTimerRunning(false);
+  setTimerRemaining(timerMinutes*60);
+  setTimerNotice("");
+ };
+ const timerProgress=Math.max(0,Math.min(100,(timerRemaining/(timerMinutes*60))*100));
+
  const toggleDay=(day)=>{
   const removing=plan.days.includes(day);
   const nextDays=removing?plan.days.filter(x=>x!==day):[...plan.days,day];
@@ -53,6 +99,28 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
   <div className="eyebrow">SUA ROTINA, SEU RITMO</div><h1>Área de estudos</h1>
   <p className="subhead">Monte uma rotina semanal, pratique por disciplina e acompanhe seu progresso.</p>
   {selected&&<section className="study-target-card" aria-label="Concurso selecionado para preparação"><div><div className="eyebrow">FOCO DA SUA PREPARAÇÃO</div><strong>{selected.cargo}</strong><p>{selected.orgao} · {selected.sigla||selected.estado||"Seleção selecionada"}</p><small>O planejamento é uma sugestão inicial. Consulte o conteúdo programático e os pesos do edital.</small></div><div className="study-target-actions"><button className="detail-btn" onClick={onBackDetails}>Voltar aos detalhes</button><button className="alert-remove" onClick={onClearFocus}>Limpar foco</button></div></section>}
+  <section className="panel focus-timer-panel" aria-label="Cronômetro de foco">
+   <div className="focus-timer-copy">
+    <div className="eyebrow">MODO CONCENTRAÇÃO</div>
+    <h2>Hora de focar em você.</h2>
+    <p>Use ciclos curtos para manter a constância. Inicie uma sessão e acompanhe o tempo restante sem sair da área de estudos.</p>
+    <div className="focus-timer-presets" role="group" aria-label="Duração da sessão">
+     <button type="button" className={timerMinutes===25?"active":""} disabled={timerRunning} onClick={()=>chooseTimer(25)}>25 min · foco</button>
+     <button type="button" className={timerMinutes===50?"active":""} disabled={timerRunning} onClick={()=>chooseTimer(50)}>50 min · profundo</button>
+    </div>
+   </div>
+   <div className="focus-timer-controls">
+    <div className="focus-timer-dial" style={{"--timer-progress":timerProgress+"%"}} role="timer" aria-label={"Tempo restante "+formatClock(timerRemaining)}>
+     <span>{formatClock(timerRemaining)}</span><small>{timerRunning?"EM ANDAMENTO":"TEMPO DE FOCO"}</small>
+    </div>
+    <div className="focus-timer-buttons">
+     <button type="button" className="primary-btn" onClick={()=>{setTimerNotice("");setTimerRunning(value=>!value);}}>{timerRunning?"Pausar sessão":"Iniciar foco"}</button>
+     <button type="button" className="detail-btn" onClick={resetTimer}>Reiniciar</button>
+    </div>
+    <div className="focus-timer-summary"><strong>{focusSessions}</strong><span>sessões concluídas nesta conta e neste dispositivo</span></div>
+    {timerNotice&&<p className="focus-timer-notice" role="status">{timerNotice}</p>}
+   </div>
+  </section>
   <div className="study-grid">
    <div className="panel progress-panel"><div className="panel-head"><div><div className="eyebrow">VISÃO GERAL</div><h2>Seu progresso diário</h2></div><span className="soft-pill">Hoje</span></div><div className="progress-number">{progress}%</div><div className="progress-track"><div style={{width:progress+"%"}}/></div><p className="muted">{tasks.filter(Boolean).length} de {tasks.length} atividades concluídas</p><div className="task-list">{["Revisar português","Resolver 10 questões","Estudar direito constitucional","Fazer uma revisão rápida"].map((task,i)=><label className="task" key={task}><input type="checkbox" checked={Boolean(tasks[i])} onChange={()=>onToggleTask(i)}/><span className={tasks[i]?"task-done":""}>{task}</span><small>{[25,30,40,15][i]} min</small></label>)}</div></div>
    <div className="panel study-plan-panel"><div className="panel-head"><div><div className="eyebrow">PLANEJAMENTO SEMANAL</div><h2>Monte sua rotina</h2></div><span className="soft-pill">{plan.hours} h/semana</span></div><label className="study-field">Carga horária semanal<select aria-label="Carga horária semanal" value={plan.hours} onChange={e=>update({hours:Number(e.target.value)})}>{[5,8,10,15,20].map(h=><option key={h} value={h}>{h} horas</option>)}</select></label><div className="study-days"><span>Dias disponíveis</span><div>{days.map(day=><label key={day}><input type="checkbox" checked={plan.days.includes(day)} onChange={()=>toggleDay(day)}/>{day}</label>)}</div></div><div className="study-session-list">{sessions.map(s=><label className="study-session" key={s.id}><input type="checkbox" checked={plan.done.includes(s.id)} onChange={()=>update({done:plan.done.includes(s.id)?plan.done.filter(x=>x!==s.id):[...plan.done,s.id]})}/><span><strong>{s.day} · {s.subject}</strong><small>{s.minutes} minutos · teoria, revisão e questões</small></span><small>{plan.done.includes(s.id)?"Concluído":"Pendente"}</small></label>)}</div><p className="study-disclaimer">Plano salvo neste dispositivo e separado por conta. A distribuição é sugestiva e não substitui o edital.</p></div>
