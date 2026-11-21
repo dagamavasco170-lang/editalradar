@@ -36,6 +36,7 @@ O catálogo também pode exibir registros preliminares de Alagoas identificados 
 - Central de notificações com histórico local para visitantes e sincronizado entre dispositivos para usuários autenticados.
 - Área de estudos com checklist e questão demonstrativa.
 - Interface responsiva.
+- Aplicativo instalável (PWA), com cache do catálogo e da interface para acesso básico sem conexão após a primeira visita.
 
 ## Fontes oficiais consultadas
 
@@ -55,6 +56,10 @@ O usuário pode autorizar notificações do navegador, consultar avisos não lid
 O GitHub Actions verifica diariamente os links de origem cadastrados em `src/data/concursos.js`. Alterações no conteúdo ou falhas de acesso geram uma issue para revisão editorial e um relatório de execução. O monitor **não** altera automaticamente o catálogo: vagas, requisitos, inscrições, cronogramas e status só devem mudar após conferência humana na fonte oficial. A primeira execução cria a linha de base; depois, diferenças de conteúdo são sinalizadas.
 
 Para executar manualmente: Actions → **Monitorar fontes de concursos** → Run workflow.
+
+## Instalação e uso offline
+
+O EditalRadar pode ser instalado no celular ou computador pelo menu de instalação do navegador. No iPhone/iPad, use Compartilhar → Adicionar à Tela de Início no Safari. O service worker mantém a interface e os arquivos estáticos em cache para permitir a abertura após a primeira visita online. Sem internet, o catálogo já carregado e os dados locais continuam acessíveis; login, sincronização com a conta e atualização do catálogo dependem de conexão. O navegador atualiza o aplicativo quando uma nova versão é publicada.
 
 ## Desenvolvimento
 
