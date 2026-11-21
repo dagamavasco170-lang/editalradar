@@ -96,6 +96,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   const [profileState, setProfileState] = useState("");
   const [profileEducation, setProfileEducation] = useState("");
   const [profileArea, setProfileArea] = useState("");
+  const [profileEmailNotifications, setProfileEmailNotifications] = useState(false);
   const [profileBusy, setProfileBusy] = useState(false);
   const [profileMessage, setProfileMessage] = useState("");
   const [profileMessageType, setProfileMessageType] = useState("info");
@@ -342,6 +343,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     setProfileState(metadata.state || "");
     setProfileEducation(metadata.education_level || "");
     setProfileArea(metadata.interest_area || "");
+    setProfileEmailNotifications(metadata.email_notifications_enabled === true);
     setProfileMessage("");
     setProfileMessageType("info");
     setShowProfile(true);
@@ -362,7 +364,11 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
       city: profileCity.trim(),
       state: profileState,
       education_level: profileEducation,
-      interest_area: profileArea
+      interest_area: profileArea,
+      email_notifications_enabled: profileEmailNotifications,
+      email_notifications_consent_at: profileEmailNotifications
+        ? (authUser.user_metadata?.email_notifications_consent_at || new Date().toISOString())
+        : null
     };
 
     setProfileBusy(true);
@@ -378,7 +384,9 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
       });
       setProfileName(name);
       setProfileCity(profileData.city);
-      setProfileMessage("Perfil atualizado com sucesso.");
+      setProfileMessage(profileEmailNotifications
+        ? "Perfil atualizado. Você autorizou alertas por e-mail; o envio será ativado após a configuração do serviço."
+        : "Perfil atualizado com sucesso.");
       setProfileMessageType("success");
     } catch (error) {
       setProfileMessage(error.message || "Não foi possível atualizar seu perfil.");
@@ -646,6 +654,10 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
               <label>Escolaridade<select value={profileEducation} onChange={(event) => setProfileEducation(event.target.value)}><option value="">Selecione</option>{["Ensino fundamental", "Ensino médio", "Técnico", "Superior incompleto", "Superior completo", "Pós-graduação"].map((level) => <option key={level} value={level}>{level}</option>)}</select></label>
               <label>Área de interesse<select value={profileArea} onChange={(event) => setProfileArea(event.target.value)}><option value="">Selecione</option>{["Administrativa", "Policial", "Tribunais", "Fiscal e controle", "Bancária", "Educação", "Saúde", "Jurídica", "Tecnologia", "Outras"].map((area) => <option key={area} value={area}>{area}</option>)}</select></label>
             </div>
+            <label className="email-alert-consent">
+              <span className="email-alert-copy"><strong>Receber alertas por e-mail</strong><small>Envie uma mensagem quando o catálogo receber um concurso compatível com seu perfil. Você pode cancelar quando quiser.</small></span>
+              <input type="checkbox" checked={profileEmailNotifications} onChange={(event) => setProfileEmailNotifications(event.target.checked)} />
+            </label>
             <button className="primary-btn full" type="submit" disabled={profileBusy}>{profileBusy ? "Salvando..." : "Salvar perfil"}</button>
             {profileMessage && <p className={`auth-message ${profileMessageType}`} role="status">{profileMessage}</p>}
           </form>
