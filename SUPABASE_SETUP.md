@@ -13,7 +13,8 @@ O site é publicado como frontend estático no GitHub Pages. A autenticação e 
 1. No painel Supabase, abra SQL Editor.
 2. Abra o arquivo `supabase/migrations/202611210001_user_data.sql` deste repositório.
 3. Copie todo o conteúdo, execute no SQL Editor e confirme que a tabela `public.user_data` foi criada.
-4. A tabela tem Row Level Security (RLS); cada usuário autenticado só pode consultar e alterar a própria linha.
+4. Depois, execute também todo o conteúdo de `supabase/migrations/202611220001_user_notifications.sql` para adicionar o histórico sincronizado de notificações.
+5. A tabela tem Row Level Security (RLS); cada usuário autenticado só pode consultar e alterar a própria linha.
 
 ## 3. Configurar autenticação por e-mail
 
@@ -38,8 +39,10 @@ Depois de salvar, execute Actions → Test, build and deploy EditalRadar → Run
 
 - Sem as duas variáveis, o site continua funcionando como visitante e informa que a autenticação ainda precisa ser configurada.
 - Com Supabase configurado, é possível criar conta, confirmar e-mail, entrar e sair.
-- Favoritos, alertas e tarefas de estudo passam a ser carregados e sincronizados na conta, mantendo também uma cópia local.
+- Favoritos, alertas, tarefas de estudo e notificações passam a ser carregados e sincronizados na conta, mantendo também uma cópia local.
+- O histórico de notificações é atualizado na nuvem ao marcar avisos como lidos, abrir um aviso ou limpar o histórico; em outro aparelho, ele é carregado ao entrar ou atualizar o site.
 - A tabela não armazena senhas: elas são gerenciadas pelo Supabase Auth.
+- Caso a segunda migração ainda não tenha sido executada, a sincronização antiga continua funcionando e o aplicativo mostra um aviso com o nome do arquivo SQL pendente.
 
 ## Desenvolvimento local
 
