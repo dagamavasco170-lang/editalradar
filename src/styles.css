@@ -146,3 +146,26 @@
 .install-steps p{font-size:10px;line-height:1.55;color:#71838c;margin:5px 0 0}
 @media(max-width:760px){.install-trigger{padding:7px 8px;font-size:9px}.offline-status{margin:0 16px}}
 @media(max-width:480px){.install-trigger{font-size:8px;padding:7px 6px}.offline-status{font-size:10px}}
+
+
+/* Painel administrativo de concursos. */
+.admin-page h1{font:800 28px Manrope,sans-serif;color:#19384d;margin:8px 0}
+.admin-panel{margin-top:18px;padding:18px}
+.admin-panel-heading{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:13px}
+.admin-panel-heading>div{display:grid;gap:5px}
+.admin-panel-heading strong{font-size:13px;color:#214457}
+.admin-panel-heading small{font-size:10px;color:#82919a}
+.admin-list{display:grid;gap:7px;max-height:68vh;overflow:auto}
+.admin-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:11px 12px;border:1px solid #e5ece9;border-radius:9px;background:#fff}
+.admin-row-copy{display:grid;gap:5px;min-width:0}
+.admin-row-copy strong{font-size:11px;color:#25465a;overflow-wrap:anywhere}
+.admin-row-copy span{font-size:9px;color:#7b8b94;line-height:1.45}
+.admin-row-actions{display:flex;align-items:center;gap:7px;flex-shrink:0}
+.admin-modal{max-width:560px}
+.admin-form{max-height:min(68vh,680px);overflow:auto;padding:2px 3px}
+.admin-form label{font-size:10px}
+.admin-form input,.admin-form select,.admin-form textarea{width:100%;border:1px solid #dfe7e8;border-radius:8px;padding:10px 11px;background:#fff;color:#19384d;font:12px Arial,sans-serif}
+.admin-form input,.admin-form select{height:40px}
+.admin-form textarea{resize:vertical;min-height:74px}
+.admin-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+@media(max-width:560px){.admin-panel{padding:13px}.admin-panel-heading{align-items:flex-start;flex-direction:column}.admin-panel-heading>.primary-btn{width:100%}.admin-row{align-items:flex-start;flex-direction:column}.admin-row-actions{width:100%;justify-content:flex-end}.admin-form-grid{grid-template-columns:1fr}.admin-modal{padding:22px 16px}}
