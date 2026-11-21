@@ -334,5 +334,54 @@ export const materias = [
     "nome": "Informática",
     "descricao": "Conceitos e ferramentas",
     "icon": "⌘"
-  }
+  },
+
+  {
+    "id": 412,
+    "sigla": "PROCON/AL",
+    "cargo": "Analista e Fiscal de Proteção e Defesa do Consumidor",
+    "orgao": "Instituto de Proteção e Defesa do Consumidor de Alagoas (PROCON/AL)",
+    "vinculo": "Concurso PROCON/AL 2026",
+    "nivel": "Conforme edital",
+    "vagas": 15,
+    "atoOficial": "Edital nº 1 – PROCON/AL, de 03/07/2026",
+    "status": "Prova em 29/11/2026 · inscrições encerradas",
+    "area": "Estadual",
+    "estado": "Alagoas",
+    "localidade": "Alagoas",
+    "sourceUrl": "https://www.cebraspe.org.br/concursos/SEPLAG_AL_26_PROCON",
+    "observacao": "O concurso oferta 15 vagas em três cargos: Analista de Proteção e Defesa do Consumidor nas áreas de Administração e Direito, e Fiscal de Defesa do Consumidor. As inscrições ocorreram de 10/07 a 19/08/2026. O cronograma prevê provas objetivas e discursivas em 29/11/2026. Consulte a página oficial do Cebraspe para locais de prova, retificações e resultados."
+  },
+  {
+    "id": 501,
+    "sigla": "PREF. PÃO DE AÇÚCAR",
+    "cargo": "Diversos cargos efetivos (31 cargos)",
+    "orgao": "Prefeitura Municipal de Pão de Açúcar",
+    "vinculo": "Concurso público municipal 2026",
+    "nivel": "Diversos níveis",
+    "vagas": 123,
+    "atoOficial": "Edital nº 001/2026",
+    "status": "Etapas e resultados publicados · concurso em andamento",
+    "area": "Municipal",
+    "estado": "Alagoas",
+    "localidade": "Pão de Açúcar",
+    "sourceUrl": "https://igeduc.selecao.net.br/informacoes/129/",
+    "observacao": "O edital do Município de Pão de Açúcar oferta 123 vagas distribuídas em 31 cargos efetivos. A página oficial do IGEDUC informa inscrições de 22/01 a 05/03/2026 e divulga resultados da prova objetiva e etapas complementares, além de publicação atualizada em 19/11/2026. Confira a página oficial para acompanhar as próximas convocações e resultados."
+  },
+  {
+    "id": 502,
+    "sigla": "PREF. TEOTÔNIO VILELA",
+    "cargo": "Cargos da Secretaria Municipal de Educação (11 cargos)",
+    "orgao": "Prefeitura Municipal de Teotônio Vilela — Secretaria de Educação",
+    "vinculo": "Concurso público municipal 2026",
+    "nivel": "Diversos níveis",
+    "vagas": 205,
+    "atoOficial": "Edital nº 002/2026",
+    "status": "Resultado preliminar publicado · concurso em andamento",
+    "area": "Municipal",
+    "estado": "Alagoas",
+    "localidade": "Teotônio Vilela",
+    "sourceUrl": "https://igeduc.selecao.net.br/informacoes/186/",
+    "observacao": "O edital oferta 205 vagas em 11 cargos da Secretaria Municipal de Educação. As inscrições ocorreram de 27/08 a 12/10/2026. A página oficial do IGEDUC registra resultado preliminar da prova objetiva publicado em 18/11/2026 e gabarito definitivo. Consulte a página oficial para acompanhar recursos e próximas etapas."
+  },
 ];
