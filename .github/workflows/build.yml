@@ -1,0 +1,153 @@
+name: Test, build and deploy EditalRadar
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  test:
+    name: Testes automatizados
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Configurar Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Instalar dependências
+        run: npm install
+      - name: Executar testes
+        run: npm test
+      - name: Testar monitoramento de fontes
+        run: npm run test:monitor
+
+  build:
+    name: Compilar aplicação
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Configurar Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Instalar dependências
+        run: npm install
+      - name: Compilar para produção
+        env:
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+        run: npm run build
+      - name: Instalar Chromium para testes de navegador
+        run: npx playwright install --with-deps chromium
+      - name: Testar site compilado em navegador real
+        run: npm run test:e2e
+      - name: Salvar relatório dos testes de navegador
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+      - name: Verificar caminhos do GitHub Pages
+        run: |
+          test -s dist/index.html
+          grep -q "/editalradar/assets/" dist/index.html
+      - name: Configurar GitHub Pages
+        uses: actions/configure-pages@v6
+      - name: Enviar artefato do Pages
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: ./dist
+
+  deploy:
+    name: Publicar no GitHub Pages
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publicar site
+        id: deployment
+        uses: actions/deploy-pages@v5
+      - name: Checkout para teste pós-publicação
+        uses: actions/checkout@v6
+      - name: Configurar Node.js para teste pós-publicação
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Instalar dependências dos testes
+        run: npm install
+      - name: Instalar Chromium para teste do site publicado
+        run: npx playwright install --with-deps chromium
+      - name: Aguardar o site público responder
+        env:
+          PLAYWRIGHT_BASE_URL: https://dagamavasco170-lang.github.io/editalradar/
+        run: |
+          curl --fail --location --retry 12 --retry-delay 5 --retry-all-errors "$PLAYWRIGHT_BASE_URL"
+      - name: Testar o endereço público após o deploy
+        env:
+          PLAYWRIGHT_BASE_URL: https://dagamavasco170-lang.github.io/editalradar/
+        run: npm run test:e2e
+      - name: Salvar evidências do teste em produção
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-production-report
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+
+  vercel-production-test:
+    name: Testar produção na Vercel
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Configurar Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Instalar dependências
+        run: npm install
+      - name: Instalar Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Aguardar a Vercel publicar a versão mais recente
+        env:
+          PLAYWRIGHT_BASE_URL: https://editalradar-gamma.vercel.app/
+        run: |
+          curl --fail --location --retry 18 --retry-delay 10 --retry-all-errors "$PLAYWRIGHT_BASE_URL"
+      - name: Executar testes de navegador no domínio da Vercel
+        env:
+          PLAYWRIGHT_BASE_URL: https://editalradar-gamma.vercel.app/
+        run: npm run test:e2e
+      - name: Salvar evidências dos testes na Vercel
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-vercel-production-report
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
