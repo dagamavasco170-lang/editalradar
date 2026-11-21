@@ -29,3 +29,4 @@ create policy "Admins can delete catalog records" on public.contest_catalog
 
 grant select on public.contest_catalog to anon, authenticated;
 grant insert, update, delete on public.contest_catalog to authenticated;
+grant usage, select on sequence public.contest_catalog_id_seq to authenticated;
