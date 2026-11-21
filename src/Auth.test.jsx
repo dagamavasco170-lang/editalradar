@@ -3,20 +3,21 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import App from "./App.jsx";
 
-const authMocks = vi.hoisted(() => {
-  const mocks = {
-    configured: true,
+const createAuthClient = () => {
+  const client = {
     callback: null,
-    getSession: vi.fn().mockResolvedValue({ data: { session: null }, error: null }),
-    onAuthStateChange: vi.fn((callback) => {
-      mocks.callback = callback;
-      return { data: { subscription: { unsubscribe: vi.fn() } } };
-    }),
-    signInWithPassword: vi.fn().mockResolvedValue({ error: null }),
-    signUp: vi.fn().mockResolvedValue({ data: { session: null }, error: null }),
-    resetPasswordForEmail: vi.fn().mockResolvedValue({ error: null }),
-    updateUser: vi.fn().mockResolvedValue({ error: null }),
-    signOut: vi.fn().mockResolvedValue({ error: null }),
+    auth: {
+      getSession: vi.fn().mockResolvedValue({ data: { session: null }, error: null }),
+      onAuthStateChange: vi.fn((callback) => {
+        client.callback = callback;
+        return { data: { subscription: { unsubscribe: vi.fn() } } };
+      }),
+      signInWithPassword: vi.fn().mockResolvedValue({ error: null }),
+      signUp: vi.fn().mockResolvedValue({ data: { session: null }, error: null }),
+      resetPasswordForEmail: vi.fn().mockResolvedValue({ error: null }),
+      updateUser: vi.fn().mockResolvedValue({ error: null }),
+      signOut: vi.fn().mockResolvedValue({ error: null })
+    },
     from: vi.fn(() => ({
       select: () => ({
         eq: () => ({
@@ -29,45 +30,26 @@ const authMocks = vi.hoisted(() => {
       upsert: vi.fn().mockResolvedValue({ error: null })
     }))
   };
-  return mocks;
-});
-
-vi.mock("./lib/supabaseClient", () => ({
-  get isSupabaseConfigured() {
-    return authMocks.configured;
-  },
-  supabase: {
-    auth: {
-      getSession: (...args) => authMocks.getSession(...args),
-      onAuthStateChange: (...args) => authMocks.onAuthStateChange(...args),
-      signInWithPassword: (...args) => authMocks.signInWithPassword(...args),
-      signUp: (...args) => authMocks.signUp(...args),
-      resetPasswordForEmail: (...args) => authMocks.resetPasswordForEmail(...args),
-      updateUser: (...args) => authMocks.updateUser(...args),
-      signOut: (...args) => authMocks.signOut(...args)
-    },
-    from: (...args) => authMocks.from(...args)
-  }
-}));
+  return client;
+};
 
 afterEach(() => {
   cleanup();
-  vi.clearAllMocks();
-  authMocks.configured = true;
-  authMocks.callback = null;
+  window.localStorage.clear();
 });
 
 describe("Autenticação EditalRadar", () => {
   it("envia solicitação de recuperação sem revelar se o e-mail existe", async () => {
-    render(<App />);
-    await waitFor(() => expect(authMocks.onAuthStateChange).toHaveBeenCalled());
+    const client = createAuthClient();
+    render(<App authClient={client} authConfigured />);
 
+    await waitFor(() => expect(client.auth.onAuthStateChange).toHaveBeenCalled());
     fireEvent.click(screen.getByRole("button", { name: /Entrar \/ cadastrar/ }));
     fireEvent.click(screen.getByRole("button", { name: /Esqueci minha senha/ }));
     fireEvent.change(screen.getByLabelText("E-mail"), { target: { value: "aluno@exemplo.com" } });
     fireEvent.click(screen.getByRole("button", { name: /Enviar link de recuperação/ }));
 
-    await waitFor(() => expect(authMocks.resetPasswordForEmail).toHaveBeenCalledWith(
+    await waitFor(() => expect(client.auth.resetPasswordForEmail).toHaveBeenCalledWith(
       "aluno@exemplo.com",
       { redirectTo: window.location.origin + window.location.pathname }
     ));
@@ -75,25 +57,28 @@ describe("Autenticação EditalRadar", () => {
   });
 
   it("abre formulário de nova senha ao receber PASSWORD_RECOVERY", async () => {
-    render(<App />);
-    await waitFor(() => expect(authMocks.callback).toBeTypeOf("function"));
+    const client = createAuthClient();
+    render(<App authClient={client} authConfigured />);
+    await waitFor(() => expect(client.callback).toBeTypeOf("function"));
 
-    authMocks.callback("PASSWORD_RECOVERY", {
+    client.callback("PASSWORD_RECOVERY", {
       user: { id: "user-123", email: "aluno@exemplo.com" }
     });
 
     expect(await screen.findByRole("heading", { name: "Criar nova senha" })).toBeInTheDocument();
+    expect(screen.getByLabelText("E-mail")).toHaveValue("aluno@exemplo.com");
     fireEvent.change(screen.getByLabelText("Nova senha"), { target: { value: "SenhaSegura123" } });
     fireEvent.change(screen.getByLabelText("Confirmar nova senha"), { target: { value: "SenhaSegura123" } });
     fireEvent.click(screen.getByRole("button", { name: "Salvar nova senha" }));
 
-    await waitFor(() => expect(authMocks.updateUser).toHaveBeenCalledWith({ password: "SenhaSegura123" }));
+    await waitFor(() => expect(client.auth.updateUser).toHaveBeenCalledWith({ password: "SenhaSegura123" }));
   });
 
   it("não altera senha quando os campos de confirmação são diferentes", async () => {
-    render(<App />);
-    await waitFor(() => expect(authMocks.callback).toBeTypeOf("function"));
-    authMocks.callback("PASSWORD_RECOVERY", {
+    const client = createAuthClient();
+    render(<App authClient={client} authConfigured />);
+    await waitFor(() => expect(client.callback).toBeTypeOf("function"));
+    client.callback("PASSWORD_RECOVERY", {
       user: { id: "user-456", email: "aluno@exemplo.com" }
     });
 
@@ -102,6 +87,6 @@ describe("Autenticação EditalRadar", () => {
     fireEvent.click(screen.getByRole("button", { name: "Salvar nova senha" }));
 
     expect(await screen.findByText("As senhas não coincidem.")).toBeInTheDocument();
-    expect(authMocks.updateUser).not.toHaveBeenCalled();
+    expect(client.auth.updateUser).not.toHaveBeenCalled();
   });
 });
