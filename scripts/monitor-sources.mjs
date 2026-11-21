@@ -36,6 +36,82 @@ export function fingerprintContent(content, contentType = "text/html") {
   return createHash("sha256").update(stableContent).digest("hex");
 }
 
+function decodeHtmlText(value) {
+  return String(value)
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;|&#160;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&quot;|&#34;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function extractOpportunityLinks(html, sourceUrl) {
+  const keywords = /\b(edital|concurso|processo seletivo|seleção|selecao|inscrições|inscricoes|vagas|provimento|nomeação|nomeacao|autorização|autorizacao)\b/i;
+  const found = new Map();
+  const anchors = String(html).matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a\s*>/gi);
+
+  for (const match of anchors) {
+    const hrefMatch = match[1].match(/\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i);
+    if (!hrefMatch) continue;
+    const href = decodeHtmlText(hrefMatch[1] ?? hrefMatch[2] ?? hrefMatch[3] ?? "");
+    const title = decodeHtmlText(match[2]);
+    if (!href || !title || !keywords.test(title + " " + href)) continue;
+
+    try {
+      const candidateUrl = new URL(href, sourceUrl);
+      if (candidateUrl.protocol !== "https:") continue;
+      candidateUrl.hash = "";
+      const normalizedUrl = candidateUrl.toString();
+      if (normalizedUrl === new URL(sourceUrl).toString()) continue;
+      if (!found.has(normalizedUrl)) {
+        found.set(normalizedUrl, {
+          candidate_url: normalizedUrl,
+          title: title.slice(0, 240),
+          context: "Link identificado em página oficial monitorada: " + new URL(sourceUrl).hostname
+        });
+      }
+    } catch {
+      // Ignora links inválidos ou relativos malformados.
+    }
+  }
+  return [...found.values()];
+}
+
+export function buildDiscoveriesForSource(url, previous, current) {
+  if (!current?.ok) return [];
+  const discoveries = [];
+  if (previous?.sha256 && previous.sha256 !== current.sha256) {
+    discoveries.push({
+      source_url: url,
+      candidate_url: url,
+      discovery_key: "page:" + current.sha256,
+      title: "Página oficial atualizada: " + new URL(url).hostname,
+      context: "O conteúdo da página monitorada mudou. Confira a publicação oficial e identifique se há edital, autorização ou cronograma novo.",
+      discovery_type: "page_change"
+    });
+  }
+
+  if (Array.isArray(previous?.opportunityLinks)) {
+    const knownLinks = new Set(previous.opportunityLinks.map((item) => item.candidate_url));
+    for (const item of current.opportunityLinks || []) {
+      if (knownLinks.has(item.candidate_url)) continue;
+      discoveries.push({
+        source_url: url,
+        candidate_url: item.candidate_url,
+        discovery_key: "link:" + item.candidate_url,
+        title: item.title,
+        context: item.context,
+        discovery_type: "new_link"
+      });
+    }
+  }
+  return discoveries;
+}
+
 export function compareSource(url, previous, current) {
   if (!current.ok) return { type: "unavailable", url, message: current.error || "Falha ao consultar a fonte." };
   if (!previous?.sha256) return { type: "new_baseline", url, message: "Primeira leitura desta fonte." };
@@ -59,11 +135,15 @@ async function fetchSource(url) {
   if (contentLength > MAX_BYTES) throw new Error("Resposta excede o limite de 12 MB.");
   const bytes = new Uint8Array(await response.arrayBuffer());
   if (bytes.byteLength > MAX_BYTES) throw new Error("Resposta excede o limite de 12 MB.");
-  const content = /html|text\//i.test(contentType) ? new TextDecoder("utf-8").decode(bytes) : bytes;
+  const content = /html|text\\//i.test(contentType) ? new TextDecoder("utf-8").decode(bytes) : bytes;
+  const opportunityLinks = /html/i.test(contentType)
+    ? extractOpportunityLinks(content, response.url || url)
+    : [];
 
   return {
     ok: true,
     sha256: fingerprintContent(content, contentType),
+    opportunityLinks,
     status: response.status,
     finalUrl: response.url,
     contentType,
@@ -106,12 +186,14 @@ async function runMonitor() {
   const changed = [];
   const unavailable = [];
   const added = [];
+  const discoveries = [];
   for (const entry of checked) {
     const previous = oldState.sources[entry.url];
     const result = compareSource(entry.url, previous, entry.current);
     if (result?.type === "changed") changed.push(result);
     if (result?.type === "unavailable") unavailable.push(result);
     if (!previous?.sha256 && entry.current.ok && !firstRun) added.push({ ...result, type: "added" });
+    discoveries.push(...buildDiscoveriesForSource(entry.url, previous, entry.current));
     if (entry.current.ok) nextSources[entry.url] = entry.current;
     else nextSources[entry.url] = { ...(previous || {}), lastError: entry.current.error, lastCheckedAt: entry.current.checkedAt };
   }
@@ -120,7 +202,7 @@ async function runMonitor() {
     .filter((url) => !urls.includes(url))
     .map((url) => ({ type: "removed", url, message: "A fonte deixou de estar vinculada ao catálogo." }));
 
-  const report = { generatedAt: new Date().toISOString(), monitoredCount: urls.length, firstRun, changed, unavailable, added, removed };
+  const report = { generatedAt: new Date().toISOString(), monitoredCount: urls.length, firstRun, changed, unavailable, added, removed, discoveries };
   await writeFile(STATE_PATH, JSON.stringify({ version: 1, sources: nextSources }, null, 2) + "\n");
   await writeFile(REPORT_PATH, JSON.stringify(report, null, 2) + "\n");
 
@@ -128,6 +210,8 @@ async function runMonitor() {
     ["Páginas alteradas", changed],
     ["Fontes indisponíveis", unavailable],
     ["Novas fontes no catálogo", added],
+    ["Novos links de oportunidades", discoveries.filter((item) => item.discovery_type === "new_link")],
+    ["Páginas atualizadas para revisão", discoveries.filter((item) => item.discovery_type === "page_change")],
     ["Fontes removidas do catálogo", removed]
   ];
   const lines = [
@@ -150,7 +234,8 @@ async function runMonitor() {
 
   if (process.env.GITHUB_OUTPUT) {
     await appendFile(process.env.GITHUB_OUTPUT, [
-      "changed_count=" + (changed.length + added.length + removed.length),
+      "changed_count=" + (changed.length + added.length + removed.length + discoveries.length),
+      "discovered_count=" + discoveries.length,
       "failed_count=" + unavailable.length,
       ""
     ].join("\n"));
