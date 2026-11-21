@@ -48,3 +48,23 @@ test("envia descobertas para PostgREST usando conflito idempotente", async () =>
   assert.equal(request.options.headers.Authorization, "Bearer secret-test");
   assert.equal(JSON.parse(request.options.body)[0].status, "pending");
 });
+
+test("falha e preserva a descoberta se os secrets do Supabase estiverem ausentes", async () => {
+  const previousUrl = process.env.SUPABASE_URL;
+  const previousKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  delete process.env.SUPABASE_URL;
+  delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+  try {
+    await assert.rejects(() => publishDiscoveries([{
+      source_url: "https://orgao.gov.br/concursos",
+      candidate_url: "https://orgao.gov.br/edital.pdf",
+      discovery_key: "link:https://orgao.gov.br/edital.pdf",
+      title: "Edital novo",
+      context: "Página oficial",
+      discovery_type: "new_link"
+    }], { supabaseUrl: "", serviceRoleKey: "" }), /preservar a linha de base/);
+  } finally {
+    if (previousUrl !== undefined) process.env.SUPABASE_URL = previousUrl;
+    if (previousKey !== undefined) process.env.SUPABASE_SERVICE_ROLE_KEY = previousKey;
+  }
+});
