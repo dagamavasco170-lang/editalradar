@@ -1127,7 +1127,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                       <button
                         className="notification-dismiss"
                         type="button"
-                        aria-label={`Dispensar notificação: ${notification.title}`}
+                        aria-label="Dispensar este aviso"
                         title="Dispensar este aviso"
                         onClick={() => dismissSingleNotification(notification.id)}
                       >×</button>

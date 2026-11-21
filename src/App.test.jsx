@@ -95,7 +95,7 @@ describe("EditalRadar", () => {
     const firstRender = render(<App />);
     fireEvent.click(screen.getByRole("button", { name: /Ver notificações/ }));
     expect(await screen.findByRole("button", { name: /Aviso individual/ })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Dispensar notificação: Aviso individual" }));
+    fireEvent.click(screen.getByRole("button", { name: "Dispensar este aviso" }));
 
     expect(screen.queryByRole("button", { name: /Aviso individual/ })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Aviso preservado/ })).toBeInTheDocument();
