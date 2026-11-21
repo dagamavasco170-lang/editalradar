@@ -55,7 +55,7 @@ test("filtra concursos estaduais e municipais por estado e cidade", async ({ pag
   await page.getByLabel("Esfera").selectOption("Todas as esferas");
   await page.getByLabel("Cidade").selectOption("Paripueira");
   await expect(page.getByText("Cargos efetivos a definir")).toBeVisible();
-  await expect(page.getByText("Professor — Matemática (lotação em Paripueira)")).toBeVisible();
+  await expect(page.locator(".cards").getByText("Professor — Matemática (lotação em Paripueira)")).toBeVisible();
 });
 
 test("identifica claramente um registro preliminar que não possui edital confirmado", async ({ page }) => {
