@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { appendContext, classifyDiscovery, extractDocumentText, fetchCandidateWithRetry, inferOrganization, summarizeFetchError } from "./auto-resolve-discoveries.mjs";
+import { appendContext, buildRetificationUpdate, classifyDiscovery, extractDocumentText, fetchCandidateWithRetry, inferOrganization, normalizeContestIdentity, summarizeFetchError } from "./auto-resolve-discoveries.mjs";
 
 const discovery = {
   id: 1,
@@ -113,4 +113,62 @@ test("usa transporte alternativo quando as tentativas de fetch falham por rede",
   assert.equal(fetchCalls, 2);
   assert.equal(fallbackCalls, 1);
   assert.equal(response.ok, true);
+});
+
+
+test("normaliza nomes para comparar o mesmo órgão e cargo", () => {
+  assert.equal(normalizeContestIdentity("Agente Administrativo — Área Geral"), "agente administrativo area geral");
+});
+
+test("atualiza apenas campos explícitos da retificação e preserva histórico", () => {
+  const existing = {
+    id: 301,
+    orgao: "Prefeitura Municipal de Igaci",
+    cargo: "Agente Administrativo",
+    vagas: 20,
+    status: "Edital publicado · inscrições abertas",
+    nivel: "Médio",
+    sourceUrl: discovery.candidate_url,
+    historicoAtualizacoes: [{ at: "2026-01-01T00:00:00.000Z", type: "retificacao", changes: [] }]
+  };
+  const extracted = {
+    orgao: "Prefeitura Municipal de Igaci",
+    cargo: "Agente Administrativo",
+    vagas: 30,
+    status: "Edital publicado · inscrições encerradas"
+  };
+  const document = {
+    title: "1ª Retificação do Edital 01/2026",
+    heading: "Retificação do concurso público",
+    text: "A Prefeitura Municipal de Igaci publica retificação do concurso público. Cargo: Agente Administrativo. Onde se lê 20 vagas, leia-se 30 vagas. Inscrições encerradas."
+  };
+  const result = buildRetificationUpdate(existing, extracted, discovery, document);
+  assert.equal(result.updated, true);
+  assert.equal(result.data.vagas, 30);
+  assert.equal(result.data.status, "Edital publicado · inscrições encerradas");
+  assert.equal(result.data.historicoAtualizacoes.length, 2);
+  assert.deepEqual(result.changes.map(change => change.field).sort(), ["status", "vagas"]);
+  assert.equal(result.data.cargo, existing.cargo);
+});
+
+test("não atualiza registro se órgão ou cargo não corresponder exatamente", () => {
+  const result = buildRetificationUpdate(
+    { orgao: "Prefeitura Municipal de Igaci", cargo: "Agente Administrativo", vagas: 20 },
+    { orgao: "Prefeitura Municipal de Igaci", cargo: "Professor", vagas: 30 },
+    discovery,
+    { title: "Retificação", text: "Retificação do concurso público. Leia-se 30 vagas." }
+  );
+  assert.equal(result.updated, false);
+  assert.match(result.reason, /não correspondem exatamente/i);
+});
+
+test("não trata mudança comum como retificação", () => {
+  const result = buildRetificationUpdate(
+    { orgao: "Prefeitura Municipal de Igaci", cargo: "Agente Administrativo", vagas: 20 },
+    { orgao: "Prefeitura Municipal de Igaci", cargo: "Agente Administrativo", vagas: 30 },
+    discovery,
+    { title: "Edital atualizado", text: "Concurso público. 30 vagas." }
+  );
+  assert.equal(result.updated, false);
+  assert.match(result.reason, /não apresenta evidência explícita/i);
 });
