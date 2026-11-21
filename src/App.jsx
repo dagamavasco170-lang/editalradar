@@ -1171,6 +1171,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
 
   return (
     <div className="app-shell">
+      <a className="skip-link" href="#main-content">Pular para o conteúdo</a>
       <aside className="sidebar">
         <a className="brand" href="#" onClick={() => setPage("concursos")}>
           <span className="brand-mark">E</span>
@@ -1178,11 +1179,11 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
         </a>
         <div className="side-label">MENU PRINCIPAL</div>
         <nav className="sidebar-nav" aria-label="Navegação principal">
-          <button className={page === "concursos" || (page === "detalhes" && detailOrigin === "concursos") ? "nav-item active" : "nav-item"} onClick={() => { setSelected(null); setPage("concursos"); }} aria-current={page === "concursos" || (page === "detalhes" && detailOrigin === "concursos") ? "page" : undefined}><span aria-hidden="true">▦</span> Concursos</button>
-          <button className={page === "estudos" ? "nav-item active" : "nav-item"} onClick={() => setPage("estudos")} aria-current={page === "estudos" ? "page" : undefined}><span aria-hidden="true">◷</span> Área de estudos</button>
-          <button className={page === "favoritos" || (page === "detalhes" && detailOrigin === "favoritos") ? "nav-item active" : "nav-item"} onClick={() => { setSelected(null); setPage("favoritos"); }} aria-current={page === "favoritos" || (page === "detalhes" && detailOrigin === "favoritos") ? "page" : undefined}><span aria-hidden="true">♡</span> Meus favoritos <b>{favorites.length}</b></button>
-          <button className={page === "comparar" ? "nav-item active" : "nav-item"} onClick={() => setPage("comparar")} aria-current={page === "comparar" ? "page" : undefined} aria-label={`Comparar concursos (${comparisonItems.length})`}><span aria-hidden="true">⇄</span> Comparar <b>{comparisonItems.length}</b></button>
-          {isAdmin && <button className={page === "admin" ? "nav-item active" : "nav-item"} onClick={() => setPage("admin")} aria-label="Administração" aria-current={page === "admin" ? "page" : undefined}><span aria-hidden="true">⚙</span> Administração</button>}
+          <button className={page === "concursos" || (page === "detalhes" && detailOrigin === "concursos") ? "nav-item active" : "nav-item"} onClick={() => { setSelected(null); setPage("concursos"); }} aria-current={page === "concursos" || (page === "detalhes" && detailOrigin === "concursos") ? "page" : undefined}><span aria-hidden="true">▦</span><span className="nav-label">Concursos</span></button>
+          <button className={page === "estudos" ? "nav-item active" : "nav-item"} onClick={() => setPage("estudos")} aria-current={page === "estudos" ? "page" : undefined}><span aria-hidden="true">◷</span><span className="nav-label">Área de estudos</span></button>
+          <button className={page === "favoritos" || (page === "detalhes" && detailOrigin === "favoritos") ? "nav-item active" : "nav-item"} onClick={() => { setSelected(null); setPage("favoritos"); }} aria-current={page === "favoritos" || (page === "detalhes" && detailOrigin === "favoritos") ? "page" : undefined}><span aria-hidden="true">♡</span><span className="nav-label">Meus favoritos</span> <b>{favorites.length}</b></button>
+          <button className={page === "comparar" ? "nav-item active" : "nav-item"} onClick={() => setPage("comparar")} aria-current={page === "comparar" ? "page" : undefined} aria-label={`Comparar concursos (${comparisonItems.length})`}><span aria-hidden="true">⇄</span><span className="nav-label">Comparar</span> <b>{comparisonItems.length}</b></button>
+          {isAdmin && <button className={page === "admin" ? "nav-item active" : "nav-item"} onClick={() => setPage("admin")} aria-label="Administração" aria-current={page === "admin" ? "page" : undefined}><span aria-hidden="true">⚙</span><span className="nav-label">Administração</span></button>}
         </nav>
         <div className="sidebar-bottom">
           <div className="help-card"><span className="help-icon">✦</span><strong>Seu futuro começa com planejamento.</strong><p>Organize sua preparação e acompanhe suas oportunidades.</p><button onClick={() => setPage("estudos")}>Ver meu plano →</button></div>
@@ -1190,7 +1191,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
         </div>
       </aside>
 
-      <main className="main">
+      <main className="main" id="main-content">
         <header className="topbar">
           <div className="breadcrumb">Início <span>/</span> {page === "detalhes" ? "Detalhes do concurso" : page === "comparar" ? "Comparador de concursos" : page === "concursos" ? "Concursos" : page === "estudos" ? "Área de estudos" : page === "admin" ? "Administração" : "Meus favoritos"}</div>
           <div className="top-actions"><span className="date-chip">◷ &nbsp;Sua jornada começa hoje</span><button className="install-trigger" type="button" onClick={handleInstallApp} disabled={isAppInstalled}>{isAppInstalled ? "App instalado" : deferredInstallPrompt ? "Instalar app" : "Como instalar"}</button><button className="notification-bell" type="button" onClick={openNotifications} aria-label={`Ver notificações (${unreadNotificationCount} não lidas)`} title="Ver notificações">♧{unreadNotificationCount > 0 && <span>{unreadNotificationCount > 9 ? "9+" : unreadNotificationCount}</span>}</button>{authUser ? <button className="auth-trigger" onClick={handleSignOut} disabled={!authReady}>Sair da conta</button> : <button className="auth-trigger" onClick={() => { setShowAuth(true); setAuthMessage(""); }}>Entrar / cadastrar</button>}<div className="mini-avatar">{(authUser?.user_metadata?.full_name || authUser?.user_metadata?.name || authUser?.email || "C")[0]?.toUpperCase() || "C"}</div></div>

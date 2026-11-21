@@ -188,3 +188,17 @@ test("monta plano semanal e pratica uma questão autoral filtrada por disciplina
  await page.getByRole("button",{name:"Conferir resposta"}).click();
  await expect(page.getByText(/art\. 5º, IV/)).toBeVisible();
 });
+
+
+test("mantém navegação inferior utilizável e sem rolagem horizontal no celular", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("./");
+  const navigation = page.getByRole("navigation", { name: "Navegação principal" });
+  await expect(navigation).toBeVisible();
+  await expect(navigation.getByRole("button", { name: /Concursos/ })).toBeVisible();
+  await expect(navigation.getByRole("button", { name: /Área de estudos/ })).toBeVisible();
+  const pageWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+  expect(pageWidth).toBeLessThanOrEqual(390);
+  await navigation.getByRole("button", { name: /Área de estudos/ }).click();
+  await expect(page.getByRole("heading", { name: "Monte sua rotina" })).toBeVisible();
+});
