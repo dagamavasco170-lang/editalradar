@@ -53,7 +53,23 @@ test("extrai links HTTPS relevantes de edital e ignora links comuns ou inseguros
   assert.match(links[0].title, /Edital 2026/);
 });
 
-test("gera itens pendentes para mudanças da página e novos links, não na primeira linha de base", () => {
+test("semeia a fila com links oficiais atuais na primeira execução do detector filtrado", () => {
+  const url = "https://orgao.gov.br/concursos";
+  const currentLink = {
+    candidate_url: "https://orgao.gov.br/edital-atual.pdf",
+    title: "Edital atual",
+    context: "Página oficial"
+  };
+  const discoveries = buildDiscoveriesForSource(url, null, {
+    ok: true, sha256: "first", opportunityLinks: [currentLink]
+  });
+  assert.equal(discoveries.length, 1);
+  assert.equal(discoveries[0].discovery_type, "new_link");
+  assert.equal(discoveries[0].candidate_url, currentLink.candidate_url);
+  assert.match(discoveries[0].context, /carga inicial da fila/);
+});
+
+test("detecta página alterada e links novos após a linha de base", () => {
   const url = "https://orgao.gov.br/concursos";
   const oldLink = { candidate_url: "https://orgao.gov.br/edital-antigo.pdf" };
   const newLink = {
@@ -61,11 +77,10 @@ test("gera itens pendentes para mudanças da página e novos links, não na prim
     title: "Edital novo",
     context: "Página oficial"
   };
-  assert.deepEqual(buildDiscoveriesForSource(url, null, {
-    ok: true, sha256: "first", opportunityLinks: [newLink]
-  }), []);
   const discoveries = buildDiscoveriesForSource(url, {
-    sha256: "old", opportunityLinks: [oldLink]
+    sha256: "old",
+    opportunityLinks: [oldLink],
+    opportunityLinkFilterVersion: 2
   }, {
     ok: true, sha256: "new", opportunityLinks: [oldLink, newLink]
   });
