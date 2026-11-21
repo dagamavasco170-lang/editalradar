@@ -39,6 +39,27 @@ afterEach(() => {
 });
 
 describe("Autenticação EditalRadar", () => {
+  it("permite abrir o cadastro e envia a criação da conta ao Supabase", async () => {
+    const client = createAuthClient();
+    render(<App authClient={client} authConfigured />);
+
+    await waitFor(() => expect(client.auth.onAuthStateChange).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole("button", { name: /Entrar \/ cadastrar/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Não tem conta\? Criar conta/ }));
+
+    expect(screen.getByRole("heading", { name: "Criar sua conta" })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("E-mail"), { target: { value: "novo@exemplo.com" } });
+    fireEvent.change(screen.getByLabelText("Senha"), { target: { value: "SenhaSegura123" } });
+    fireEvent.click(screen.getByRole("button", { name: "Criar conta", exact: true }));
+
+    await waitFor(() => expect(client.auth.signUp).toHaveBeenCalledWith({
+      email: "novo@exemplo.com",
+      password: "SenhaSegura123",
+      options: { emailRedirectTo: window.location.origin + window.location.pathname }
+    }));
+    expect(await screen.findByText(/Cadastro iniciado\. Confira seu e-mail/)).toBeInTheDocument();
+  });
+
   it("envia solicitação de recuperação sem revelar se o e-mail existe", async () => {
     const client = createAuthClient();
     render(<App authClient={client} authConfigured />);
