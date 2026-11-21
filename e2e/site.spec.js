@@ -96,6 +96,12 @@ test("abre a experiência de cadastro e login conforme a integração configurad
     await expect(dialog.getByLabel("Senha")).toBeVisible();
     await expect(dialog.getByRole("button", { name: "Entrar", exact: true })).toBeVisible();
 
+    await dialog.getByRole("button", { name: "Não tem conta? Criar conta" }).click();
+    await expect(dialog.getByRole("heading", { name: "Criar sua conta" })).toBeVisible();
+    await expect(dialog.getByRole("button", { name: "Criar conta", exact: true })).toBeVisible();
+    await dialog.getByRole("button", { name: "Já tenho uma conta — entrar" }).click();
+    await expect(dialog.getByRole("heading", { name: "Entrar na sua conta" })).toBeVisible();
+
     await dialog.getByRole("button", { name: "Esqueci minha senha" }).click();
     await expect(dialog.getByRole("heading", { name: "Recuperar senha" })).toBeVisible();
     await expect(dialog.getByRole("button", { name: "Enviar link de recuperação" })).toBeVisible();
