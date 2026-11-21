@@ -131,6 +131,7 @@ describe("Autenticação EditalRadar", () => {
     fireEvent.change(within(profileDialog).getByLabelText("Estado"), { target: { value: "Alagoas" } });
     fireEvent.change(within(profileDialog).getByLabelText("Escolaridade"), { target: { value: "Superior completo" } });
     fireEvent.change(within(profileDialog).getByLabelText("Área de interesse"), { target: { value: "Tribunais" } });
+    fireEvent.click(within(profileDialog).getByLabelText("Receber alertas por e-mail"));
     fireEvent.click(screen.getByRole("button", { name: "Salvar perfil" }));
 
     await waitFor(() => expect(client.auth.updateUser).toHaveBeenCalledWith({
@@ -139,7 +140,9 @@ describe("Autenticação EditalRadar", () => {
         city: "Maceió",
         state: "Alagoas",
         education_level: "Superior completo",
-        interest_area: "Tribunais"
+        interest_area: "Tribunais",
+        email_notifications_enabled: true,
+        email_notifications_consent_at: expect.any(String)
       }
     }));
     expect(await screen.findByText("Maria Concurseira")).toBeInTheDocument();
