@@ -166,7 +166,7 @@ describe("EditalRadar", () => {
     expect(screen.queryByRole("button", { name: /Ver mais avisos/ })).not.toBeInTheDocument();
   });
 
-  it("exibe o painel inteligente do candidato e abre a rotina de estudos pelo atalho", () => {
+  it("exibe o painel inteligente do candidato e abre a rotina de estudos pelo atalho", async () => {
     localStorage.clear();
     localStorage.setItem("er-catalog-snapshot:visitor", JSON.stringify(buildCatalogSnapshot(concursos)));
 
@@ -179,7 +179,7 @@ describe("EditalRadar", () => {
     expect(within(dashboard).getByRole("button", { name: /Rotina de estudos: 0% concluída/ })).toBeInTheDocument();
 
     fireEvent.click(within(dashboard).getByRole("button", { name: /Rotina de estudos/ }));
-    expect(screen.getByRole("heading", { name: "Área de estudos" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Área de estudos" })).toBeInTheDocument();
   });
 
   it("mostra instruções para instalar o aplicativo em diferentes dispositivos", () => {
@@ -454,11 +454,11 @@ describe("EditalRadar", () => {
     expect(disabledButtons.every((button) => button.disabled)).toBe(true);
   });
 
-  it("abre a área de estudos e permite concluir uma tarefa", () => {
+  it("abre a área de estudos e permite concluir uma tarefa", async () => {
     render(<App />);
 
     fireEvent.click(screen.getByRole("button", { name: /Área de estudos/ }));
-    const task = screen.getByRole("checkbox", { name: /Revisar português/ });
+    const task = await screen.findByRole("checkbox", { name: /Revisar português/ });
 
     expect(task).not.toBeChecked();
     fireEvent.click(task);

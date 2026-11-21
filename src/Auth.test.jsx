@@ -236,7 +236,7 @@ describe("Autenticação EditalRadar", () => {
     fireEvent.click(screen.getAllByLabelText("Salvar favorito")[0]);
     fireEvent.click(screen.getByRole("button", { name: /Salvar alerta/ }));
     fireEvent.click(screen.getByRole("button", { name: /Área de estudos/ }));
-    fireEvent.click(screen.getByRole("checkbox", { name: /Revisar português/ }));
+    fireEvent.click(await screen.findByRole("checkbox", { name: /Revisar português/ }));
 
     await waitFor(() => expect(client.database.upsert).toHaveBeenCalledTimes(3));
     const writes = client.database.upsert.mock.calls.map(([payload]) => payload);
@@ -486,7 +486,7 @@ describe("Autenticação EditalRadar", () => {
     expect(screen.getByRole("link", { name: /Acessar fonte oficial/ })).toHaveAttribute("href", "https://www.cebraspe.org.br/concursos/pc_al_26");
 
     fireEvent.click(screen.getByRole("button", { name: "Preparar para este concurso" }));
-    expect(screen.getByRole("heading", { name: "Área de estudos" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Área de estudos" })).toBeInTheDocument();
     expect(screen.getByText("FOCO DA SUA PREPARAÇÃO")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Voltar aos detalhes" }));
     expect(screen.getByRole("heading", { name: "Agente e Escrivão de Polícia Civil" })).toBeInTheDocument();
