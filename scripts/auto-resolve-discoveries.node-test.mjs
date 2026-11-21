@@ -47,7 +47,7 @@ test("reconhece retificação que não repete a expressão concurso público", (
     {
       title: "Retificação do Edital nº 01/2026",
       heading: "Retificação do Edital",
-      text: "A Prefeitura Municipal de Igaci, Estado de Alagoas, publica retificação do Edital nº 01/2026. Cargo: Agente Administrativo. Onde se lê 20 vagas, leia-se 30 vagas."
+      text: "A Prefeitura Municipal de Igaci torna pública a retificação do Edital nº 01/2026. O município fica em Alagoas. Cargo: Agente Administrativo. Onde se lê 20 vagas, leia-se 30 vagas."
     },
     "https://igaci.al.gov.br/concursos/edital-01-2026/retificacao.pdf"
   );
