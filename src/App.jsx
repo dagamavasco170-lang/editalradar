@@ -1157,7 +1157,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                   {favorites.includes(selected.id) ? "♥ Salvo nos favoritos" : "♡ Salvar oportunidade"}
                 </button>
                 <a className="detail-source-btn" href={selectedSourceUrl} target="_blank" rel="noopener noreferrer">
-                  {isPreliminary(selected) ? "Abrir listagem de referência ↗" : "Acessar fonte oficial ↗"}
+                  {isPreliminary(selected) ? "Abrir listagem de referência — não é edital ↗" : "Acessar fonte oficial ↗"}
                 </a>
               </div>
             </section>
@@ -1187,7 +1187,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                     <h3>O que sabemos sobre esta oportunidade</h3>
                     <p>{selected.observacao || "Esta ficha ainda não possui observações editoriais. Consulte a fonte oficial para confirmar requisitos, vagas e etapas."}</p>
                   </div>
-                  {isPreliminary(selected) && <p className="detail-caution">Registro preliminar: os dados ainda não foram confirmados individualmente no edital oficial. O quantitativo de vagas, os requisitos e o cronograma não devem ser tratados como definitivos.</p>}
+                  {isPreliminary(selected) && <p className="detail-caution">Registro preliminar: os dados ainda não foram confirmados individualmente em edital oficial. O quantitativo de vagas, os requisitos e o cronograma não devem ser tratados como definitivos.</p>}
                 </section>
 
                 <section className="detail-section" id="detail-timeline">
@@ -1707,7 +1707,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
           </form>
         </section>
       </div>}
-            {selected && <div className="modal-backdrop" onClick={() => setSelected(null)}><div className="modal" onClick={(e) => e.stopPropagation()}><button className="modal-close" onClick={() => setSelected(null)}>×</button><span className={`status ${isPreliminary(selected) ? "preliminary" : ""}`}><i />{selected.status}</span><div className="eyebrow">DETALHES DA SELEÇÃO</div><h2>{selected.cargo}</h2><p className="org-name">{selected.orgao}</p><div className="modal-facts"><div><small>Vagas informadas</small><strong>{selected.vagas == null ? "A divulgar" : selected.vagas}</strong></div><div><small>Escolaridade</small><strong>{selected.nivel}</strong></div><div><small>Vínculo</small><strong>{selected.vinculo || "Não informado"}</strong></div><div><small>{isPreliminary(selected) ? "Referência cadastrada" : "Ato oficial"}</small><strong>{selected.atoOficial || "Não informado"}</strong></div></div><p className="muted">{selected.observacao}</p><a className="primary-btn full modal-source-link" href={selected.sourceUrl || sourceUrl} target="_blank" rel="noreferrer">{isPreliminary(selected) ? "Abrir listagem de referência — não é edital ↗" : "Consultar página oficial do concurso ↗"}</a><button className="detail-btn full" onClick={() => toggleFavorite(selected.id)} disabled={Boolean(authUser && syncStatus === "loading")}>{favorites.includes(selected.id) ? "Remover dos favoritos" : "Salvar nos favoritos"}</button></div></div>}
+
     </div>
   );
 }
