@@ -82,6 +82,9 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     readStore("er-browser-notifications", false) === true
   );
   const [notificationMessage, setNotificationMessage] = useState("");
+  const [notificationView, setNotificationView] = useState("all");
+  const [jumpToNotifications, setJumpToNotifications] = useState(false);
+  const notificationsSectionRef = useRef(null);
   const [favorites, setFavorites] = useState(() => readStore("er-favorites", []));
   const [tasks, setTasks] = useState(() => readStore("er-tasks", [false, false, false, false]));
   const [selected, setSelected] = useState(null);
@@ -575,6 +578,25 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   };
 
   const unreadNotificationCount = notifications.filter((item) => !item.read).length;
+  const visibleNotifications = notificationView === "unread"
+    ? notifications.filter((item) => !item.read)
+    : notifications;
+
+  const clearNotificationHistory = () => {
+    setNotifications([]);
+    localStorage.setItem(notificationStorageKey, JSON.stringify([]));
+  };
+
+  const openNotifications = () => {
+    setPage("concursos");
+    setJumpToNotifications(true);
+  };
+
+  useEffect(() => {
+    if (page !== "concursos" || !jumpToNotifications) return;
+    notificationsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    setJumpToNotifications(false);
+  }, [page, jumpToNotifications]);
 
   const toggleTask = (index) => {
     const next = tasks.map((done, i) => i === index ? !done : done);
@@ -608,7 +630,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
       <main className="main">
         <header className="topbar">
           <div className="breadcrumb">Início <span>/</span> {page === "concursos" ? "Concursos" : page === "estudos" ? "Área de estudos" : "Meus favoritos"}</div>
-          <div className="top-actions"><span className="date-chip">◷ &nbsp;Sua jornada começa hoje</span>{authUser ? <button className="auth-trigger" onClick={handleSignOut} disabled={!authReady}>Sair da conta</button> : <button className="auth-trigger" onClick={() => { setShowAuth(true); setAuthMessage(""); }}>Entrar / cadastrar</button>}<div className="mini-avatar">{(authUser?.user_metadata?.full_name || authUser?.user_metadata?.name || authUser?.email || "C")[0]?.toUpperCase() || "C"}</div></div>
+          <div className="top-actions"><span className="date-chip">◷ &nbsp;Sua jornada começa hoje</span><button className="notification-bell" type="button" onClick={openNotifications} aria-label={`Ver notificações (${unreadNotificationCount} não lidas)`} title="Ver notificações">♧{unreadNotificationCount > 0 && <span>{unreadNotificationCount > 9 ? "9+" : unreadNotificationCount}</span>}</button>{authUser ? <button className="auth-trigger" onClick={handleSignOut} disabled={!authReady}>Sair da conta</button> : <button className="auth-trigger" onClick={() => { setShowAuth(true); setAuthMessage(""); }}>Entrar / cadastrar</button>}<div className="mini-avatar">{(authUser?.user_metadata?.full_name || authUser?.user_metadata?.name || authUser?.email || "C")[0]?.toUpperCase() || "C"}</div></div>
         </header>
 
         {page === "estudos" ? (
@@ -646,7 +668,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
               <div className="stat"><span className="stat-icon green">⌁</span><div><strong>{new Intl.NumberFormat("pt-BR").format(totalVagas)}</strong><small>Vagas em fichas com fonte oficial</small></div></div>
               <div className="stat"><span className="stat-icon gold">☆</span><div><strong>{favorites.length}</strong><small>Oportunidades salvas</small></div></div>
             </div>
-            <section className="notification-panel" aria-label="Notificações do EditalRadar">
+            <section className="notification-panel" aria-label="Notificações do EditalRadar" ref={notificationsSectionRef}>
               <div className="notification-heading">
                 <div>
                   <div className="eyebrow">AVISOS DO EDITALRADAR</div>
@@ -658,11 +680,16 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                     {notificationPermission === "granted" && browserNotificationsEnabled ? "Notificações ativadas" : notificationPermission === "denied" ? "Permissão bloqueada" : "Ativar no navegador"}
                   </button>
                   {unreadNotificationCount > 0 && <button className="alert-remove" type="button" onClick={markAllNotificationsRead}>Marcar como lidas</button>}
+                  {notifications.length > 0 && <button className="alert-remove" type="button" onClick={clearNotificationHistory}>Limpar histórico</button>}
                 </div>
               </div>
-              {notifications.length > 0 ? (
+              <div className="notification-filters" role="group" aria-label="Filtrar notificações">
+                <button type="button" className={notificationView === "all" ? "notification-filter active" : "notification-filter"} aria-pressed={notificationView === "all"} onClick={() => setNotificationView("all")}>Todas ({notifications.length})</button>
+                <button type="button" className={notificationView === "unread" ? "notification-filter active" : "notification-filter"} aria-pressed={notificationView === "unread"} onClick={() => setNotificationView("unread")}>Não lidas ({unreadNotificationCount})</button>
+              </div>
+              {visibleNotifications.length > 0 ? (
                 <div className="notification-list">
-                  {notifications.slice(0, 8).map((notification) => (
+                  {visibleNotifications.slice(0, 8).map((notification) => (
                     <button className={notification.read ? "notification-item read" : "notification-item"} type="button" key={notification.id} onClick={() => openNotification(notification)}>
                       <span className="notification-dot" aria-hidden="true" />
                       <span className="notification-copy"><strong>{notification.title}</strong><small>{notification.message}</small></span>
@@ -670,7 +697,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                     </button>
                   ))}
                 </div>
-              ) : <p className="alerts-empty">Nenhuma novidade por enquanto. Quando o catálogo receber novos concursos ou um favorito for atualizado, o aviso aparecerá aqui.</p>}
+              ) : <p className="alerts-empty">{notifications.length === 0 ? "Nenhuma novidade por enquanto. Quando o catálogo receber novos concursos ou um favorito for atualizado, o aviso aparecerá aqui." : "Não há notificações não lidas. Você já conferiu todas as novidades."}</p>}
               <small className="alerts-note">
                 {notificationPermission === "granted" && browserNotificationsEnabled
                   ? "Notificações de desktop ativadas neste navegador."
