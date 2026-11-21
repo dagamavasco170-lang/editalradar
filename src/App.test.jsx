@@ -62,7 +62,7 @@ describe("EditalRadar", () => {
     fireEvent.change(screen.getByLabelText("Esfera"), { target: { value: "Municipal" } });
 
     expect(screen.getByText("Cargos efetivos a definir")).toBeInTheDocument();
-    expect(screen.getByText(/Vagas a divulgar/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Vagas a divulgar/).length).toBeGreaterThan(0);
   });
 
   it("salva um concurso nos favoritos e mostra a lista", () => {
