@@ -421,6 +421,39 @@ describe("EditalRadar", () => {
       .toHaveAttribute("href", "https://www.bcb.gov.br/acessoinformacao/concursospublicos");
   });
 
+  it("compara duas oportunidades lado a lado e informa quando a remuneração não está cadastrada", () => {
+    localStorage.removeItem("er-comparison:visitor");
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Adicionar Auditor — Carreira de Especialista à comparação" }));
+    fireEvent.click(screen.getByRole("button", { name: "Adicionar Técnico — Carreira de Especialista à comparação" }));
+    expect(screen.getByRole("button", { name: /Comparar concursos \\(2\\)/ })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Comparar concursos \\(2\\)/ }));
+    expect(screen.getByRole("heading", { name: "Comparador de concursos" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Tabela de comparação dos concursos" })).toBeInTheDocument();
+    expect(screen.getAllByText("Não informado nesta ficha").length).toBeGreaterThan(0);
+    expect(screen.getByText("Vagas informadas")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Remover Auditor — Carreira de Especialista da comparação" }));
+    expect(screen.getByText("Escolha pelo menos dois concursos")).toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem("er-comparison:visitor"))).toEqual([concursos[1].id]);
+  });
+
+  it("limita a comparação a três oportunidades", () => {
+    localStorage.removeItem("er-comparison:visitor");
+    render(<App />);
+
+    const compareButtons = screen.getAllByRole("button", { name: /Adicionar .* à comparação/ });
+    fireEvent.click(compareButtons[0]);
+    fireEvent.click(compareButtons[1]);
+    fireEvent.click(compareButtons[2]);
+    expect(screen.getByRole("button", { name: /Comparar concursos \\(3\\)/ })).toBeInTheDocument();
+    const disabledButtons = screen.getAllByRole("button", { name: /Adicionar .* à comparação/ });
+    expect(disabledButtons.length).toBeGreaterThan(0);
+    expect(disabledButtons.every((button) => button.disabled)).toBe(true);
+  });
+
   it("abre a área de estudos e permite concluir uma tarefa", () => {
     render(<App />);
 

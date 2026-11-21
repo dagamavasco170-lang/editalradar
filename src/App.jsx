@@ -132,6 +132,18 @@ const getAdditionalOfficialDocuments = (item) => {
   }));
 };
 
+
+const getContestSalary = (item) => {
+  const raw = item?.remuneracao ?? item?.salario ?? item?.salarioInicial
+    ?? item?.remuneracaoInicial ?? item?.vencimento ?? item?.salarioBase;
+  if (raw == null || String(raw).trim() === "") return "Não informado nesta ficha";
+  if (typeof raw === "number" || (typeof raw === "string" && /^\s*R?\$?\s*[\d.,]+\s*$/.test(raw))) {
+    const numeric = typeof raw === "number" ? raw : Number(raw.replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(",", "."));
+    if (Number.isFinite(numeric)) return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(numeric);
+  }
+  return String(raw).trim();
+};
+
 const brazilianStates = [
   "Acre", "Alagoas", "Amapá", "Amazonas", "Bahia", "Ceará", "Distrito Federal",
   "Espírito Santo", "Goiás", "Maranhão", "Mato Grosso", "Mato Grosso do Sul",
@@ -188,6 +200,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   const [tasks, setTasks] = useState(() => readStore("er-tasks", [false, false, false, false]));
   const [selected, setSelected] = useState(null);
   const [detailOrigin, setDetailOrigin] = useState("concursos");
+  const [comparisonIds, setComparisonIds] = useState(() => readStore("er-comparison:visitor", []));
   const [answer, setAnswer] = useState("");
   const [checkedAnswer, setCheckedAnswer] = useState(false);
   const [authUser, setAuthUser] = useState(null);
@@ -217,6 +230,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   const [profileMessageType, setProfileMessageType] = useState("info");
   const notificationStorageKey = "er-notifications:" + (authUser?.id || "visitor");
   const catalogSnapshotStorageKey = "er-catalog-snapshot:" + (authUser?.id || "visitor");
+  const comparisonStorageKey = "er-comparison:" + (authUser?.id || "visitor");
   const catalog = useMemo(() => applyCatalogOverrides(concursos, catalogOverrides), [catalogOverrides]);
   const isAdmin = authUser?.app_metadata?.role === "admin";
   const openContestDetails = (contest) => {
@@ -232,6 +246,35 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   const selectedTimeline = useMemo(() => extractContestTimeline(selected), [selected]);
   const selectedDocuments = useMemo(() => getAdditionalOfficialDocuments(selected), [selected]);
   const selectedSourceUrl = /^https:\/\//i.test(selected?.sourceUrl || "") ? selected.sourceUrl : sourceUrl;
+  const comparisonItems = useMemo(
+    () => (Array.isArray(comparisonIds) ? comparisonIds : [])
+      .map((id) => catalog.find((item) => String(item.id) === String(id)))
+      .filter(Boolean)
+      .slice(0, 3),
+    [comparisonIds, catalog]
+  );
+  const persistComparison = (next) => {
+    const normalized = next.slice(0, 3);
+    setComparisonIds(normalized);
+    try { localStorage.setItem(comparisonStorageKey, JSON.stringify(normalized)); } catch { /* comparação continua nesta sessão */ }
+  };
+  const toggleComparison = (item) => {
+    const exists = comparisonItems.some((entry) => String(entry.id) === String(item.id));
+    if (exists) {
+      persistComparison(comparisonItems.filter((entry) => String(entry.id) !== String(item.id)).map((entry) => entry.id));
+    } else if (comparisonItems.length < 3) {
+      persistComparison([...comparisonItems.map((entry) => entry.id), item.id]);
+    }
+  };
+  const removeFromComparison = (itemId) => {
+    persistComparison(comparisonItems.filter((entry) => String(entry.id) !== String(itemId)).map((entry) => entry.id));
+  };
+  const clearComparison = () => persistComparison([]);
+
+  useLayoutEffect(() => {
+    const stored = readStore(comparisonStorageKey, []);
+    setComparisonIds(Array.isArray(stored) ? stored.slice(0, 3) : []);
+  }, [comparisonStorageKey]);
 
   useEffect(() => {
     const handleBeforeInstallPrompt = (event) => {
@@ -1121,6 +1164,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
           <button className={page === "concursos" || (page === "detalhes" && detailOrigin === "concursos") ? "nav-item active" : "nav-item"} onClick={() => { setSelected(null); setPage("concursos"); }} aria-current={page === "concursos" || (page === "detalhes" && detailOrigin === "concursos") ? "page" : undefined}><span aria-hidden="true">▦</span> Concursos</button>
           <button className={page === "estudos" ? "nav-item active" : "nav-item"} onClick={() => setPage("estudos")} aria-current={page === "estudos" ? "page" : undefined}><span aria-hidden="true">◷</span> Área de estudos</button>
           <button className={page === "favoritos" || (page === "detalhes" && detailOrigin === "favoritos") ? "nav-item active" : "nav-item"} onClick={() => { setSelected(null); setPage("favoritos"); }} aria-current={page === "favoritos" || (page === "detalhes" && detailOrigin === "favoritos") ? "page" : undefined}><span aria-hidden="true">♡</span> Meus favoritos <b>{favorites.length}</b></button>
+          <button className={page === "comparar" ? "nav-item active" : "nav-item"} onClick={() => setPage("comparar")} aria-current={page === "comparar" ? "page" : undefined} aria-label={`Comparar concursos (${comparisonItems.length})`}><span aria-hidden="true">⇄</span> Comparar <b>{comparisonItems.length}</b></button>
           {isAdmin && <button className={page === "admin" ? "nav-item active" : "nav-item"} onClick={() => setPage("admin")} aria-label="Administração" aria-current={page === "admin" ? "page" : undefined}><span aria-hidden="true">⚙</span> Administração</button>}
         </nav>
         <div className="sidebar-bottom">
@@ -1131,7 +1175,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
 
       <main className="main">
         <header className="topbar">
-          <div className="breadcrumb">Início <span>/</span> {page === "detalhes" ? "Detalhes do concurso" : page === "concursos" ? "Concursos" : page === "estudos" ? "Área de estudos" : page === "admin" ? "Administração" : "Meus favoritos"}</div>
+          <div className="breadcrumb">Início <span>/</span> {page === "detalhes" ? "Detalhes do concurso" : page === "comparar" ? "Comparador de concursos" : page === "concursos" ? "Concursos" : page === "estudos" ? "Área de estudos" : page === "admin" ? "Administração" : "Meus favoritos"}</div>
           <div className="top-actions"><span className="date-chip">◷ &nbsp;Sua jornada começa hoje</span><button className="install-trigger" type="button" onClick={handleInstallApp} disabled={isAppInstalled}>{isAppInstalled ? "App instalado" : deferredInstallPrompt ? "Instalar app" : "Como instalar"}</button><button className="notification-bell" type="button" onClick={openNotifications} aria-label={`Ver notificações (${unreadNotificationCount} não lidas)`} title="Ver notificações">♧{unreadNotificationCount > 0 && <span>{unreadNotificationCount > 9 ? "9+" : unreadNotificationCount}</span>}</button>{authUser ? <button className="auth-trigger" onClick={handleSignOut} disabled={!authReady}>Sair da conta</button> : <button className="auth-trigger" onClick={() => { setShowAuth(true); setAuthMessage(""); }}>Entrar / cadastrar</button>}<div className="mini-avatar">{(authUser?.user_metadata?.full_name || authUser?.user_metadata?.name || authUser?.email || "C")[0]?.toUpperCase() || "C"}</div></div>
         </header>
         {!isOnline && <div className="offline-status" role="status">Você está offline. O catálogo em cache e os dados locais continuam acessíveis; login e sincronização precisam de internet.</div>}
@@ -1276,6 +1320,80 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                 </section>
               </aside>
             </div>
+          </section>
+
+        ) : page === "comparar" ? (
+          <section className="content compare-page">
+            <div className="compare-page-heading">
+              <div>
+                <div className="eyebrow">DECIDA COM MAIS CLAREZA</div>
+                <h1>Comparador de concursos</h1>
+                <p>Compare até três oportunidades lado a lado. Os dados refletem o que está cadastrado em cada ficha.</p>
+              </div>
+              <div className="compare-page-actions">
+                <button className="detail-btn" type="button" onClick={() => setPage("concursos")}>Voltar ao catálogo</button>
+                <button className="alert-remove" type="button" onClick={clearComparison} disabled={comparisonItems.length === 0}>Limpar seleção</button>
+              </div>
+            </div>
+            {comparisonItems.length < 2 ? (
+              <div className="compare-empty" role="status">
+                <span aria-hidden="true">⇄</span>
+                <h2>Escolha pelo menos dois concursos</h2>
+                <p>Volte ao catálogo e use o botão “Comparar” nos cartões. Você pode selecionar até três oportunidades.</p>
+                <button className="primary-btn" type="button" onClick={() => setPage("concursos")}>Escolher concursos</button>
+                {comparisonItems.length === 1 && <div className="compare-selected-preview"><strong>Já selecionado:</strong> {comparisonItems[0].cargo} — {comparisonItems[0].orgao}</div>}
+              </div>
+            ) : (
+              <>
+                <div className="compare-summary">
+                  <div><strong>{comparisonItems.length} oportunidades selecionadas</strong><span>Use a tabela para avaliar os critérios sem misturar informações não confirmadas.</span></div>
+                  <button className="detail-btn" type="button" onClick={() => setPage("concursos")}>＋ Adicionar outro concurso</button>
+                </div>
+                <div className="compare-table-wrap" role="region" aria-label="Tabela de comparação dos concursos" tabIndex={0}>
+                  <table className="compare-table">
+                    <thead>
+                      <tr>
+                        <th scope="col">Critério</th>
+                        {comparisonItems.map((item) => (
+                          <th scope="col" key={item.id}>
+                            <div className="compare-column-heading">
+                              <small>{item.sigla || "CONCURSO"}</small>
+                              <strong>{item.cargo}</strong>
+                              <span>{item.orgao}</span>
+                              <button type="button" className="compare-remove" onClick={() => removeFromComparison(item.id)} aria-label={`Remover ${item.cargo} da comparação`}>Remover ×</button>
+                            </div>
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr><th scope="row">Vagas informadas</th>{comparisonItems.map(item => <td key={item.id}>{item.vagas == null ? "Não divulgadas" : new Intl.NumberFormat("pt-BR").format(item.vagas)}{isPreliminary(item) && <small className="compare-caution">Quantidade preliminar</small>}</td>)}</tr>
+                      <tr><th scope="row">Remuneração</th>{comparisonItems.map(item => <td key={item.id}>{getContestSalary(item)}</td>)}</tr>
+                      <tr><th scope="row">Escolaridade</th>{comparisonItems.map(item => <td key={item.id}>{item.nivel || "Não informada"}</td>)}</tr>
+                      <tr><th scope="row">Esfera</th>{comparisonItems.map(item => <td key={item.id}>{item.area || "Não informada"}</td>)}</tr>
+                      <tr><th scope="row">Localidade</th>{comparisonItems.map(item => <td key={item.id}>{[item.localidade, item.estado].filter(Boolean).join(" · ") || "Não informada"}</td>)}</tr>
+                      <tr><th scope="row">Situação atual</th>{comparisonItems.map(item => <td key={item.id}><span className={`compare-status ${isPreliminary(item) ? "is-preliminary" : ""}`}>{item.status || "Não informada"}</span></td>)}</tr>
+                      <tr><th scope="row">Edital / ato informado</th>{comparisonItems.map(item => <td key={item.id}>{item.atoOficial || "Não informado"}</td>)}</tr>
+                      <tr>
+                        <th scope="row">Datas e etapas mencionadas</th>
+                        {comparisonItems.map(item => {
+                          const timeline = extractContestTimeline(item).slice(0, 4);
+                          return <td key={item.id}>
+                            {timeline.length ? <ul className="compare-dates">{timeline.map(event => <li key={event.date.toISOString() + event.label}><strong>{event.label}</strong><time dateTime={event.date.toISOString().slice(0, 10)}>{event.date.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" })}</time></li>)}</ul> : "Nenhuma data identificada nesta ficha."}
+                          </td>;
+                        })}
+                      </tr>
+                      <tr><th scope="row">Nível de confirmação</th>{comparisonItems.map(item => <td key={item.id}>{isPreliminary(item) ? <span className="compare-caution">Registro preliminar: exige conferência individual no edital.</span> : "Ficha cadastrada com fonte de acompanhamento."}</td>)}</tr>
+                      <tr><th scope="row">Fonte</th>{comparisonItems.map(item => {
+                        const href = /^https:\/\//i.test(item.sourceUrl || "") ? item.sourceUrl : sourceUrl;
+                        return <td key={item.id}><a className="compare-source-link" href={href} target="_blank" rel="noopener noreferrer">{isPreliminary(item) ? "Abrir referência" : "Abrir fonte"} ↗</a></td>;
+                      })}</tr>
+                    </tbody>
+                  </table>
+                </div>
+                <p className="compare-disclaimer">Importante: remuneração só aparece quando existe um campo próprio preenchido na ficha. Datas são extraídas dos textos cadastrados e podem mudar por retificação. Confirme sempre os valores, requisitos e prazos na publicação oficial.</p>
+              </>
+            )}
           </section>
         ) : page === "estudos" ? (
 
@@ -1586,9 +1704,21 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
               ) : <p className="alerts-empty">Você ainda não salvou alertas. Ajuste os filtros acima e clique em “Salvar alerta”.</p>}
               <small className="alerts-note">{!authUser ? "No modo visitante, os alertas ficam salvos neste navegador. Entre na sua conta para sincronizá-los entre aparelhos." : syncStatus === "synced" ? "Alertas sincronizados com sua conta. As correspondências são calculadas a partir do catálogo disponível." : syncStatus === "error" ? "Não foi possível confirmar a sincronização. Seus alertas continuam salvos neste navegador." : "Sincronizando seus alertas com a conta..."}</small>
             </section>
+            {comparisonItems.length > 0 && (
+              <section className="compare-toolbar" aria-label="Concursos selecionados para comparação">
+                <div><strong>{comparisonItems.length} de 3 concursos selecionados</strong><span>{comparisonItems.map(item => item.sigla || item.orgao).join(" · ")}</span></div>
+                <div className="compare-toolbar-actions">
+                  <button className="primary-btn" type="button" onClick={() => setPage("comparar")} disabled={comparisonItems.length < 2}>Comparar agora</button>
+                  <button className="alert-remove" type="button" onClick={clearComparison}>Limpar</button>
+                </div>
+              </section>
+            )}
             <div className="cards">
-              {(page === "favoritos" ? filtered.filter(c => favorites.includes(c.id)) : filtered).map((item) => <article className="contest-card" key={item.id}>
-                <div className="card-top"><div className="org-icon">{item.sigla}</div><button className={favorites.includes(item.id) ? "heart saved" : "heart"} onClick={() => toggleFavorite(item.id)} aria-label="Salvar favorito" disabled={Boolean(authUser && syncStatus === "loading")}>{favorites.includes(item.id) ? "♥" : "♡"}</button></div>
+              {(page === "favoritos" ? filtered.filter(c => favorites.includes(c.id)) : filtered).map((item) => {
+                const isComparing = comparisonItems.some((entry) => String(entry.id) === String(item.id));
+                const compareLimitReached = comparisonItems.length >= 3 && !isComparing;
+                return <article className="contest-card" key={item.id}>
+                <div className="card-top"><div className="org-icon">{item.sigla}</div><div className="card-top-actions"><button className={isComparing ? "compare-card-btn selected" : "compare-card-btn"} type="button" onClick={() => toggleComparison(item)} aria-pressed={isComparing} aria-label={isComparing ? `Remover ${item.cargo} da comparação` : `Adicionar ${item.cargo} à comparação`} disabled={compareLimitReached}>{isComparing ? "✓ Comparando" : compareLimitReached ? "Limite 3" : "⇄ Comparar"}</button><button className={favorites.includes(item.id) ? "heart saved" : "heart"} onClick={() => toggleFavorite(item.id)} aria-label="Salvar favorito" disabled={Boolean(authUser && syncStatus === "loading")}>{favorites.includes(item.id) ? "♥" : "♡"}</button></div></div>
                 <div className="card-status-row">
                   <span className={`status ${isPreliminary(item) ? "preliminary" : ""}`}><i />{item.status}</span>
                   <span className="card-area-tag">{item.area || "Federal"} · {item.estado || "Brasil"}</span>
@@ -1600,7 +1730,8 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                   <span><small>LOCALIDADE</small><strong>{item.localidade || "Brasil"}</strong></span>
                 </div>
                 <div className="card-bottom"><div><small>{isPreliminary(item) ? "Listagem de referência" : "Fonte oficial"}</small><strong>{item.atoOficial || "Não informado"}</strong></div><button className="detail-btn" onClick={() => openContestDetails(item)}>Ver detalhes ↗</button></div>
-              </article>)}
+              </article>;
+              })}
               {((page === "favoritos" && filtered.filter(c => favorites.includes(c.id)).length === 0) || (page !== "favoritos" && filtered.length === 0)) && <div className="empty">Nenhum concurso encontrado. Experimente ajustar os filtros.</div>}
             </div>
             <div className="source-footnote"><span>Fontes: órgãos federais, Governo de Alagoas, Cebraspe, IGEDUC e portais municipais.</span><span>Conferência editorial: {sourceUpdated} · Dados compilados em: {fetchedAt ? new Date(fetchedAt).toLocaleString("pt-BR") : "não informado"}</span><a href={sourceUrl} target="_blank" rel="noreferrer">Ver página geral do MGI ↗</a></div>

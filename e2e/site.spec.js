@@ -87,6 +87,23 @@ test("abre a página individual de um concurso com cronograma e fonte oficial", 
   await expect(page.getByRole("heading", { name: "Concursos e avisos no catálogo" })).toBeVisible();
 });
 
+test("compara oportunidades e permite remover uma coluna da comparação", async ({ page }) => {
+  await page.goto("./");
+  await page.getByRole("button", { name: "Adicionar Auditor — Carreira de Especialista à comparação" }).click();
+  await page.getByRole("button", { name: "Adicionar Técnico — Carreira de Especialista à comparação" }).click();
+
+  await page.getByRole("button", { name: /Comparar concursos \\(2\\)/ }).click();
+  await expect(page.getByRole("heading", { name: "Comparador de concursos" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Tabela de comparação dos concursos" })).toBeVisible();
+  await expect(page.getByRole("rowheader", { name: "Remuneração" })).toBeVisible();
+  await expect(page.getByText("Não informado nesta ficha").first()).toBeVisible();
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.locator(".compare-table-wrap")).toBeVisible();
+  await page.getByRole("button", { name: "Remover Auditor — Carreira de Especialista da comparação" }).click();
+  await expect(page.getByText("Escolha pelo menos dois concursos")).toBeVisible();
+});
+
 test("salva e remove um alerta personalizado no navegador", async ({ page }) => {
   await page.goto("./");
   await page.getByPlaceholder("Buscar cargo ou órgão...").fill("PROCON");
