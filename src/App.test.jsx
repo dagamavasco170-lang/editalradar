@@ -98,6 +98,33 @@ describe("EditalRadar", () => {
       .toHaveAttribute("href", "https://www.cebraspe.org.br/concursos/SEPLAG_AL_26_PROCON");
   });
 
+  it("salva alerta personalizado usando os filtros atuais", () => {
+    render(<App />);
+
+    fireEvent.change(screen.getByPlaceholderText("Buscar cargo ou órgão..."), {
+      target: { value: "PROCON" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Salvar alerta/ }));
+
+    expect(screen.getByText("PROCON")).toBeInTheDocument();
+    expect(screen.getByText("1 oportunidade(s) correspondente(s)")).toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem("er-alerts"))).toHaveLength(1);
+  });
+
+  it("evita duplicar alertas e permite removê-los", () => {
+    render(<App />);
+
+    const saveButton = screen.getByRole("button", { name: /Salvar alerta/ });
+    fireEvent.click(saveButton);
+
+    expect(screen.getByRole("button", { name: "Alerta já salvo" })).toBeDisabled();
+    expect(JSON.parse(localStorage.getItem("er-alerts"))).toHaveLength(1);
+
+    fireEvent.click(screen.getByRole("button", { name: /Remover alerta Todos os concursos/ }));
+    expect(screen.getByText(/Você ainda não salvou alertas/)).toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem("er-alerts"))).toHaveLength(0);
+  });
+
   it("salva um concurso nos favoritos e mostra a lista", () => {
     render(<App />);
 
