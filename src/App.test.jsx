@@ -14,16 +14,12 @@ describe("EditalRadar", () => {
 
     render(<App />);
 
-    const notification = await screen.findByRole("button", {
-      name: new RegExp(latest.cargo.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\describe("EditalRadar", () => {
-"))
-    });
-    expect(notification).toHaveTextContent("Novo concurso no catálogo");
+    const notification = await screen.findByRole("button", { name: /Novo concurso no catálogo/ });
+    expect(notification).toHaveTextContent(latest.cargo);
     fireEvent.click(notification);
 
     expect(await screen.findByRole("heading", { level: 2, name: latest.cargo })).toBeInTheDocument();
   });
-
   it("renderiza a página inicial e os concursos oficiais", () => {
     render(<App />);
 
