@@ -69,6 +69,19 @@ test("semeia a fila com links oficiais atuais na primeira execução do detector
   assert.match(discoveries[0].context, /carga inicial da fila/);
 });
 
+test("adiciona a página monitorada à fila inicial quando não há links específicos identificados", () => {
+  const url = "https://orgao.gov.br/concursos";
+  const discoveries = buildDiscoveriesForSource(url, null, {
+    ok: true,
+    sha256: "baseline-page",
+    opportunityLinks: []
+  });
+  assert.equal(discoveries.length, 1);
+  assert.equal(discoveries[0].discovery_type, "source_baseline");
+  assert.equal(discoveries[0].candidate_url, url);
+  assert.match(discoveries[0].title, /Fonte oficial para verificação inicial/);
+});
+
 test("detecta página alterada e links novos após a linha de base", () => {
   const url = "https://orgao.gov.br/concursos";
   const oldLink = { candidate_url: "https://orgao.gov.br/edital-antigo.pdf" };
@@ -80,7 +93,7 @@ test("detecta página alterada e links novos após a linha de base", () => {
   const discoveries = buildDiscoveriesForSource(url, {
     sha256: "old",
     opportunityLinks: [oldLink],
-    opportunityLinkFilterVersion: 2
+    opportunityLinkFilterVersion: 3
   }, {
     ok: true, sha256: "new", opportunityLinks: [oldLink, newLink]
   });
