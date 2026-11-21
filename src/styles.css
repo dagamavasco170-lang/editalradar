@@ -107,6 +107,7 @@
 .notification-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:13px}
 .notification-heading h2{font:800 17px Manrope,sans-serif;color:#1c4050;margin:5px 0}
 .notification-heading p{font-size:10px;color:#7c8d94;margin:0;line-height:1.5}
+.notification-sync-hint{margin-top:8px!important;padding:8px 10px;border:1px solid #f0dfbd;border-radius:7px;background:#fff9ed;color:#856432!important;font-size:10px!important}
 .notification-count{display:inline-grid;place-items:center;min-width:21px;height:21px;padding:0 6px;border-radius:20px;background:#e9f5f1;color:#168364;font:700 11px 'DM Sans',sans-serif;vertical-align:middle}
 .notification-actions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:8px}
 .notification-list{display:grid;gap:7px}
