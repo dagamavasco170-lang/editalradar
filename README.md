@@ -6,7 +6,7 @@ O EditalRadar mantém seu código-fonte publicamente visível no GitHub, mas é 
 
 Consulte o arquivo [LICENSE](./LICENSE) para conhecer os termos aplicáveis.
 
-Plataforma web demonstrativa para acompanhar concursos públicos com links para fontes oficiais e organizar a preparação.
+Plataforma web para descobrir e acompanhar concursos públicos, comparar oportunidades, consultar fontes oficiais e organizar a preparação.
 
 ## Cobertura inicial
 
@@ -20,7 +20,7 @@ Cada cartão leva à página oficial do respectivo órgão. Status e datas devem
 
 ## Limites da cobertura
 
-Esta é uma seleção inicial de concursos federais, não uma lista completa de todos os concursos do Brasil. Ainda não inclui uma cobertura sistemática de estados, municípios, outros Poderes e empresas públicas. O aplicativo não afirma que inscrições estão abertas sem confirmação na fonte.
+O catálogo combina concursos federais e oportunidades estaduais e municipais, com cobertura inicial concentrada em Alagoas e em seleções monitoradas pelo Cebraspe. A lista ainda não representa todos os concursos do Brasil. Registros sem confirmação individual continuam identificados como preliminares. O monitor automático mantém a situação das inscrições como 'a confirmar' quando não consegue validar o cronograma vigente.
 
 ## Registros preliminares
 
@@ -29,6 +29,7 @@ O catálogo também pode exibir registros preliminares de Alagoas identificados 
 ## Funcionalidades
 
 - Busca por cargo, órgão, ato e escolaridade.
+- Comparador lado a lado para até três oportunidades, incluindo vagas imediatas, cadastro de reserva e remuneração quando documentados.
 - Filtro por escolaridade.
 - Status por etapa da seleção.
 - Links oficiais por concurso e detalhes.
@@ -81,7 +82,7 @@ O GitHub Actions compila e publica o site no GitHub Pages a cada atualização d
 
 ## Testes automatizados
 
-A suíte usa Vitest, jsdom e Testing Library para verificar renderização, pesquisa, filtros, favoritos, detalhes dos concursos e checklist de estudos.
+A suíte usa Vitest, jsdom, Testing Library e Playwright para verificar renderização, pesquisa, filtros, favoritos, detalhes, comparação, autenticação, sincronização, notificações, triagem automática, build e navegação no site publicado. Os testes de produção também verificam se o commit publicado corresponde ao commit esperado.
 
 Executar localmente:
 
@@ -91,4 +92,11 @@ npm test
 ```
 
 O GitHub Actions executa os testes antes do build. A publicação só é realizada se os testes e a verificação do caminho dos arquivos do GitHub Pages passarem.
-\n### Retificações automáticas\n\nO monitoramento compara retificações oficiais com concursos já cadastrados. Atualizações automáticas são limitadas a registros com correspondência exata de órgão e cargo e a campos objetivos explicitamente indicados na retificação (por exemplo, total de vagas e situação das inscrições). A versão anterior e os campos alterados são preservados em `data.historicoAtualizacoes` no mesmo registro do catálogo. Quando a publicação não permite identificar com segurança o registro ou o novo valor, a descoberta permanece pendente para revisão. Não é necessária uma nova tabela ou migração para esse histórico.\n
+
+### Retificações automáticas
+
+O monitoramento compara retificações oficiais com concursos já cadastrados. Atualizações automáticas são limitadas a registros com correspondência exata de órgão e cargo e a campos objetivos explicitamente indicados na retificação. A versão anterior e os campos alterados são preservados em `historicoAtualizacoes`. Quando a publicação não permite identificar com segurança o registro ou o novo valor, a descoberta permanece pendente para revisão.
+
+### Remuneração e vagas
+
+Os valores remuneratórios estruturados incluem natureza do valor (por exemplo, inicial, após curso de formação ou até determinado teto), periodicidade, observação, fonte e data de verificação. A remuneração só é exibida quando há fonte oficial identificável. Vagas imediatas e cadastro de reserva são campos separados; a ausência de um campo significa que a informação não está discriminada nesta ficha.
