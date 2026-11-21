@@ -1,6 +1,8 @@
 import { pathToFileURL } from "node:url";
 import { execFileSync } from "node:child_process";
-import { resolve } from "node:path";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import { concursos } from "../src/data/concursos.js";
 import { isTrustedOfficialHost } from "./monitor-sources.mjs";
 
@@ -205,6 +207,74 @@ export function summarizeFetchError(error) {
     || "Erro de rede sem detalhes adicionais.";
 }
 
+export async function fetchCandidateWithCurl(candidateUrl, options = {}) {
+  const timeoutMs = Math.max(1000, Number(options.timeoutMs) || TIMEOUT_MS);
+  const directory = await mkdtemp(join(tmpdir(), "editalradar-curl-"));
+  const bodyPath = join(directory, "response-body.bin");
+  const headersPath = join(directory, "response-headers.txt");
+
+  try {
+    const metadata = execFileSync("curl", [
+      "--silent",
+      "--show-error",
+      "--location",
+      "--max-redirs", "5",
+      "--connect-timeout", String(Math.min(10, Math.ceil(timeoutMs / 1000))),
+      "--max-time", String(Math.ceil(timeoutMs / 1000)),
+      "--max-filesize", String(MAX_BYTES),
+      "--user-agent", "Mozilla/5.0 (compatible; EditalRadar-AutoReview/1.2; +https://github.com/dagamavasco170-lang/editalradar)",
+      "--header", "Accept: text/html,application/xhtml+xml,text/plain,application/pdf;q=0.9,*/*;q=0.7",
+      "--dump-header", headersPath,
+      "--output", bodyPath,
+      "--write-out", "%{http_code}\\n%{url_effective}\\n%{content_type}",
+      candidateUrl
+    ], {
+      encoding: "utf8",
+      timeout: timeoutMs + 5000,
+      maxBuffer: 64 * 1024
+    });
+
+    const metadataLines = metadata.trim().split("\n");
+    const status = Number(metadataLines[0]);
+    const finalUrl = metadataLines[1] || candidateUrl;
+    const contentType = metadataLines[2] || "";
+    if (!Number.isInteger(status) || status < 100 || status > 599) {
+      throw new Error("curl não retornou um status HTTP válido.");
+    }
+
+    const rawHeaders = await readFile(headersPath, "utf8");
+    const responseHeaders = {};
+    let currentHeaders = {};
+    for (const line of rawHeaders.split(/\\r?\\n/)) {
+      if (/^HTTP\\/\\d(?:\\.\\d)?\\s+\\d+/i.test(line)) {
+        if (Object.keys(currentHeaders).length) Object.assign(responseHeaders, currentHeaders);
+        currentHeaders = {};
+      } else {
+        const separator = line.indexOf(":");
+        if (separator > 0) {
+          const name = line.slice(0, separator).trim().toLowerCase();
+          const value = line.slice(separator + 1).trim();
+          currentHeaders[name] = currentHeaders[name] ? currentHeaders[name] + ", " + value : value;
+        }
+      }
+    }
+    Object.assign(responseHeaders, currentHeaders);
+    if (contentType && !responseHeaders["content-type"]) responseHeaders["content-type"] = contentType;
+
+    const body = await readFile(bodyPath);
+    if (body.byteLength > MAX_BYTES) throw new Error("Resposta excede o limite de 4 MB.");
+    return {
+      ok: status >= 200 && status < 300,
+      status,
+      url: finalUrl,
+      headers: new Headers(responseHeaders),
+      arrayBuffer: async () => body.buffer.slice(body.byteOffset, body.byteOffset + body.byteLength)
+    };
+  } finally {
+    await rm(directory, { recursive: true, force: true }).catch(() => {});
+  }
+}
+
 export async function fetchCandidateWithRetry(request, candidateUrl, options = {}) {
   const attempts = Math.max(1, Number(options.attempts) || 2);
   const timeoutMs = Math.max(1000, Number(options.timeoutMs) || TIMEOUT_MS);
@@ -218,7 +288,7 @@ export async function fetchCandidateWithRetry(request, candidateUrl, options = {
         redirect: "follow",
         signal: AbortSignal.timeout(timeoutMs),
         headers: {
-          "User-Agent": "Mozilla/5.0 (compatible; EditalRadar-AutoReview/1.1; +https://github.com/dagamavasco170-lang/editalradar)",
+          "User-Agent": "Mozilla/5.0 (compatible; EditalRadar-AutoReview/1.2; +https://github.com/dagamavasco170-lang/editalradar)",
           Accept: "text/html,application/xhtml+xml,text/plain,application/pdf;q=0.9,*/*;q=0.7"
         }
       });
@@ -234,10 +304,23 @@ export async function fetchCandidateWithRetry(request, candidateUrl, options = {
     }
   }
 
+  const shouldUseFallback = !lastResponse || (!lastResponse.ok && (lastResponse.status >= 500 || lastResponse.status === 429));
+  if (shouldUseFallback && typeof options.fallbackRequest === "function") {
+    try {
+      console.warn("Acesso HTTP direto falhou; tentando transporte alternativo para " + String(candidateUrl).slice(0, 240) + ".");
+      const fallbackResponse = await options.fallbackRequest(candidateUrl, { timeoutMs });
+      if (fallbackResponse?.ok || (fallbackResponse && fallbackResponse.status < 500 && fallbackResponse.status !== 429)) {
+        return fallbackResponse;
+      }
+      if (fallbackResponse) lastResponse = fallbackResponse;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
   if (lastResponse) return lastResponse;
   throw lastError || new Error("Falha de rede sem detalhes adicionais.");
 }
-
 function headersFor(key, extra = {}) {
   return {
     apikey: key,
@@ -339,7 +422,9 @@ export async function autoResolvePending(options = {}) {
 
       let response;
       try {
-        response = await fetchCandidateWithRetry(request, candidate.toString());
+        response = await fetchCandidateWithRetry(request, candidate.toString(), {
+          fallbackRequest: fetchCandidateWithCurl
+        });
       } catch (error) {
         await keepPending(item, "Não foi possível abrir a publicação oficial após 2 tentativas: " + summarizeFetchError(error));
         continue;
