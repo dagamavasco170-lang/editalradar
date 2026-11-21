@@ -115,7 +115,10 @@ export function classifyDiscovery(discovery, document, responseUrl = discovery?.
   const hasPublicSelection = /\b(concurso\s+público|processo\s+seletivo(?:\s+simplificado)?|seleção\s+pública)\b/i.test(evidence);
   const hasNotice = /\bedital\b/i.test(evidence);
   const hasPositionEvidence = /\b(cargo|cargos|função|funções|vagas)\b/i.test(evidence);
-  if (!hasPublicSelection || !hasNotice || !hasPositionEvidence) {
+  const hasExplicitRetification = /\b(retifica|retificação|retificações|retificacao|retificacoes|errata|aditivo|alteração do edital|alteracao do edital)\b/i
+    .test([discovery?.title, document?.title, document?.heading].filter(Boolean).join(" "));
+  const selectionEvidence = hasPublicSelection || (hasExplicitRetification && hasNotice);
+  if (!selectionEvidence || !hasNotice || !hasPositionEvidence) {
     const unrelatedTitle = /\b(transação tributária|notificações? e intimações|processo administrativo de responsabilização|licitação|ouvidoria|transparência|consulta fiscal)\b/i.test(title || discovery?.title || "");
     if (discovery?.discovery_type === "new_link" && unrelatedTitle && !hasPublicSelection) {
       return { decision: "dismiss", reason: "O conteúdo identificado trata de assunto administrativo sem evidência de concurso ou processo seletivo público." };
