@@ -40,6 +40,14 @@ const describeAlert = (filters) => {
 
 const isPreliminary = (item) => /concurso listado\s*·\s*verificar/i.test(item?.status || "");
 
+const brazilianStates = [
+  "Acre", "Alagoas", "Amapá", "Amazonas", "Bahia", "Ceará", "Distrito Federal",
+  "Espírito Santo", "Goiás", "Maranhão", "Mato Grosso", "Mato Grosso do Sul",
+  "Minas Gerais", "Pará", "Paraíba", "Paraná", "Pernambuco", "Piauí",
+  "Rio de Janeiro", "Rio Grande do Norte", "Rio Grande do Sul", "Rondônia",
+  "Roraima", "Santa Catarina", "São Paulo", "Sergipe", "Tocantins"
+];
+
 export default function App({ authClient = supabase, authConfigured = isSupabaseConfigured } = {}) {
   const [page, setPage] = useState("concursos");
   const [query, setQuery] = useState("");
@@ -75,6 +83,10 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   const [authMessageType, setAuthMessageType] = useState("info");
   const [showProfile, setShowProfile] = useState(false);
   const [profileName, setProfileName] = useState("");
+  const [profileCity, setProfileCity] = useState("");
+  const [profileState, setProfileState] = useState("");
+  const [profileEducation, setProfileEducation] = useState("");
+  const [profileArea, setProfileArea] = useState("");
   const [profileBusy, setProfileBusy] = useState(false);
   const [profileMessage, setProfileMessage] = useState("");
   const [profileMessageType, setProfileMessageType] = useState("info");
@@ -310,7 +322,12 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
       setAuthMessage("");
       return;
     }
-    setProfileName(authUser.user_metadata?.full_name || authUser.user_metadata?.name || "");
+    const metadata = authUser.user_metadata || {};
+    setProfileName(metadata.full_name || metadata.name || "");
+    setProfileCity(metadata.city || "");
+    setProfileState(metadata.state || "");
+    setProfileEducation(metadata.education_level || "");
+    setProfileArea(metadata.interest_area || "");
     setProfileMessage("");
     setProfileMessageType("info");
     setShowProfile(true);
@@ -326,19 +343,28 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
       return;
     }
 
+    const profileData = {
+      full_name: name,
+      city: profileCity.trim(),
+      state: profileState,
+      education_level: profileEducation,
+      interest_area: profileArea
+    };
+
     setProfileBusy(true);
     setProfileMessage("");
     try {
       const { data, error } = await authClient.auth.updateUser({
-        data: { full_name: name }
+        data: profileData
       });
       if (error) throw error;
       setAuthUser(data?.user || {
         ...authUser,
-        user_metadata: { ...authUser.user_metadata, full_name: name }
+        user_metadata: { ...authUser.user_metadata, ...profileData }
       });
       setProfileName(name);
-      setProfileMessage("Nome atualizado com sucesso.");
+      setProfileCity(profileData.city);
+      setProfileMessage("Perfil atualizado com sucesso.");
       setProfileMessageType("success");
     } catch (error) {
       setProfileMessage(error.message || "Não foi possível atualizar seu perfil.");
@@ -585,9 +611,15 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
           <button className="modal-close" onClick={() => setShowProfile(false)} aria-label="Fechar edição de perfil">×</button>
           <div className="eyebrow">SUA CONTA EDITALRADAR</div>
           <h2 id="profile-title">Editar perfil</h2>
-          <p className="muted">Escolha como seu nome aparece no EditalRadar. A alteração fica salva na sua conta.</p>
-          <form className="auth-form" onSubmit={handleProfileSubmit}>
+          <p className="muted">Personalize seu perfil para acompanhar oportunidades mais relevantes. As informações ficam salvas na sua conta.</p>
+          <form className="auth-form profile-form" onSubmit={handleProfileSubmit}>
             <label>Nome de exibição<input type="text" value={profileName} onChange={(event) => setProfileName(event.target.value)} autoComplete="name" maxLength={60} required placeholder="Como quer ser chamado?" /></label>
+            <div className="profile-grid">
+              <label>Cidade<input type="text" value={profileCity} onChange={(event) => setProfileCity(event.target.value)} autoComplete="address-level2" maxLength={80} placeholder="Ex.: Maceió" /></label>
+              <label>Estado<select value={profileState} onChange={(event) => setProfileState(event.target.value)} autoComplete="address-level1"><option value="">Selecione</option>{brazilianStates.map((state) => <option key={state} value={state}>{state}</option>)}</select></label>
+              <label>Escolaridade<select value={profileEducation} onChange={(event) => setProfileEducation(event.target.value)}><option value="">Selecione</option>{["Ensino fundamental", "Ensino médio", "Técnico", "Superior incompleto", "Superior completo", "Pós-graduação"].map((level) => <option key={level} value={level}>{level}</option>)}</select></label>
+              <label>Área de interesse<select value={profileArea} onChange={(event) => setProfileArea(event.target.value)}><option value="">Selecione</option>{["Administrativa", "Policial", "Tribunais", "Fiscal e controle", "Bancária", "Educação", "Saúde", "Jurídica", "Tecnologia", "Outras"].map((area) => <option key={area} value={area}>{area}</option>)}</select></label>
+            </div>
             <button className="primary-btn full" type="submit" disabled={profileBusy}>{profileBusy ? "Salvando..." : "Salvar perfil"}</button>
             {profileMessage && <p className={`auth-message ${profileMessageType}`} role="status">{profileMessage}</p>}
           </form>
