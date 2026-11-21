@@ -220,7 +220,10 @@ export function buildRetificationUpdate(existingData, extractedData, discovery, 
     updatedData[field] = nextValue;
   };
 
-  const explicitVacancy = text.match(/(?:leia-se|passa(?:m)? a ser|passa(?:m)? para|totalizando|retifica(?:-se)?(?: o total de)?)\D{0,80}(\d{1,5})\s+vagas?\b/i);
+  const explicitVacancy = text.match(/\bleia-se\D{0,40}(\d{1,5})\s+vagas?\b/i)
+    || text.match(/\bpassa(?:m)? a ser\D{0,40}(\d{1,5})\s+vagas?\b/i)
+    || text.match(/\bpassa(?:m)? para\D{0,40}(\d{1,5})\s+vagas?\b/i)
+    || text.match(/\btotalizando\D{0,40}(\d{1,5})\s+vagas?\b/i);
   const vacancyMentions = [...text.matchAll(/\b(\d{1,5})\s+vagas?\b/gi)].map(match => Number(match[1]));
   const uniqueVacancies = [...new Set(vacancyMentions)];
   const nextVacancies = explicitVacancy
