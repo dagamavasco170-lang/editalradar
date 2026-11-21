@@ -2,22 +2,22 @@ const DATE_PATTERNS = [
   {
     type: "deadline",
     label: "Fim das inscrições",
-    expression: /\\binscri(?:ç|c)ões(?:\\s+abertas)?\\s+até\\s+(\\d{2}\\/\\d{2}\\/\\d{4})/i
+    expression: /\binscri(?:ç|c)ões(?:\s+abertas)?\s+até\s+(\d{2}\/\d{2}\/\d{4})/i
   },
   {
     type: "result",
     label: "Resultado previsto",
-    expression: /\\bresultado(?:\\s+\\w+)?\\s+(?:previsto|prevista)\\s+em\\s+(\\d{2}\\/\\d{2}\\/\\d{4})/i
+    expression: /\bresultado(?:\s+\w+)?\s+(?:previsto|prevista)\s+em\s+(\d{2}\/\d{2}\/\d{4})/i
   },
   {
     type: "exam",
     label: "Prova",
-    expression: /\\bprovas?(?:\\s+(?:objetiva|discursiva|prática|pratica))?\\s+(?:prevista?\\s+)?(?:em|para)\\s+(\\d{2}\\/\\d{2}\\/\\d{4})/i
+    expression: /\bprovas?(?:\s+(?:objetiva|discursiva|prática|pratica))?\s+(?:prevista?\s+)?(?:em|para)\s+(\d{2}\/\d{2}\/\d{4})/i
   }
 ];
 
 const parseBrazilianDate = (value) => {
-  const match = /^(\\d{2})\\/(\\d{2})\\/(\\d{4})$/.exec(value || "");
+  const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value || "");
   if (!match) return null;
   const [, day, month, year] = match;
   const date = new Date(Number(year), Number(month) - 1, Number(day), 12, 0, 0, 0);
@@ -34,7 +34,7 @@ export const getUpcomingMilestones = (catalog = [], now = new Date(), limit = 5)
   for (const item of Array.isArray(catalog) ? catalog : []) {
     if (!item || typeof item !== "object") continue;
     const status = String(item.status || "");
-    if (/concurso listado\\s*·\\s*verificar/i.test(status)) continue;
+    if (/concurso listado\s*·\s*verificar/i.test(status)) continue;
 
     for (const pattern of DATE_PATTERNS) {
       const match = pattern.expression.exec(status);
