@@ -175,7 +175,7 @@ describe("EditalRadar", () => {
     const dashboard = screen.getByRole("region", { name: "Painel inteligente do candidato" });
     expect(dashboard).toHaveTextContent("Sua jornada em um só lugar");
     expect(dashboard).toHaveTextContent("Próximas datas importantes");
-    expect(dashboard).toHaveTextContent("Agenda de oportunidades");
+    expect(dashboard).toHaveTextContent(/Agenda de oportunidades/i);
     expect(within(dashboard).getByRole("button", { name: /Rotina de estudos: 0% concluída/ })).toBeInTheDocument();
 
     fireEvent.click(within(dashboard).getByRole("button", { name: /Rotina de estudos/ }));
@@ -252,8 +252,8 @@ describe("EditalRadar", () => {
     fireEvent.change(screen.getByLabelText("Cidade"), { target: { value: "Paripueira" } });
 
     expect(screen.getByText("Cargos efetivos a definir")).toBeInTheDocument();
-    expect(screen.getByText("Professor — Matemática (lotação em Paripueira)")).toBeInTheDocument();
-    expect(screen.getByText("Professor — Português (lotação em Paripueira)")).toBeInTheDocument();
+    expect(within(document.querySelector(".cards")).getByText("Professor — Matemática (lotação em Paripueira)")).toBeInTheDocument();
+    expect(within(document.querySelector(".cards")).getByText("Professor — Português (lotação em Paripueira)")).toBeInTheDocument();
     expect(screen.queryByText("Banco Central do Brasil")).not.toBeInTheDocument();
   });
 
@@ -292,7 +292,7 @@ describe("EditalRadar", () => {
       target: { value: "PROCON" }
     });
 
-    expect(screen.getByText("Analista e Fiscal de Proteção e Defesa do Consumidor")).toBeInTheDocument();
+    expect(within(document.querySelector(".cards")).getByText("Analista e Fiscal de Proteção e Defesa do Consumidor")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Ver detalhes/ }));
 
     expect(screen.getByRole("link", { name: /Consultar página oficial do concurso/ }))

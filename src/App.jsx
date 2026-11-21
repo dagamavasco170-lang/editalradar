@@ -1117,7 +1117,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                     <span className="dashboard-stat-copy"><small>Rotina de estudos</small><strong>{progress}%</strong></span>
                     <em>{tasks.filter(Boolean).length}/{tasks.length} tarefas</em>
                   </button>
-                  <button className="dashboard-stat" type="button" onClick={() => setPage("favoritos")} aria-label={`Meus favoritos: ${favorites.length}`}>
+                  <button className="dashboard-stat" type="button" onClick={() => setPage("favoritos")} aria-label={`Abrir lista de favoritos (${favorites.length})`}>
                     <span className="dashboard-stat-icon">♡</span>
                     <span className="dashboard-stat-copy"><small>Meus favoritos</small><strong>{favorites.length}</strong></span>
                     <em>Oportunidades salvas</em>

@@ -12,7 +12,7 @@ const DATE_PATTERNS = [
   {
     type: "exam",
     label: "Prova",
-    expression: /\bprovas?(?:\s+(?:objetiva|discursiva|prática|pratica))?\s+(?:prevista?\s+)?(?:em|para)\s+(\d{2}\/\d{2}\/\d{4})/i
+    expression: /\bprovas?(?:\s+(?:objetiva|discursiva|prática|pratica))?\s+(?:(?:prevista|previsto)\s+)?(?:em|para)\s+(\d{2}\/\d{2}\/\d{4})/i
   }
 ];
 
