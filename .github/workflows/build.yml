@@ -83,3 +83,31 @@ jobs:
       - name: Publicar site
         id: deployment
         uses: actions/deploy-pages@v5
+      - name: Checkout para teste pós-publicação
+        uses: actions/checkout@v6
+      - name: Configurar Node.js para teste pós-publicação
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Instalar dependências dos testes
+        run: npm install
+      - name: Instalar Chromium para teste do site publicado
+        run: npx playwright install --with-deps chromium
+      - name: Aguardar o site público responder
+        env:
+          PLAYWRIGHT_BASE_URL: https://dagamavasco170-lang.github.io/editalradar/
+        run: |
+          curl --fail --location --retry 12 --retry-delay 5 --retry-all-errors "$PLAYWRIGHT_BASE_URL"
+      - name: Testar o endereço público após o deploy
+        env:
+          PLAYWRIGHT_BASE_URL: https://dagamavasco170-lang.github.io/editalradar/
+        run: npm run test:e2e
+      - name: Salvar evidências do teste em produção
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-production-report
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
