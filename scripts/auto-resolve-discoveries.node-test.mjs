@@ -64,7 +64,7 @@ test("não publica conteúdo hospedado fora de domínio oficial autorizado", () 
 });
 
 test("atualiza o motivo da triagem automática sem duplicar comentários antigos", () => {
-  const old = "Contexto original\\n\\n[Triagem automática do EditalRadar] Tentativa anterior";
+  const old = ["Contexto original", "", "[Triagem automática do EditalRadar] Tentativa anterior"].join(String.fromCharCode(10));
   const updated = appendContext(old, "PDF sem texto extraível");
   assert.match(updated, /Contexto original/);
   assert.match(updated, /PDF sem texto extraível/);
