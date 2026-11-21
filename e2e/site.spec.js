@@ -245,7 +245,7 @@ test("exporta favoritos para CSV", async ({ page }) => {
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: /Exportar CSV/ }).click();
   const download = await downloadPromise;
-  expect(download.suggestedFilename()).toMatch(/^editalradar-favoritos-.*\\.csv$/);
+  expect(download.suggestedFilename()).toMatch(/^editalradar-favoritos-.*\.csv$/);
   await expect(page.getByRole("status").filter({ hasText: /exportada\(s\) para CSV/ })).toBeVisible();
 });
 
