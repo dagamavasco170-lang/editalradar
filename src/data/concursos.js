@@ -360,7 +360,7 @@ export const concursos = [
     "localidade": "Teotônio Vilela",
     "sourceUrl": "https://igeduc.selecao.net.br/informacoes/186/",
     "observacao": "O edital oferta 205 vagas em 11 cargos da Secretaria Municipal de Educação. As inscrições ocorreram de 27/08 a 12/10/2026. A página oficial do IGEDUC registra resultado preliminar da prova objetiva publicado em 18/11/2026 e gabarito definitivo. Consulte a página oficial para acompanhar recursos e próximas etapas."
-  },,
+  },
   {
     "sigla": "ARSAL/AL",
     "cargo": "Cargos diversos — consultar edital",
