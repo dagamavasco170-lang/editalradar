@@ -1,6 +1,8 @@
 import { defineConfig } from "@playwright/test";
 
 const productionBaseURL = process.env.PLAYWRIGHT_BASE_URL;
+const localBasePath = process.env.GITHUB_ACTIONS === "true" ? "/editalradar/" : "/";
+const localBaseURL = `http://127.0.0.1:4173${localBasePath}`;
 
 export default defineConfig({
   testDir: "./e2e",
@@ -9,7 +11,7 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   reporter: [["list"], ["html", { outputFolder: "playwright-report", open: "never" }]],
   use: {
-    baseURL: productionBaseURL || "http://127.0.0.1:4173/editalradar/",
+    baseURL: productionBaseURL || localBaseURL,
     browserName: "chromium",
     headless: true,
     screenshot: "only-on-failure",
@@ -19,7 +21,7 @@ export default defineConfig({
   // Caso contrário, sobe o preview local do build.
   webServer: productionBaseURL ? undefined : {
     command: "npm run preview -- --host 127.0.0.1",
-    url: "http://127.0.0.1:4173/editalradar/",
+    url: localBaseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 30_000
   }
