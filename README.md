@@ -1,45 +1,43 @@
 # EditalRadar
 
-Plataforma web para descobrir oportunidades de concursos públicos e organizar a preparação.
+Plataforma web para acompanhar autorizações oficiais de concursos públicos e organizar a preparação.
 
-## Funcionalidades do MVP
+## Integração oficial implementada
 
-- Catálogo de concursos com pesquisa por cargo, órgão ou estado.
-- Filtros por área, estado e escolaridade.
-- Detalhes das oportunidades.
-- Favoritos guardados no navegador.
-- Área de estudos com checklist e progresso diário.
-- Questão demonstrativa com correção.
-- Layout adaptável a computador e celular.
+O site sincroniza a planilha de **Autorizações e Provimentos** do Ministério da Gestão e da Inovação em Serviços Públicos (MGI).
 
-## Executar localmente
+1. Consulta a página oficial do MGI e localiza a planilha XLSX de 2026.
+2. Baixa e lê a planilha no GitHub Actions.
+3. Importa as linhas classificadas como **Concurso Público**.
+4. Gera os dados usados na compilação.
+5. Compila e publica o site no GitHub Pages.
 
-Requisitos: Node.js 18+ e npm.
+A sincronização está agendada diariamente às 09:00 UTC, além de cada push e execução manual.
+
+Fonte oficial: https://www.gov.br/gestao/pt-br/acesso-a-informacao/servidores/concursos-publicos/autorizacoes-e-provimentos
+
+## Importante sobre os dados
+
+A planilha do MGI informa autorizações de concursos do Poder Executivo Federal. **Autorização não significa edital publicado nem inscrições abertas.** Ela não é uma lista nacional completa: concursos estaduais, municipais, de outros Poderes e de empresas públicas podem não estar incluídos.
+
+## Funcionalidades
+
+- Busca por cargo, órgão e vínculo.
+- Filtro por escolaridade.
+- Detalhes da autorização e link para a fonte oficial.
+- Favoritos salvos no navegador.
+- Área de estudos com checklist e questão demonstrativa.
+
+## Desenvolvimento
+
+Requisitos: Node.js 22+ e npm.
 
 ```bash
 npm install
+npm run sync:mgi
 npm run dev
 ```
 
-Compilar para produção:
+Compilar: `npm run build`.
 
-```bash
-npm run build
-npm run preview
-```
-
-## Compilação no GitHub
-
-O workflow **Build EditalRadar** é executado automaticamente a cada push ou pull request na branch `main`. O arquivo compilado fica disponível em **Actions → Build EditalRadar → Artifacts**, com o nome `editalradar-dist`.
-
-## Importante
-
-Os concursos, órgãos, salários, vagas, status e localidades exibidos nesta versão são dados fictícios para demonstração da interface. Ainda não há integração com editais oficiais, inscrições, autenticação ou banco de dados. Antes de lançar publicamente, será necessário integrar fontes oficiais e validar as informações.
-
-## Próximas etapas sugeridas
-
-1. API e banco de dados para oportunidades e usuários.
-2. Integração com fontes oficiais e links de editais.
-3. Cadastro e login com favoritos sincronizados.
-4. Painel administrativo para publicar e revisar concursos.
-5. Banco de questões, simulados e relatórios de desempenho.
+O workflow **Sync, build and deploy EditalRadar** sincroniza os dados oficiais, compila e publica o site automaticamente.

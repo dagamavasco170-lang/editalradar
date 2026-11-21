@@ -1,10 +1,12 @@
-name: Build and deploy EditalRadar
+name: Sync, build and deploy EditalRadar
 
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
+  schedule:
+    - cron: "0 9 * * *"
   workflow_dispatch:
 
 permissions:
@@ -28,6 +30,8 @@ jobs:
           node-version: 22
       - name: Install dependencies
         run: npm install
+      - name: Sincronizar autorizações oficiais do MGI
+        run: node scripts/sync-mgi-authorizations.js
       - name: Build production app
         run: npm run build
       - name: Configure GitHub Pages
@@ -38,7 +42,7 @@ jobs:
           path: ./dist
 
   deploy:
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
     needs: build
     runs-on: ubuntu-latest
     environment:

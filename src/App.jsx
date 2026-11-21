@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { concursos, materias } from "./data/concursos";
+import { concursos, materias, sourceUrl, sourceUpdated, fetchedAt } from "./data/concursos";
 
 const readStore = (key, fallback) => {
   try {
@@ -13,8 +13,6 @@ const readStore = (key, fallback) => {
 export default function App() {
   const [page, setPage] = useState("concursos");
   const [query, setQuery] = useState("");
-  const [area, setArea] = useState("Todas as áreas");
-  const [estado, setEstado] = useState("Todos os estados");
   const [nivel, setNivel] = useState("Todos os níveis");
   const [favorites, setFavorites] = useState(() => readStore("er-favorites", []));
   const [tasks, setTasks] = useState(() => readStore("er-tasks", [false, false, false, false]));
@@ -23,12 +21,10 @@ export default function App() {
   const [checkedAnswer, setCheckedAnswer] = useState(false);
 
   const filtered = useMemo(() => concursos.filter((item) => {
-    const text = [item.cargo, item.orgao, item.area, item.estado].join(" ").toLowerCase();
+    const text = [item.cargo, item.orgao, item.vinculo, item.atoOficial, item.nivel].join(" ").toLowerCase();
     return text.includes(query.toLowerCase())
-      && (area === "Todas as áreas" || item.area === area)
-      && (estado === "Todos os estados" || item.estado === estado)
       && (nivel === "Todos os níveis" || item.nivel === nivel);
-  }), [query, area, estado, nivel]);
+  }), [query, nivel]);
 
   const saveFavorites = (next) => {
     setFavorites(next);
@@ -43,6 +39,7 @@ export default function App() {
     localStorage.setItem("er-tasks", JSON.stringify(next));
   };
   const progress = Math.round(tasks.filter(Boolean).length / tasks.length * 100);
+  const totalVagas = concursos.reduce((sum, item) => sum + (Number(item.vagas) || 0), 0);
 
   return (
     <div className="app-shell">
@@ -88,39 +85,42 @@ export default function App() {
         ) : (
           <section className="content">
             <div className="hero">
-              <div><div className="eyebrow light">INTELIGÊNCIA PARA SUA APROVAÇÃO</div><h1>Encontre seu próximo<br/>concurso público.</h1><p>Oportunidades organizadas para você focar no que importa: sua aprovação.</p>
+              <div><div className="eyebrow light">FONTE OFICIAL · GOVERNO FEDERAL</div><h1>Acompanhe concursos<br/>autorizados pelo MGI.</h1><p>Consulte cargos e vagas autorizadas diretamente da planilha oficial do Ministério.</p>
                 <div className="hero-search"><span>⌕</span><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Cargo, órgão ou palavra-chave..." /><button onClick={() => setPage("concursos")}>Buscar concursos</button></div>
               </div>
               <div className="hero-art"><div className="art-circle">✦</div><div className="art-card"><span>✧</span><strong>Seu esforço<br/>vai valer a pena.</strong><small>Um dia de cada vez.</small></div></div>
             </div>
+            <div className="source-notice">
+              <div><strong>O que significa “autorizado”?</strong><p>Autorização é uma etapa anterior ao edital. Ela não confirma publicação do edital, inscrições abertas, salário ou data de prova.</p></div>
+              <a href={sourceUrl} target="_blank" rel="noreferrer">Consultar fonte do MGI ↗</a>
+            </div>
             <div className="stats-row">
-              <div className="stat"><span className="stat-icon blue">▦</span><div><strong>{concursos.length}</strong><small>Concursos na demonstração</small></div></div>
-              <div className="stat"><span className="stat-icon green">⌁</span><div><strong>{concursos.filter(c => c.status === "Inscrições abertas").length}</strong><small>Com inscrições abertas*</small></div></div>
+              <div className="stat"><span className="stat-icon blue">▦</span><div><strong>{concursos.length}</strong><small>Registros oficiais importados</small></div></div>
+              <div className="stat"><span className="stat-icon green">⌁</span><div><strong>{new Intl.NumberFormat("pt-BR").format(totalVagas)}</strong><small>Vagas autorizadas listadas</small></div></div>
               <div className="stat"><span className="stat-icon gold">☆</span><div><strong>{favorites.length}</strong><small>Oportunidades salvas</small></div></div>
             </div>
-            <div className="section-title"><div><div className="eyebrow">EXPLORE OPORTUNIDADES</div><h2>{page === "favoritos" ? "Seus concursos favoritos" : "Concursos em destaque"}</h2></div><span className="results">{(page === "favoritos" ? filtered.filter(c => favorites.includes(c.id)) : filtered).length} resultados</span></div>
+            <div className="section-title"><div><div className="eyebrow">AUTORIZAÇÕES FEDERAIS</div><h2>{page === "favoritos" ? "Seus registros favoritos" : "Concursos autorizados pelo MGI"}</h2></div><span className="results">{(page === "favoritos" ? filtered.filter(c => favorites.includes(c.id)) : filtered).length} registros</span></div>
             <div className="filters">
-              <label className="search-filter"><span>⌕</span><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar concurso..." /></label>
-              <select value={area} onChange={(e) => setArea(e.target.value)}><option>Todas as áreas</option>{[...new Set(concursos.map(c => c.area))].map(x => <option key={x}>{x}</option>)}</select>
-              <select value={estado} onChange={(e) => setEstado(e.target.value)}><option>Todos os estados</option>{[...new Set(concursos.map(c => c.estado))].map(x => <option key={x}>{x}</option>)}</select>
+              <label className="search-filter"><span>⌕</span><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar cargo ou órgão..." /></label>
               <select value={nivel} onChange={(e) => setNivel(e.target.value)}><option>Todos os níveis</option>{[...new Set(concursos.map(c => c.nivel))].map(x => <option key={x}>{x}</option>)}</select>
             </div>
             <div className="cards">
               {(page === "favoritos" ? filtered.filter(c => favorites.includes(c.id)) : filtered).map((item) => <article className="contest-card" key={item.id}>
                 <div className="card-top"><div className="org-icon">{item.sigla}</div><button className={favorites.includes(item.id) ? "heart saved" : "heart"} onClick={() => toggleFavorite(item.id)} aria-label="Salvar favorito">{favorites.includes(item.id) ? "♥" : "♡"}</button></div>
-                <span className="status"><i />{item.status}</span><h3>{item.cargo}</h3><p className="org-name">{item.orgao}</p>
-                <div className="card-meta"><span>⌖ {item.estado}</span><span>▤ {item.nivel}</span></div>
-                <div className="card-bottom"><div><small>Remuneração demonstrativa</small><strong>{item.salario}</strong></div><button className="detail-btn" onClick={() => setSelected(item)}>Ver detalhes ↗</button></div>
+                <span className="status"><i />Autorizado pelo MGI</span><h3>{item.cargo}</h3><p className="org-name">{item.orgao}</p>
+                <div className="card-meta"><span>⌁ {item.vagas} vaga(s) autorizada(s)</span><span>▤ {item.nivel}</span></div>
+                <div className="card-bottom"><div><small>Ato de autorização</small><strong>{item.atoOficial || "Consulte a fonte"}</strong></div><button className="detail-btn" onClick={() => setSelected(item)}>Ver detalhes ↗</button></div>
               </article>)}
               {((page === "favoritos" && filtered.filter(c => favorites.includes(c.id)).length === 0) || (page !== "favoritos" && filtered.length === 0)) && <div className="empty">Nenhum concurso encontrado. Experimente ajustar os filtros.</div>}
             </div>
-            <p className="disclaimer">* Dados fictícios para demonstração da plataforma. Não representam concursos vigentes nem prazos oficiais.</p>
+            <div className="source-footnote"><span>Fonte: Ministério da Gestão e da Inovação em Serviços Públicos (MGI).</span><span>Planilha: {sourceUpdated || "consulte o MGI"} · Sincronizado em: {fetchedAt ? new Date(fetchedAt).toLocaleString("pt-BR") : "aguardando sincronização"}</span><a href={sourceUrl} target="_blank" rel="noreferrer">Abrir fonte oficial ↗</a></div>
+            <p className="disclaimer">Esta integração cobre autorizações do Poder Executivo Federal publicadas pelo MGI. Não é uma relação completa de concursos estaduais, municipais, de outros Poderes ou de empresas públicas. Autorização não significa edital publicado nem inscrições abertas. Confirme as informações no órgão responsável.</p>
           </section>
         )}
         <footer>© 2026 EditalRadar · Feito para apoiar sua jornada até a aprovação.</footer>
       </main>
 
-      {selected && <div className="modal-backdrop" onClick={() => setSelected(null)}><div className="modal" onClick={(e) => e.stopPropagation()}><button className="modal-close" onClick={() => setSelected(null)}>×</button><span className="status"><i />{selected.status}</span><div className="eyebrow">DETALHES DO CONCURSO · DEMONSTRAÇÃO</div><h2>{selected.cargo}</h2><p className="org-name">{selected.orgao}</p><div className="modal-facts"><div><small>Local</small><strong>{selected.estado}</strong></div><div><small>Escolaridade</small><strong>{selected.nivel}</strong></div><div><small>Remuneração</small><strong>{selected.salario}</strong></div><div><small>Área</small><strong>{selected.area}</strong></div></div><p className="muted">Este registro é ilustrativo. Consulte sempre o edital e o site oficial do órgão antes de tomar qualquer decisão.</p><button className="primary-btn full" onClick={() => toggleFavorite(selected.id)}>{favorites.includes(selected.id) ? "Remover dos favoritos" : "Salvar nos favoritos"}</button></div></div>}
+      {selected && <div className="modal-backdrop" onClick={() => setSelected(null)}><div className="modal" onClick={(e) => e.stopPropagation()}><button className="modal-close" onClick={() => setSelected(null)}>×</button><span className="status"><i />Autorizado pelo MGI</span><div className="eyebrow">REGISTRO DE AUTORIZAÇÃO OFICIAL</div><h2>{selected.cargo}</h2><p className="org-name">{selected.orgao}</p><div className="modal-facts"><div><small>Vagas autorizadas</small><strong>{selected.vagas}</strong></div><div><small>Escolaridade</small><strong>{selected.nivel}</strong></div><div><small>Vínculo</small><strong>{selected.vinculo || "Não informado"}</strong></div><div><small>Ato oficial</small><strong>{selected.atoOficial || "Consulte a planilha"}</strong></div></div><p className="muted">A autorização não é o edital e não significa que as inscrições estejam abertas. Confirme as próximas etapas diretamente com o órgão responsável.</p><a className="primary-btn full modal-source-link" href={sourceUrl} target="_blank" rel="noreferrer">Consultar fonte oficial do MGI ↗</a><button className="detail-btn full" onClick={() => toggleFavorite(selected.id)}>{favorites.includes(selected.id) ? "Remover dos favoritos" : "Salvar nos favoritos"}</button></div></div>}
     </div>
   );
 }
