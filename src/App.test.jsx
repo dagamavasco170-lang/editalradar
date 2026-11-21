@@ -65,6 +65,28 @@ describe("EditalRadar", () => {
     expect(JSON.parse(localStorage.getItem("er-notifications:visitor"))).toEqual([]);
   });
 
+  it("mostra instruções para instalar o aplicativo em diferentes dispositivos", () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Como instalar" }));
+    const dialog = screen.getByRole("dialog", { name: "Instale o EditalRadar" });
+    expect(within(dialog).getByText("Android")).toBeInTheDocument();
+    expect(within(dialog).getByText("iPhone ou iPad")).toBeInTheDocument();
+    expect(within(dialog).getByText("Computador")).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Entendi" }));
+    expect(screen.queryByRole("dialog", { name: "Instale o EditalRadar" })).not.toBeInTheDocument();
+  });
+
+  it("informa quando o dispositivo fica sem conexão e quando reconecta", () => {
+    render(<App />);
+
+    fireEvent(window, new Event("offline"));
+    expect(screen.getByRole("status")).toHaveTextContent(/Você está offline/);
+
+    fireEvent(window, new Event("online"));
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
   it("renderiza a página inicial e os concursos oficiais", () => {
     render(<App />);
 
