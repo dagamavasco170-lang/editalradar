@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildCatalogSnapshot, detectCatalogNotifications, dismissNotificationHistory, getVisibleNotifications, mergeNotificationHistory } from "./notifications";
+import { buildCatalogSnapshot, detectCatalogNotifications, dismissNotificationById, dismissNotificationHistory, getVisibleNotifications, mergeNotificationHistory } from "./notifications";
 
 const contest = (overrides = {}) => ({
   id: 10,
@@ -183,5 +183,24 @@ describe("Histórico de notificações dispensadas", () => {
       remote[1],
       local[1]
     ]);
+  });
+});
+
+
+describe("Dispensar uma notificação individual", () => {
+  it("apaga somente o aviso selecionado e mantém seu identificador", () => {
+    const original = [
+      { id: "new-21", title: "Aviso A", message: "A", read: false },
+      { id: "retification-10-2026", title: "Aviso B", message: "B", read: false }
+    ];
+    const result = dismissNotificationById(original, "new-21", "2026-11-21T20:00:00.000Z");
+
+    expect(result[0]).toEqual({
+      id: "new-21",
+      read: true,
+      dismissedAt: "2026-11-21T20:00:00.000Z"
+    });
+    expect(result[1]).toEqual(original[1]);
+    expect(getVisibleNotifications(result)).toEqual([original[1]]);
   });
 });

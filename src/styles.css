@@ -111,6 +111,11 @@
 .notification-count{display:inline-grid;place-items:center;min-width:21px;height:21px;padding:0 6px;border-radius:20px;background:#e9f5f1;color:#168364;font:700 11px 'DM Sans',sans-serif;vertical-align:middle}
 .notification-actions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:8px}
 .notification-list{display:grid;gap:7px}
+.notification-entry{display:flex;align-items:stretch;gap:6px;min-width:0}
+.notification-entry .notification-item{flex:1;min-width:0}
+.notification-dismiss{display:grid;place-items:center;width:34px;min-width:34px;border:1px solid #e5ece9;border-radius:9px;background:#fff;color:#8a999f;font-size:19px;line-height:1;cursor:pointer}
+.notification-dismiss:hover{border-color:#e6b8b2;background:#fff6f5;color:#b34e43}
+.notification-dismiss:focus-visible{outline:2px solid #197b61;outline-offset:2px}
 .notification-item{display:flex;align-items:center;gap:11px;width:100%;padding:11px 12px;border:1px solid #e5ece9;border-radius:9px;background:#f8fbf9;text-align:left;color:#274252}
 .notification-item:hover{border-color:#a9d3c4;background:#f2f8f5}
 .notification-item.read{background:#fff;color:#778791}

@@ -68,6 +68,50 @@ describe("EditalRadar", () => {
     expect(getVisibleNotifications(storedHistory)).toEqual([]);
   });
 
+  it("permite dispensar um aviso individual sem apagar os outros e sem fazê-lo voltar", async () => {
+    localStorage.clear();
+    localStorage.setItem("er-catalog-snapshot:visitor", JSON.stringify(buildCatalogSnapshot(concursos)));
+    localStorage.setItem("er-notifications:visitor", JSON.stringify([
+      {
+        id: "notice-to-dismiss",
+        type: "new",
+        itemId: String(concursos[0].id),
+        title: "Aviso individual",
+        message: "Este aviso será dispensado",
+        createdAt: "2026-11-21T12:00:00.000Z",
+        read: false
+      },
+      {
+        id: "notice-to-keep",
+        type: "new",
+        itemId: String(concursos[1].id),
+        title: "Aviso preservado",
+        message: "Este aviso continua",
+        createdAt: "2026-11-21T12:01:00.000Z",
+        read: false
+      }
+    ]));
+
+    const firstRender = render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: /Ver notificações/ }));
+    expect(await screen.findByRole("button", { name: /Aviso individual/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Dispensar notificação: Aviso individual" }));
+
+    expect(screen.queryByRole("button", { name: /Aviso individual/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Aviso preservado/ })).toBeInTheDocument();
+    const stored = JSON.parse(localStorage.getItem("er-notifications:visitor"));
+    expect(stored).toEqual([
+      expect.objectContaining({ id: "notice-to-dismiss", dismissedAt: expect.any(String), read: true }),
+      expect.objectContaining({ id: "notice-to-keep", title: "Aviso preservado" })
+    ]);
+
+    firstRender.unmount();
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: /Ver notificações/ }));
+    expect(screen.queryByRole("button", { name: /Aviso individual/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Aviso preservado/ })).toBeInTheDocument();
+  });
+
   it("não recria como nova uma notificação já apagada mesmo se o catálogo voltar a ser comparado", async () => {
     localStorage.clear();
     const latest = [...concursos].reverse().find((item) => !String(item.status || "").toLowerCase().includes("concurso listado"));

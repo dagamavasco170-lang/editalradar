@@ -132,3 +132,15 @@ export function mergeNotificationHistory(remote = [], local = []) {
 export function getVisibleNotifications(notifications = []) {
   return notifications.filter((item) => item && !item.dismissedAt);
 }
+
+
+export function dismissNotificationById(notifications = [], notificationId, dismissedAt = new Date().toISOString()) {
+  return notifications.map((item) => {
+    if (!item || String(item.id) !== String(notificationId)) return item;
+    return {
+      id: String(item.id),
+      read: true,
+      dismissedAt: item.dismissedAt || dismissedAt
+    };
+  });
+}

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { isSupabaseConfigured, supabase } from "./lib/supabaseClient";
 import { concursos, materias, sourceUrl, sourceUpdated, fetchedAt } from "./data/concursos";
-import { detectCatalogNotifications, dismissNotificationHistory, getVisibleNotifications, mergeNotificationHistory } from "./lib/notifications";
+import { detectCatalogNotifications, dismissNotificationById, dismissNotificationHistory, getVisibleNotifications, mergeNotificationHistory } from "./lib/notifications";
 import { applyCatalogOverrides } from "./lib/catalog";
 
 export const scoreRecommendation = (item, profile = {}) => {
@@ -782,6 +782,13 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     if (contest) setSelected(contest);
   };
 
+  const dismissSingleNotification = (notificationId) => {
+    const next = dismissNotificationById(notifications, notificationId);
+    setNotifications(next);
+    localStorage.setItem(notificationStorageKey, JSON.stringify(next));
+    void syncUserData({ notifications: next });
+  };
+
   const activeNotifications = getVisibleNotifications(notifications);
   const unreadNotificationCount = activeNotifications.filter((item) => !item.read).length;
   const visibleNotifications = notificationView === "unread"
@@ -1111,11 +1118,20 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
               {visibleNotifications.length > 0 ? (
                 <div className="notification-list">
                   {visibleNotifications.slice(0, 8).map((notification) => (
-                    <button className={notification.read ? "notification-item read" : "notification-item"} type="button" key={notification.id} onClick={() => openNotification(notification)}>
-                      <span className="notification-dot" aria-hidden="true" />
-                      <span className="notification-copy"><strong>{notification.title}</strong><small>{notification.message}</small></span>
-                      <span className="notification-open">Ver ↗</span>
-                    </button>
+                    <div className="notification-entry" key={notification.id}>
+                      <button className={notification.read ? "notification-item read" : "notification-item"} type="button" onClick={() => openNotification(notification)}>
+                        <span className="notification-dot" aria-hidden="true" />
+                        <span className="notification-copy"><strong>{notification.title}</strong><small>{notification.message}</small></span>
+                        <span className="notification-open">Ver ↗</span>
+                      </button>
+                      <button
+                        className="notification-dismiss"
+                        type="button"
+                        aria-label={`Dispensar notificação: ${notification.title}`}
+                        title="Dispensar este aviso"
+                        onClick={() => dismissSingleNotification(notification.id)}
+                      >×</button>
+                    </div>
                   ))}
                 </div>
               ) : <p className="alerts-empty">{activeNotifications.length === 0 ? "Nenhuma novidade por enquanto. Quando o catálogo receber novos concursos ou um favorito for atualizado, o aviso aparecerá aqui." : "Não há notificações não lidas. Você já conferiu todas as novidades."}</p>}
