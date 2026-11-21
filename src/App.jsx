@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { isSupabaseConfigured, supabase } from "./lib/supabaseClient";
 import { concursos, materias, sourceUrl, sourceUpdated, fetchedAt } from "./data/concursos";
 import { detectCatalogNotifications, dismissNotificationById, dismissNotificationHistory, getVisibleNotifications, mergeNotificationHistory } from "./lib/notifications";
@@ -300,7 +300,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     return () => { cancelled = true; };
   }, [authClient, authUser?.id]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!authClient || !authUser) {
       syncReadyUserRef.current = null;
       pendingChangesRef.current = {};
