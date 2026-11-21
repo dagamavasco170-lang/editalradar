@@ -594,7 +594,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
 
   useEffect(() => {
     if (page !== "concursos" || !jumpToNotifications) return;
-    notificationsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    notificationsSectionRef.current?.scrollIntoView?.({ behavior: "smooth", block: "start" });
     setJumpToNotifications(false);
   }, [page, jumpToNotifications]);
 
