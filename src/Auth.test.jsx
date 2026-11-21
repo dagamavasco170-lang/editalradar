@@ -1,6 +1,6 @@
 import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import App from "./App.jsx";
 
 const createAuthClient = () => {
@@ -123,13 +123,14 @@ describe("Autenticação EditalRadar", () => {
     expect(screen.getByText("Nome Antigo")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Editar perfil" }));
 
-    const nameInput = await screen.findByLabelText("Nome de exibição");
+    const profileDialog = screen.getByRole("dialog", { name: "Editar perfil" });
+    const nameInput = within(profileDialog).getByLabelText("Nome de exibição");
     expect(nameInput).toHaveValue("Nome Antigo");
     fireEvent.change(nameInput, { target: { value: "Maria Concurseira" } });
-    fireEvent.change(screen.getByLabelText("Cidade"), { target: { value: "Maceió" } });
-    fireEvent.change(screen.getByLabelText("Estado"), { target: { value: "Alagoas" } });
-    fireEvent.change(screen.getByLabelText("Escolaridade"), { target: { value: "Superior completo" } });
-    fireEvent.change(screen.getByLabelText("Área de interesse"), { target: { value: "Tribunais" } });
+    fireEvent.change(within(profileDialog).getByLabelText("Cidade"), { target: { value: "Maceió" } });
+    fireEvent.change(within(profileDialog).getByLabelText("Estado"), { target: { value: "Alagoas" } });
+    fireEvent.change(within(profileDialog).getByLabelText("Escolaridade"), { target: { value: "Superior completo" } });
+    fireEvent.change(within(profileDialog).getByLabelText("Área de interesse"), { target: { value: "Tribunais" } });
     fireEvent.click(screen.getByRole("button", { name: "Salvar perfil" }));
 
     await waitFor(() => expect(client.auth.updateUser).toHaveBeenCalledWith({
@@ -142,8 +143,8 @@ describe("Autenticação EditalRadar", () => {
       }
     }));
     expect(await screen.findByText("Maria Concurseira")).toBeInTheDocument();
-    expect(screen.getByLabelText("Cidade")).toHaveValue("Maceió");
-    expect(screen.getByLabelText("Estado")).toHaveValue("Alagoas");
+    expect(within(profileDialog).getByLabelText("Cidade")).toHaveValue("Maceió");
+    expect(within(profileDialog).getByLabelText("Estado")).toHaveValue("Alagoas");
   });
 
   it("mostra erro e mantém a edição aberta se o Supabase rejeitar a alteração do perfil", async () => {
