@@ -1,17 +1,20 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { concursos } from "../src/data/concursos.js";
-import { collectSourceUrls, compareSource, fingerprintContent, normalizeHtml, extractOpportunityLinks, buildDiscoveriesForSource } from "./monitor-sources.mjs";
+import { collectSourceUrls, compareSource, fingerprintContent, normalizeHtml, extractOpportunityLinks, buildDiscoveriesForSource, isTrustedOfficialHost } from "./monitor-sources.mjs";
 
 test("coleta somente URLs HTTPS únicas", () => {
   const urls = collectSourceUrls([
     { sourceUrl: "https://example.gov.br/a" },
     { sourceUrl: "https://example.gov.br/a" },
     { sourceUrl: "http://example.gov.br/b" },
+    { sourceUrl: "https://concursor.com.br/editais" },
     { sourceUrl: "not-a-url" },
     {}
   ]);
   assert.deepEqual(urls, ["https://example.gov.br/a"]);
+  assert.equal(isTrustedOfficialHost("cebraspe.org.br"), true);
+  assert.equal(isTrustedOfficialHost("concursor.com.br"), false);
 });
 
 test("catálogo atual possui fontes HTTPS deduplicadas", () => {
