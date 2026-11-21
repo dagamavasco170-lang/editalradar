@@ -57,3 +57,17 @@ test("filtra concursos estaduais e municipais por estado e cidade", async ({ pag
   await expect(page.getByText("Cargos efetivos a definir")).toBeVisible();
   await expect(page.getByText("Professor — Matemática (lotação em Paripueira)")).toBeVisible();
 });
+
+test("salva e remove um alerta personalizado no navegador", async ({ page }) => {
+  await page.goto("./");
+  await page.getByPlaceholder("Buscar cargo ou órgão...").fill("PROCON");
+  await page.getByRole("button", { name: /Salvar alerta/ }).click();
+
+  await expect(page.getByText("PROCON").last()).toBeVisible();
+  await expect(page.getByText("1 oportunidade(s) correspondente(s)")).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByText("1 oportunidade(s) correspondente(s)")).toBeVisible();
+  await page.getByRole("button", { name: /Remover alerta PROCON/ }).click();
+  await expect(page.getByText(/Você ainda não salvou alertas/)).toBeVisible();
+});
