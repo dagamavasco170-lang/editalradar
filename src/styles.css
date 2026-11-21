@@ -188,3 +188,5 @@
 .discovery-empty{padding:18px;border:1px dashed #d8e4e1;border-radius:9px;text-align:center;color:#80919a;font-size:11px;background:#fafcfb}
 .discovery-row .admin-row-actions{flex-wrap:wrap}
 @media(max-width:560px){.discovery-row .admin-row-actions{justify-content:stretch}.discovery-row .admin-row-actions button{flex:1}}
+
+.notification-more{display:flex;justify-content:center;padding-top:8px}

@@ -137,6 +137,35 @@ describe("EditalRadar", () => {
     expect(screen.getByText(/Nenhuma novidade por enquanto/)).toBeInTheDocument();
   });
 
+  it("permite carregar o histórico completo além dos oito avisos iniciais", async () => {
+    localStorage.clear();
+    localStorage.setItem("er-catalog-snapshot:visitor", JSON.stringify(buildCatalogSnapshot(concursos)));
+    const history = Array.from({ length: 10 }, (_, index) => ({
+      id: `history-${index + 1}`,
+      type: "new",
+      itemId: String(concursos[index % concursos.length].id),
+      title: `Aviso ${index + 1}`,
+      message: `Detalhe do aviso ${index + 1}`,
+      createdAt: new Date(Date.UTC(2026, 10, 21, 12, index)).toISOString(),
+      read: true
+    }));
+    localStorage.setItem("er-notifications:visitor", JSON.stringify(history));
+
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: /Ver notificações/ }));
+
+    expect(screen.getByText("Aviso 1")).toBeInTheDocument();
+    expect(screen.getByText("Aviso 8")).toBeInTheDocument();
+    expect(screen.queryByText("Aviso 9")).not.toBeInTheDocument();
+    expect(screen.queryByText("Aviso 10")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Ver mais avisos (2 restantes)" }));
+
+    expect(screen.getByText("Aviso 9")).toBeInTheDocument();
+    expect(screen.getByText("Aviso 10")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Ver mais avisos/ })).not.toBeInTheDocument();
+  });
+
   it("mostra instruções para instalar o aplicativo em diferentes dispositivos", () => {
     render(<App />);
 

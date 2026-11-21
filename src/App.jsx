@@ -104,6 +104,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   );
   const [notificationMessage, setNotificationMessage] = useState("");
   const [notificationView, setNotificationView] = useState("all");
+  const [notificationLimit, setNotificationLimit] = useState(8);
   const [jumpToNotifications, setJumpToNotifications] = useState(false);
   const notificationsSectionRef = useRef(null);
   const [favorites, setFavorites] = useState(() => readStore("er-favorites", []));
@@ -794,6 +795,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   const visibleNotifications = notificationView === "unread"
     ? activeNotifications.filter((item) => !item.read)
     : activeNotifications;
+  const displayedNotifications = visibleNotifications.slice(0, notificationLimit);
 
   const clearNotificationHistory = () => {
     // Keep compact ID tombstones so the same catalog event is never announced again.
@@ -1112,12 +1114,12 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                 </div>
               </div>
               <div className="notification-filters" role="group" aria-label="Filtrar notificações">
-                <button type="button" className={notificationView === "all" ? "notification-filter active" : "notification-filter"} aria-pressed={notificationView === "all"} onClick={() => setNotificationView("all")}>Todas ({activeNotifications.length})</button>
-                <button type="button" className={notificationView === "unread" ? "notification-filter active" : "notification-filter"} aria-pressed={notificationView === "unread"} onClick={() => setNotificationView("unread")}>Não lidas ({unreadNotificationCount})</button>
+                <button type="button" className={notificationView === "all" ? "notification-filter active" : "notification-filter"} aria-pressed={notificationView === "all"} onClick={() => { setNotificationView("all"); setNotificationLimit(8); }}>Todas ({activeNotifications.length})</button>
+                <button type="button" className={notificationView === "unread" ? "notification-filter active" : "notification-filter"} aria-pressed={notificationView === "unread"} onClick={() => { setNotificationView("unread"); setNotificationLimit(8); }}>Não lidas ({unreadNotificationCount})</button>
               </div>
               {visibleNotifications.length > 0 ? (
                 <div className="notification-list">
-                  {visibleNotifications.slice(0, 8).map((notification) => (
+                  {displayedNotifications.map((notification) => (
                     <div className="notification-entry" key={notification.id} role="group" aria-label={notification.title}>
                       <button className={notification.read ? "notification-item read" : "notification-item"} type="button" onClick={() => openNotification(notification)}>
                         <span className="notification-dot" aria-hidden="true" />
@@ -1134,6 +1136,17 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                     </div>
                   ))}
                 </div>
+                {visibleNotifications.length > displayedNotifications.length && (
+                  <div className="notification-more">
+                    <button
+                      className="detail-btn"
+                      type="button"
+                      onClick={() => setNotificationLimit((current) => Math.min(current + 8, 50))}
+                    >
+                      Ver mais avisos ({visibleNotifications.length - displayedNotifications.length} restantes)
+                    </button>
+                  </div>
+                )}
               ) : <p className="alerts-empty">{activeNotifications.length === 0 ? "Nenhuma novidade por enquanto. Quando o catálogo receber novos concursos ou um favorito for atualizado, o aviso aparecerá aqui." : "Não há notificações não lidas. Você já conferiu todas as novidades."}</p>}
               <small className="alerts-note">
                 {notificationPermission === "granted" && browserNotificationsEnabled
