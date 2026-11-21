@@ -52,3 +52,21 @@ O aplicativo envia pedidos por `resetPasswordForEmail` com retorno para o endere
 No Supabase, confirme que `https://dagamavasco170-lang.github.io/editalradar/` está em Authentication → URL Configuration → Redirect URLs. Para entrega confiável, configure um provedor SMTP próprio em Authentication → SMTP Settings; o serviço de e-mail padrão pode ter limites de envio.
 
 O sistema não informa se um e-mail existe: a mensagem de retorno é genérica por segurança. A nova senha precisa ter pelo menos 8 caracteres e ser confirmada no formulário.
+
+
+## 7. Entrar com Google
+
+O botão “Continuar com Google” usa Supabase Auth OAuth. Para ativá-lo, configure o provedor no Supabase e crie as credenciais no Google Cloud:
+
+1. No Google Cloud Console, selecione ou crie um projeto e abra Google Auth Platform.
+2. Configure a tela de consentimento (nome do aplicativo e e-mail de suporte). Para testes com o app em modo External/Testing, adicione os endereços Google que vão testar como usuários de teste.
+3. Em Clients, crie um OAuth Client ID do tipo **Web application**.
+4. Em **Authorized JavaScript origins**, adicione `https://dagamavasco170-lang.github.io`.
+5. Em **Authorized redirect URIs**, adicione o callback do Supabase: `https://xrdtqbatynoofkjtjgeq.supabase.co/auth/v1/callback`.
+6. Copie o Client ID e Client Secret gerados pelo Google.
+7. No Supabase, abra Authentication → Sign In / Providers → Google, habilite o provedor e cole o Client ID e Client Secret. Salve.
+8. Em Authentication → URL Configuration, mantenha `https://dagamavasco170-lang.github.io/editalradar/` na lista de Redirect URLs.
+
+O Client Secret do Google deve ficar **somente** no painel do Supabase. Não o coloque em variáveis `VITE_`, no GitHub como variável pública, nem no código do site. O botão chama `signInWithOAuth({ provider: "google" })`; o Supabase conduz a autenticação e devolve o usuário ao GitHub Pages.
+
+Documentação oficial: [Supabase — Sign in with Google](https://supabase.com/docs/guides/auth/social-sign-in/auth-google).
