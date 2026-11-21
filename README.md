@@ -37,6 +37,7 @@ O catálogo também pode exibir registros preliminares de Alagoas identificados 
 - Área de estudos com checklist e questão demonstrativa.
 - Interface responsiva.
 - Aplicativo instalável (PWA), com cache do catálogo e da interface para acesso básico sem conexão após a primeira visita.
+- Painel administrativo com controle por função e cadastro, edição e remoção de concursos.
 
 ## Fontes oficiais consultadas
 
@@ -56,6 +57,12 @@ O usuário pode autorizar notificações do navegador, consultar avisos não lid
 O GitHub Actions verifica diariamente os links de origem cadastrados em `src/data/concursos.js`. Alterações no conteúdo ou falhas de acesso geram uma issue para revisão editorial e um relatório de execução. O monitor **não** altera automaticamente o catálogo: vagas, requisitos, inscrições, cronogramas e status só devem mudar após conferência humana na fonte oficial. A primeira execução cria a linha de base; depois, diferenças de conteúdo são sinalizadas.
 
 Para executar manualmente: Actions → **Monitorar fontes de concursos** → Run workflow.
+
+## Painel administrativo
+
+O painel fica disponível apenas para contas cujo campo protegido `app_metadata.role` no Supabase seja `admin`. A migração `supabase/migrations/202611220002_admin_catalog.sql` cria a tabela de alterações e políticas RLS: todos podem ler as fichas publicadas, mas somente administradores podem alterá-las. Consulte [ADMIN_SETUP.md](./ADMIN_SETUP.md) para conceder o papel. Nunca conceda esse papel pelo `user_metadata`, que pode ser alterado pelo próprio usuário.
+
+As alterações são guardadas como sobreposições: fichas preexistentes podem ser editadas ou removidas sem apagar a curadoria original do repositório; novos concursos recebem IDs do banco. Links oficiais HTTPS são obrigatórios.
 
 ## Instalação e uso offline
 
