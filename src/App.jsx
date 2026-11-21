@@ -241,6 +241,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     } catch (error) {
       setAuthMessage(error.message || "Não foi possível iniciar o acesso com Google.");
       setAuthMessageType("error");
+    } finally {
       setAuthBusy(false);
     }
   };
