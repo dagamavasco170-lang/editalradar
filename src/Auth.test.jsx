@@ -126,6 +126,7 @@ describe("Autenticação EditalRadar", () => {
     const profileDialog = screen.getByRole("dialog", { name: "Editar perfil" });
     const nameInput = within(profileDialog).getByLabelText("Nome de exibição");
     expect(nameInput).toHaveValue("Nome Antigo");
+    expect(within(profileDialog).getByLabelText("Receber alertas por e-mail")).not.toBeChecked();
     fireEvent.change(nameInput, { target: { value: "Maria Concurseira" } });
     fireEvent.change(within(profileDialog).getByLabelText("Cidade"), { target: { value: "Maceió" } });
     fireEvent.change(within(profileDialog).getByLabelText("Estado"), { target: { value: "Alagoas" } });
@@ -260,3 +261,42 @@ describe("Autenticação EditalRadar", () => {
     expect(client.auth.updateUser).not.toHaveBeenCalled();
   });
 });
+
+  
+  it("permite cancelar alertas por e-mail previamente autorizados", async () => {
+    const client = createAuthClient();
+    render(<App authClient={client} authConfigured />);
+    await waitFor(() => expect(client.callback).toBeTypeOf("function"));
+    client.callback("SIGNED_IN", {
+      user: {
+        id: "user-email-optout",
+        email: "aluno@exemplo.com",
+        user_metadata: {
+          full_name: "Aluno",
+          email_notifications_enabled: true,
+          email_notifications_consent_at: "2026-11-21T12:00:00.000Z"
+        }
+      }
+    });
+
+    await screen.findByText("Dados sincronizados");
+    fireEvent.click(screen.getByRole("button", { name: "Editar perfil" }));
+    const dialog = screen.getByRole("dialog", { name: "Editar perfil" });
+    const consent = within(dialog).getByLabelText("Receber alertas por e-mail");
+    expect(consent).toBeChecked();
+    fireEvent.click(consent);
+    fireEvent.click(within(dialog).getByRole("button", { name: "Salvar perfil" }));
+
+    await waitFor(() => expect(client.auth.updateUser).toHaveBeenCalledWith({
+      data: {
+        full_name: "Aluno",
+        city: "",
+        state: "",
+        education_level: "",
+        interest_area: "",
+        email_notifications_enabled: false,
+        email_notifications_consent_at: null
+      }
+    }));
+    expect(await within(dialog).findByText("Perfil atualizado com sucesso.")).toBeInTheDocument();
+  });
