@@ -75,3 +75,12 @@
 .preliminary-toggle{display:inline-flex;align-items:center;gap:8px;color:#536a78;font-size:11px;font-weight:600;cursor:pointer}
 .preliminary-toggle input{width:15px;height:15px;margin:0;accent-color:#197b61;cursor:pointer}
 .filter-hint{font-size:10px;color:#197b61;font-weight:700}
+
+
+/* Botão de login social com Google. */
+.google-auth-btn{display:flex;align-items:center;justify-content:center;gap:11px;width:100%;min-height:43px;border:1px solid #dce3e8;border-radius:8px;background:#fff;color:#334b5a;font-size:12px;font-weight:700;transition:background .15s,border-color .15s}
+.google-auth-btn:hover{background:#f8fafb;border-color:#b9c7cf}
+.google-auth-btn:disabled{opacity:.6;cursor:wait}
+.google-mark{display:grid;place-items:center;width:21px;height:21px;border:1px solid #e4e9ed;border-radius:50%;color:#4285f4;background:#fff;font:800 14px Arial,sans-serif}
+.auth-divider{display:flex;align-items:center;gap:10px;color:#8b9aa3;font-size:10px}
+.auth-divider:before,.auth-divider:after{content:"";height:1px;flex:1;background:#e8edef}
