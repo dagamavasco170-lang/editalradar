@@ -25,7 +25,8 @@ const matchesFilters = (item, filters) => {
     && (filters.esfera === "Todas as esferas" || (item.area || "Federal") === filters.esfera)
     && (filters.estado === "Todos os estados" || (item.estado || "Brasil") === filters.estado)
     && (filters.localidade === "Todas as cidades" || (item.localidade || "Brasil") === filters.localidade)
-    && matchesSituation;
+    && matchesSituation
+    && (!filters.ocultarPreliminares || !isPreliminary(item));
 };
 
 const describeAlert = (filters) => {
