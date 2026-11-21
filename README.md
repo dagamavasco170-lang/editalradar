@@ -43,6 +43,10 @@ O catálogo também pode exibir registros preliminares de Alagoas identificados 
 - Receita Federal: https://www.gov.br/receitafederal/pt-br/acesso-a-informacao/servidores/concurso-publico-2026
 - CGU: https://www.gov.br/cgu/pt-br/acesso-a-informacao/concursos/concursos-publicos/
 
+## Alertas por e-mail
+
+Usuários autenticados podem autorizar ou cancelar alertas por e-mail no editor de perfil. A autorização fica desativada por padrão e é armazenada no metadata da conta. O envio usa uma Supabase Edge Function e Resend; consulte `EMAIL_ALERTS_SETUP.md` para configurar o serviço. Nenhum e-mail será enviado antes de as credenciais e o domínio remetente serem configurados.
+
 ## Monitoramento automático das fontes
 
 O GitHub Actions verifica diariamente os links de origem cadastrados em `src/data/concursos.js`. Alterações no conteúdo ou falhas de acesso geram uma issue para revisão editorial e um relatório de execução. O monitor **não** altera automaticamente o catálogo: vagas, requisitos, inscrições, cronogramas e status só devem mudar após conferência humana na fonte oficial. A primeira execução cria a linha de base; depois, diferenças de conteúdo são sinalizadas.
