@@ -70,3 +70,8 @@ O botão “Continuar com Google” usa Supabase Auth OAuth. Para ativá-lo, con
 O Client Secret do Google deve ficar **somente** no painel do Supabase. Não o coloque em variáveis `VITE_`, no GitHub como variável pública, nem no código do site. O botão chama `signInWithOAuth({ provider: "google" })`; o Supabase conduz a autenticação e devolve o usuário ao GitHub Pages.
 
 Documentação oficial: [Supabase — Sign in with Google](https://supabase.com/docs/guides/auth/social-sign-in/auth-google).
+
+
+## 8. Hospedagem alternativa na Vercel
+
+Para usar um endereço gratuito mais curto, consulte o guia [DEPLOY_VERCEL.md](./DEPLOY_VERCEL.md). A hospedagem da Vercel pode coexistir com o GitHub Pages; mantenha no Supabase os dois endereços em Redirect URLs enquanto ambos forem usados.
