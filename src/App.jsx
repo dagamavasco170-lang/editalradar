@@ -228,6 +228,23 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     }
   };
 
+  const handleGoogleSignIn = async () => {
+    if (!authClient) return;
+    setAuthBusy(true);
+    setAuthMessage("");
+    try {
+      const { error } = await authClient.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo: window.location.origin + window.location.pathname }
+      });
+      if (error) throw error;
+    } catch (error) {
+      setAuthMessage(error.message || "Não foi possível iniciar o acesso com Google.");
+      setAuthMessageType("error");
+      setAuthBusy(false);
+    }
+  };
+
   const handleSignOut = async () => {
     if (!authClient) return;
     const { error } = await authClient.auth.signOut();
@@ -410,6 +427,15 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
           <h2 id="auth-title">{authMode === "signup" ? "Criar sua conta" : authMode === "recovery" ? "Recuperar senha" : authMode === "reset" ? "Criar nova senha" : "Entrar na sua conta"}</h2>
           {authConfigured ? (
             <form className="auth-form" onSubmit={handleAuthSubmit}>
+              {(authMode === "login" || authMode === "signup") && (
+                <>
+                  <button className="google-auth-btn" type="button" onClick={handleGoogleSignIn} disabled={authBusy}>
+                    <span className="google-mark" aria-hidden="true">G</span>
+                    {authBusy ? "Conectando..." : "Continuar com Google"}
+                  </button>
+                  <div className="auth-divider"><span>ou use seu e-mail</span></div>
+                </>
+              )}
               <label>E-mail<input type="email" value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} autoComplete="email" required placeholder="voce@exemplo.com" disabled={authMode === "reset"} /></label>
               {authMode !== "recovery" && <label>{authMode === "reset" ? "Nova senha" : "Senha"}<input type="password" value={authPassword} onChange={(event) => setAuthPassword(event.target.value)} autoComplete={authMode === "signup" || authMode === "reset" ? "new-password" : "current-password"} minLength={8} required placeholder="Pelo menos 8 caracteres" /></label>}
               {authMode === "reset" && <label>Confirmar nova senha<input type="password" value={authPasswordConfirm} onChange={(event) => setAuthPasswordConfirm(event.target.value)} autoComplete="new-password" minLength={8} required placeholder="Digite a nova senha novamente" /></label>}
