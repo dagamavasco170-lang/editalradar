@@ -6,7 +6,7 @@ import App from "./App.jsx";
 const createAuthClient = () => {
   const database = {
     maybeSingle: vi.fn().mockResolvedValue({
-      data: { favorites: [], alerts: [], tasks: [false, false, false, false] },
+      data: { favorites: [], alerts: [], tasks: [false, false, false, false], notifications: [] },
       error: null
     }),
     upsert: vi.fn().mockResolvedValue({ error: null })
@@ -81,6 +81,89 @@ describe("Autenticação EditalRadar", () => {
     });
     expect(await screen.findByText("Dados sincronizados")).toBeInTheDocument();
     expect(client.database.upsert).not.toHaveBeenCalled();
+  });
+
+  it("carrega o histórico de notificações da conta e o grava no armazenamento local", async () => {
+    const client = createAuthClient();
+    const cloudNotification = {
+      id: "cloud-notice-1",
+      type: "new",
+      itemId: "101",
+      title: "Aviso sincronizado",
+      message: "Concurso adicionado ao catálogo",
+      createdAt: "2026-11-21T12:00:00.000Z",
+      read: false
+    };
+    client.database.maybeSingle.mockResolvedValueOnce({
+      data: { favorites: [], alerts: [], tasks: [false, false, false, false], notifications: [cloudNotification] },
+      error: null
+    });
+
+    render(<App authClient={client} authConfigured />);
+    await waitFor(() => expect(client.callback).toBeTypeOf("function"));
+    client.callback("SIGNED_IN", { user: { id: "user-notifications", email: "aluno@exemplo.com" } });
+
+    await waitFor(() => expect(
+      JSON.parse(localStorage.getItem("er-notifications:user-notifications"))
+    ).toEqual([cloudNotification]));
+    fireEvent.click(screen.getByRole("button", { name: /Ver notificações/ }));
+    expect(await screen.findByRole("button", { name: /Aviso sincronizado/ })).toBeInTheDocument();
+    expect(await screen.findByText("Dados sincronizados")).toBeInTheDocument();
+  });
+
+  it("sincroniza leitura das notificações com a conta", async () => {
+    const client = createAuthClient();
+    const cloudNotification = {
+      id: "cloud-notice-2",
+      type: "new",
+      itemId: "102",
+      title: "Aviso para marcar",
+      message: "Atualização do concurso",
+      createdAt: "2026-11-21T12:00:00.000Z",
+      read: false
+    };
+    client.database.maybeSingle.mockResolvedValueOnce({
+      data: { favorites: [], alerts: [], tasks: [false, false, false, false], notifications: [cloudNotification] },
+      error: null
+    });
+
+    render(<App authClient={client} authConfigured />);
+    await waitFor(() => expect(client.callback).toBeTypeOf("function"));
+    client.callback("SIGNED_IN", { user: { id: "user-notification-write", email: "aluno@exemplo.com" } });
+    await screen.findByText("Dados sincronizados");
+    fireEvent.click(screen.getByRole("button", { name: /Ver notificações/ }));
+    await screen.findByRole("button", { name: /Aviso para marcar/ });
+    fireEvent.click(screen.getByRole("button", { name: /Marcar como lidas/ }));
+
+    await waitFor(() => expect(client.database.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        user_id: "user-notification-write",
+        notifications: [expect.objectContaining({ id: "cloud-notice-2", read: true })]
+      })
+    ));
+  });
+
+  it("mantém a sincronização antiga e orienta sobre a migração quando a coluna ainda não existe", async () => {
+    const client = createAuthClient();
+    client.database.maybeSingle
+      .mockResolvedValueOnce({
+        data: null,
+        error: {
+          code: "PGRST204",
+          message: "Could not find the 'notifications' column of 'user_data' in the schema cache"
+        }
+      })
+      .mockResolvedValueOnce({
+        data: { favorites: [], alerts: [], tasks: [false, false, false, false] },
+        error: null
+      });
+
+    render(<App authClient={client} authConfigured />);
+    await waitFor(() => expect(client.callback).toBeTypeOf("function"));
+    client.callback("SIGNED_IN", { user: { id: "user-old-schema", email: "aluno@exemplo.com" } });
+
+    expect(await screen.findByText(/202611220001_user_notifications.sql/)).toBeInTheDocument();
+    expect(await screen.findByText("Dados sincronizados")).toBeInTheDocument();
   });
 
   it("envia favoritos, alertas e tarefas alterados para a nuvem", async () => {
