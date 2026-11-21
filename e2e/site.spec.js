@@ -92,7 +92,7 @@ test("compara oportunidades e permite remover uma coluna da comparação", async
   await page.getByRole("button", { name: "Adicionar Auditor — Carreira de Especialista à comparação" }).click();
   await page.getByRole("button", { name: "Adicionar Técnico — Carreira de Especialista à comparação" }).click();
 
-  await page.getByRole("button", { name: /Comparar concursos \\(2\\)/ }).click();
+  await page.getByRole("button", { name: "Comparar concursos (2)" }).click();
   await expect(page.getByRole("heading", { name: "Comparador de concursos" })).toBeVisible();
   await expect(page.getByRole("region", { name: "Tabela de comparação dos concursos" })).toBeVisible();
   await expect(page.getByRole("rowheader", { name: "Remuneração" })).toBeVisible();

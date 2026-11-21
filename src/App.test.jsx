@@ -427,9 +427,9 @@ describe("EditalRadar", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Adicionar Auditor — Carreira de Especialista à comparação" }));
     fireEvent.click(screen.getByRole("button", { name: "Adicionar Técnico — Carreira de Especialista à comparação" }));
-    expect(screen.getByRole("button", { name: /Comparar concursos \\(2\\)/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Comparar concursos (2)" })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /Comparar concursos \\(2\\)/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Comparar concursos (2)" }));
     expect(screen.getByRole("heading", { name: "Comparador de concursos" })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Tabela de comparação dos concursos" })).toBeInTheDocument();
     expect(screen.getAllByText("Não informado nesta ficha").length).toBeGreaterThan(0);
@@ -448,7 +448,7 @@ describe("EditalRadar", () => {
     fireEvent.click(compareButtons[0]);
     fireEvent.click(compareButtons[1]);
     fireEvent.click(compareButtons[2]);
-    expect(screen.getByRole("button", { name: /Comparar concursos \\(3\\)/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Comparar concursos (3)" })).toBeInTheDocument();
     const disabledButtons = screen.getAllByRole("button", { name: /Adicionar .* à comparação/ });
     expect(disabledButtons.length).toBeGreaterThan(0);
     expect(disabledButtons.every((button) => button.disabled)).toBe(true);
