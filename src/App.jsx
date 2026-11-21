@@ -1869,7 +1869,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                 <p>{page === "favoritos" ? "Salve oportunidades pelo ícone de coração para montar sua lista de acompanhamento." : "Experimente retirar algum filtro ou buscar por outro cargo ou órgão."}</p>
                 {page === "favoritos"
                   ? <button className="primary-btn" type="button" onClick={() => setPage("concursos")}>Explorar concursos</button>
-                  : activeFilterCount > 0 && <button className="detail-btn" type="button" onClick={clearCatalogFilters}>Limpar filtros</button>}
+                  : activeFilterCount > 0 && <button className="detail-btn" type="button" onClick={clearCatalogFilters}>Mostrar todos os concursos</button>}
               </div>}
             </div>
             <div className="source-footnote"><span>Fontes: órgãos federais, Governo de Alagoas, Cebraspe, IGEDUC e portais municipais.</span><span>Conferência editorial: {sourceUpdated} · Dados compilados em: {fetchedAt ? new Date(fetchedAt).toLocaleString("pt-BR") : "não informado"}</span><a href={sourceUrl} target="_blank" rel="noreferrer">Ver página geral do MGI ↗</a></div>
