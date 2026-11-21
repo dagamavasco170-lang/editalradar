@@ -149,3 +149,15 @@ test("abre a experiência de cadastro e login conforme a integração configurad
     await expect(dialog.getByRole("link", { name: /Abrir guia de configuração/ })).toBeVisible();
   }
 });
+
+
+test("mostra o concurso PMESP aberto e sua remuneração oficial", async ({ page }) => {
+  await page.goto("./");
+  await page.getByPlaceholder("Buscar cargo ou órgão...").fill("PMESP");
+  await expect(page.getByText("37 registros")).toBeVisible();
+  await page.getByRole("button", { name: /Ver detalhes/ }).first().click();
+  await expect(page.getByRole("heading", { name: "Aluno-Soldado PM do Quadro de Praças" })).toBeVisible();
+  await expect(page.getByText(/5.482,51/)).toBeVisible();
+  await expect(page.getByRole("link", { name: "Fundação Vunesp — concurso PMES2603" }))
+    .toHaveAttribute("href", "https://www.vunesp.com.br/PMES2603");
+});

@@ -481,20 +481,33 @@ export const concursos = [
     "observacao": "O edital oferta 205 vagas em 11 cargos da Secretaria Municipal de Educação. As inscrições ocorreram de 27/08 a 12/10/2026. A página oficial do IGEDUC registra resultado preliminar da prova objetiva publicado em 18/11/2026 e gabarito definitivo. Consulte a página oficial para acompanhar recursos e próximas etapas."
   },
   {
-    "sigla": "ARSAL/AL",
-    "cargo": "Cargos diversos — consultar edital",
-    "orgao": "Agência Reguladora de Serviços Públicos de Alagoas",
-    "vagas": 16,
+    "sigla": "CGE/AL",
+    "cargo": "Analista de Controle Interno — Ciências Contábeis",
+    "orgao": "Controladoria-Geral do Estado de Alagoas",
+    "vagas": 10,
     "area": "Estadual",
-    "localidade": "Alagoas",
-    "status": "Concurso listado · verificar edital e cronograma",
+    "localidade": "Maceió",
+    "status": "Provas realizadas · resultado objetivo publicado",
     "id": 503,
     "vinculo": "Concurso listado em catálogo de oportunidades AL",
-    "nivel": "A confirmar no edital",
-    "atoOficial": "Consultar publicação do órgão e edital",
+    "nivel": "Superior em Ciências Contábeis + registro no CRC",
+    "atoOficial": "Edital nº 1 – CGE/AL, de 17/03/2026, atualizado até a retificação nº 11, de 11/08/2026",
     "estado": "Alagoas",
-    "sourceUrl": "https://concursor.com.br/editais?uf=AL",
-    "observacao": "Registro preliminar baseado em listagem de oportunidades para Alagoas. A ficha ainda não foi confirmada individualmente no edital oficial; consulte a fonte indicada e o órgão responsável antes de considerar vagas, requisitos ou cronograma como definitivos."
+    "sourceUrl": "https://www.cebraspe.org.br/concursos/CGE_AL_26",
+    "observacao": "Concurso para Analista de Controle Interno — Ciências Contábeis, com 5 vagas imediatas e 5 de cadastro de reserva. Requisito: graduação em Ciências Contábeis e registro no CRC. Provas aplicadas em 23/08/2026; o cronograma oficial prevê resultado final das provas objetivas e resultado provisório da discursiva em 29/09/2026. Confira publicações posteriores na página da banca.",
+    "vagasTotais": 10,
+    "vagasImediatas": 5,
+    "cadastroReserva": 5,
+    "remuneracao": {
+      "valor": 6831.54,
+      "moeda": "BRL",
+      "periodicidade": "mensal",
+      "natureza": "Inicial",
+      "observacao": "Remuneração prevista no edital atualizado; jornada de 40 horas semanais.",
+      "sourceUrl": "https://cdn.cebraspe.org.br/concursos/CGE_AL_26/arquivos/59C7CF997D18533F665281EA0E93FE303FB4F4E34AC8F8E15CFAB988932F418C.html",
+      "sourceLabel": "Cebraspe — edital CGE/AL atualizado até a retificação nº 11",
+      "verificadoEm": "2026-11-21"
+    }
   },
   {
     "sigla": "CGE/AL",
@@ -698,8 +711,45 @@ export const concursos = [
       "verificadoEm": "2026-11-21"
     },
     "observacao": "A página oficial de acompanhamento do Cebraspe informa 10 vagas e remuneração de até R$ 35.877,28 para Procurador do Estado de Alagoas — 1ª Classe. Consulte edital e retificações para confirmar requisitos, cronograma e composição da remuneração."
+  },
+  {
+    "id": 516,
+    "sigla": "PMESP",
+    "cargo": "Aluno-Soldado PM do Quadro de Praças",
+    "orgao": "Polícia Militar do Estado de São Paulo",
+    "vinculo": "Concurso público PMES2603",
+    "nivel": "Médio",
+    "vagas": 2000,
+    "vagasTotais": 2000,
+    "vagasImediatas": 2000,
+    "atoOficial": "Concurso PMES2603 — edital e documentos na Fundação Vunesp",
+    "status": "Inscrições abertas até 22/12/2026",
+    "area": "Estadual",
+    "estado": "São Paulo",
+    "localidade": "São Paulo e demais cidades de aplicação indicadas pela Vunesp",
+    "sourceUrl": "https://www.vunesp.com.br/PMES2603",
+    "remuneracao": {
+      "valor": 5482.51,
+      "moeda": "BRL",
+      "periodicidade": "mensal",
+      "natureza": "Básica inicial — Aluno-Soldado",
+      "observacao": "Remuneração básica inicial divulgada na página oficial da seleção. Exames de conhecimentos previstos para 28/02/2027.",
+      "sourceUrl": "https://www.vunesp.com.br/PMES2603",
+      "sourceLabel": "Fundação Vunesp — concurso PMES2603",
+      "verificadoEm": "2026-11-21"
+    },
+    "observacao": "A Fundação Vunesp informa 2.000 vagas para Aluno-Soldado PM, inscrições de 09/11 a 22/12/2026 e exames de conhecimentos previstos para 28/02/2027. A ficha deve ser atualizada quando houver novas retificações."
   }
 ];
+
+export const sourceRegistry = [
+  { label: "Cebraspe — concursos com inscrições abertas", sourceUrl: "https://www.cebraspe.org.br/concursos/inscricoes-abertas" },
+  { label: "FGV Conhecimento — concursos", sourceUrl: "https://conhecimento.fgv.br/concursos" },
+  { label: "Fundação Carlos Chagas — concursos em andamento", sourceUrl: "https://www.concursosfcc.com.br/concursoAndamento.html" },
+  { label: "Fundação Vunesp — concursos com inscrições abertas", sourceUrl: "https://www.vunesp.com.br/cabertas.html" },
+  { label: "Instituto AOCP — portal de concursos", sourceUrl: "https://beta.institutoaocp.org.br/" }
+];
+
 export const materias = [
   {
     "nome": "Língua Portuguesa",

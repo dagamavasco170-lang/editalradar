@@ -11,9 +11,13 @@ test("coleta somente URLs HTTPS únicas", () => {
     { sourceUrl: "https://concursor.com.br/editais" },
     { sourceUrl: "not-a-url" },
     {}
-  ]);
+  ], []);
   assert.deepEqual(urls, ["https://example.gov.br/a"]);
   assert.equal(isTrustedOfficialHost("cebraspe.org.br"), true);
+  assert.equal(isTrustedOfficialHost("conhecimento.fgv.br"), true);
+  assert.equal(isTrustedOfficialHost("www.concursosfcc.com.br"), true);
+  assert.equal(isTrustedOfficialHost("www.vunesp.com.br"), true);
+  assert.equal(isTrustedOfficialHost("beta.institutoaocp.org.br"), true);
   assert.equal(isTrustedOfficialHost("concursor.com.br"), false);
 });
 
@@ -65,6 +69,11 @@ test("catálogo atual possui fontes HTTPS deduplicadas", () => {
   assert.ok(urls.length > 0);
   assert.equal(urls.length, new Set(urls).size);
   assert.ok(urls.every((url) => url.startsWith("https://")));
+  assert.ok(urls.includes("https://conhecimento.fgv.br/concursos"));
+  assert.ok(urls.includes("https://www.concursosfcc.com.br/concursoAndamento.html"));
+  assert.ok(urls.includes("https://www.vunesp.com.br/cabertas.html"));
+  assert.ok(urls.includes("https://beta.institutoaocp.org.br/"));
+  assert.ok(urls.includes("https://www.cebraspe.org.br/concursos/inscricoes-abertas"));
 });
 
 test("normaliza HTML removendo scripts, estilos e espaços variáveis", () => {

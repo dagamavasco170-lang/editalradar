@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile, appendFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 import { resolve, dirname } from "node:path";
-import { concursos } from "../src/data/concursos.js";
+import { concursos, sourceRegistry } from "../src/data/concursos.js";
 
 const STATE_PATH = process.env.SOURCE_MONITOR_STATE || ".cache/source-monitor-state.json";
 const REPORT_PATH = process.env.SOURCE_MONITOR_REPORT || ".cache/source-monitor-report.json";
@@ -12,7 +12,14 @@ const MAX_BYTES = 12 * 1024 * 1024;
 export function isTrustedOfficialHost(hostname) {
   const host = String(hostname || "").toLowerCase().replace(/\.$/, "");
   const officialSuffixes = [".gov.br", ".jus.br", ".leg.br", ".mp.br", ".mil.br", ".def.br"];
-  const approvedProviders = ["cebraspe.org.br", "igeduc.selecao.net.br"];
+  const approvedProviders = [
+    "cebraspe.org.br",
+    "igeduc.selecao.net.br",
+    "fgv.br",
+    "concursosfcc.com.br",
+    "vunesp.com.br",
+    "institutoaocp.org.br"
+  ];
   return officialSuffixes.some((suffix) => host.endsWith(suffix))
     || approvedProviders.some((domain) => host === domain || host.endsWith("." + domain));
 }
@@ -81,8 +88,12 @@ export async function fetchOfficialSource(url, options = {}) {
   throw new Error("Não foi possível resolver o endereço oficial.");
 }
 
-export function collectSourceUrls(items = concursos) {
-  return [...new Set(items.map((item) => item?.sourceUrl).filter((value) => {
+export function collectSourceUrls(items = concursos, additionalSources = sourceRegistry) {
+  const sourceItems = [
+    ...(Array.isArray(items) ? items : []),
+    ...(Array.isArray(additionalSources) ? additionalSources : [])
+  ];
+  return [...new Set(sourceItems.map((item) => item?.sourceUrl).filter((value) => {
     try {
       const url = new URL(value);
       return url.protocol === "https:" && isTrustedOfficialHost(url.hostname);
