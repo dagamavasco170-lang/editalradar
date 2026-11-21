@@ -33,7 +33,7 @@ O catálogo também pode exibir registros preliminares de Alagoas identificados 
 - Status por etapa da seleção.
 - Links oficiais por concurso e detalhes.
 - Favoritos e filtros sincronizados para usuários autenticados.
-- Central de notificações locais e alertas do navegador.
+- Central de notificações com histórico local para visitantes e sincronizado entre dispositivos para usuários autenticados.
 - Área de estudos com checklist e questão demonstrativa.
 - Interface responsiva.
 
@@ -48,7 +48,7 @@ O catálogo também pode exibir registros preliminares de Alagoas identificados 
 
 A central de notificações identifica novos concursos adicionados ao catálogo e alterações relevantes em concursos favoritados. Os avisos ficam salvos neste navegador e podem ser abertos para consultar os detalhes da oportunidade.
 
-O usuário pode autorizar notificações do navegador, consultar avisos não lidos, marcar todos como lidos e limpar o histórico. O cabeçalho exibe a quantidade de avisos pendentes e leva diretamente à central. Esse recurso não exige domínio próprio nem serviço de e-mail. Por depender da comparação local do catálogo, as novidades são identificadas quando o usuário abre ou atualiza o EditalRadar depois de uma publicação. O histórico fica armazenado neste navegador, separado por conta. As notificações do navegador também dependem da permissão concedida e do site estar aberto; não há envio de push quando o navegador está fechado.
+O usuário pode autorizar notificações do navegador, consultar avisos não lidos, marcar todos como lidos e limpar o histórico. O cabeçalho exibe a quantidade de avisos pendentes e leva diretamente à central. Esse recurso não exige domínio próprio nem serviço de e-mail. Por depender da comparação local do catálogo, as novidades são identificadas quando o usuário abre ou atualiza o EditalRadar depois de uma publicação. Para usuários autenticados, o histórico também é salvo na conta Supabase e carregado ao entrar ou atualizar o aplicativo em outro aparelho; visitantes continuam com histórico apenas local. A sincronização entre aparelhos requer executar a migração `supabase/migrations/202611220001_user_notifications.sql` no SQL Editor do Supabase. As notificações do navegador dependem da permissão concedida e do site estar aberto; não há envio de push quando o navegador está fechado.
 
 ## Monitoramento automático das fontes
 
