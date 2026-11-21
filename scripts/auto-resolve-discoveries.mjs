@@ -245,8 +245,8 @@ export async function fetchCandidateWithCurl(candidateUrl, options = {}) {
     const rawHeaders = await readFile(headersPath, "utf8");
     const responseHeaders = {};
     let currentHeaders = {};
-    for (const line of rawHeaders.split(/\\r?\\n/)) {
-      if (/^HTTP\\/\\d(?:\\.\\d)?\\s+\\d+/i.test(line)) {
+    for (const line of rawHeaders.split(String.fromCharCode(13, 10))) {
+      if (line.startsWith("HTTP/")) {
         if (Object.keys(currentHeaders).length) Object.assign(responseHeaders, currentHeaders);
         currentHeaders = {};
       } else {
