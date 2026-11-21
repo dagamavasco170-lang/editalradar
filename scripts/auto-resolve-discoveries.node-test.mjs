@@ -455,7 +455,7 @@ test("limita a concorrência e mantém a ordem dos resultados", async () => {
   assert.equal(peak, 3);
 });
 
-test("consulta apenas pendências novas ou cujo intervalo de retentativa venceu", () => {
+test("triagem automática processa somente links diretos oficiais e nunca notícias da busca web", () => {
   const url = new URL(buildPendingDiscoveriesUrl(
     "https://example.supabase.co",
     new Date("2026-11-21T18:00:00.000Z")
@@ -463,6 +463,7 @@ test("consulta apenas pendências novas ou cujo intervalo de retentativa venceu"
 
   assert.equal(url.searchParams.get("status"), "eq.pending");
   assert.equal(url.searchParams.get("discovery_type"), "eq.new_link");
+  assert.notEqual(url.searchParams.get("discovery_type"), "eq.web_search_lead");
   assert.match(url.searchParams.get("or"), /reviewed_at\.is\.null/);
   assert.match(url.searchParams.get("or"), /reviewed_at\.lt\.2026-11-21T12:00:00/);
   assert.equal(url.searchParams.get("limit"), "200");

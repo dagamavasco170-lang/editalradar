@@ -781,8 +781,9 @@ export function buildPendingDiscoveriesUrl(baseUrl, now = new Date(), cooldownMs
   const retryBefore = new Date(now.getTime() - cooldownMs).toISOString();
   url.searchParams.set("select", "id,source_url,candidate_url,title,context,discovery_type,status");
   url.searchParams.set("status", "eq.pending");
-  // Only direct newly discovered links are safe candidates for automatic publishing.
-  // Page-wide changes and baseline pages stay visible for human review.
+  // Only direct newly discovered links from already trusted official sources are auto-triaged.
+  // Internet search results (web_search_lead) are secondary-source leads and always require human verification.
+  // Page-wide changes and baseline pages also stay visible for human review.
   url.searchParams.set("discovery_type", "eq.new_link");
   url.searchParams.set("or", "(reviewed_at.is.null,reviewed_at.lt." + retryBefore + ")");
   url.searchParams.set("order", "detected_at.asc");
