@@ -64,7 +64,7 @@ test("identifica claramente um registro preliminar que não possui edital confir
 
   await expect(page.getByText("Listagem de referência")).toBeVisible();
   await page.getByRole("button", { name: /Ver detalhes/ }).click();
-  await expect(page.getByRole("link", { name: /Abrir listagem de referência — não é edital/ }))
+  await expect(page.getByRole("link", { name: /Abrir referência externa — confirme no órgão/ }))
     .toHaveAttribute("href", "https://concursor.com.br/editais?uf=AL");
 });
 
