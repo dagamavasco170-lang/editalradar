@@ -403,7 +403,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
             <div className="study-grid">
               <div className="panel progress-panel"><div className="panel-head"><div><div className="eyebrow">VISÃO GERAL</div><h2>Seu progresso diário</h2></div><span className="soft-pill">Hoje</span></div>
                 <div className="progress-number">{progress}%</div><div className="progress-track"><div style={{ width: progress + "%" }} /></div><p className="muted">{tasks.filter(Boolean).length} de {tasks.length} atividades concluídas</p>
-                <div className="task-list">{["Revisar português","Resolver 10 questões","Estudar direito constitucional","Fazer uma revisão rápida"].map((task, i) => <label className="task" key={task}><input type="checkbox" checked={tasks[i]} onChange={() => toggleTask(i)} /><span className={tasks[i] ? "task-done" : ""}>{task}</span><small>{i === 0 ? "25 min" : i === 1 ? "30 min" : i === 2 ? "40 min" : "15 min"}</small></label>)}</div>
+                <div className="task-list">{["Revisar português","Resolver 10 questões","Estudar direito constitucional","Fazer uma revisão rápida"].map((task, i) => <label className="task" key={task}><input type="checkbox" checked={tasks[i]} onChange={() => toggleTask(i)} disabled={Boolean(authUser && syncStatus === "loading")} /><span className={tasks[i] ? "task-done" : ""}>{task}</span><small>{i === 0 ? "25 min" : i === 1 ? "30 min" : i === 2 ? "40 min" : "15 min"}</small></label>)}</div>
               </div>
               <div className="panel question-panel"><div className="eyebrow">QUESTÃO DO DIA</div><span className="question-tag">PORTUGUÊS · DEMONSTRAÇÃO</span><h2>Qual alternativa apresenta uma palavra escrita corretamente?</h2>
                 {["Excessão","Exceção","Esceção","Excesssão"].map((option) => <button key={option} className={"option " + (answer === option ? "chosen " : "") + (checkedAnswer && option === "Exceção" ? "correct" : checkedAnswer && answer === option ? "wrong" : "")} onClick={() => { setAnswer(option); setCheckedAnswer(false); }}>{option}</button>)}
@@ -457,7 +457,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                   <strong>Alertas personalizados</strong>
                   <p>Salve seus filtros e confira rapidamente quantas oportunidades combinam com seu perfil neste catálogo.</p>
                 </div>
-                <button className="primary-btn alert-save" onClick={saveCurrentAlert} disabled={alertAlreadySaved}>
+                <button className="primary-btn alert-save" onClick={saveCurrentAlert} disabled={alertAlreadySaved || Boolean(authUser && syncStatus === "loading")}>
                   {alertAlreadySaved ? "Alerta já salvo" : "＋ Salvar alerta"}
                 </button>
               </div>
@@ -469,7 +469,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                         <strong>{alert.name}</strong>
                         <span>{matchingAlert(alert)} oportunidade(s) correspondente(s)</span>
                       </div>
-                      <button className="alert-remove" onClick={() => removeAlert(alert.id)} aria-label={`Remover alerta ${alert.name}`}>Remover</button>
+                      <button className="alert-remove" onClick={() => removeAlert(alert.id)} aria-label={`Remover alerta ${alert.name}`} disabled={Boolean(authUser && syncStatus === "loading")}>Remover</button>
                     </div>
                   ))}
                 </div>
@@ -478,7 +478,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
             </section>
             <div className="cards">
               {(page === "favoritos" ? filtered.filter(c => favorites.includes(c.id)) : filtered).map((item) => <article className="contest-card" key={item.id}>
-                <div className="card-top"><div className="org-icon">{item.sigla}</div><button className={favorites.includes(item.id) ? "heart saved" : "heart"} onClick={() => toggleFavorite(item.id)} aria-label="Salvar favorito">{favorites.includes(item.id) ? "♥" : "♡"}</button></div>
+                <div className="card-top"><div className="org-icon">{item.sigla}</div><button className={favorites.includes(item.id) ? "heart saved" : "heart"} onClick={() => toggleFavorite(item.id)} aria-label="Salvar favorito" disabled={Boolean(authUser && syncStatus === "loading")}>{favorites.includes(item.id) ? "♥" : "♡"}</button></div>
                 <span className={`status ${isPreliminary(item) ? "preliminary" : ""}`}><i />{item.status}</span><h3>{item.cargo}</h3><p className="org-name">{item.orgao}</p>
                 <div className="card-meta"><span>⌁ {item.vagas == null ? "Vagas a divulgar" : `${item.vagas} vaga(s) informada(s)`}</span><span>▤ {item.nivel}</span><span>⌖ {item.localidade || "Brasil"}</span></div>
                 <div className="card-bottom"><div><small>{isPreliminary(item) ? "Listagem de referência" : "Fonte oficial"}</small><strong>{item.atoOficial || "Não informado"}</strong></div><button className="detail-btn" onClick={() => setSelected(item)}>Ver detalhes ↗</button></div>
@@ -531,7 +531,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
           )}
         </section>
       </div>}
-            {selected && <div className="modal-backdrop" onClick={() => setSelected(null)}><div className="modal" onClick={(e) => e.stopPropagation()}><button className="modal-close" onClick={() => setSelected(null)}>×</button><span className={`status ${isPreliminary(selected) ? "preliminary" : ""}`}><i />{selected.status}</span><div className="eyebrow">DETALHES DA SELEÇÃO</div><h2>{selected.cargo}</h2><p className="org-name">{selected.orgao}</p><div className="modal-facts"><div><small>Vagas informadas</small><strong>{selected.vagas == null ? "A divulgar" : selected.vagas}</strong></div><div><small>Escolaridade</small><strong>{selected.nivel}</strong></div><div><small>Vínculo</small><strong>{selected.vinculo || "Não informado"}</strong></div><div><small>{isPreliminary(selected) ? "Referência cadastrada" : "Ato oficial"}</small><strong>{selected.atoOficial || "Não informado"}</strong></div></div><p className="muted">{selected.observacao}</p><a className="primary-btn full modal-source-link" href={selected.sourceUrl || sourceUrl} target="_blank" rel="noreferrer">{isPreliminary(selected) ? "Abrir listagem de referência — não é edital ↗" : "Consultar página oficial do concurso ↗"}</a><button className="detail-btn full" onClick={() => toggleFavorite(selected.id)}>{favorites.includes(selected.id) ? "Remover dos favoritos" : "Salvar nos favoritos"}</button></div></div>}
+            {selected && <div className="modal-backdrop" onClick={() => setSelected(null)}><div className="modal" onClick={(e) => e.stopPropagation()}><button className="modal-close" onClick={() => setSelected(null)}>×</button><span className={`status ${isPreliminary(selected) ? "preliminary" : ""}`}><i />{selected.status}</span><div className="eyebrow">DETALHES DA SELEÇÃO</div><h2>{selected.cargo}</h2><p className="org-name">{selected.orgao}</p><div className="modal-facts"><div><small>Vagas informadas</small><strong>{selected.vagas == null ? "A divulgar" : selected.vagas}</strong></div><div><small>Escolaridade</small><strong>{selected.nivel}</strong></div><div><small>Vínculo</small><strong>{selected.vinculo || "Não informado"}</strong></div><div><small>{isPreliminary(selected) ? "Referência cadastrada" : "Ato oficial"}</small><strong>{selected.atoOficial || "Não informado"}</strong></div></div><p className="muted">{selected.observacao}</p><a className="primary-btn full modal-source-link" href={selected.sourceUrl || sourceUrl} target="_blank" rel="noreferrer">{isPreliminary(selected) ? "Abrir listagem de referência — não é edital ↗" : "Consultar página oficial do concurso ↗"}</a><button className="detail-btn full" onClick={() => toggleFavorite(selected.id)} disabled={Boolean(authUser && syncStatus === "loading")}>{favorites.includes(selected.id) ? "Remover dos favoritos" : "Salvar nos favoritos"}</button></div></div>}
     </div>
   );
 }
