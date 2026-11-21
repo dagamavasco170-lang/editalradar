@@ -178,6 +178,9 @@ test("monta plano semanal e pratica uma questão autoral filtrada por disciplina
  await expect(page.getByRole("heading",{name:"Monte sua rotina"})).toBeVisible();
  await page.getByLabel("Carga horária semanal").selectOption("15");
  await expect(page.getByText("15 h/semana")).toBeVisible();
+ await page.reload();
+ await page.getByRole("button",{name:/Área de estudos/}).click();
+ await expect(page.getByText("15 h/semana")).toBeVisible();
  await page.getByLabel("Filtrar questões por disciplina").selectOption("Direito Constitucional");
  await page.getByLabel("Filtrar questões por estilo de banca").selectOption("Cebraspe");
  await expect(page.getByText(/Formato inspirado em Cebraspe/)).toBeVisible();

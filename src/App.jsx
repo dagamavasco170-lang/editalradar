@@ -216,8 +216,6 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   const [selected, setSelected] = useState(null);
   const [detailOrigin, setDetailOrigin] = useState("concursos");
   const [comparisonIds, setComparisonIds] = useState(() => readStore("er-comparison:visitor", []));
-  const [answer, setAnswer] = useState("");
-  const [checkedAnswer, setCheckedAnswer] = useState(false);
   const [authUser, setAuthUser] = useState(null);
   const [authReady, setAuthReady] = useState(false);
   const [syncStatus, setSyncStatus] = useState("local");

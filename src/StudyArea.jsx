@@ -38,10 +38,15 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
    : /auditor|controle|fiscal|analista/i.test((selected?.cargo||"")+" "+(selected?.orgao||""))
     ? ["Direito Administrativo","Língua Portuguesa","Direito Constitucional","Raciocínio lógico","Informática"]
     : subjects;
-  return chosen.map((day,i)=>({id:day+"-"+i,day,subject:preferred[i%preferred.length],minutes:base+(i<rem?1:0)}));
+  return chosen.map((day,i)=>{const subject=preferred[i%preferred.length];const slug=subject.toLowerCase().replace(/[^a-z0-9]+/g,"-");return {id:day+"-"+slug,day,subject,minutes:base+(i<rem?1:0)};});
  },[plan,selected]);
  const update=(patch)=>setPlan(current=>({...current,...patch}));
- const toggleDay=(day)=>update({days:plan.days.includes(day)?plan.days.filter(x=>x!==day):[...plan.days,day]});
+ const toggleDay=(day)=>{
+  const removing=plan.days.includes(day);
+  const nextDays=removing?plan.days.filter(x=>x!==day):[...plan.days,day];
+  if(!nextDays.length)return;
+  update({days:nextDays,done:removing?plan.done.filter(id=>!id.startsWith(day+"-")):plan.done});
+ };
  const check=()=>{if(!question||!answer||checked)return;setChecked(true);setStats(s=>({answered:s.answered+1,correct:s.correct+(answer===question.answer?1:0)}));};
  const next=()=>{setIndex(i=>(i+1)%Math.max(filtered.length,1));setAnswer("");setChecked(false);};
  return <section className="content study-page">
