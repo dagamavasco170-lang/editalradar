@@ -13,7 +13,14 @@ export function buildCatalogSnapshot(catalog = []) {
       estado: String(item.estado || ""),
       localidade: String(item.localidade || ""),
       atoOficial: String(item.atoOficial || ""),
-      sourceUrl: String(item.sourceUrl || "")
+      sourceUrl: String(item.sourceUrl || ""),
+      historyCount: Array.isArray(item.historicoAtualizacoes) ? item.historicoAtualizacoes.length : 0,
+      lastHistoryAt: Array.isArray(item.historicoAtualizacoes) && item.historicoAtualizacoes.length
+        ? String(item.historicoAtualizacoes[item.historicoAtualizacoes.length - 1]?.at || "")
+        : "",
+      lastHistoryType: Array.isArray(item.historicoAtualizacoes) && item.historicoAtualizacoes.length
+        ? String(item.historicoAtualizacoes[item.historicoAtualizacoes.length - 1]?.type || "")
+        : ""
     }));
 }
 
@@ -51,6 +58,11 @@ export function detectCatalogNotifications({
 
     if (!favorites.has(item.id)) continue;
     const changes = [];
+    const hasNewRetification = item.historyCount > (Number(previous.historyCount) || 0)
+      && item.lastHistoryType === "retificacao";
+    if (hasNewRetification) {
+      changes.push("Retificação oficial publicada");
+    }
     if (previous.status !== item.status) {
       changes.push(`Situação: ${formatValue(previous.status)} → ${formatValue(item.status)}`);
     }
@@ -71,10 +83,12 @@ export function detectCatalogNotifications({
     }
     if (changes.length) {
       notifications.push({
-        id: `favorite-${item.id}-${encodeURIComponent(changes.join("|")).slice(0, 100)}`,
-        type: "favorite-update",
+        id: hasNewRetification
+          ? `retification-${item.id}-${encodeURIComponent(item.lastHistoryAt || String(item.historyCount)).slice(0, 80)}`
+          : `favorite-${item.id}-${encodeURIComponent(changes.join("|")).slice(0, 100)}`,
+        type: hasNewRetification ? "retification" : "favorite-update",
         itemId: item.id,
-        title: "Concurso favorito atualizado",
+        title: hasNewRetification ? "Retificação oficial no seu favorito" : "Concurso favorito atualizado",
         message: `${item.cargo}: ${changes.join(" · ")}`,
         createdAt: new Date().toISOString(),
         read: false
