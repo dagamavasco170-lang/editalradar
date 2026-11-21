@@ -123,7 +123,7 @@ export function mergeNotificationHistory(remote = [], local = []) {
     const previousDismissed = Boolean(previous.dismissedAt);
     const nextDismissed = Boolean(item.dismissedAt);
     if (nextDismissed && !previousDismissed) {
-      merged.set(id, { ...previous, ...item, id });
+      merged.set(id, item);
     }
   }
   return [...merged.values()];
