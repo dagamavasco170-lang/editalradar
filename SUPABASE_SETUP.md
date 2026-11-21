@@ -75,6 +75,15 @@ O Client Secret do Google deve ficar **somente** no painel do Supabase. Não o c
 Documentação oficial: [Supabase — Sign in with Google](https://supabase.com/docs/guides/auth/social-sign-in/auth-google).
 
 
+## 9. Painel administrativo
+
+1. No SQL Editor do Supabase, execute `supabase/migrations/202611220002_admin_catalog.sql`.
+2. Siga [ADMIN_SETUP.md](./ADMIN_SETUP.md) para promover sua conta Google a administradora.
+3. Saia e entre novamente no EditalRadar para atualizar as permissões do token.
+4. A opção **Administração** aparecerá no menu lateral. As alterações serão publicadas para todos.
+
+A migração usa RLS: leitura pública e gravação exclusiva de tokens autenticados com `app_metadata.role = admin`. Não use `user_metadata` para autorizar administradores e nunca exponha `service_role` no navegador.
+
 ## 8. Hospedagem alternativa na Vercel
 
 Para usar um endereço gratuito mais curto, consulte o guia [DEPLOY_VERCEL.md](./DEPLOY_VERCEL.md). A hospedagem da Vercel pode coexistir com o GitHub Pages; mantenha no Supabase os dois endereços em Redirect URLs enquanto ambos forem usados.
