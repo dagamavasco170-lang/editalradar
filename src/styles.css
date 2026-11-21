@@ -102,14 +102,6 @@
 /* Recomendações personalizadas */
 .recommendations-panel{margin:18px 0;padding:18px;border:1px solid #dfeae5;background:#f7fbf9;border-radius:13px}.recommendations-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:12px}.recommendations-heading h2{font:800 17px Manrope,sans-serif;color:#1c4050;margin:5px 0}.recommendations-heading p{font-size:10px;color:#7c8d94;margin:0;line-height:1.5}.recommendations-edit{border:1px solid #d8e6df;background:#fff;border-radius:7px;padding:8px 11px;color:#1b765d;font-size:10px;font-weight:700;white-space:nowrap}.recommendations-list{display:grid;gap:8px}.recommendation-card{display:flex;align-items:center;gap:12px;padding:11px;border:1px solid #e4ece8;background:#fff;border-radius:9px}.recommendation-score{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:54px;padding:7px;background:#edf7f2;border-radius:8px;color:#237354}.recommendation-score strong{font-size:16px}.recommendation-score small{font-size:8px}.recommendation-info{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1}.recommendation-info strong{font-size:11px;color:#244559}.recommendation-info span,.recommendation-info small{font-size:9px;color:#7a8b94;overflow-wrap:anywhere}.recommendation-open{border:1px solid #dce9e3;background:#fff;color:#24775f;border-radius:7px;padding:8px 10px;font-size:10px;font-weight:700;white-space:nowrap}@media(max-width:600px){.recommendations-heading{flex-direction:column}.recommendation-card{align-items:flex-start;flex-wrap:wrap}.recommendation-info{flex-basis:calc(100% - 72px)}.recommendation-open{margin-left:66px}}
 
-/* Consentimento explícito para notificações por e-mail */
-.email-alert-consent{display:flex!important;align-items:center;justify-content:space-between;gap:16px;padding:13px 14px;border:1px solid #dce9e3;border-radius:9px;background:#f7fbf9}
-.email-alert-copy{display:grid;gap:5px;min-width:0}
-.email-alert-copy strong{font-size:11px;color:#244559}
-.email-alert-copy small{font-size:10px;line-height:1.5;color:#7a8b94;font-weight:400}
-.email-alert-consent input{width:18px;height:18px;min-width:18px;accent-color:#197b61;cursor:pointer}
-
-
 /* Central de notificações locais e avisos do navegador. */
 .notification-panel{margin:0 0 22px;padding:18px;border:1px solid #dfeae5;background:#fff;border-radius:13px}
 .notification-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:13px}
