@@ -111,6 +111,8 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   const [profileBusy, setProfileBusy] = useState(false);
   const [profileMessage, setProfileMessage] = useState("");
   const [profileMessageType, setProfileMessageType] = useState("info");
+  const notificationStorageKey = "er-notifications:" + (authUser?.id || "visitor");
+  const catalogSnapshotStorageKey = "er-catalog-snapshot:" + (authUser?.id || "visitor");
 
   useEffect(() => {
     if (!authClient) {
@@ -237,27 +239,32 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   }, [authUser?.id]);
 
   useEffect(() => {
+    const stored = readStore(notificationStorageKey, []);
+    setNotifications(Array.isArray(stored) ? stored : []);
+  }, [notificationStorageKey]);
+
+  useEffect(() => {
     if (!authReady) return;
     // Wait for the cloud favorites snapshot before comparing this browser's catalog.
     if (authUser && syncStatus !== "error" && syncReadyUserRef.current !== authUser.id) return;
 
-    const previousSnapshot = readStore("er-catalog-snapshot", null);
+    const previousSnapshot = readStore(catalogSnapshotStorageKey, null);
     const detected = detectCatalogNotifications({
       catalog: concursos,
       previousSnapshot,
       favoriteIds: favorites
     });
-    localStorage.setItem("er-catalog-snapshot", JSON.stringify(detected.snapshot));
+    localStorage.setItem(catalogSnapshotStorageKey, JSON.stringify(detected.snapshot));
     if (detected.notifications.length === 0) return;
 
-    const existing = readStore("er-notifications", notifications);
+    const existing = readStore(notificationStorageKey, []);
     const knownIds = new Set(existing.map((item) => item.id));
     const fresh = detected.notifications.filter((item) => !knownIds.has(item.id));
     if (fresh.length === 0) return;
 
     const next = [...fresh, ...existing].slice(0, 50);
     setNotifications(next);
-    localStorage.setItem("er-notifications", JSON.stringify(next));
+    localStorage.setItem(notificationStorageKey, JSON.stringify(next));
 
     if (browserNotificationsEnabled && notificationPermission === "granted" && "Notification" in window) {
       fresh.slice(0, 3).forEach((item) => {
@@ -279,7 +286,9 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     syncStatus,
     favorites,
     browserNotificationsEnabled,
-    notificationPermission
+    notificationPermission,
+    notificationStorageKey,
+    catalogSnapshotStorageKey
   ]);
 
   const estados = [...new Set(concursos.map((item) => item.estado || "Brasil"))].sort();
@@ -540,13 +549,13 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   const markAllNotificationsRead = () => {
     const next = notifications.map((item) => ({ ...item, read: true }));
     setNotifications(next);
-    localStorage.setItem("er-notifications", JSON.stringify(next));
+    localStorage.setItem(notificationStorageKey, JSON.stringify(next));
   };
 
   const openNotification = (notification) => {
     const next = notifications.map((item) => item.id === notification.id ? { ...item, read: true } : item);
     setNotifications(next);
-    localStorage.setItem("er-notifications", JSON.stringify(next));
+    localStorage.setItem(notificationStorageKey, JSON.stringify(next));
     const contest = concursos.find((item) => String(item.id) === String(notification.itemId));
     if (contest) setSelected(contest);
   };
