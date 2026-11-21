@@ -44,7 +44,7 @@ describe("EditalRadar", () => {
 
     expect(screen.getByRole("heading", { name: "Seus concursos favoritos" })).toBeInTheDocument();
     expect(screen.getByText("Auditor — Carreira de Especialista")).toBeInTheDocument();
-    expect(screen.getByText("1")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Meus favoritos/ })).toHaveTextContent("1");
   });
 
   it("abre os detalhes de um concurso e exibe sua fonte oficial", () => {
