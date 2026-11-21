@@ -80,6 +80,10 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     return Array.isArray(stored) ? stored : [];
   });
   const [notificationCloudSyncAvailable, setNotificationCloudSyncAvailable] = useState(true);
+  const [deferredInstallPrompt, setDeferredInstallPrompt] = useState(null);
+  const [isAppInstalled, setIsAppInstalled] = useState(false);
+  const [showInstallHelp, setShowInstallHelp] = useState(false);
+  const [isOnline, setIsOnline] = useState(() => typeof navigator === "undefined" ? true : navigator.onLine);
   const [notificationPermission, setNotificationPermission] = useState(() =>
     typeof window !== "undefined" && "Notification" in window ? window.Notification.permission : "unsupported"
   );
@@ -122,6 +126,41 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   const [profileMessageType, setProfileMessageType] = useState("info");
   const notificationStorageKey = "er-notifications:" + (authUser?.id || "visitor");
   const catalogSnapshotStorageKey = "er-catalog-snapshot:" + (authUser?.id || "visitor");
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (event) => {
+      event.preventDefault();
+      setDeferredInstallPrompt(event);
+    };
+    const handleAppInstalled = () => {
+      setIsAppInstalled(true);
+      setDeferredInstallPrompt(null);
+      setShowInstallHelp(false);
+    };
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    const standalone = window.matchMedia?.("(display-mode: standalone)")?.matches
+      || window.navigator.standalone === true;
+
+    setIsAppInstalled(Boolean(standalone));
+    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+    window.addEventListener("appinstalled", handleAppInstalled);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register(import.meta.env.BASE_URL + "sw.js").catch(() => {
+        // O site continua funcionando normalmente mesmo se o navegador bloquear o service worker.
+      });
+    }
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+      window.removeEventListener("appinstalled", handleAppInstalled);
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
 
   useEffect(() => {
     if (!authClient) {
@@ -521,6 +560,23 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     }
   };
 
+  const handleInstallApp = async () => {
+    if (!deferredInstallPrompt) {
+      setShowInstallHelp(true);
+      return;
+    }
+
+    try {
+      await deferredInstallPrompt.prompt();
+      const choice = await deferredInstallPrompt.userChoice;
+      if (choice?.outcome === "accepted") setIsAppInstalled(true);
+    } catch {
+      setShowInstallHelp(true);
+    } finally {
+      setDeferredInstallPrompt(null);
+    }
+  };
+
   const handleGoogleSignIn = async () => {
     if (!authClient) return;
     setAuthBusy(true);
@@ -682,8 +738,9 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
       <main className="main">
         <header className="topbar">
           <div className="breadcrumb">Início <span>/</span> {page === "concursos" ? "Concursos" : page === "estudos" ? "Área de estudos" : "Meus favoritos"}</div>
-          <div className="top-actions"><span className="date-chip">◷ &nbsp;Sua jornada começa hoje</span><button className="notification-bell" type="button" onClick={openNotifications} aria-label={`Ver notificações (${unreadNotificationCount} não lidas)`} title="Ver notificações">♧{unreadNotificationCount > 0 && <span>{unreadNotificationCount > 9 ? "9+" : unreadNotificationCount}</span>}</button>{authUser ? <button className="auth-trigger" onClick={handleSignOut} disabled={!authReady}>Sair da conta</button> : <button className="auth-trigger" onClick={() => { setShowAuth(true); setAuthMessage(""); }}>Entrar / cadastrar</button>}<div className="mini-avatar">{(authUser?.user_metadata?.full_name || authUser?.user_metadata?.name || authUser?.email || "C")[0]?.toUpperCase() || "C"}</div></div>
+          <div className="top-actions"><span className="date-chip">◷ &nbsp;Sua jornada começa hoje</span><button className="install-trigger" type="button" onClick={handleInstallApp} disabled={isAppInstalled}>{isAppInstalled ? "App instalado" : deferredInstallPrompt ? "Instalar app" : "Como instalar"}</button><button className="notification-bell" type="button" onClick={openNotifications} aria-label={`Ver notificações (${unreadNotificationCount} não lidas)`} title="Ver notificações">♧{unreadNotificationCount > 0 && <span>{unreadNotificationCount > 9 ? "9+" : unreadNotificationCount}</span>}</button>{authUser ? <button className="auth-trigger" onClick={handleSignOut} disabled={!authReady}>Sair da conta</button> : <button className="auth-trigger" onClick={() => { setShowAuth(true); setAuthMessage(""); }}>Entrar / cadastrar</button>}<div className="mini-avatar">{(authUser?.user_metadata?.full_name || authUser?.user_metadata?.name || authUser?.email || "C")[0]?.toUpperCase() || "C"}</div></div>
         </header>
+        {!isOnline && <div className="offline-status" role="status">Você está offline. O catálogo em cache e os dados locais continuam acessíveis; login e sincronização precisam de internet.</div>}
 
         {page === "estudos" ? (
           <section className="content">
@@ -837,6 +894,20 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
         <footer>© 2026 EditalRadar · Software proprietário. Todos os direitos reservados.</footer>
       </main>
 
+      {showInstallHelp && <div className="modal-backdrop" onClick={() => setShowInstallHelp(false)}>
+        <section className="modal auth-modal install-modal" role="dialog" aria-modal="true" aria-labelledby="install-title" onClick={(event) => event.stopPropagation()}>
+          <button className="modal-close" onClick={() => setShowInstallHelp(false)} aria-label="Fechar instruções de instalação">×</button>
+          <div className="eyebrow">EDITALRADAR NO SEU DISPOSITIVO</div>
+          <h2 id="install-title">Instale o EditalRadar</h2>
+          <p className="muted">Adicione o aplicativo à tela inicial para abrir em uma janela própria e acessar o catálogo já carregado mesmo quando estiver sem conexão.</p>
+          <div className="install-steps">
+            <div><strong>Android</strong><p>No Chrome, abra o menu ⋮ e escolha “Instalar app” ou “Adicionar à tela inicial”.</p></div>
+            <div><strong>iPhone ou iPad</strong><p>No Safari, toque em Compartilhar e depois em “Adicionar à Tela de Início”.</p></div>
+            <div><strong>Computador</strong><p>No Chrome ou Edge, use o ícone de instalação na barra de endereço ou procure “Instalar EditalRadar” no menu.</p></div>
+          </div>
+          <button className="primary-btn full" type="button" onClick={() => setShowInstallHelp(false)}>Entendi</button>
+        </section>
+      </div>}
       {showAuth && <div className="modal-backdrop" onClick={() => setShowAuth(false)}>
         <section className="modal auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title" onClick={(event) => event.stopPropagation()}>
           <button className="modal-close" onClick={() => setShowAuth(false)} aria-label="Fechar cadastro e login">×</button>
