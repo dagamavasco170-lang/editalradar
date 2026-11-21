@@ -17,6 +17,26 @@ test("extrai título, cabeçalho e conteúdo de uma página HTML", () => {
   assert.doesNotMatch(doc.text, /Menu/);
 });
 
+
+test("extrai cargos, escolaridade e vagas das tabelas de editais oficiais", () => {
+  const document = extractDocumentText("<html><head><title>Município de Custódia (PE)</title></head><body><h1>Concurso</h1><p>Concurso público para o provimento de vagas imediatas em cargos efetivos da Prefeitura Municipal de Custódia (PE).</p><p>Edital: 002/2026 de 17/11/2026. Situação: Em andamento.</p><table><tr><th>Vaga</th><th>Escolaridade</th><th>Salário</th><th>Qtde.</th></tr><tr><td>AGENTE ADMINISTRATIVO I E II - Custódia (PE)</td><td>MÉDIO</td><td>R$ 1.900,00</td><td>22 + Cadastro de Reserva</td></tr><tr><td>ASSISTENTE SOCIAL - Custódia (PE)</td><td>SUPERIOR</td><td>R$ 2.000,00</td><td>3</td></tr></table></body></html>");
+  assert.equal(document.tableRows.length,3);
+  const result = classifyDiscovery(
+    {...discovery,discovery_type:"new_link",title:"Município de Custódia (PE)"},
+    document,
+    "https://www.igeduc.org.br/informacoes/192/"
+  );
+  assert.equal(result.decision,"publish");
+  assert.equal(result.data.orgao,"Prefeitura Municipal de Custódia");
+  assert.equal(result.data.cargo,"AGENTE ADMINISTRATIVO I E II - Custódia (PE)");
+  assert.equal(result.data.area,"Municipal");
+  assert.equal(result.data.estado,"Pernambuco");
+  assert.equal(result.data.nivel,"Médio/Técnico");
+  assert.equal(result.data.vagas,null);
+  assert.equal(result.data.vagasImediatas,25);
+  assert.match(result.data.observacao,/cadastro de reserva não somado/);
+});
+
 test("identifica órgão público explicitamente declarado", () => {
   assert.equal(inferOrganization("Concurso público da Prefeitura Municipal de Igaci"), "Prefeitura Municipal de Igaci");
 });

@@ -41,13 +41,18 @@ export function extractDocumentText(html) {
     .replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
   const heading = decodeEntities(source.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i)?.[1] || "")
     .replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  const tableRows = [...source.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)]
+    .map(match => [...match[1].matchAll(/<t[dh]\b[^>]*>([\s\S]*?)<\/t[dh]>/gi)]
+      .map(cell => decodeEntities(cell[1].replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim()))
+    .filter(row => row.some(Boolean));
   const body = source
     .replace(/<(script|style|noscript|svg|header|footer|nav)\b[^>]*>[\s\S]*?<\/\1>/gi, " ")
     .replace(/<br\s*\/?>|<\/(?:p|div|li|tr|h[1-6])\s*>/gi, "\n")
     .replace(/<[^>]+>/g, " ");
   const text = decodeEntities(body).replace(/[\t\r ]+/g, " ").replace(/\n\s*/g, "\n")
     .replace(/\n{2,}/g, "\n").trim();
-  return { title, heading, text };
+  return { title, heading, text, tableRows };
+}
 }
 
 function firstMatch(text, patterns) {
@@ -83,10 +88,16 @@ function inferState(hostname, text) {
   const host = String(hostname || "").toLowerCase();
   const hostMatch = host.match(/(?:^|\.)(ac|al|ap|am|ba|ce|df|es|go|ma|mt|ms|mg|pa|pb|pr|pe|pi|rj|rn|rs|ro|rr|sc|sp|se|to)\.gov\.br$/);
   if (hostMatch) return STATE_NAMES[hostMatch[1]];
+  const parentheticalStates = String(text || "").match(/\(([A-Z]{2})\)/g) || [];
+  for (const token of parentheticalStates) {
+    const abbreviation = token.slice(1, -1).toLowerCase();
+    if (STATE_NAMES[abbreviation]) return STATE_NAMES[abbreviation];
+  }
   for (const name of Object.values(STATE_NAMES)) {
-    if (new RegExp("\\b" + name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "i").test(text)) return name;
+    if (new RegExp("\\b" + name.replace(/[.*+?^$()|[\]\\]/g, "\\$&") + "\\b", "i").test(text)) return name;
   }
   return "";
+}
 }
 
 function inferJurisdiction(hostname, organization, text) {
@@ -125,7 +136,59 @@ function uniqueCapturedNumbers(text, patterns) {
   return [...values];
 }
 
-export function extractVacancyDetails(text) {
+const normalizeTableLabel = value => String(value || "")
+  .normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+  .replace(/[^a-z0-9]+/g, " ").trim();
+
+export function extractRoleNamesFromTables(tableRows = []) {
+  const roles = [];
+  for (let index = 0; index < tableRows.length; index += 1) {
+    const header = tableRows[index].map(normalizeTableLabel);
+    const roleIndex = header.findIndex(cell => /^(vaga|cargo|funcao|denominacao do cargo)$/.test(cell));
+    if (roleIndex < 0) continue;
+    for (const row of tableRows.slice(index + 1)) {
+      const role = String(row[roleIndex] || "").replace(/\s+/g, " ").trim();
+      if (!role || /^(total|quantidade|cargo|vaga)$/i.test(role)) continue;
+      if (/^(?:observa[cç][aã]o|legenda|total geral)/i.test(role)) break;
+      if (role.length >= 3 && role.length <= 180 && !roles.includes(role)) roles.push(role);
+    }
+    if (roles.length) break;
+  }
+  return roles.slice(0, 30);
+}
+
+function extractVacanciesFromTable(tableRows = []) {
+  for (let index = 0; index < tableRows.length; index += 1) {
+    const header = tableRows[index].map(normalizeTableLabel);
+    const roleIndex = header.findIndex(cell => /^(vaga|cargo|funcao|denominacao do cargo)$/.test(cell));
+    const quantityIndex = header.findIndex(cell => /^(qtde|qtd|quantidade|numero de vagas|vagas)$/.test(cell));
+    if (roleIndex < 0 || quantityIndex < 0) continue;
+    let count = 0;
+    let rowsFound = 0;
+    let reserveMentioned = false;
+    for (const row of tableRows.slice(index + 1)) {
+      const role = String(row[roleIndex] || "").trim();
+      const quantity = String(row[quantityIndex] || "").trim();
+      if (!role && !quantity) continue;
+      if (/^(total|total geral)$/i.test(role)) continue;
+      const number = quantity.match(/\b(\d{1,5})\b/);
+      if (!number) continue;
+      const value = Number(number[1]);
+      if (!Number.isInteger(value) || value < 0 || value > 100000) continue;
+      count += value;
+      rowsFound += 1;
+      if (/cadastro\s+de\s+reserva|\bcr\b/i.test(quantity)) reserveMentioned = true;
+    }
+    if (rowsFound) {
+      return { total: reserveMentioned ? null : count, imediatas: count, reserva: null, fromTable: true };
+    }
+  }
+  return null;
+}
+
+export function extractVacancyDetails(text, tableRows = []) {
+  const tableDetails = extractVacanciesFromTable(tableRows);
+  if (tableDetails) return tableDetails;
   const source = String(text || "");
   const immediateValues = uniqueCapturedNumbers(source, [
     /\b(\d{1,5})\s+vagas?\s+imediatas?\b/gi,
@@ -141,20 +204,16 @@ export function extractVacancyDetails(text) {
     /\b(?:o\s+edital|a\s+sele[cç][aã]o|o\s+concurso|o\s+certame|certame)\s+(?:oferece|ofert[aá]|prev[eê]|disponibiliza)\s+(\d{1,5})\s+vagas?\b/gi,
     /\bvagas?\s*[:\-]\s*(\d{1,5})\b/gi
   ]);
-
   const imediatas = immediateValues.length === 1 ? immediateValues[0] : null;
   const reserva = reserveValues.length === 1 ? reserveValues[0] : null;
   const explicitTotal = totalValues.length === 1 ? totalValues[0] : null;
-  // When both categories are explicit, their sum is the total. Some
-  // notices repeat "prevê 40 vagas" immediately before "40 imediatas e 60 CR";
-  // that generic phrase must not override the explicit breakdown.
   const total = imediatas !== null && reserva !== null
     ? imediatas + reserva
     : explicitTotal !== null
       ? explicitTotal
       : imediatas;
-
   return { total, imediatas, reserva };
+}
 }
 
 export function classifyDiscovery(discovery, document, responseUrl = discovery?.candidate_url) {
@@ -173,7 +232,8 @@ export function classifyDiscovery(discovery, document, responseUrl = discovery?.
   const evidence = (title + "\n" + text).slice(0, 300000);
   const hasPublicSelection = /\b(concurso\s+público|processo\s+seletivo(?:\s+simplificado)?|seleção\s+pública)\b/i.test(evidence);
   const hasNotice = /\bedital\b/i.test(evidence);
-  const hasPositionEvidence = /\b(cargo|cargos|função|funções|vagas)\b/i.test(evidence);
+  const tableRoles = extractRoleNamesFromTables(document?.tableRows);
+  const hasPositionEvidence = /\b(cargo|cargos|função|funções|vagas)\b/i.test(evidence) || tableRoles.length > 0;
   const hasExplicitRetification = /\b(retifica|retificação|retificações|retificacao|retificacoes|errata|aditivo|alteração do edital|alteracao do edital)\b/i
     .test([discovery?.title, document?.title, document?.heading].filter(Boolean).join(" "));
   const selectionEvidence = hasPublicSelection || (hasExplicitRetification && hasNotice);
@@ -191,18 +251,28 @@ export function classifyDiscovery(discovery, document, responseUrl = discovery?.
     /\bcargo\s+(?:de|para)\s+([^.;\n]{3,120})/i,
     /\bvagas?\s+para\s+([^.;\n]{3,120})/i,
     /\bfunções?\s*(?:de|:)\s*([^.;\n]{3,120})/i
-  ]);
+  ]); || tableRoles[0] || "";
   const jurisdiction = orgao ? inferJurisdiction(candidate.hostname, orgao, title + "\n" + text) : null;
   if (!orgao || !cargo || !jurisdiction) {
     const missing = [!orgao && "órgão", !cargo && "cargo/função", !jurisdiction && "esfera/estado"].filter(Boolean).join(", ");
     return { decision: "review", reason: "O edital parece relacionado a seleção pública, mas faltam dados confiáveis para cadastro automático: " + missing + "." };
   }
 
-  const vacancies = extractVacancyDetails(text);
+  const vacancies = extractVacancyDetails(text, document?.tableRows);
   const editalMatch = evidence.match(/\bedital\s+(?:n[º°.]?\s*)?[\w./-]{1,24}(?:\s*,?\s*de\s+\d{1,2}\s+de\s+[\p{L}]+\s+de\s+20\d{2})?/iu);
-  const level = /nível\s+(?:médio|técnico)/i.test(text) ? "Médio/Técnico"
-    : /nível\s+(?:superior|graduação)/i.test(text) ? "Superior"
-      : /nível\s+fundamental/i.test(text) ? "Fundamental" : "A confirmar no edital";
+  const educationHeaderIndex = (document?.tableRows || []).findIndex(row =>
+    row.some(cell => /^(escolaridade|nível|nivel)$/i.test(String(cell || "").trim()))
+  );
+  const educationColumnIndex = educationHeaderIndex >= 0
+    ? (document.tableRows[educationHeaderIndex] || []).findIndex(cell => /^(escolaridade|nível|nivel)$/i.test(String(cell || "").trim()))
+    : -1;
+  const tableEducation = educationHeaderIndex >= 0 && educationColumnIndex >= 0
+    ? document.tableRows.slice(educationHeaderIndex + 1).map(row => String(row[educationColumnIndex] || "")).join(" ")
+    : "";
+  const levelEvidence = text + " " + tableEducation;
+  const level = /(?:nível\s+)?(?:médio|técnico)/i.test(levelEvidence) ? "Médio/Técnico"
+    : /(?:nível\s+)?(?:superior|graduação)/i.test(levelEvidence) ? "Superior"
+      : /(?:nível\s+)?fundamental/i.test(levelEvidence) ? "Fundamental" : "A confirmar no edital";
   // Historic pages can contain old "inscrições abertas" or "encerradas" snippets.
   // New automatic records remain conservative until a dated review.
   const status = "Edital publicado · situação a confirmar";
@@ -234,7 +304,10 @@ export function classifyDiscovery(discovery, document, responseUrl = discovery?.
         fonte: candidate.toString(),
         sinais: ["publicação oficial", "edital", recruitmentType.toLowerCase(), "órgão identificado", "cargo identificado", "jurisdição identificada"]
       },
-      observacao: "Registro estruturado automaticamente pelo EditalRadar a partir da publicação oficial. A situação das inscrições permanece a confirmar porque a página pode conter referências históricas. Confira o edital e suas retificações antes de tomar decisões. Fonte monitorada: " + String(discovery?.source_url || "").slice(0, 500)
+      observacao: "Registro estruturado automaticamente pelo EditalRadar a partir da publicação oficial. A situação das inscrições permanece a confirmar porque a página pode conter referências históricas. Confira o edital e suas retificações antes de tomar decisões."
+        + (tableRoles.length > 1 ? " Cargos identificados na tabela oficial: " + tableRoles.slice(0, 12).join("; ") + (tableRoles.length > 12 ? "; entre outros" : "") + "." : "")
+        + (vacancies.fromTable ? " Quantidade extraída da coluna de quantidade da tabela oficial; cadastro de reserva não somado quando não quantificado." : "")
+        + " Fonte monitorada: " + String(discovery?.source_url || "").slice(0, 500)
     }
   };
 }
