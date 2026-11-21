@@ -5,7 +5,7 @@ import { pathToFileURL } from "node:url";
 export function buildDiscoveryRows(discoveries = []) {
   const unique = new Map();
   for (const item of discoveries) {
-    if (!item || !["new_link", "page_change", "source_baseline"].includes(item.discovery_type)) continue;
+    if (!item || !["new_link", "page_change", "source_baseline", "web_search_lead"].includes(item.discovery_type)) continue;
     try {
       const source = new URL(item.source_url);
       const candidate = new URL(item.candidate_url);

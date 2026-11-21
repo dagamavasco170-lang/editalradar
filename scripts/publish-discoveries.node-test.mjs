@@ -68,3 +68,18 @@ test("falha e preserva a descoberta se os secrets do Supabase estiverem ausentes
     if (previousKey !== undefined) process.env.SUPABASE_SERVICE_ROLE_KEY = previousKey;
   }
 });
+
+test("mantém pistas da busca na internet na fila sem tratá-las como edital oficial", () => {
+  const rows = buildDiscoveryRows([{
+    source_url: "https://news.google.com/rss/search?q=concursos",
+    candidate_url: "https://news.google.com/rss/articles/abc123",
+    discovery_key: "web-search:abc123",
+    title: "Busca na internet: Prefeitura anuncia seleção",
+    context: "Fonte secundária. Confirme a publicação oficial.",
+    discovery_type: "web_search_lead"
+  }]);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].status, "pending");
+  assert.equal(rows[0].discovery_type, "web_search_lead");
+  assert.match(rows[0].context, /Confirme a publicação oficial/);
+});

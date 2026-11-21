@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { concursos } from "../src/data/concursos.js";
-import { collectSourceUrls, compareSource, fingerprintContent, normalizeHtml, extractOpportunityLinks, buildDiscoveriesForSource, fetchOfficialSource, isTrustedOfficialHost, pruneSourceState } from "./monitor-sources.mjs";
+import { collectSourceUrls, compareSource, fingerprintContent, normalizeHtml, extractOpportunityLinks, buildDiscoveriesForSource, fetchOfficialSource, isTrustedOfficialHost, pruneSourceState, buildGoogleNewsRssUrl, parseGoogleNewsRss, searchInternetForContestLeads } from "./monitor-sources.mjs";
 
 test("coleta somente URLs HTTPS únicas", () => {
   const urls = collectSourceUrls([
@@ -266,4 +266,82 @@ test("detecta página alterada e links novos após a linha de base", () => {
   assert.equal(discoveries.length, 2);
   assert.ok(discoveries.some(item => item.discovery_type === "page_change"));
   assert.ok(discoveries.some(item => item.discovery_type === "new_link" && item.candidate_url === newLink.candidate_url));
+});
+
+
+test("monta consultas RSS brasileiras com recência e idioma português", () => {
+  const url = new URL(buildGoogleNewsRssUrl('"concurso público" site:gov.br'));
+  assert.equal(url.origin, "https://news.google.com");
+  assert.equal(url.pathname, "/rss/search");
+  assert.match(url.searchParams.get("q"), /when:7d/);
+  assert.equal(url.searchParams.get("hl"), "pt-BR");
+  assert.equal(url.searchParams.get("gl"), "BR");
+  assert.equal(url.searchParams.get("ceid"), "BR:pt-419");
+});
+
+test("extrai pistas de concursos do RSS e descarta links inseguros, notícias antigas e assuntos irrelevantes", () => {
+  const xml = [
+    "<rss><channel><item>",
+    "<title>Prefeitura publica edital de concurso público com 40 vagas</title>",
+    "<link>https://news.google.com/rss/articles/contest-001</link>",
+    "<pubDate>Fri, 20 Nov 2026 10:00:00 GMT</pubDate>",
+    "<description>Seleção pública com edital e inscrições abertas.</description>",
+    '<source url="https://portal.example.org">Portal de Notícias</source>',
+    "</item><item>",
+    "<title>Concurso público antigo</title><link>http://news.google.com/rss/articles/insecure</link>",
+    "<pubDate>Fri, 20 Nov 2026 10:00:00 GMT</pubDate></item><item>",
+    "<title>Concurso público encerrado há muito tempo</title>",
+    "<link>https://news.google.com/rss/articles/old</link>",
+    "<pubDate>Mon, 01 Jan 2024 10:00:00 GMT</pubDate></item><item>",
+    "<title>Campeonato de futebol local</title>",
+    "<link>https://news.google.com/rss/articles/sports</link>",
+    "<pubDate>Fri, 20 Nov 2026 10:00:00 GMT</pubDate>",
+    "</item></channel></rss>"
+  ].join("");
+  const leads = parseGoogleNewsRss(xml, {
+    now: new Date("2026-11-21T19:00:00-03:00"),
+    queryLabel: "Concursos federais",
+    feedUrl: "https://news.google.com/rss/search?q=concursos",
+    maxResults: 8
+  });
+  assert.equal(leads.length, 1);
+  assert.equal(leads[0].discovery_type, "web_search_lead");
+  assert.match(leads[0].title, /40 vagas/);
+  assert.match(leads[0].context, /Portal de Notícias/);
+  assert.match(leads[0].context, /Confirme o edital/);
+  assert.match(leads[0].discovery_key, /^web-search:[a-f0-9]{64}$/);
+});
+
+test("consulta a busca pública com HTTPS, bloqueio de redirecionamentos e tratamento independente de falhas", async () => {
+  const requested = [];
+  const result = await searchInternetForContestLeads({
+    queries: [
+      { label: "Busca nacional", query: "concurso edital site:gov.br" },
+      { label: "Busca estadual", query: "concurso Alagoas edital" }
+    ],
+    now: new Date("2026-11-21T19:00:00-03:00"),
+    fetchImpl: async (url, options) => {
+      requested.push({ url, options });
+      if (url.includes("Alagoas")) throw new Error("Falha simulada");
+      return {
+        ok: true,
+        status: 200,
+        headers: new Headers({ "content-type": "application/rss+xml" }),
+        text: async () => [
+          "<rss><channel><item><title>Edital de concurso público municipal</title>",
+          "<link>https://news.google.com/rss/articles/municipal-001</link>",
+          "<pubDate>Fri, 20 Nov 2026 10:00:00 GMT</pubDate>",
+          "<description>Prefeitura anuncia vagas.</description>",
+          "</item></channel></rss>"
+        ].join("")
+      };
+    }
+  });
+  assert.equal(requested.length, 2);
+  assert.ok(requested.every(item => item.url.startsWith("https://news.google.com/rss/search?")));
+  assert.ok(requested.every(item => item.options.redirect === "error"));
+  assert.equal(result.feedsChecked, 2);
+  assert.equal(result.leadCount, 1);
+  assert.equal(result.errors.length, 1);
+  assert.equal(result.discoveries[0].discovery_type, "web_search_lead");
 });

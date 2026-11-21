@@ -1559,7 +1559,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                 <div><strong>Fila de revisão de oportunidades</strong><small>{discoveryItems.length} descoberta(s) aguardando análise</small></div>
                 <span className="discovery-status-pill">Revisão manual</span>
               </div>
-              <p className="muted discovery-help">O monitor identifica páginas alteradas e novos links em fontes oficiais. Nenhuma descoberta entra no catálogo sem sua conferência e aprovação.</p>
+              <p className="muted discovery-help">O monitor verifica fontes oficiais e pesquisa a internet automaticamente a cada 6 horas. Notícias e resultados de busca entram como pistas secundárias; só links oficiais podem passar pela triagem automática, e toda pista externa exige confirmação antes de virar concurso no catálogo.</p>
               {discoverySyncMessage && <p className="auth-message info" role="status">Fila indisponível. Execute a migração <strong>202611220003_contest_discoveries.sql</strong> no Supabase e configure os secrets do GitHub Actions. Detalhe: {discoverySyncMessage}</p>}
               {discoveryLoading ? <p className="muted">Carregando descobertas...</p> : discoveryItems.length === 0 ? (
                 <div className="discovery-empty">Nenhuma oportunidade pendente no momento.</div>
@@ -1568,12 +1568,14 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                   {discoveryItems.map(item => <article className="admin-row discovery-row" key={item.id}>
                     <div className="admin-row-copy">
                       <strong>{item.title}</strong>
-                      <span>{item.discovery_type === "new_link" ? "Novo link identificado" : item.discovery_type === "source_baseline" ? "Fonte para verificação inicial" : "Página oficial alterada"} · {item.detected_at ? new Date(item.detected_at).toLocaleString("pt-BR") : "Data não informada"}</span>
+                      <span>{item.discovery_type === "web_search_lead" ? "Pista da busca automática na internet · fonte secundária" : item.discovery_type === "new_link" ? "Novo link identificado em fonte oficial" : item.discovery_type === "source_baseline" ? "Fonte para verificação inicial" : "Página oficial alterada"} · {item.detected_at ? new Date(item.detected_at).toLocaleString("pt-BR") : "Data não informada"}</span>
                       <small>{item.context}</small>
-                      <a href={item.candidate_url} target="_blank" rel="noreferrer">Abrir publicação ou página identificada ↗</a>
+                      <a href={item.candidate_url} target="_blank" rel="noopener noreferrer">{item.discovery_type === "web_search_lead" ? "Abrir notícia ou resultado da busca ↗" : "Abrir publicação ou página identificada ↗"}</a>
                     </div>
                     <div className="admin-row-actions">
-                      <button className="detail-btn" type="button" onClick={() => openDiscoveryDraft(item)} disabled={adminBusy}>Revisar e cadastrar</button>
+                      {item.discovery_type === "web_search_lead"
+                        ? <span className="discovery-web-review-note">Confirme o edital no site do órgão ou da banca antes de cadastrar.</span>
+                        : <button className="detail-btn" type="button" onClick={() => openDiscoveryDraft(item)} disabled={adminBusy}>Revisar e cadastrar</button>}
                       <button className="alert-remove" type="button" onClick={() => dismissDiscovery(item)} disabled={adminBusy}>Descartar</button>
                     </div>
                   </article>)}

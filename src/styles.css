@@ -2048,3 +2048,6 @@ button,.detail-btn,.primary-btn{line-height:1.35}
  .simulator-question-map>div{grid-template-columns:repeat(8,minmax(0,1fr))}
  .simulator-navigation>*{flex:1 1 42%}.official-exam-actions a{width:100%}
 }
+
+.discovery-web-review-note{display:inline-block;max-width:220px;padding:7px 9px;border:1px solid #e7e8d7;border-radius:7px;background:#fbfaf1;color:#887640;font-size:9px;line-height:1.45}
+@media(max-width:560px){.discovery-web-review-note{max-width:none;width:100%}}

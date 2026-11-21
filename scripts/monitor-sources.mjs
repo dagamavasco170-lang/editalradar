@@ -422,6 +422,175 @@ async function mapWithConcurrency(items, limit, worker) {
   return output;
 }
 
+
+export const INTERNET_SEARCH_QUERIES = [
+  { label: "Concursos em órgãos federais", query: '("concurso público" OR "processo seletivo") (edital OR vagas OR inscrições) site:gov.br' },
+  { label: "Concursos e seleções em Alagoas", query: '("concurso público" OR "processo seletivo") (edital OR vagas OR inscrições) (Alagoas OR Maceió OR Arapiraca)' },
+  { label: "Poderes e órgãos de Justiça", query: '("concurso público" OR edital) (vagas OR inscrições OR retificação) (site:jus.br OR site:leg.br OR site:mp.br)' },
+  { label: "Bancas organizadoras", query: 'concurso edital (Cebraspe OR FGV OR FCC OR Vunesp OR AOCP OR IBFC OR Quadrix OR IGEDUC)' },
+  { label: "Novos concursos e autorizações", query: 'concurso público 2026 2027 edital autorização comissão banca' }
+];
+
+const GOOGLE_NEWS_RSS_ENDPOINT = "https://news.google.com/rss/search";
+const WEB_SEARCH_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
+const WEB_SEARCH_MAX_FEED_BYTES = 2 * 1024 * 1024;
+
+export function buildGoogleNewsRssUrl(query) {
+  const url = new URL(GOOGLE_NEWS_RSS_ENDPOINT);
+  url.searchParams.set("q", String(query || "").trim() + " when:7d");
+  url.searchParams.set("hl", "pt-BR");
+  url.searchParams.set("gl", "BR");
+  url.searchParams.set("ceid", "BR:pt-419");
+  return url.toString();
+}
+
+function decodeXmlText(value) {
+  return String(value || "")
+    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/gi, "$1")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;|&#160;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&quot;|&#34;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&#(\d+);/g, (_, code) => {
+      const point = Number(code);
+      return Number.isInteger(point) && point >= 0 && point <= 0x10ffff ? String.fromCodePoint(point) : "";
+    })
+    .replace(/&#x([\da-f]+);/gi, (_, code) => {
+      const point = Number.parseInt(code, 16);
+      return Number.isInteger(point) && point >= 0 && point <= 0x10ffff ? String.fromCodePoint(point) : "";
+    })
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function readXmlTag(block, tag) {
+  const match = String(block || "").match(new RegExp("<" + tag + "(?:\\s[^>]*)?>([\\s\\S]*?)<\\/" + tag + "\\s*>", "i"));
+  return match ? decodeXmlText(match[1]) : "";
+}
+
+export function parseGoogleNewsRss(xml, options = {}) {
+  const now = options.now instanceof Date ? options.now : new Date(options.now || Date.now());
+  const maxAgeMs = Math.max(60_000, Number(options.maxAgeMs) || WEB_SEARCH_MAX_AGE_MS);
+  const maxResults = Math.max(1, Math.min(30, Number(options.maxResults) || 8));
+  const queryLabel = String(options.queryLabel || "Busca na internet").slice(0, 100);
+  const feedUrl = String(options.feedUrl || buildGoogleNewsRssUrl(queryLabel));
+  const items = String(xml || "").matchAll(/<item(?:\s[^>]*)?>([\s\S]*?)<\/item\s*>/gi);
+  const leads = [];
+  const seen = new Set();
+
+  for (const match of items) {
+    if (leads.length >= maxResults) break;
+    const item = match[1];
+    const title = readXmlTag(item, "title");
+    const link = readXmlTag(item, "link");
+    const description = readXmlTag(item, "description");
+    const publishedRaw = readXmlTag(item, "pubDate");
+    const sourceMatch = item.match(/<source\b([^>]*)>([\s\S]*?)<\/source\s*>/i);
+    const sourceName = sourceMatch ? decodeXmlText(sourceMatch[2]) : "";
+    const sourceUrlMatch = sourceMatch?.[1]?.match(/\burl\s*=\s*["']([^"']+)["']/i);
+    const sourceUrl = sourceUrlMatch ? decodeXmlText(sourceUrlMatch[1]) : "";
+    if (!title || !link || !/(concurso|concursos|edital|processo seletivo|certame|seleção pública|selecao publica|vagas|banca organizadora)/i.test(title + " " + description.slice(0, 500))) continue;
+
+    let candidate;
+    try {
+      candidate = new URL(link);
+      if (candidate.protocol !== "https:" || candidate.username || candidate.password) continue;
+      candidate.hash = "";
+    } catch {
+      continue;
+    }
+
+    const publishedTimestamp = Date.parse(publishedRaw);
+    if (Number.isFinite(publishedTimestamp) && (
+      publishedTimestamp < now.getTime() - maxAgeMs
+      || publishedTimestamp > now.getTime() + 48 * 60 * 60 * 1000
+    )) continue;
+    const normalizedKey = candidate.toString();
+    if (seen.has(normalizedKey)) continue;
+    seen.add(normalizedKey);
+
+    const digest = createHash("sha256").update(normalizedKey).digest("hex");
+    const dateLabel = Number.isFinite(publishedTimestamp)
+      ? new Date(publishedTimestamp).toLocaleString("pt-BR", { timeZone: "America/Maceio" })
+      : "data não informada pelo agregador";
+    const contextParts = [
+      "Pista encontrada na busca pública da internet.",
+      "Consulta: " + queryLabel + ".",
+      "Fonte indicada pelo Google Notícias: " + (sourceName || "não identificada") + ".",
+      "Publicação: " + dateLabel + ".",
+      description ? "Resumo: " + description.slice(0, 650) : "",
+      sourceUrl ? "Endereço informado para a fonte: " + sourceUrl : "",
+      "A notícia é apenas uma pista. Confirme o edital, o órgão e a banca em um domínio oficial antes de cadastrar ou divulgar a oportunidade."
+    ].filter(Boolean);
+
+    leads.push({
+      source_url: feedUrl,
+      candidate_url: candidate.toString(),
+      discovery_key: "web-search:" + digest,
+      title: "Busca na internet: " + title.slice(0, 210),
+      context: contextParts.join(" "),
+      discovery_type: "web_search_lead"
+    });
+  }
+  return leads;
+}
+
+export async function searchInternetForContestLeads(options = {}) {
+  const request = options.fetchImpl || fetch;
+  const queries = Array.isArray(options.queries) ? options.queries : INTERNET_SEARCH_QUERIES;
+  const concurrency = Math.max(1, Math.min(4, Number(options.concurrency) || 3));
+  const now = options.now instanceof Date ? options.now : new Date(options.now || Date.now());
+  const maxResultsPerQuery = Math.max(1, Math.min(20, Number(options.maxResultsPerQuery) || 8));
+  const checked = await mapWithConcurrency(queries, concurrency, async entry => {
+    const feedUrl = buildGoogleNewsRssUrl(entry.query);
+    try {
+      const response = await request(feedUrl, {
+        method: "GET",
+        redirect: "error",
+        signal: AbortSignal.timeout(Math.max(3000, Number(options.timeoutMs) || 12000)),
+        headers: {
+          "User-Agent": "Mozilla/5.0 (compatible; EditalRadar-WebDiscovery/1.0; +https://github.com/dagamavasco170-lang/editalradar)",
+          Accept: "application/rss+xml, application/xml, text/xml;q=0.9"
+        }
+      });
+      if (!response.ok) throw new Error("Google Notícias respondeu HTTP " + response.status + ".");
+      const contentLength = Number(response.headers?.get?.("content-length") || 0);
+      if (contentLength > WEB_SEARCH_MAX_FEED_BYTES) throw new Error("O feed excede o limite de 2 MB.");
+      const xml = await response.text();
+      if (new TextEncoder().encode(xml).byteLength > WEB_SEARCH_MAX_FEED_BYTES) throw new Error("O feed excede o limite de 2 MB.");
+      if (!/<(?:rss|feed)\b/i.test(xml)) throw new Error("A resposta não contém um feed RSS/XML válido.");
+      const discoveries = parseGoogleNewsRss(xml, { now, queryLabel: entry.label, feedUrl, maxResults: maxResultsPerQuery });
+      return { label: entry.label, feedUrl, discoveries, error: null };
+    } catch (error) {
+      return { label: entry.label, feedUrl, discoveries: [], error: String(error?.message || error).slice(0, 260) };
+    }
+  });
+
+  const unique = new Map();
+  for (const result of checked) {
+    for (const item of result.discoveries) {
+      const key = item.candidate_url.toLowerCase();
+      const existing = unique.get(key);
+      if (!existing) unique.set(key, item);
+      else if (!existing.context.includes(result.label)) {
+        existing.context = (existing.context + " Também apareceu na consulta: " + result.label + ".").slice(0, 1200);
+      }
+    }
+  }
+
+  const discoveries = [...unique.values()];
+  return {
+    provider: "Google Notícias RSS",
+    feedsChecked: checked.length,
+    leadCount: discoveries.length,
+    errors: checked.filter(item => item.error).map(item => ({ label: item.label, error: item.error })),
+    discoveries
+  };
+}
+
 async function runMonitor() {
   const urls = collectSourceUrls();
   await mkdir(dirname(resolve(STATE_PATH)), { recursive: true });
@@ -456,6 +625,9 @@ async function runMonitor() {
     else nextSources[entry.url] = { ...(previous || {}), lastError: entry.current.error, lastCheckedAt: entry.current.checkedAt };
   }
 
+  const internetSearch = await searchInternetForContestLeads();
+  discoveries.push(...internetSearch.discoveries);
+
   const prunedState = pruneSourceState(nextSources, urls);
   const removed = prunedState.removed.map((url) => ({
     type: "removed",
@@ -464,7 +636,24 @@ async function runMonitor() {
   }));
 
   const fallbackCount = checked.filter(entry => entry.current.ok && entry.current.transport === "curl-fallback").length;
-  const report = { generatedAt: new Date().toISOString(), monitoredCount: urls.length, concurrency, fallbackCount, firstRun, changed, unavailable, added, removed, discoveries };
+  const report = {
+    generatedAt: new Date().toISOString(),
+    monitoredCount: urls.length,
+    concurrency,
+    fallbackCount,
+    firstRun,
+    internetSearch: {
+      provider: internetSearch.provider,
+      feedsChecked: internetSearch.feedsChecked,
+      leadCount: internetSearch.leadCount,
+      errors: internetSearch.errors
+    },
+    changed,
+    unavailable,
+    added,
+    removed,
+    discoveries
+  };
   await writeFile(STATE_PATH, JSON.stringify({ version: 1, sources: prunedState.sources }, null, 2) + "\n");
   await writeFile(REPORT_PATH, JSON.stringify(report, null, 2) + "\n");
 
@@ -472,7 +661,8 @@ async function runMonitor() {
     ["Páginas alteradas", changed],
     ["Fontes indisponíveis", unavailable],
     ["Novas fontes no catálogo", added],
-    ["Novos links de oportunidades", discoveries.filter((item) => item.discovery_type === "new_link")],
+    ["Novos links de oportunidades em fontes oficiais", discoveries.filter((item) => item.discovery_type === "new_link")],
+    ["Pistas da busca automática na internet (não confirmadas)", internetSearch.discoveries],
     ["Páginas atualizadas para revisão", discoveries.filter((item) => item.discovery_type === "page_change")],
     ["Fontes removidas do catálogo", removed]
   ];
@@ -483,6 +673,8 @@ async function runMonitor() {
     "Fontes acompanhadas: " + report.monitoredCount,
     "Concorrência: " + report.concurrency + " · tentativas por fonte: 3",
     "Consultas recuperadas pelo transporte alternativo: " + report.fallbackCount,
+    "Buscas automáticas na internet: " + internetSearch.feedsChecked + " consultas · " + internetSearch.leadCount + " pistas novas.",
+    "Falhas de consulta na internet: " + internetSearch.errors.length,
     ...(firstRun ? ["Esta foi a primeira leitura; os resultados formam a linha de base."] : []),
     ""
   ];
@@ -507,6 +699,8 @@ async function runMonitor() {
       "changed_count=" + (changed.length + added.length + removed.length + discoveries.length),
       "discovered_count=" + discoveries.length,
       "failed_count=" + unavailable.length,
+      "web_search_count=" + internetSearch.leadCount,
+      "web_search_failed_count=" + internetSearch.errors.length,
       ""
     ].join("\n"));
   }
