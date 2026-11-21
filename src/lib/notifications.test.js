@@ -55,6 +55,70 @@ describe("Notificações do catálogo", () => {
     expect(result.notifications[0].message).toContain("20 → 25");
   });
 
+  it("gera aviso específico quando um concurso favorito recebe retificação oficial", () => {
+    const previousSnapshot = buildCatalogSnapshot([contest()]);
+    const updated = contest({
+      vagas: 30,
+      historicoAtualizacoes: [{
+        at: "2026-11-21T18:30:00.000Z",
+        type: "retificacao",
+        title: "1ª Retificação do Edital 01/2026",
+        changes: [{ field: "vagas", oldValue: 20, newValue: 30 }]
+      }]
+    });
+    const result = detectCatalogNotifications({
+      catalog: [updated],
+      previousSnapshot,
+      favoriteIds: [10]
+    });
+
+    expect(result.notifications).toHaveLength(1);
+    expect(result.notifications[0]).toEqual(expect.objectContaining({
+      type: "retification",
+      itemId: "10",
+      title: "Retificação oficial no seu favorito",
+      read: false
+    }));
+    expect(result.notifications[0].message).toContain("Retificação oficial publicada");
+    expect(result.notifications[0].message).toContain("20 → 30");
+    expect(result.notifications[0].id).toContain("retification-10-");
+  });
+
+  it("não gera aviso de retificação quando o concurso não é favorito", () => {
+    const previousSnapshot = buildCatalogSnapshot([contest()]);
+    const result = detectCatalogNotifications({
+      catalog: [contest({
+        historicoAtualizacoes: [{
+          at: "2026-11-21T18:30:00.000Z",
+          type: "retificacao",
+          changes: [{ field: "vagas", oldValue: 20, newValue: 30 }]
+        }]
+      })],
+      previousSnapshot,
+      favoriteIds: []
+    });
+
+    expect(result.notifications).toEqual([]);
+  });
+
+  it("não repete o aviso quando o histórico de retificações não cresceu", () => {
+    const current = contest({
+      historicoAtualizacoes: [{
+        at: "2026-11-21T18:30:00.000Z",
+        type: "retificacao",
+        changes: [{ field: "vagas", oldValue: 20, newValue: 30 }]
+      }]
+    });
+    const previousSnapshot = buildCatalogSnapshot([current]);
+    const result = detectCatalogNotifications({
+      catalog: [current],
+      previousSnapshot,
+      favoriteIds: [10]
+    });
+
+    expect(result.notifications).toEqual([]);
+  });
+
   it("não avisa sobre mudanças em concursos que não são favoritos", () => {
     const previousSnapshot = buildCatalogSnapshot([contest()]);
     const result = detectCatalogNotifications({
