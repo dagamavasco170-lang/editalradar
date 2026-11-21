@@ -134,7 +134,7 @@ export default function App() {
               </article>)}
               {((page === "favoritos" && filtered.filter(c => favorites.includes(c.id)).length === 0) || (page !== "favoritos" && filtered.length === 0)) && <div className="empty">Nenhum concurso encontrado. Experimente ajustar os filtros.</div>}
             </div>
-            <div className="source-footnote"><span>Fontes: órgãos federais, Governo de Alagoas, Cebraspe e Prefeitura de Paripueira.</span><span>Conferência editorial: {sourceUpdated} · Dados compilados em: {fetchedAt ? new Date(fetchedAt).toLocaleString("pt-BR") : "não informado"}</span><a href={sourceUrl} target="_blank" rel="noreferrer">Ver página geral do MGI ↗</a></div>
+            <div className="source-footnote"><span>Fontes: órgãos federais, Governo de Alagoas, Cebraspe, IGEDUC e portais municipais.</span><span>Conferência editorial: {sourceUpdated} · Dados compilados em: {fetchedAt ? new Date(fetchedAt).toLocaleString("pt-BR") : "não informado"}</span><a href={sourceUrl} target="_blank" rel="noreferrer">Ver página geral do MGI ↗</a></div>
             <p className="disclaimer">Este catálogo é uma amostra inicial: reúne registros federais e seleções estaduais/municipais de Alagoas já identificadas em fontes oficiais. Ainda não cobre todos os estados e municípios do Brasil. “Vagas a divulgar” indica que o órgão ainda não publicou o quantitativo. Confirme sempre datas, requisitos, lotação e etapas na página oficial de cada seleção.</p>
           </section>
         )}
