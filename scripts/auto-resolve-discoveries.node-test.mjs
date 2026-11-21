@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { classifyDiscovery, extractDocumentText, inferOrganization } from "./auto-resolve-discoveries.mjs";
+import { appendContext, classifyDiscovery, extractDocumentText, inferOrganization } from "./auto-resolve-discoveries.mjs";
 
 const discovery = {
   id: 1,
@@ -61,4 +61,12 @@ test("não publica conteúdo hospedado fora de domínio oficial autorizado", () 
     text: "Concurso público, Edital nº 1, Cargo: Agente, 10 vagas."
   }, "https://example.com/edital");
   assert.equal(result.decision, "review");
+});
+
+test("atualiza o motivo da triagem automática sem duplicar comentários antigos", () => {
+  const old = "Contexto original\\n\\n[Triagem automática do EditalRadar] Tentativa anterior";
+  const updated = appendContext(old, "PDF sem texto extraível");
+  assert.match(updated, /Contexto original/);
+  assert.match(updated, /PDF sem texto extraível/);
+  assert.doesNotMatch(updated, /Tentativa anterior/);
 });
