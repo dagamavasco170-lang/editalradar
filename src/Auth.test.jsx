@@ -11,8 +11,19 @@ const createAuthClient = () => {
     }),
     upsert: vi.fn().mockResolvedValue({ error: null })
   };
+  const adminCatalog = {
+    upsert: vi.fn((payload) => ({
+      select: () => ({
+        single: async () => ({
+          data: { id: payload.id ?? 1000001, data: payload.data, deleted: Boolean(payload.deleted), updated_at: payload.updated_at },
+          error: null
+        })
+      })
+    }))
+  };
   const client = {
     database,
+    adminCatalog,
     callback: null,
     auth: {
       getSession: vi.fn().mockResolvedValue({ data: { session: null }, error: null }),
@@ -27,7 +38,9 @@ const createAuthClient = () => {
       updateUser: vi.fn().mockResolvedValue({ error: null }),
       signOut: vi.fn().mockResolvedValue({ error: null })
     },
-    from: vi.fn(() => ({
+    from: vi.fn((table) => table === "contest_catalog" ? {
+      upsert: adminCatalog.upsert
+    } : ({
       select: () => ({
         eq: () => ({
           maybeSingle: database.maybeSingle
@@ -188,6 +201,27 @@ describe("Autenticação EditalRadar", () => {
       expect.objectContaining({ user_id: "user-sync", tasks: [true, false, false, false] })
     ]));
     await waitFor(() => expect(screen.getByText("Dados sincronizados")).toBeInTheDocument());
+  });
+
+  it("permite ao administrador cadastrar concurso com link HTTPS", async () => {
+    const client = createAuthClient();
+    render(<App authClient={client} authConfigured />);
+    await waitFor(() => expect(client.callback).toBeTypeOf("function"));
+    client.callback("SIGNED_IN", { user: { id: "admin-user", email: "admin@example.com", app_metadata: { role: "admin" } } });
+    await screen.findByText("Dados sincronizados");
+    fireEvent.click(screen.getByRole("button", { name: "Administração" }));
+    fireEvent.click(screen.getByRole("button", { name: /Novo concurso/ }));
+    fireEvent.change(screen.getByLabelText("Cargo"), { target: { value: "Analista de Controle" } });
+    fireEvent.change(screen.getByLabelText("Órgão"), { target: { value: "Controladoria Exemplo" } });
+    fireEvent.change(screen.getByLabelText("Escolaridade"), { target: { value: "Superior" } });
+    fireEvent.change(screen.getByLabelText("Situação"), { target: { value: "Edital publicado" } });
+    fireEvent.change(screen.getByLabelText("Link oficial (HTTPS)"), { target: { value: "https://exemplo.gov.br/edital" } });
+    fireEvent.click(screen.getByRole("button", { name: "Salvar concurso" }));
+    await waitFor(() => expect(client.adminCatalog.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ cargo: "Analista de Controle", orgao: "Controladoria Exemplo", sourceUrl: "https://exemplo.gov.br/edital" }),
+      deleted: false
+    })));
+    expect(await screen.findByText("Analista de Controle")).toBeInTheDocument();
   });
 
   it("permite editar e salvar o nome de exibição no perfil da conta", async () => {
