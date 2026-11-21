@@ -90,3 +90,27 @@ test("inclui o código e a causa técnica no diagnóstico de rede", () => {
   assert.match(message, /ENOTFOUND/);
   assert.match(message, /DNS lookup failed/);
 });
+
+
+test("usa transporte alternativo quando as tentativas de fetch falham por rede", async () => {
+  let fetchCalls = 0;
+  let fallbackCalls = 0;
+  const response = await fetchCandidateWithRetry(async () => {
+    fetchCalls += 1;
+    throw new TypeError("fetch failed", {
+      cause: Object.assign(new Error("connection reset"), { code: "ECONNRESET" })
+    });
+  }, "https://orgao.gov.br/edital", {
+    attempts: 2,
+    timeoutMs: 1000,
+    retryDelayMs: 0,
+    fallbackRequest: async () => {
+      fallbackCalls += 1;
+      return { ok: true, status: 200, url: "https://orgao.gov.br/edital" };
+    }
+  });
+
+  assert.equal(fetchCalls, 2);
+  assert.equal(fallbackCalls, 1);
+  assert.equal(response.ok, true);
+});
