@@ -94,14 +94,14 @@ export async function fetchOfficialSourceWithCurl(url, options = {}) {
       "--header", "Cache-Control: no-cache",
       "--dump-header", headersPath,
       "--output", bodyPath,
-      "--write-out", "%{http_code}\\n%{url_effective}\\n%{content_type}",
+      "--write-out", "%{http_code}\n%{url_effective}\n%{content_type}",
       safeUrl
     ], {
       encoding: "utf8",
       timeout: timeoutMs + 3000,
       maxBuffer: 64 * 1024
     });
-    const metadataLines = metadata.trim().split("\\n");
+    const metadataLines = metadata.trim().split("\n");
     const status = Number(metadataLines[0]);
     const finalUrl = metadataLines[1] || safeUrl;
     const contentType = metadataLines[2] || "";
@@ -114,7 +114,7 @@ export async function fetchOfficialSourceWithCurl(url, options = {}) {
     const rawHeaders = await readFile(headersPath, "utf8");
     const responseHeaders = {};
     let currentHeaders = {};
-    for (const line of rawHeaders.split(/\\r?\\n/)) {
+    for (const line of rawHeaders.split(/\r?\n/)) {
       if (line.startsWith("HTTP/")) {
         if (Object.keys(currentHeaders).length) Object.assign(responseHeaders, currentHeaders);
         currentHeaders = {};
