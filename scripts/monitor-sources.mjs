@@ -50,7 +50,8 @@ function decodeHtmlText(value) {
 }
 
 export function extractOpportunityLinks(html, sourceUrl) {
-  const keywords = /\b(edital|editais|concursos?|processos? seletivos?|seleção|selecao|seleções|selecoes|inscrições|inscricoes|vagas|provimentos?|nomeações|nomeacoes|autorização|autorizacao|autorizações|autorizacoes)\b/i;
+  const keywords = /\b(edital|editais|processos? seletivos?|seleção|selecao|seleções|selecoes|inscrições|inscricoes|vagas|provimentos?|nomeações|nomeacoes|autorização|autorizacao|autorizações|autorizacoes)\b/i;
+  const contestKeyword = /\bconcursos?\b/i;
   const found = new Map();
   const anchors = String(html).matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a\s*>/gi);
 
@@ -59,7 +60,10 @@ export function extractOpportunityLinks(html, sourceUrl) {
     if (!hrefMatch) continue;
     const href = decodeHtmlText(hrefMatch[1] ?? hrefMatch[2] ?? hrefMatch[3] ?? "");
     const title = decodeHtmlText(match[2]);
-    if (!href || !title || !keywords.test(title + " " + href)) continue;
+    const searchable = title + " " + href;
+    const explicitContest = contestKeyword.test(searchable)
+      && /(20\\d{2}|cargo|vagas?|publicad[oa]|abert[oa]|edital)/i.test(searchable);
+    if (!href || !title || (!keywords.test(searchable) && !explicitContest)) continue;
 
     try {
       const candidateUrl = new URL(href, sourceUrl);
