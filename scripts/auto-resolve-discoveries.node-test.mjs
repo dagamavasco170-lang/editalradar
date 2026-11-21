@@ -37,6 +37,40 @@ test("extrai cargos, escolaridade e vagas das tabelas de editais oficiais", () =
   assert.match(result.data.observacao,/cadastro de reserva não somado/);
 });
 
+
+test("identifica órgão estadual e cargo no texto do portal da FGV", () => {
+  const html = "<html><head><title>Concurso Público para o Tribunal de Justiça do Estado de Santa Catarina - Juiz Substituto (2026)</title></head><body>"
+    + "<h1>Concurso Público para o Tribunal de Justiça do Estado de Santa Catarina - Juiz Substituto (2026)</h1>"
+    + "<p>Informações sobre o concurso público para o Tribunal de Justiça do Estado de Santa Catarina.</p>"
+    + "<p>O concurso oferece vagas e formação de cadastro de reserva para o cargo de Juiz Substituto do Tribunal de Justiça do Estado de Santa Catarina, conforme consta no Edital.</p>"
+    + "<p>Arquivos do concurso</p><p>Edital (retificado em 19/10/2026).</p></body></html>";
+  const doc=extractDocumentText(html);
+  const result=classifyDiscovery({...discovery,discovery_type:"new_link"},doc,"https://conhecimento.fgv.br/concursos/tjscjuiz26");
+  assert.equal(result.decision,"publish");
+  assert.equal(result.data.orgao,"Tribunal de Justiça do Estado de Santa Catarina");
+  assert.equal(result.data.cargo,"Juiz Substituto");
+  assert.equal(result.data.area,"Estadual");
+  assert.equal(result.data.estado,"Santa Catarina");
+});
+
+test("extrai lista de cargos da seção Cargo/Área/Especialidade no padrão FCC", () => {
+  const html = "<html><head><title>Tribunal de Justiça do Estado da Bahia</title></head><body>"
+    + "<h1>Tribunal de Justiça do Estado da Bahia</h1>"
+    + "<p>Concurso público para provimento de cargos do Tribunal de Justiça do Estado da Bahia.</p>"
+    + "<p>Cargo/Área/Especialidade</p><ul>"
+    + "<li>- Analista Judiciário - Área Judiciária - Subescrivão</li>"
+    + "<li>- Técnico Judiciário - Escrevente de Cartório</li></ul>"
+    + "<p>Links e Arquivos</p><p>Edital nº 01/2026.</p></body></html>";
+  const doc=extractDocumentText(html);
+  const result=classifyDiscovery({...discovery,discovery_type:"new_link"},doc,"https://www.concursosfcc.com.br/concursos/tjuba122/index.html");
+  assert.equal(result.decision,"publish");
+  assert.equal(result.data.orgao,"Tribunal de Justiça do Estado da Bahia");
+  assert.equal(result.data.cargo,"Analista Judiciário - Área Judiciária - Subescrivão");
+  assert.equal(result.data.estado,"Bahia");
+  assert.equal(result.data.area,"Estadual");
+  assert.match(result.data.observacao,/Técnico Judiciário/);
+});
+
 test("identifica órgão público explicitamente declarado", () => {
   assert.equal(inferOrganization("Concurso público da Prefeitura Municipal de Igaci"), "Prefeitura Municipal de Igaci");
 });

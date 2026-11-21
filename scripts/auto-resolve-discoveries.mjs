@@ -74,6 +74,13 @@ export function inferOrganization(text) {
     /\b(Polícia Civil do Estado de\s+[\p{L} ]{2,40})/iu,
     /\b(Polícia Militar do Estado de\s+[\p{L} ]{2,40})/iu,
     /\b(Corpo de Bombeiros Militar do Estado de\s+[\p{L} ]{2,40})/iu,
+    /\b(Tribunal de Justiça do Estado (?:de|da)\s+[\p{L} ]{2,50})/iu,
+    /\b(Tribunal de Contas do Estado (?:de|da)\s+[\p{L} ]{2,50})/iu,
+    /\b(Defensoria Pública do Estado (?:de|da)\s+[\p{L} ]{2,50})/iu,
+    /\b(Ministério Público do Estado (?:de|da)\s+[\p{L} ]{2,50})/iu,
+    /\b(Procuradoria Geral do Estado (?:de|da)\s+[\p{L} ]{2,50})/iu,
+    /\b(Tribunal Regional Federal da\s+\d{1,2}ª Região)/iu,
+    /\b(Tribunal Regional do Trabalho da\s+\d{1,2}ª Região)/iu,
     /\b(Universidade Federal de\s+[\p{L} ]{2,50})/iu,
     /\b(Universidade Estadual de\s+[\p{L} ]{2,50})/iu,
     /\b(Instituto Federal de\s+[\p{L} ]{2,50})/iu,
@@ -137,6 +144,28 @@ function uniqueCapturedNumbers(text, patterns) {
 const normalizeTableLabel = value => String(value || "")
   .normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
   .replace(/[^a-z0-9]+/g, " ").trim();
+
+export function extractRoleNamesFromText(text = "") {
+  const source = String(text || "");
+  const match = source.match(/Cargo\s*\/\s*(?:Área\s*\/\s*)?Especialidade\s*[:\-]?\s*([\s\S]{0,5000})/i);
+  if (!match) return [];
+  const roles = [];
+  for (const line of match[1].split(/\r?\n/)) {
+    const raw = line.trim();
+    if (!raw) {
+      if (roles.length) break;
+      continue;
+    }
+    if (/^(?:Tribunal de Justiça|Tribunal Regional|Em andamento|Última atualização|Links e Arquivos|Vencimento básico|Próximos concursos)\b/i.test(raw)) break;
+    if (!/^[-*•]\s*/.test(raw)) {
+      if (roles.length) break;
+      continue;
+    }
+    const role = raw.replace(/^[-*•]\s*/, "").trim();
+    if (role.length >= 3 && role.length <= 180 && !roles.includes(role)) roles.push(role);
+  }
+  return roles.slice(0, 30);
+}
 
 export function extractRoleNamesFromTables(tableRows = []) {
   const roles = [];
@@ -230,7 +259,9 @@ export function classifyDiscovery(discovery, document, responseUrl = discovery?.
   const hasPublicSelection = /\b(concurso\s+público|processo\s+seletivo(?:\s+simplificado)?|seleção\s+pública)\b/i.test(evidence);
   const hasNotice = /\bedital\b/i.test(evidence);
   const tableRoles = extractRoleNamesFromTables(document?.tableRows);
-  const hasPositionEvidence = /\b(cargo|cargos|função|funções|vagas)\b/i.test(evidence) || tableRoles.length > 0;
+  const textRoles = extractRoleNamesFromText(text);
+  const detectedRoles = [...new Set([...tableRoles, ...textRoles])];
+  const hasPositionEvidence = /\b(cargo|cargos|função|funções|vagas)\b/i.test(evidence) || detectedRoles.length > 0;
   const hasExplicitRetification = /\b(retifica|retificação|retificações|retificacao|retificacoes|errata|aditivo|alteração do edital|alteracao do edital)\b/i
     .test([discovery?.title, document?.title, document?.heading].filter(Boolean).join(" "));
   const selectionEvidence = hasPublicSelection || (hasExplicitRetification && hasNotice);
@@ -245,10 +276,10 @@ export function classifyDiscovery(discovery, document, responseUrl = discovery?.
   const orgao = inferOrganization(title + "\n" + text);
   const cargo = firstMatch(text, [
     /\bcargos?\s*(?:ofertados?|disponíveis?)?\s*[:\-]\s*([^.;\n]{3,150})/i,
-    /\bcargo\s+(?:de|para)\s+([^.;\n]{3,120})/i,
+    /\bcargo\s+(?:de|para)\s+([^.;\n]{3,120}?)(?=\s+(?:do|da)\s+(?:Tribunal|Prefeitura|Secretaria|Ministério|Defensoria|Procuradoria)\b|[.;\n]|$)/i,
     /\bvagas?\s+para\s+([^.;\n]{3,120})/i,
     /\bfunções?\s*(?:de|:)\s*([^.;\n]{3,120})/i
-  ]) || tableRoles[0] || "";
+  ]) || detectedRoles[0] || "";
   const jurisdiction = orgao ? inferJurisdiction(candidate.hostname, orgao, title + "\n" + text) : null;
   if (!orgao || !cargo || !jurisdiction) {
     const missing = [!orgao && "órgão", !cargo && "cargo/função", !jurisdiction && "esfera/estado"].filter(Boolean).join(", ");
