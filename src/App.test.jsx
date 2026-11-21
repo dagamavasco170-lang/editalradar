@@ -2,6 +2,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import App from "./App.jsx";
 import { concursos } from "./data/concursos.js";
+import { scoreRecommendation } from "./App.jsx";
 
 describe("EditalRadar", () => {
   it("renderiza a página inicial e os concursos oficiais", () => {
@@ -232,3 +233,5 @@ describe("EditalRadar", () => {
     expect(screen.getByText("25%")).toBeInTheDocument();
   });
 });
+
+describe("recomendações personalizadas",()=>{it("pontua melhor concursos alinhados à área fiscal e escolaridade superior",()=>{const profile={interest_area:"Fiscal e controle",education_level:"Superior completo",state:"Alagoas"};const aligned=concursos.find(item=>/auditor/i.test(item.cargo)&&/Brasil|Alagoas/.test(item.estado||""));const unrelated=concursos.find(item=>/professor/i.test(item.cargo));expect(scoreRecommendation(aligned,profile)).toBeGreaterThan(scoreRecommendation(unrelated,profile));});});
