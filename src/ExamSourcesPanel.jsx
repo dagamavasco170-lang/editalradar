@@ -20,10 +20,19 @@ export default function ExamSourcesPanel({authClient}){
  useEffect(()=>{
   if(!authClient)return undefined;
   let cancelled=false;
-  authClient.from("study_exam_sources").select("id,board,exam_name,exam_year,discipline,role_name,source_url,exam_url,answer_key_url,notes").eq("published",true).order("exam_year",{ascending:false}).then(({data,error})=>{
-   if(cancelled)return;
-   if(!error&&Array.isArray(data)){setSources(data.length?data:fallbackSources);setStatus("ready");}
-  });
+  const loadSources = async () => {
+   try {
+    const {data,error}=await authClient.from("study_exam_sources")
+     .select("id,board,exam_name,exam_year,discipline,role_name,source_url,exam_url,answer_key_url,notes")
+     .eq("published",true).order("exam_year",{ascending:false});
+    if(error)throw error;
+    if(cancelled)return;
+    if(Array.isArray(data)){setSources(data.length?data:fallbackSources);setStatus("ready");}
+   } catch {
+    if(!cancelled){setSources(fallbackSources);setStatus("fallback");}
+   }
+  };
+  void loadSources();
   return()=>{cancelled=true;};
  },[authClient]);
  const filtered=useMemo(()=>sources.filter(item=>

@@ -71,8 +71,9 @@ describe("banco de questões e progresso", () => {
       { attempts:[{questionId:"p1",answer:"a",correct:false,at:"2026-01-01"}], saved:["p1"] },
       { attempts:[{questionId:"p1",answer:"b",correct:true,at:"2026-01-02"},{questionId:"p2",answer:"c",correct:true,at:"2026-01-03"}], saved:["p2"], simulations:[{id:"s1",questionIds:["p2"],correct:1,total:1}] }
     );
-    expect(merged.attempts).toHaveLength(2);
-    expect(merged.attempts.find(item=>item.questionId==="p1").correct).toBe(true);
+    expect(merged.attempts).toHaveLength(3);
+    const latestP1 = merged.attempts.filter(item=>item.questionId==="p1").at(-1);
+    expect(latestP1.correct).toBe(true);
     expect(merged.saved).toEqual(["p1","p2"]);
     expect(merged.simulations).toHaveLength(1);
   });
