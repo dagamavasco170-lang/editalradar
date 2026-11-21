@@ -73,9 +73,9 @@ test("não transforma menção histórica de inscrições abertas em situação 
   const result = classifyDiscovery(
     { ...discovery, title: "Edital de concurso público da Prefeitura Municipal de Igaci" },
     {
-      title: "Edital de concurso público da Prefeitura Municipal de Igaci",
-      heading: "Edital de abertura",
-      text: "A Prefeitura Municipal de Igaci torna público o edital. A cidade fica em Alagoas. Cargo: Agente Administrativo. São oferecidas 30 vagas. No arquivo de notícias de 2024, as inscrições estavam abertas em outubro."
+      title: "Concurso público da Prefeitura Municipal de Igaci - Edital 01/2026",
+      heading: "Edital de abertura do concurso público",
+      text: "A Prefeitura Municipal de Igaci torna público o concurso público. Edital nº 01/2026. Cargo: Agente Administrativo. São oferecidas 30 vagas. Requisito: nível médio. No arquivo de notícias de 2024, as inscrições estavam abertas em outubro."
     }
   );
   assert.equal(result.decision, "publish");
