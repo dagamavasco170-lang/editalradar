@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { appendContext, buildRetificationUpdate, classifyDiscovery, extractDocumentText, fetchCandidateWithRetry, inferOrganization, normalizeContestIdentity, summarizeFetchError } from "./auto-resolve-discoveries.mjs";
+import { appendContext, buildRetificationUpdate, classifyDiscovery, extractDocumentText, fetchCandidateWithRetry, findMatchingContestForRetification, inferOrganization, normalizeContestIdentity, summarizeFetchError } from "./auto-resolve-discoveries.mjs";
 
 const discovery = {
   id: 1,
@@ -171,4 +171,47 @@ test("não trata mudança comum como retificação", () => {
   );
   assert.equal(result.updated, false);
   assert.match(result.reason, /não apresenta evidência explícita/i);
+});
+
+
+test("vincula uma retificação em PDF ao concurso com mesmo órgão, cargo e domínio oficial", () => {
+  const match = findMatchingContestForRetification({
+    candidateUrl: "https://igaci.al.gov.br/concursos/edital-01-2026/retificacao-2.pdf",
+    extractedData: { orgao: "Prefeitura Municipal de Igaci", cargo: "Agente Administrativo" },
+    baseCatalog: [{
+      id: 701,
+      orgao: "Prefeitura Municipal de Igaci",
+      cargo: "Agente Administrativo",
+      sourceUrl: "https://igaci.al.gov.br/concursos/edital-01-2026"
+    }]
+  });
+
+  assert.equal(match?.kind, "static");
+  assert.equal(match?.id, 701);
+});
+
+test("não escolhe entre concursos repetidos com o mesmo órgão e cargo", () => {
+  const match = findMatchingContestForRetification({
+    candidateUrl: "https://igaci.al.gov.br/concursos/edital-2026/retificacao.pdf",
+    extractedData: { orgao: "Prefeitura Municipal de Igaci", cargo: "Agente Administrativo" },
+    baseCatalog: [
+      { id: 701, orgao: "Prefeitura Municipal de Igaci", cargo: "Agente Administrativo", sourceUrl: "https://igaci.al.gov.br/concursos/edital-2025" },
+      { id: 702, orgao: "Prefeitura Municipal de Igaci", cargo: "Agente Administrativo", sourceUrl: "https://igaci.al.gov.br/concursos/edital-2026" }
+    ]
+  });
+
+  assert.equal(match, null);
+});
+
+test("prioriza correspondência exata de URL quando existem registros homônimos", () => {
+  const match = findMatchingContestForRetification({
+    candidateUrl: "https://igaci.al.gov.br/concursos/edital-2026",
+    extractedData: { orgao: "Prefeitura Municipal de Igaci", cargo: "Agente Administrativo" },
+    baseCatalog: [
+      { id: 701, orgao: "Prefeitura Municipal de Igaci", cargo: "Agente Administrativo", sourceUrl: "https://igaci.al.gov.br/concursos/edital-2025" },
+      { id: 702, orgao: "Prefeitura Municipal de Igaci", cargo: "Agente Administrativo", sourceUrl: "https://igaci.al.gov.br/concursos/edital-2026" }
+    ]
+  });
+
+  assert.equal(match?.id, 702);
 });
