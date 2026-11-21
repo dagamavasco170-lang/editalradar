@@ -452,6 +452,25 @@ describe("Autenticação EditalRadar", () => {
     await waitFor(() => expect(client.auth.updateUser).toHaveBeenCalledWith({ password: "SenhaSegura123" }));
   });
 
+  it("limpa todos os filtros do catálogo e volta aos resultados gerais", () => {
+    const client = createAuthClient();
+    render(<App authClient={client} authConfigured />);
+
+    const search = screen.getByPlaceholderText("Buscar cargo ou órgão...");
+    fireEvent.change(search, { target: { value: "termo sem correspondência" } });
+    fireEvent.change(screen.getByLabelText("Estado"), { target: { value: "Alagoas" } });
+    fireEvent.click(screen.getByRole("button", { name: "Inscrições abertas", exact: true }));
+
+    const clearButton = screen.getByRole("button", { name: /Limpar filtros/ });
+    expect(clearButton).toBeInTheDocument();
+    fireEvent.click(clearButton);
+
+    expect(search).toHaveValue("");
+    expect(screen.getByLabelText("Estado")).toHaveValue("Todos os estados");
+    expect(screen.getByRole("button", { name: "Todas", exact: true })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByRole("button", { name: /Limpar filtros/ })).not.toBeInTheDocument();
+  });
+
   it("não altera senha quando os campos de confirmação são diferentes", async () => {
     const client = createAuthClient();
     render(<App authClient={client} authConfigured />);

@@ -524,6 +524,24 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   },[catalog,authUser?.id,authUser?.user_metadata?.interest_area,authUser?.user_metadata?.education_level,authUser?.user_metadata?.state,authUser?.user_metadata?.city]);
   const upcomingMilestones = useMemo(() => getUpcomingMilestones(catalog), [catalog]);
   const currentFilters = { query, nivel, esfera, estado, localidade, situacao, ocultarPreliminares };
+  const activeFilterCount = [
+    Boolean(query.trim()),
+    nivel !== "Todos os níveis",
+    esfera !== "Todas as esferas",
+    estado !== "Todos os estados",
+    localidade !== "Todas as cidades",
+    situacao !== "Todas as situações",
+    ocultarPreliminares
+  ].filter(Boolean).length;
+  const clearCatalogFilters = () => {
+    setQuery("");
+    setNivel("Todos os níveis");
+    setEsfera("Todas as esferas");
+    setEstado("Todos os estados");
+    setLocalidade("Todas as cidades");
+    setSituacao("Todas as situações");
+    setOcultarPreliminares(false);
+  };
   const filtered = useMemo(
     () => catalog.filter((item) => matchesFilters(item, currentFilters)),
     [query, nivel, esfera, estado, localidade, situacao, ocultarPreliminares]
@@ -1017,10 +1035,12 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
           <span>Edital<span className="brand-light">Radar</span><small>SEU PRÓXIMO PASSO</small></span>
         </a>
         <div className="side-label">MENU PRINCIPAL</div>
-        <button className={page === "concursos" ? "nav-item active" : "nav-item"} onClick={() => setPage("concursos")}><span>▦</span> Concursos</button>
-        <button className={page === "estudos" ? "nav-item active" : "nav-item"} onClick={() => setPage("estudos")}><span>◷</span> Área de estudos</button>
-        <button className={page === "favoritos" ? "nav-item active" : "nav-item"} onClick={() => setPage("favoritos")}><span>♡</span> Meus favoritos <b>{favorites.length}</b></button>
-        {isAdmin && <button className={page === "admin" ? "nav-item active" : "nav-item"} onClick={() => setPage("admin")} aria-label="Administração"><span aria-hidden="true">⚙</span> Administração</button>}
+        <nav className="sidebar-nav" aria-label="Navegação principal">
+          <button className={page === "concursos" ? "nav-item active" : "nav-item"} onClick={() => setPage("concursos")} aria-current={page === "concursos" ? "page" : undefined}><span aria-hidden="true">▦</span> Concursos</button>
+          <button className={page === "estudos" ? "nav-item active" : "nav-item"} onClick={() => setPage("estudos")} aria-current={page === "estudos" ? "page" : undefined}><span aria-hidden="true">◷</span> Área de estudos</button>
+          <button className={page === "favoritos" ? "nav-item active" : "nav-item"} onClick={() => setPage("favoritos")} aria-current={page === "favoritos" ? "page" : undefined}><span aria-hidden="true">♡</span> Meus favoritos <b>{favorites.length}</b></button>
+          {isAdmin && <button className={page === "admin" ? "nav-item active" : "nav-item"} onClick={() => setPage("admin")} aria-label="Administração" aria-current={page === "admin" ? "page" : undefined}><span aria-hidden="true">⚙</span> Administração</button>}
+        </nav>
         <div className="sidebar-bottom">
           <div className="help-card"><span className="help-icon">✦</span><strong>Seu futuro começa com planejamento.</strong><p>Organize sua preparação e acompanhe suas oportunidades.</p><button onClick={() => setPage("estudos")}>Ver meu plano →</button></div>
           <div className="profile"><div className="avatar">{(authUser?.user_metadata?.full_name || authUser?.user_metadata?.name || authUser?.email || "C")[0]?.toUpperCase() || "C"}</div><div className="profile-copy" title={authUser?.email || "Modo visitante"}><strong>{authUser?.user_metadata?.full_name || authUser?.user_metadata?.name || authUser?.email || "Concurseiro"}</strong><small>{!authUser ? "Modo visitante" : syncStatus === "loading" || syncStatus === "syncing" ? "Sincronizando dados..." : syncStatus === "synced" ? "Dados sincronizados" : syncStatus === "error" ? "Falha na sincronização" : "Conta conectada"}</small></div><button className="dots profile-edit" type="button" onClick={openProfileEditor} aria-label={authUser ? "Editar perfil" : "Entrar para editar perfil"}>Editar</button></div>
@@ -1272,7 +1292,20 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
               </section>
             )}
             <div className="section-title"><div><div className="eyebrow">CATÁLOGO DE OPORTUNIDADES</div><h2>{page === "favoritos" ? "Seus concursos favoritos" : "Concursos e avisos no catálogo"}</h2></div><span className="results">{(page === "favoritos" ? filtered.filter(c => favorites.includes(c.id)) : filtered).length} registros</span></div>
-            <div className="filters">
+            <div className="catalog-filter-panel" aria-label="Filtros do catálogo">
+              <div className="catalog-filter-heading">
+                <div>
+                  <strong>Encontre sua próxima oportunidade</strong>
+                  <p>Combine os filtros ou use os atalhos para localizar editais com mais rapidez.</p>
+                </div>
+                {activeFilterCount > 0 && <button className="clear-filters-btn" type="button" onClick={clearCatalogFilters}>Limpar filtros ({activeFilterCount})</button>}
+              </div>
+              <div className="filter-shortcuts" role="group" aria-label="Atalhos de situação">
+                <button type="button" className={situacao === "Todas as situações" ? "filter-shortcut active" : "filter-shortcut"} aria-pressed={situacao === "Todas as situações"} onClick={() => setSituacao("Todas as situações")}>Todas</button>
+                <button type="button" className={situacao === "Inscrições abertas" ? "filter-shortcut active" : "filter-shortcut"} aria-pressed={situacao === "Inscrições abertas"} onClick={() => setSituacao("Inscrições abertas")}>Inscrições abertas</button>
+                <button type="button" className={situacao === "Pré-edital / anunciado" ? "filter-shortcut active" : "filter-shortcut"} aria-pressed={situacao === "Pré-edital / anunciado"} onClick={() => setSituacao("Pré-edital / anunciado")}>Pré-edital e anunciados</button>
+              </div>
+              <div className="filters">
               <label className="search-filter"><span>⌕</span><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar cargo ou órgão..." /></label>
               <select aria-label="Esfera" value={esfera} onChange={(e) => setEsfera(e.target.value)}><option>Todas as esferas</option>{["Federal", "Estadual", "Municipal"].map(x => <option key={x}>{x}</option>)}</select>
               <select aria-label="Estado" value={estado} onChange={(e) => setEstado(e.target.value)}><option>Todos os estados</option>{estados.map(x => <option key={x}>{x}</option>)}</select>
@@ -1291,6 +1324,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                 <span>Ocultar registros preliminares sem confirmação individual ({preliminaryCount})</span>
               </label>
               {ocultarPreliminares && <span className="filter-hint">Exibindo apenas fichas não preliminares</span>}
+              </div>
             </div>
             <section className="alerts-panel" aria-label="Alertas personalizados">
               <div className="alerts-intro">
@@ -1320,8 +1354,16 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
             <div className="cards">
               {(page === "favoritos" ? filtered.filter(c => favorites.includes(c.id)) : filtered).map((item) => <article className="contest-card" key={item.id}>
                 <div className="card-top"><div className="org-icon">{item.sigla}</div><button className={favorites.includes(item.id) ? "heart saved" : "heart"} onClick={() => toggleFavorite(item.id)} aria-label="Salvar favorito" disabled={Boolean(authUser && syncStatus === "loading")}>{favorites.includes(item.id) ? "♥" : "♡"}</button></div>
-                <span className={`status ${isPreliminary(item) ? "preliminary" : ""}`}><i />{item.status}</span><h3>{item.cargo}</h3><p className="org-name">{item.orgao}</p>
-                <div className="card-meta"><span>⌁ {item.vagas == null ? "Vagas a divulgar" : `${item.vagas} vaga(s) informada(s)`}</span><span>▤ {item.nivel}</span><span>⌖ {item.localidade || "Brasil"}</span></div>
+                <div className="card-status-row">
+                  <span className={`status ${isPreliminary(item) ? "preliminary" : ""}`}><i />{item.status}</span>
+                  <span className="card-area-tag">{item.area || "Federal"} · {item.estado || "Brasil"}</span>
+                </div>
+                <h3>{item.cargo}</h3><p className="org-name">{item.orgao}</p>
+                <div className="card-meta card-facts">
+                  <span><small>VAGAS</small><strong>{item.vagas == null ? "A divulgar" : new Intl.NumberFormat("pt-BR").format(item.vagas)}</strong></span>
+                  <span><small>ESCOLARIDADE</small><strong>{item.nivel || "Não informada"}</strong></span>
+                  <span><small>LOCALIDADE</small><strong>{item.localidade || "Brasil"}</strong></span>
+                </div>
                 <div className="card-bottom"><div><small>{isPreliminary(item) ? "Listagem de referência" : "Fonte oficial"}</small><strong>{item.atoOficial || "Não informado"}</strong></div><button className="detail-btn" onClick={() => setSelected(item)}>Ver detalhes ↗</button></div>
               </article>)}
               {((page === "favoritos" && filtered.filter(c => favorites.includes(c.id)).length === 0) || (page !== "favoritos" && filtered.length === 0)) && <div className="empty">Nenhum concurso encontrado. Experimente ajustar os filtros.</div>}
