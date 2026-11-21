@@ -74,8 +74,8 @@ test("abre a página individual de um concurso com cronograma e fonte oficial", 
   await page.getByRole("button", { name: /Ver detalhes/ }).click();
 
   await expect(page.getByRole("heading", { name: "Agente e Escrivão de Polícia Civil" })).toBeVisible();
-  await expect(page.getByText(/5\\.318,63/)).toBeVisible();
-  await expect(page.getByRole("link", { name: /Cebraspe — notícia oficial sobre PC\\/AL/ })).toHaveAttribute("href", "https://www.cebraspe.org.br/cebraspe-noticias-103/");
+  await expect(page.getByText(/5.318,63/)).toBeVisible();
+  await expect(page.getByRole("link", { name: "Cebraspe — notícia oficial sobre PC/AL" })).toHaveAttribute("href", "https://www.cebraspe.org.br/cebraspe-noticias-103/");
   await expect(page.getByRole("heading", { name: "Cronograma e etapas" })).toBeVisible();
   await expect(page.locator("#detail-timeline time").filter({ hasText: /06 de dezembro de 2026/ }).first()).toBeVisible();
   await expect(page.getByRole("link", { name: /Acessar fonte oficial/ }))
