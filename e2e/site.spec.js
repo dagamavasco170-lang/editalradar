@@ -170,3 +170,18 @@ test("apresenta PMPE e CBMPE com prorrogação de inscrição e faixas salariais
   await expect(page.getByText("1.320").first()).toBeVisible();
   await expect(page.getByText("570").first()).toBeVisible();
 });
+
+
+test("monta plano semanal e pratica uma questão autoral filtrada por disciplina e banca",async({page})=>{
+ await page.goto("./");
+ await page.getByRole("button",{name:/Área de estudos/}).click();
+ await expect(page.getByRole("heading",{name:"Monte sua rotina"})).toBeVisible();
+ await page.getByLabel("Carga horária semanal").selectOption("15");
+ await expect(page.getByText("15 h/semana")).toBeVisible();
+ await page.getByLabel("Filtrar questões por disciplina").selectOption("Direito Constitucional");
+ await page.getByLabel("Filtrar questões por estilo de banca").selectOption("Cebraspe");
+ await expect(page.getByText(/Formato inspirado em Cebraspe/)).toBeVisible();
+ await page.getByRole("button",{name:"Certo"}).click();
+ await page.getByRole("button",{name:"Conferir resposta"}).click();
+ await expect(page.getByText(/A Constituição Federal assegura/)).toBeVisible();
+});

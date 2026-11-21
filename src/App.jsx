@@ -4,6 +4,7 @@ import { concursos, materias, sourceUrl, sourceUpdated, fetchedAt } from "./data
 import { detectCatalogNotifications, dismissNotificationById, dismissNotificationHistory, getVisibleNotifications, mergeNotificationHistory } from "./lib/notifications";
 import { applyCatalogOverrides } from "./lib/catalog";
 import { getUpcomingMilestones } from "./lib/dashboard";
+import StudyArea from "./StudyArea.jsx";
 
 export const scoreRecommendation = (item, profile = {}) => {
  const area=(profile.interest_area||"").toLowerCase(), text=[item.cargo,item.orgao,item.area,item.nivel,item.estado,item.localidade,item.status].join(" ").toLowerCase();
@@ -1421,35 +1422,15 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
             )}
           </section>
         ) : page === "estudos" ? (
-
-          <section className="content">
-            <div className="eyebrow">SUA ROTINA, SEU RITMO</div>
-            <h1>Área de estudos</h1>
-            <p className="subhead">Pequenos passos todos os dias constroem grandes aprovações.</p>
-            {selected && (
-              <section className="study-target-card" aria-label="Concurso selecionado para preparação">
-                <div><div className="eyebrow">FOCO DA SUA PREPARAÇÃO</div><strong>{selected.cargo}</strong><p>{selected.orgao} · {selected.sigla || selected.estado || "Seleção selecionada"}</p>
-                  <small>Use o edital e os comunicados oficiais como referência do conteúdo programático. As tarefas abaixo são uma rotina geral.</small>
-                </div>
-                <div className="study-target-actions">
-                  <button className="detail-btn" type="button" onClick={() => setPage("detalhes")}>Voltar aos detalhes</button>
-                  <button className="alert-remove" type="button" onClick={() => setSelected(null)}>Limpar foco</button>
-                </div>
-              </section>
-            )}
-            <div className="study-grid">
-              <div className="panel progress-panel"><div className="panel-head"><div><div className="eyebrow">VISÃO GERAL</div><h2>Seu progresso diário</h2></div><span className="soft-pill">Hoje</span></div>
-                <div className="progress-number">{progress}%</div><div className="progress-track"><div style={{ width: progress + "%" }} /></div><p className="muted">{tasks.filter(Boolean).length} de {tasks.length} atividades concluídas</p>
-                <div className="task-list">{["Revisar português","Resolver 10 questões","Estudar direito constitucional","Fazer uma revisão rápida"].map((task, i) => <label className="task" key={task}><input type="checkbox" checked={tasks[i]} onChange={() => toggleTask(i)} disabled={Boolean(authUser && syncStatus === "loading")} /><span className={tasks[i] ? "task-done" : ""}>{task}</span><small>{i === 0 ? "25 min" : i === 1 ? "30 min" : i === 2 ? "40 min" : "15 min"}</small></label>)}</div>
-              </div>
-              <div className="panel question-panel"><div className="eyebrow">QUESTÃO DO DIA</div><span className="question-tag">PORTUGUÊS · DEMONSTRAÇÃO</span><h2>Qual alternativa apresenta uma palavra escrita corretamente?</h2>
-                {["Excessão","Exceção","Esceção","Excesssão"].map((option) => <button key={option} className={"option " + (answer === option ? "chosen " : "") + (checkedAnswer && option === "Exceção" ? "correct" : checkedAnswer && answer === option ? "wrong" : "")} onClick={() => { setAnswer(option); setCheckedAnswer(false); }}>{option}</button>)}
-                <button className="primary-btn full" disabled={!answer} onClick={() => setCheckedAnswer(true)}>Conferir resposta</button>
-                {checkedAnswer && <p className={answer === "Exceção" ? "answer good" : "answer bad"}>{answer === "Exceção" ? "Muito bem! Você acertou." : "A resposta correta é Exceção. Continue praticando!"}</p>}
-              </div>
-            </div>
-            <div className="panel subjects"><div className="panel-head"><div><div className="eyebrow">ORGANIZE SUA PREPARAÇÃO</div><h2>Matérias para acompanhar</h2></div><span className="muted">Sugestões iniciais</span></div><div className="subject-grid">{materias.map((m) => <div className="subject" key={m.nome}><span>{m.icon}</span><div><strong>{m.nome}</strong><small>{m.descricao}</small></div><span className="subject-arrow">↗</span></div>)}</div></div>
-          </section>
+          <StudyArea
+            selected={selected}
+            tasks={tasks}
+            progress={progress}
+            onToggleTask={toggleTask}
+            onBackDetails={() => setPage("detalhes")}
+            onClearFocus={() => setSelected(null)}
+            userId={authUser?.id || null}
+          />
         ) : page === "admin" && isAdmin ? (
           <section className="content admin-page">
             <div className="eyebrow">GESTÃO DO CATÁLOGO</div>
