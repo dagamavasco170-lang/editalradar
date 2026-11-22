@@ -1,4 +1,4 @@
-const CACHE_NAME = "editalradar-app-v4";
+const CACHE_NAME = "editalradar-app-v5";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -10,7 +10,13 @@ const APP_SHELL = [
 async function precacheAppShell() {
   const cache = await caches.open(CACHE_NAME);
   const shellUrls = APP_SHELL.map((path) => new URL(path, self.registration.scope).href);
-  await cache.addAll(shellUrls);
+  const requiredShellUrls = shellUrls.slice(0, 2);
+  const optionalShellUrls = shellUrls.slice(2);
+
+  // The document and app root are required for recovery; icons/manifest are
+  // optional and must not prevent a safe service-worker update.
+  await Promise.all(requiredShellUrls.map((url) => cache.add(url)));
+  await Promise.allSettled(optionalShellUrls.map((url) => cache.add(url)));
 
   // Include Vite's fingerprinted JS/CSS bundles so the app can boot offline
   // immediately after its first successful online visit.
@@ -25,7 +31,9 @@ async function precacheAppShell() {
     .map((url) => url.href);
 
   if (assetPaths.length > 0) {
-    await cache.addAll([...new Set(assetPaths)]);
+    // A transient CDN response for one fingerprinted bundle must not block
+    // the worker upgrade. Successfully fetched assets remain available offline.
+    await Promise.allSettled([...new Set(assetPaths)].map((url) => cache.add(url)));
   }
 }
 
@@ -61,7 +69,7 @@ self.addEventListener("fetch", (event) => {
         const response = await fetch(request, { signal: controller.signal });
         const cache = await caches.open(CACHE_NAME);
         if (response.ok) {
-          await cache.put(request, response.clone());
+          await cache.put(request, response.clone()).catch(() => {});
           return response;
         }
 
@@ -89,7 +97,8 @@ self.addEventListener("fetch", (event) => {
   if (!isStaticAsset) return;
 
   event.respondWith(
-    caches.match(request).then(async (cached) => {
+    caches.open(CACHE_NAME).then(async (cache) => {
+      const cached = await cache.match(request);
       if (cached) return cached;
       const response = await fetch(request);
       if (response.ok) {
