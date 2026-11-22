@@ -50,8 +50,19 @@ jobs:
         id: version
         shell: bash
         run: |
-          VERSION_NAME="$(sed -n "s/^[[:space:]]*versionName '\\([^']*\\)'.*/\\1/p" android/app/build.gradle | head -n 1)"
-          VERSION_CODE="$(sed -n 's/^[[:space:]]*versionCode[[:space:]]*\\([0-9][0-9]*\\).*/\\1/p' android/app/build.gradle | head -n 1)"
+          VERSION_INFO="$(python3 - <<'PY'
+          import re
+          from pathlib import Path
+          source = Path("android/app/build.gradle").read_text()
+          name = re.search(r"^\\s*versionName\\s+'([^']+)'", source, re.MULTILINE)
+          code = re.search(r"^\\s*versionCode\\s+(\\d+)", source, re.MULTILINE)
+          if not name or not code:
+              raise SystemExit("Não foi possível ler a versão Android.")
+          print(f"{name.group(1)}|{code.group(1)}")
+          PY
+          )"
+          VERSION_NAME="${VERSION_INFO%%|*}"
+          VERSION_CODE="${VERSION_INFO#*|}"
           test -n "$VERSION_NAME"
           test -n "$VERSION_CODE"
           echo "name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
