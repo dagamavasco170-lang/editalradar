@@ -69,7 +69,7 @@ returns integer
 language plpgsql
 security definer
 set search_path = ''
-as $
+as $$
 declare
   v_message jsonb;
   v_count integer;
@@ -100,7 +100,7 @@ begin
 
   return coalesce(v_count, 0);
 end;
-$;
+$$;
 
 create or replace function public.read_push_delivery_retries(
   p_qty integer default 20,
