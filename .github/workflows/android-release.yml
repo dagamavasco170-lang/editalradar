@@ -121,6 +121,7 @@ jobs:
           - Inclui cache offline, indicador de conexão, ícone EditalRadar nas notificações e callback de autenticação Google.
           - Restringe a WebView ao caminho do aplicativo; bloqueia certificados TLS inválidos, conteúdo misto, cookies de terceiros e frames externos.
           - Restaura a última tela com segurança e respeita barras do sistema, recortes de tela e teclado do Android.
+          - Recupera automaticamente a página interna quando a internet volta e permite tentar novamente após falhas HTTP temporárias.
 
           Para login Google, adicione a URL editalradar://auth-callback às Redirect URLs em Supabase Authentication.
           A versão inclui o receptor FCM e uma função de envio protegida. O envio remoto será ativado quando FCM_SERVICE_ACCOUNT_JSON for cadastrado nos secrets das Supabase Edge Functions.
