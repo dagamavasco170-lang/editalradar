@@ -35,7 +35,7 @@ describe("Validação automática de questões", () => {
     expect(isTrustedPrivateStudySourceUrl("https://pt.wikiversity.org/wiki/Faculdade:Matem%C3%A1tica")).toBe(true);
     expect(isTrustedPrivateStudySourceUrl("https://pt.wiktionary.org/wiki/gram%C3%A1tica")).toBe(true);
     expect(isTrustedPrivateStudySourceUrl("https://www.politize.com.br/trilhas/politicas-publicas/")).toBe(true);
-    expect(isTrustedPrivateStudySourceUrl("https://escolhalivre.org.br/en/about/")).toBe(true);
+    expect(isTrustedPrivateStudySourceUrl("https://escolhalivre.org.br/en/about/")).toBe(false);
     expect(isTrustedPrivateStudySourceUrl("https://www.gov.br/concursos")).toBe(false);
     expect(isTrustedPrivateStudySourceUrl("https://www2.camara.leg.br/atividade-legislativa")).toBe(false);
     expect(isTrustedPrivateStudySourceUrl("https://brasilescola.uol.com.br/gramatica")).toBe(false);
