@@ -1,0 +1,100 @@
+name: Build and publish EditalRadar Android release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "android/**"
+      - "src/App.jsx"
+      - "src/lib/notifications.js"
+      - ".github/workflows/android-release.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: editalradar-android-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  android-release:
+    name: Build APK/AAB and publish GitHub Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install Gradle 8.10.2
+        uses: gradle/gradle-build-action@v3
+        with:
+          gradle-version: 8.10.2
+
+      - name: Read Android version
+        id: version
+        shell: bash
+        run: |
+          VERSION_NAME="$(sed -n "s/^[[:space:]]*versionName '\([^']*\)'.*/\1/p" android/app/build.gradle | head -n 1)"
+          VERSION_CODE="$(sed -n 's/^[[:space:]]*versionCode[[:space:]]*\([0-9][0-9]*\).*/\1/p' android/app/build.gradle | head -n 1)"
+          test -n "$VERSION_NAME"
+          test -n "$VERSION_CODE"
+          echo "name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
+          echo "code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
+          echo "Android version: $VERSION_NAME ($VERSION_CODE)"
+
+      - name: Build installable APK and test AAB
+        working-directory: android
+        run: gradle assembleDebug bundleDebug --no-daemon
+
+      - name: Prepare release assets and checksums
+        env:
+          APP_VERSION: ${{ steps.version.outputs.name }}
+          VERSION_CODE: ${{ steps.version.outputs.code }}
+        shell: bash
+        run: |
+          mkdir -p release-assets
+          cp android/app/build/outputs/apk/debug/app-debug.apk "release-assets/EditalRadar-Android-v${APP_VERSION}.apk"
+          cp android/app/build/outputs/bundle/debug/app-debug.aab "release-assets/EditalRadar-Android-v${APP_VERSION}-debug.aab"
+          test -s "release-assets/EditalRadar-Android-v${APP_VERSION}.apk"
+          test -s "release-assets/EditalRadar-Android-v${APP_VERSION}-debug.aab"
+          (cd release-assets && sha256sum *.apk *.aab > SHA256SUMS.txt)
+          cat > android-release-notes.md <<EOF
+          # EditalRadar Android v${APP_VERSION}
+
+          - Android versionCode: ${VERSION_CODE}
+          - APK: pacote assinado de depuração, pronto para instalação direta.
+          - AAB: pacote de depuração para testes/distribuição interna; não substitui um AAB de produção assinado com a chave de upload da Play Store.
+          - Compatibilidade mínima: Android 7.0 (API 24).
+          - Inclui cache offline do conteúdo previamente carregado, indicador de conexão, canal de notificações nativas e callback de autenticação Google por esquema de aplicativo.
+
+          Para login Google, adicione `editalradar://auth-callback` às Redirect URLs em Supabase Authentication.
+          As notificações desta versão são disparadas quando o app está aberto e detecta novidades após sincronizar; push remoto em segundo plano ainda requer Firebase Cloud Messaging.
+          EOF
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: EditalRadar-Android-v${{ steps.version.outputs.name }}
+          path: release-assets/*
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Publish versioned GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: android-v${{ steps.version.outputs.name }}
+          name: EditalRadar Android v${{ steps.version.outputs.name }}
+          target_commitish: ${{ github.sha }}
+          body_path: android-release-notes.md
+          files: release-assets/*
+          fail_on_unmatched_files: true
+          make_latest: true
+          draft: false
+          prerelease: false
