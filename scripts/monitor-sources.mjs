@@ -612,6 +612,21 @@ export function parseGoogleNewsRss(xml, options = {}) {
   return leads;
 }
 
+export function isActionableSecondaryNewsLead(title = "", description = "") {
+  const titleText = normalizeNewsLeadIdentity(title);
+  const descriptionText = normalizeNewsLeadIdentity(String(description || "").slice(0, 700));
+  const exclusion = /\b(gabarito|caderno de provas?|provas? aplicadas?|correcao da prova|provas? comentadas?|questoes? comentadas?|simulado|resumo|aulas?|videoaulas?|artigos? de teoria|dicas? de estudo|como estudar|material de estudo|mapas? mentais?|lei(s)? de [a-z]|direito penal|contabilidade|fundamentos de auditoria)\b/;
+  if (exclusion.test(titleText)) return false;
+
+  const hasActionableSignal = /\b(edital|publica|publicado|publicada|divulga|divulgado|divulgada|abre|aberto|aberta|vagas?|inscricoes?|prazo|banca|autorizacao|comissao|retificacao|errata|aditivo|resultado|homologacao|convocacao|nomeacao|previsto|prevista|previsao|contratacao)\b/.test(titleText);
+  if (!hasActionableSignal) return false;
+
+  const hasContestContext = /\b(concurso|concursos|certame|processo seletivo|seletivo|seletiva|selecao publica)\b/.test(titleText);
+  const titleSignalsPublicNotice = /\b(edital|processo seletivo|seletivo|seletiva|vagas?)\b/.test(titleText);
+  const descriptionConfirmsContext = /\b(concurso|processo seletivo|selecao publica|certame|vagas? para cargos|inscricoes)\b/.test(descriptionText);
+  return hasContestContext || (titleSignalsPublicNotice && descriptionConfirmsContext);
+}
+
 export function parseSecondaryNewsRss(xml, options = {}) {
   const now = options.now instanceof Date ? options.now : new Date(options.now || Date.now());
   const maxAgeMs = Math.max(60_000, Number(options.maxAgeMs) || WEB_SEARCH_MAX_AGE_MS);
@@ -629,7 +644,7 @@ export function parseSecondaryNewsRss(xml, options = {}) {
     const link = readXmlTag(item, "link");
     const description = readXmlTag(item, "description") || readXmlTag(item, "content:encoded");
     const publishedRaw = readXmlTag(item, "pubDate");
-    if (!title || !link || !/(concurso|concursos|edital|processo seletivo|certame|seleção pública|selecao publica|vagas|banca organizadora)/i.test(title + " " + description.slice(0, 700))) continue;
+    if (!title || !link || !isActionableSecondaryNewsLead(title, description)) continue;
 
     let candidate;
     try {
@@ -679,6 +694,89 @@ export function parseSecondaryNewsRss(xml, options = {}) {
   return leads;
 }
 
+export async function fetchNewsFeedWithCurl(feedUrl, options = {}) {
+  const parsedUrl = new URL(feedUrl);
+  const googleFeedAllowed = parsedUrl.hostname === "news.google.com"
+    && parsedUrl.pathname === "/rss/search"
+    && parsedUrl.searchParams.has("q");
+  const secondaryFeedAllowed = SECONDARY_NEWS_FEEDS.some(feed => feed.feedUrl === parsedUrl.href);
+  if (parsedUrl.protocol !== "https:" || parsedUrl.username || parsedUrl.password
+    || (parsedUrl.port && parsedUrl.port !== "443")
+    || (!googleFeedAllowed && !secondaryFeedAllowed)) {
+    throw new Error("Feed de notícias bloqueado para o transporte alternativo.");
+  }
+
+  const timeoutMs = Math.max(3000, Math.min(30000, Number(options.timeoutMs) || 12000));
+  const directory = await mkdtemp(join(tmpdir(), "editalradar-news-curl-"));
+  const bodyPath = join(directory, "response-body.xml");
+  const headersPath = join(directory, "response-headers.txt");
+  try {
+    const { stdout: metadata } = await execFileAsync("curl", [
+      "--silent",
+      "--show-error",
+      "--compressed",
+      "--max-redirs", "0",
+      "--connect-timeout", String(Math.min(10, Math.ceil(timeoutMs / 1000))),
+      "--max-time", String(Math.ceil(timeoutMs / 1000)),
+      "--max-filesize", String(WEB_SEARCH_MAX_FEED_BYTES),
+      "--user-agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 EditalRadar/1.0",
+      "--header", "Accept: application/rss+xml, application/xml, text/xml;q=0.9",
+      "--header", "Accept-Language: pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
+      "--dump-header", headersPath,
+      "--output", bodyPath,
+      "--write-out", "%{http_code}\\n%{url_effective}\\n%{content_type}",
+      parsedUrl.href
+    ], {
+      encoding: "utf8",
+      timeout: timeoutMs + 3000,
+      maxBuffer: 64 * 1024
+    });
+
+    const metadataLines = metadata.trim().split("\\n");
+    const status = Number(metadataLines[0]);
+    const finalUrl = metadataLines[1] || parsedUrl.href;
+    const contentType = metadataLines[2] || "";
+    if (!Number.isInteger(status) || status < 100 || status > 599) {
+      throw new Error("curl não retornou um status HTTP válido para o feed.");
+    }
+    if (finalUrl !== parsedUrl.href) {
+      throw new Error("O transporte alternativo tentou alterar o endereço do feed.");
+    }
+
+    const rawHeaders = await readFile(headersPath, "utf8");
+    const responseHeaders = {};
+    let currentHeaders = {};
+    for (const line of rawHeaders.split(/\\r?\\n/)) {
+      if (line.startsWith("HTTP/")) {
+        if (Object.keys(currentHeaders).length) Object.assign(responseHeaders, currentHeaders);
+        currentHeaders = {};
+      } else {
+        const separator = line.indexOf(":");
+        if (separator <= 0) continue;
+        const name = line.slice(0, separator).trim().toLowerCase();
+        const value = line.slice(separator + 1).trim();
+        currentHeaders[name] = currentHeaders[name] ? currentHeaders[name] + ", " + value : value;
+      }
+    }
+    Object.assign(responseHeaders, currentHeaders);
+    if (contentType && !responseHeaders["content-type"]) responseHeaders["content-type"] = contentType;
+
+    const body = await readFile(bodyPath);
+    if (body.byteLength > WEB_SEARCH_MAX_FEED_BYTES) throw new Error("O feed excede o limite de 2 MB.");
+    return {
+      ok: status >= 200 && status < 300,
+      status,
+      statusText: "",
+      headers: new Headers(responseHeaders),
+      url: finalUrl,
+      text: async () => body.toString("utf8"),
+      arrayBuffer: async () => body.buffer.slice(body.byteOffset, body.byteOffset + body.byteLength)
+    };
+  } finally {
+    await rm(directory, { recursive: true, force: true }).catch(() => {});
+  }
+}
+
 export async function fetchNewsFeedWithRetry(feedUrl, options = {}) {
   const request = options.fetchImpl || fetch;
   const attempts = Math.max(1, Math.min(4, Number(options.attempts) || 3));
@@ -698,6 +796,7 @@ export async function fetchNewsFeedWithRetry(feedUrl, options = {}) {
   }
 
   let lastError = null;
+  let lastResponse = null;
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     try {
       const response = await request(parsedUrl.href, {
@@ -710,22 +809,55 @@ export async function fetchNewsFeedWithRetry(feedUrl, options = {}) {
         }
       });
 
-      if (!RETRYABLE_SOURCE_STATUSES.has(response.status) || attempt === attempts) {
-        return response;
+      if (RETRYABLE_SOURCE_STATUSES.has(response.status)) {
+        lastResponse = response;
+        if (attempt < attempts) {
+          const retryAfter = retryAfterMilliseconds(response.headers, nowMs);
+          await wait(retryAfter ?? retryDelayMs * (2 ** (attempt - 1)));
+          continue;
+        }
+        break;
       }
-
-      lastError = new Error("O provedor de notícias respondeu HTTP " + response.status + ".");
-      const retryAfter = retryAfterMilliseconds(response.headers, nowMs);
-      await wait(retryAfter ?? retryDelayMs * (2 ** (attempt - 1)));
+      if ([401, 403].includes(response.status)) {
+        lastResponse = response;
+        break;
+      }
+      return response;
     } catch (error) {
       lastError = error;
-      if (attempt === attempts) throw lastError;
-      await wait(retryDelayMs * (2 ** (attempt - 1)));
+      if (attempt < attempts) {
+        await wait(retryDelayMs * (2 ** (attempt - 1)));
+        continue;
+      }
+      break;
     }
   }
 
+  if (typeof options.fallbackFetch === "function") {
+    try {
+      const fallbackResponse = await options.fallbackFetch(parsedUrl.href, {
+        timeoutMs,
+        redirect: "error",
+        headers: {
+          "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 EditalRadar/1.0",
+          Accept: "application/rss+xml, application/xml, text/xml;q=0.9",
+          "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7"
+        }
+      });
+      if (fallbackResponse?.ok || (fallbackResponse && !RETRYABLE_SOURCE_STATUSES.has(fallbackResponse.status)
+        && ![401, 403].includes(fallbackResponse.status))) {
+        return fallbackResponse;
+      }
+      if (fallbackResponse) lastResponse = fallbackResponse;
+    } catch (fallbackError) {
+      lastError = fallbackError;
+    }
+  }
+
+  if (lastResponse) return lastResponse;
   throw lastError || new Error("Falha ao consultar o feed de notícias.");
 }
+
 
 export async function searchInternetForContestLeads(options = {}) {
   const request = options.fetchImpl || fetch;
@@ -744,6 +876,7 @@ export async function searchInternetForContestLeads(options = {}) {
         timeoutMs: options.timeoutMs,
         retryDelayMs: options.retryDelayMs,
         sleepImpl: options.sleepImpl,
+        fallbackFetch: options.fallbackFetch || fetchNewsFeedWithCurl,
         nowMs: options.nowMs
       });
       if (!response.ok) throw new Error("Google Notícias respondeu HTTP " + response.status + ".");
@@ -767,6 +900,7 @@ export async function searchInternetForContestLeads(options = {}) {
         timeoutMs: options.timeoutMs,
         retryDelayMs: options.retryDelayMs,
         sleepImpl: options.sleepImpl,
+        fallbackFetch: options.fallbackFetch || fetchNewsFeedWithCurl,
         nowMs: options.nowMs
       });
       if (!response.ok) throw new Error(feed.label + " respondeu HTTP " + response.status + ".");
