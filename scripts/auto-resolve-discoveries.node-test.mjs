@@ -951,11 +951,10 @@ test("bloqueia redirecionamento de artigo editorial para domínio que não estej
   assert.match(prepared.reason, /veículo secundário previamente autorizado/);
 });
 
-test("recusa respostas de notícia de formato inesperado e controla limite de redirects", async () => {
+test("recusa respostas de notícia de formato inesperado", async () => {
   const articleUrl = "https://concursos.estrategia.com/noticias/concurso/";
-  const response = await fetchSecondaryNewsArticle(articleUrl, async () => new Response("PDF", {
+  await assert.rejects(() => fetchSecondaryNewsArticle(articleUrl, async () => new Response("PDF", {
     status: 200,
     headers: { "content-type": "application/pdf" }
-  }));
-  assert.equal(response.officialUrl, null);
+  })), /não retornou HTML/);
 });
