@@ -4,10 +4,12 @@ import { readFile } from "node:fs/promises";
 
 const readProjectFile = (path) => readFile(new URL(path, import.meta.url), "utf8");
 
-const [android, serviceWorker, styles] = await Promise.all([
+const [android, serviceWorker, styles, androidGradle, androidWorkflow] = await Promise.all([
   readProjectFile("../android/app/src/main/java/br/com/editalradar/app/MainActivity.kt"),
   readProjectFile("../public/sw.js"),
-  readProjectFile("../src/styles.css")
+  readProjectFile("../src/styles.css"),
+  readProjectFile("../android/app/build.gradle"),
+  readProjectFile("../.github/workflows/android-release.yml")
 ]);
 
 test("WebView mantém navegação interna restrita à origem e ao caminho do app", () => {
@@ -67,6 +69,41 @@ test("Android apresenta mensagens claras sem expor detalhes internos", () => {
   assert.ok(android.includes("Sem conexão. Algumas informações já carregadas ainda podem estar disponíveis"));
   assert.ok(android.includes("Não foi possível estabelecer uma conexão segura"));
   assert.doesNotMatch(android, /conteúdo em cache|Servidor temporariamente indisponível|Use links HTTPS/);
+});
+
+test("assinatura de distribuição usa apenas a chave permanente recebida pelo ambiente seguro", () => {
+  assert.match(androidGradle, /ANDROID_RELEASE_KEYSTORE_FILE/);
+  assert.match(androidGradle, /ANDROID_RELEASE_STORE_PASSWORD/);
+  assert.match(androidGradle, /ANDROID_RELEASE_KEY_ALIAS/);
+  assert.match(androidGradle, /ANDROID_RELEASE_KEY_PASSWORD/);
+  assert.match(androidGradle, /signingConfig signingConfigs\.getByName\('release'\)/);
+  assert.match(androidGradle, /versionCode 8/);
+  assert.match(androidGradle, /versionName '1\.2\.5'/);
+  assert.doesNotMatch(androidGradle, /storePassword\s*['"][^'"]+['"]/);
+});
+
+test("GitHub Actions nunca publica APK de depuração como atualização pública", () => {
+  assert.match(androidWorkflow, /Configure permanent Android signing key/);
+  assert.match(androidWorkflow, /ANDROID_RELEASE_KEYSTORE_BASE64/);
+  assert.match(androidWorkflow, /ANDROID_RELEASE_STORE_PASSWORD/);
+  assert.match(androidWorkflow, /ANDROID_RELEASE_KEY_ALIAS/);
+  assert.match(androidWorkflow, /ANDROID_RELEASE_KEY_PASSWORD/);
+  assert.match(androidWorkflow, /gradle assembleRelease bundleRelease/);
+  assert.match(androidWorkflow, /steps\.signing\.outputs\.ready == 'true'/);
+  assert.match(androidWorkflow, /verification-only/);
+  const lineBreak = String.fromCharCode(10);
+  assert.ok(androidWorkflow.includes(
+    "      - name: Configure permanent Android signing key" + lineBreak +
+    "        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'"
+  ));
+  assert.ok(androidWorkflow.includes(
+    "      - name: Validate Firebase Android configuration" + lineBreak +
+    "        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'"
+  ));
+  const publishStepStart = androidWorkflow.indexOf("      - name: Publish permanently signed GitHub Release");
+  assert.notEqual(publishStepStart, -1);
+  const publishCondition = androidWorkflow.slice(publishStepStart).split(String.fromCharCode(10))[1] ?? "";
+  assert.ok(publishCondition.includes("steps.signing.outputs.ready == 'true'"));
 });
 
 test("site mantém recursos de acessibilidade e safe areas móveis", () => {
