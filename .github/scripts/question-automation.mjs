@@ -89,14 +89,51 @@ function isTrustedHost(value) {
     if (url.protocol !== "https:" || url.username || url.password) return false;
     const host = url.hostname.toLowerCase().replace(/\.$/, "");
     if (host === "planalto.gov.br" || host.endsWith(".planalto.gov.br")) return false;
-    const officialRoots = ["gov.br", "jus.br", "leg.br", "mp.br", "mil.br", "def.br", "un.org", "ibge.gov.br"];
-    const boards = [
-      "cebraspe.org.br", "igeduc.selecao.net.br", "igeduc.org.br", "ibfc.org.br",
-      "quadrix.org.br", "fundacaolasalle.org.br", "fgv.br", "concursosfcc.com.br",
-      "vunesp.com.br", "institutoaocp.org.br"
+    const approvedDomains = [
+      "brasilescola.uol.com.br",
+      "mundoeducacao.uol.com.br",
+      "todamateria.com.br",
+      "todoestudo.com.br",
+      "pt.khanacademy.org",
+      "khanacademy.org",
+      "somatematica.com.br",
+      "soportugues.com.br",
+      "infoescola.com",
+      "politize.com.br",
+      "direitonet.com.br",
+      "jusbrasil.com.br",
+      "jrconcursos.com.br",
+      "blog.grancursosonline.com.br",
+      "grancursosonline.com.br",
+      "jcconcursos.com.br",
+      "7fontesconcursos.com.br",
+      "tecconcursos.com.br",
+      "blog.qconcursos.com",
+      "qconcursos.com",
+      "tecmundo.com.br",
+      "olhardigital.com.br",
+      "guiadoestudante.abril.com.br",
+      "novaescola.org.br",
+      "cpdoc.fgv.br",
+      "fgv.br",
+      "contabeis.com.br",
+      "manualdaquimica.com",
+      "drauziovarella.uol.com.br",
+      "minhavida.com.br",
+      "educamaisbrasil.com.br",
+      "educacao.uol.com.br",
+      "mundoestranho.abril.com.br",
+      "todospelaeducacao.org.br",
+      "institutopeninsula.org.br",
+      "fundacaolemann.org.br",
+      "cursinhoparamedicina.com.br",
+      "estrategiaconcursos.com.br",
+      "blog.estrategiaconcursos.com.br",
+      "novaconcursos.com.br",
+      "concursosnobrasil.com",
+      "blog.grupogen.com.br",
     ];
-    return officialRoots.some((domain) => host === domain || host.endsWith("." + domain))
-      || boards.some((domain) => host === domain || host.endsWith("." + domain));
+    return approvedDomains.some((domain) => host === domain || host.endsWith("." + domain));
   } catch {
     return false;
   }
@@ -136,7 +173,7 @@ function extractHeadings(html, discipline, currentTopic, sourceUrl) {
 
 async function fetchOfficialText(sourceUrl) {
   if (!isTrustedHost(sourceUrl)) {
-    throw new Error("Fonte fora da lista de domínios oficiais permitidos.");
+    throw new Error("Fonte fora da lista de sites privados de estudo permitidos.");
   }
   let lastError;
   for (let attempt = 1; attempt <= 3; attempt += 1) {
