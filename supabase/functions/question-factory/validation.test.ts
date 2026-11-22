@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isDuplicateQuestion, isTrustedOfficialUrl, similarityScore, validateQuestion } from "./validation.ts";
+import { isDuplicateQuestion, isTrustedPrivateStudySourceUrl, similarityScore, validateQuestion } from "./validation.ts";
 
 const source = "A administração pública direta e indireta de qualquer dos Poderes da União, dos Estados, do Distrito Federal e dos Municípios obedecerá aos princípios de legalidade, impessoalidade, moralidade, publicidade e eficiência.";
 const question = {
