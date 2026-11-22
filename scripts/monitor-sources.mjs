@@ -469,6 +469,43 @@ export function isTrustedSecondaryNewsHost(hostname) {
   const host = String(hostname || "").toLowerCase().replace(/\.$/, "");
   return SECONDARY_NEWS_HOSTS.some(domain => host === domain || host.endsWith("." + domain));
 }
+
+const SECONDARY_NEWS_PUBLISHER_FAMILIES = [
+  ["concursosnobrasil.com.br"],
+  ["concursos.estrategia.com", "estrategiaconcursos.com.br"],
+  ["g1.globo.com"]
+];
+
+function matchesPublisherFamily(hostname, family) {
+  const host = String(hostname || "").toLowerCase().replace(/\.$/, "");
+  return family.some(domain => host === domain || host.endsWith("." + domain));
+}
+
+export function isSameTrustedSecondaryFeedPublisher(fromHostname, toHostname) {
+  return SECONDARY_NEWS_PUBLISHER_FAMILIES.some(family =>
+    matchesPublisherFamily(fromHostname, family) && matchesPublisherFamily(toHostname, family)
+  );
+}
+
+export function resolveTrustedSecondaryFeedRedirect(currentUrl, location) {
+  const current = new URL(currentUrl);
+  if (!location) throw new Error("Redirecionamento do feed sem destino informado.");
+  let target;
+  try {
+    target = new URL(location, current);
+  } catch {
+    throw new Error("Destino de redirecionamento do feed inválido.");
+  }
+  if (target.protocol !== "https:" || target.username || target.password
+    || (target.port && target.port !== "443")
+    || !isTrustedSecondaryNewsHost(target.hostname)
+    || !isSameTrustedSecondaryFeedPublisher(current.hostname, target.hostname)) {
+    throw new Error("Redirecionamento do feed bloqueado: somente HTTPS dentro do mesmo veículo autorizado é permitido.");
+  }
+  target.hash = "";
+  return target;
+}
+
 const WEB_SEARCH_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
 const WEB_SEARCH_MAX_FEED_BYTES = 2 * 1024 * 1024;
 
@@ -788,6 +825,7 @@ export async function fetchNewsFeedWithRetry(feedUrl, options = {}) {
   const attempts = Math.max(1, Math.min(4, Number(options.attempts) || 3));
   const timeoutMs = Math.max(3000, Math.min(30000, Number(options.timeoutMs) || 12000));
   const retryDelayMs = Math.max(0, Math.min(5000, Number(options.retryDelayMs ?? 500)));
+  const maxRedirects = Math.max(0, Math.min(4, Number(options.maxRedirects ?? 3)));
   const wait = options.sleepImpl || (milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds)));
   const nowMs = Number.isFinite(Number(options.nowMs)) ? Number(options.nowMs) : Date.now();
   const parsedUrl = new URL(feedUrl);
@@ -805,16 +843,33 @@ export async function fetchNewsFeedWithRetry(feedUrl, options = {}) {
   let lastResponse = null;
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     try {
-      const response = await request(parsedUrl.href, {
-        method: "GET",
-        redirect: "error",
-        signal: AbortSignal.timeout(timeoutMs),
-        headers: {
-          "User-Agent": "Mozilla/5.0 (compatible; EditalRadar-WebDiscovery/1.0; +https://github.com/dagamavasco170-lang/editalradar)",
-          Accept: "application/rss+xml, application/xml, text/xml;q=0.9"
-        }
-      });
+      let currentUrl = parsedUrl;
+      let response = null;
+      for (let hop = 0; hop <= maxRedirects; hop += 1) {
+        response = await request(currentUrl.href, {
+          method: "GET",
+          redirect: "manual",
+          signal: AbortSignal.timeout(timeoutMs),
+          headers: {
+            "User-Agent": "Mozilla/5.0 (compatible; EditalRadar-WebDiscovery/1.0; +https://github.com/dagamavasco170-lang/editalradar)",
+            Accept: "application/rss+xml, application/xml, text/xml;q=0.9"
+          }
+        });
 
+        if (![301, 302, 303, 307, 308].includes(response.status)) break;
+        if (googleFeedAllowed) {
+          throw new Error("Redirecionamento do Google Notícias recusado; somente feeds editoriais da lista autorizada podem redirecionar dentro do mesmo veículo.");
+        }
+        if (hop === maxRedirects) {
+          throw new Error("O feed excedeu o limite de redirecionamentos seguros.");
+        }
+        currentUrl = resolveTrustedSecondaryFeedRedirect(
+          currentUrl.href,
+          response.headers?.get?.("location")
+        );
+      }
+
+      if (!response) throw new Error("O provedor não retornou uma resposta.");
       if (RETRYABLE_SOURCE_STATUSES.has(response.status)) {
         lastResponse = response;
         if (attempt < attempts) {
@@ -851,7 +906,7 @@ export async function fetchNewsFeedWithRetry(feedUrl, options = {}) {
         }
       });
       if (fallbackResponse?.ok || (fallbackResponse && !RETRYABLE_SOURCE_STATUSES.has(fallbackResponse.status)
-        && ![401, 403].includes(fallbackResponse.status))) {
+        && ![301, 302, 303, 307, 308, 401, 403].includes(fallbackResponse.status))) {
         return fallbackResponse;
       }
       if (fallbackResponse) lastResponse = fallbackResponse;
