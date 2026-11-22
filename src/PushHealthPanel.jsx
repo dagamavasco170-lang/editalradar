@@ -147,7 +147,7 @@ export default function PushHealthPanel({ authClient }) {
             <div className="push-health-batch" aria-label="Resultado do último lote processado">
               <div className="push-health-batch-heading">
                 <strong>Resultado do último lote</strong>
-                <small>{formatDate(worker.created_at)} · dados agregados do worker</small>
+                <small>{formatDate(workerHistory.last_run_at || worker.created_at)} · {number(workerHistory.last_duration_ms)} ms · dados agregados</small>
               </div>
               <div className="push-health-batch-grid">
                 {[
