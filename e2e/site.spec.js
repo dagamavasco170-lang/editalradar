@@ -68,6 +68,15 @@ test("identifica claramente um registro preliminar que não possui edital confir
     .toHaveAttribute("href", "https://concursor.com.br/editais?uf=AL");
 });
 
+test("oferece acesso ao banco de provas original do PCI Concursos", async ({ page }) => {
+  await page.goto("./");
+  const pciCatalog = page.getByRole("link", { name: "Consultar acervo de provas do PCI Concursos" });
+  await expect(pciCatalog).toBeVisible();
+  await expect(pciCatalog).toHaveAttribute("href", "https://www.pciconcursos.com.br/provas/");
+  await expect(pciCatalog).toHaveAttribute("target", "_blank");
+  await expect(page.getByText("Os documentos permanecem hospedados no PCI ou nas fontes indicadas por ele; o EditalRadar não copia nem espelha o acervo.")).toBeVisible();
+});
+
 test("abre a página individual de um concurso com cronograma e fonte oficial", async ({ page }) => {
   await page.goto("./");
   await page.getByPlaceholder("Buscar cargo ou órgão...").fill("Polícia Civil");
