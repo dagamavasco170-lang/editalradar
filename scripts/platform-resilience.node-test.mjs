@@ -146,6 +146,8 @@ test("GitHub Actions nunca publica APK de depuração como atualização públic
   assert.ok(androidWorkflow.includes("jarsigner -verify"));
   assert.ok(androidWorkflow.includes("EXPECTED_ANDROID_SIGNER_SHA256"));
   assert.ok(androidWorkflow.includes("6192a29e44539f63b525a9288f95fc98d6deb2f936cef50d624a228ca358595b"));
+  assert.ok(androidWorkflow.includes("keytool -printcert -jarfile"));
+  assert.ok(androidWorkflow.includes("AAB_SIGNER_SHA256"));
   assert.ok(androidWorkflow.includes("aapt dump badging"));
   assert.ok(androidWorkflow.includes("targetSdkVersion"));
   assert.ok(androidWorkflow.includes("minSdk"));
@@ -179,6 +181,7 @@ test("atualizador nativo consulta apenas releases oficiais e evita downgrade", (
   assert.ok(appUpdate.includes("EditalRadar-Android-v"));
   assert.ok(appUpdate.includes("MAX_RELEASE_METADATA_BYTES = 512L * 1024L"));
   assert.ok(appUpdate.includes("readBoundedText(connection, MAX_RELEASE_METADATA_BYTES)"));
+  assert.ok(!appUpdate.includes("it.readText()"));
   assert.ok(appUpdate.includes("RejectedExecutionException"));
 });
 
