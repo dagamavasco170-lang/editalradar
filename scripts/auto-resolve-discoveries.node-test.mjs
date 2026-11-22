@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { appendContext, buildPendingDiscoveriesUrl, buildRetificationUpdate, classifyDiscovery, extractDocumentText, extractRoleNamesFromText, extractVacancyDetails, fetchCandidateWithRetry, findMatchingContestForRetification, inferOrganization, mapWithConcurrency, normalizeContestIdentity, prepareDiscoveryDocument, summarizeFetchError , assessNoticeFreshness} from "./auto-resolve-discoveries.mjs";
+import { appendContext, buildPendingDiscoveriesUrl, buildRetificationUpdate, classifyDiscovery, extractDocumentText, extractRoleNamesFromText, extractVacancyDetails, fetchCandidateWithRetry, findMatchingContestForRetification, inferOrganization, mapWithConcurrency, normalizeContestIdentity, prepareDiscoveryDocument, requestJson, summarizeFetchError , assessNoticeFreshness} from "./auto-resolve-discoveries.mjs";
 
 const discovery = {
   id: 1,
@@ -540,6 +540,38 @@ test("limita a concorrência e mantém a ordem dos resultados", async () => {
 
   assert.deepEqual(results, [10, 20, 30, 40, 50, 60]);
   assert.equal(peak, 3);
+});
+
+test("a triagem repete automaticamente consultas Supabase com falha temporária", async () => {
+  let calls = 0;
+  const result = await requestJson(async () => {
+    calls += 1;
+    if (calls < 3) {
+      return new Response("temporariamente indisponível", { status: 503 });
+    }
+    return new Response(JSON.stringify([{ id: 7 }]), {
+      status: 200,
+      headers: { "content-type": "application/json" }
+    });
+  }, "https://example.supabase.co/rest/v1/contest_discoveries", "test-service-role", {
+    retryDelayMs: 100
+  });
+  assert.equal(calls, 3);
+  assert.deepEqual(result, [{ id: 7 }]);
+});
+
+test("a triagem não repete inserção de catálogo não idempotente após resposta ambígua", async () => {
+  let calls = 0;
+  await assert.rejects(() => requestJson(async () => {
+    calls += 1;
+    return new Response("erro interno", { status: 503 });
+  }, "https://example.supabase.co/rest/v1/contest_catalog", "test-service-role", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ data: {} }),
+    retryDelayMs: 100
+  }), /HTTP 503/);
+  assert.equal(calls, 1);
 });
 
 test("triagem automática processa somente links diretos oficiais e nunca notícias da busca web", () => {
