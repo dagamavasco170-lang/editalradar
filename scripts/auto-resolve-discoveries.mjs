@@ -1562,7 +1562,7 @@ async function main() {
     "",
     "- Oportunidades elegíveis: " + (result.eligible ?? result.inspected),
     "- Analisadas nesta rodada: " + result.inspected,
-    "- Reservadas para as próximas rodadas: " + (result.deferred || 0) + " (limite por rodada: " + (result.maxItems || 40) + "),
+    "- Reservadas para as próximas rodadas: " + (result.deferred || 0) + " (limite por rodada: " + (result.maxItems || 40) + ")",
     "- Publicadas: " + result.published,
     "- Atualizadas: " + (result.updated || 0),
     "- Descartadas: " + result.dismissed,
