@@ -32,6 +32,19 @@ const healthSnapshot = {
     }
   },
   devices: { total: 1, enabled: 1, disabled: 0 },
+  worker_history: {
+    available: true,
+    last_run_at: snapshotNow,
+    last_duration_ms: 135,
+    runs_24h: 1440,
+    processed_24h: 12,
+    sent_24h: 9,
+    rescheduled_24h: 2,
+    expired_24h: 1,
+    disabled_invalid_24h: 0,
+    dead_letter_24h: 0,
+    pending_redelivery_24h: 0
+  },
   failures: { total: 0, last_24h: 0, latest_at: null },
   recent_errors: []
 };
@@ -47,6 +60,8 @@ describe("PushHealthPanel", () => {
     expect(screen.getByText("Resultado do último lote")).toBeTruthy();
     expect(screen.getByText("Aguardando recuperação")).toBeTruthy();
     expect(screen.getByText("Falhas definitivas")).toBeTruthy();
+    expect(screen.getByText("Histórico das últimas 24 horas")).toBeTruthy();
+    expect(screen.getByText("1.440 execuções · última em " + new Date(snapshotNow).toLocaleString("pt-BR"))).toBeTruthy();
     expect(authClient.rpc).toHaveBeenCalledWith("get_push_notification_health");
   });
 
@@ -63,6 +78,17 @@ describe("PushHealthPanel", () => {
 
     expect(await screen.findByText("Atenção necessária")).toBeTruthy();
     expect(screen.getByText("Aguardando recuperação")).toBeTruthy();
+  });
+
+  it("warns from persistent 24-hour history even when the latest batch is clean", async () => {
+    const snapshot = {
+      ...healthSnapshot,
+      worker_history: { ...healthSnapshot.worker_history, dead_letter_24h: 1 }
+    };
+    const authClient = { rpc: vi.fn().mockResolvedValue({ data: snapshot, error: null }) };
+    render(<PushHealthPanel authClient={authClient} />);
+
+    expect(await screen.findByText("Atenção necessária")).toBeTruthy();
   });
 
   it("allows an administrator to refresh the snapshot", async () => {
