@@ -388,7 +388,9 @@ test("banco de questões filtra, salva, registra erros e mantém o caderno após
   await page.getByRole("button", { name: /Área de estudos/ }).click();
   const bank = page.getByRole("region", { name: "Banco de questões" });
   await expect(bank.getByRole("heading", { name: "Banco de questões" })).toBeVisible();
-  await expect(bank.getByText("80 questões autorais", { exact: false })).toBeVisible();
+  const summary = bank.locator(".question-bank-subtitle");
+  await expect(summary).toContainText("questões disponíveis");
+  await expect(summary).toContainText("80 na base inicial");
 
   await bank.getByPlaceholder("Tema, assunto ou enunciado...").fill("crase");
   await expect(bank.getByRole("heading", { name: /dirigiu-se a comissão/ })).toBeVisible();
