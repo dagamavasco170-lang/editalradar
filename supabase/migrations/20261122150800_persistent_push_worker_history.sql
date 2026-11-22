@@ -24,7 +24,7 @@ create index if not exists push_worker_runs_recorded_at_idx
 alter table private.push_worker_runs enable row level security;
 revoke all on table private.push_worker_runs from public, anon, authenticated;
 grant usage on schema private to service_role;
-grant insert on table private.push_worker_runs to service_role;
+grant select, insert, delete on table private.push_worker_runs to service_role;
 revoke all on sequence private.push_worker_runs_id_seq from public, anon, authenticated;
 grant usage, select on sequence private.push_worker_runs_id_seq to service_role;
 
