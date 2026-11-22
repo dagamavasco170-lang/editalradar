@@ -96,7 +96,7 @@ jobs:
           - Inclui cache offline do conteúdo previamente carregado, indicador de conexão, canal de notificações nativas e callback de autenticação Google por esquema de aplicativo.
 
           Para login Google, adicione a URL editalradar://auth-callback às Redirect URLs em Supabase Authentication.
-          As notificações desta versão são disparadas quando o app está aberto e detecta novidades após sincronizar; push remoto em segundo plano ainda requer Firebase Cloud Messaging.
+          A versão inclui o receptor FCM e uma função de envio protegida. O push remoto em segundo plano será ativado quando GOOGLE_SERVICES_JSON_BASE64 (GitHub Actions) e FCM_SERVICE_ACCOUNT_JSON (Supabase Edge Functions Secrets) forem configurados.
           EOF
 
       - name: Upload build artifacts
