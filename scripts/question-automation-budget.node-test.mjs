@@ -54,3 +54,21 @@ test("alterna a prioridade inicial em dias consecutivos quando há empate", () =
   const nextDay = orderTopicsFairly(topics, [], new Date("2026-11-23T12:00:00.000Z"));
   assert.notEqual(firstDay[0].discipline, nextDay[0].discipline);
 });
+test("considera tentativas de assuntos fora da fila vencida para equilibrar disciplinas", () => {
+  const due = [
+    { id: "a-due", discipline: "A", last_run_at: null },
+    { id: "b-due", discipline: "B", last_run_at: null }
+  ];
+  const catalog = [
+    ...due,
+    { id: "a-not-due", discipline: "A", last_run_at: "2026-11-21T10:00:00.000Z" }
+  ];
+  const history = [
+    { topic_id: "a-not-due", started_at: "2026-11-21T10:00:00.000Z" },
+    { topic_id: "a-not-due", started_at: "2026-11-20T10:00:00.000Z" },
+    { topic_id: "b-due", started_at: "2026-11-20T10:00:00.000Z" }
+  ];
+  const ordered = orderTopicsFairly(due, history, new Date("2026-11-22T12:00:00.000Z"), catalog);
+  assert.equal(ordered[0].discipline, "B");
+  assert.equal(ordered[1].discipline, "A");
+});
