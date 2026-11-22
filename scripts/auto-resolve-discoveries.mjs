@@ -1096,8 +1096,8 @@ export function prioritizePendingDiscoveries(items = [], now = Date.now()) {
 const UNRELATED_ADMINISTRATIVE_TITLE_PATTERNS = [
   /\b(?:atos? declarat[oó]rios? executivos?)\b/i,
   /\bconsulta(?:r)? editais? e ades?\b/i,
-  /\b(?:avisos? de )?editais? de leil[aã]o\b/i,
-  /\bprocuraç(?:ão|ões|ao|oes)\s*\(autorizaç(?:ão|ões|ao|oes) de acesso\)\b/i,
+  /\b(?:avisos? de )?(?:edital|editais) de leil[aã]o\b/i,
+  /\bprocuraç(?:ão|ões|ao|oes)\s*\(autorizaç(?:ão|ões|ao|oes) de acesso\)/i,
   /\bprocesso administrativo de responsabilizaç(?:ão|ao)\b/i,
   /\bconsulta fiscal\b/i,
   /\blicitaç(?:ão|ao)\b/i,
