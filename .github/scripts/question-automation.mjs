@@ -1,4 +1,5 @@
 import process from "node:process";
+import { pathToFileURL } from "node:url";
 import { execFileSync } from "node:child_process";
 import { buildDailyAutomationRunQuery, orderTopicsFairly } from "../../scripts/question-automation-budget.mjs";
 
@@ -6,10 +7,6 @@ const SUPABASE_URL = String(process.env.SUPABASE_URL || "").replace(/\/$/, "");
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 const DAILY_TOPIC_LIMIT = 8;
 const MAX_SOURCE_BYTES = 5 * 1024 * 1024;
-
-if (!SUPABASE_URL || !SERVICE_KEY) {
-  throw new Error("Configure SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY nos GitHub Actions Secrets.");
-}
 
 const authHeaders = {
   apikey: SERVICE_KEY,
@@ -84,7 +81,7 @@ function stripTags(value) {
     .trim();
 }
 
-function isTrustedHost(value) {
+export function isTrustedHost(value) {
   try {
     const url = new URL(value);
     if (url.protocol !== "https:" || url.username || url.password) return false;
@@ -94,7 +91,7 @@ function isTrustedHost(value) {
     if (host === "planalto.gov.br" || host.endsWith(".planalto.gov.br")) return false;
     const approvedHosts = [
       "www.politize.com.br", "politize.com.br",
-      "pt.wikibooks.org", "pt.wikipedia.org", "pt.wikiversity.org", "pt.wiktionary.org",
+      "pt.wikibooks.org", "pt.wikipedia.org", "pt.wikiversity.org", "pt.wiktionary.org", "pt.wikisource.org",
       "developer.mozilla.org", "docs.python.org", "www.postgresql.org", "doc.rust-lang.org",
       "docs.github.com", "kubernetes.io", "docs.aws.amazon.com", "docs.docker.com", "wikieducator.org", "www.gapminder.org"
     ];
@@ -106,6 +103,15 @@ function isTrustedHost(value) {
     if (host === "www.gapminder.org" && path !== "/teaching/materials/") return false;
     return true;
   } catch { return false; }
+}
+
+export function resolveTrustedRedirect(currentUrl, redirectLocation) {
+  if (!redirectLocation) throw new Error("A fonte redirecionou sem informar o destino.");
+  const nextUrl = new URL(redirectLocation, currentUrl);
+  if (nextUrl.protocol !== "https:" || nextUrl.username || nextUrl.password || !isTrustedHost(nextUrl.href)) {
+    throw new Error("Redirecionamento para domínio não autorizado.");
+  }
+  return nextUrl.href;
 }
 
 function extractHeadings(html, discipline, currentTopic, sourceUrl) {
@@ -147,46 +153,62 @@ async function fetchStudyText(sourceUrl) {
   let lastError;
   for (let attempt = 1; attempt <= 3; attempt += 1) {
     try {
-      // curl uses the runner's configured network proxy, unlike Node fetch in
-      // some hosted runner environments. Follow redirects but validate the
-      // final URL before trusting the downloaded material.
+      // Use curl for the runner's configured network proxy, but never let curl
+      // follow redirects automatically: every hop is checked against the
+      // HTTPS source allowlist before a second network request is made.
       const marker = "\n__EDITALRADAR_SOURCE_META__";
-      const raw = execFileSync("curl", [
-        "--location", "--fail", "--silent", "--show-error",
-        "--connect-timeout", "15", "--max-time", "25",
-        "--max-filesize", String(MAX_SOURCE_BYTES),
-        "--user-agent", "EditalRadar-GitHub-Automation/1.0",
-        "--header", "Accept: text/html, text/plain, application/xhtml+xml;q=0.9",
-        "--write-out", marker + "%{content_type}\t%{url_effective}\t%{http_code}",
-        sourceUrl
-      ], {
-        maxBuffer: MAX_SOURCE_BYTES + 128 * 1024,
-        timeout: 35000
-      });
+      let currentUrl = sourceUrl;
+      let downloaded = null;
 
-      const markerBuffer = Buffer.from(marker, "utf8");
-      const markerIndex = raw.lastIndexOf(markerBuffer);
-      if (markerIndex < 0) throw new Error("Não foi possível validar os metadados da fonte.");
-      const meta = raw.subarray(markerIndex + markerBuffer.length).toString("utf8").trim().split("\t");
-      const contentType = String(meta[0] || "").toLowerCase();
-      const finalUrl = String(meta[1] || "");
-      const status = Number(meta[2] || 0);
-      if (status !== 200) throw new Error("Fonte respondeu HTTP " + status + ".");
-      if (!isTrustedHost(finalUrl)) throw new Error("Redirecionamento para domínio não autorizado.");
-      if (!(contentType.includes("html") || contentType.startsWith("text/") || contentType.includes("xml"))) {
-        throw new Error("Formato não suportado pelo extrator gratuito: " + (contentType || "desconhecido"));
+      for (let redirectCount = 0; redirectCount <= 5; redirectCount += 1) {
+        const raw = execFileSync("curl", [
+          "--fail", "--silent", "--show-error",
+          "--connect-timeout", "15", "--max-time", "25",
+          "--max-filesize", String(MAX_SOURCE_BYTES),
+          "--user-agent", "EditalRadar-GitHub-Automation/1.0",
+          "--header", "Accept: text/html, text/plain, application/xhtml+xml;q=0.9",
+          "--write-out", marker + "%{content_type}\t%{url_effective}\t%{http_code}\t%{redirect_url}",
+          currentUrl
+        ], {
+          maxBuffer: MAX_SOURCE_BYTES + 128 * 1024,
+          timeout: 35000
+        });
+
+        const markerBuffer = Buffer.from(marker, "utf8");
+        const markerIndex = raw.lastIndexOf(markerBuffer);
+        if (markerIndex < 0) throw new Error("Não foi possível validar os metadados da fonte.");
+        const meta = raw.subarray(markerIndex + markerBuffer.length).toString("utf8").trim().split("\t");
+        const contentType = String(meta[0] || "").toLowerCase();
+        const effectiveUrl = String(meta[1] || "");
+        const status = Number(meta[2] || 0);
+
+        if ([301, 302, 303, 307, 308].includes(status)) {
+          if (redirectCount === 5) throw new Error("A fonte excedeu o limite de cinco redirecionamentos.");
+          currentUrl = resolveTrustedRedirect(currentUrl, String(meta[3] || "").trim());
+          continue;
+        }
+        if (status !== 200) throw new Error("Fonte respondeu HTTP " + status + ".");
+        if (!isTrustedHost(effectiveUrl)) throw new Error("URL final da fonte não autorizada.");
+        if (!(contentType.includes("html") || contentType.startsWith("text/") || contentType.includes("xml"))) {
+          throw new Error("Formato não suportado pelo extrator gratuito: " + (contentType || "desconhecido"));
+        }
+        if (markerIndex > MAX_SOURCE_BYTES) throw new Error("Fonte excede o limite de 5 MB.");
+
+        const charset = contentType.match(/charset=([^;]+)/i)?.[1]?.replace(/["']/g, "").trim() || "utf-8";
+        let html;
+        try {
+          html = new TextDecoder(charset).decode(raw.subarray(0, markerIndex));
+        } catch {
+          html = new TextDecoder("utf-8").decode(raw.subarray(0, markerIndex));
+        }
+        const text = stripTags(html);
+        if (text.length < 200) throw new Error("A página não contém texto suficiente para elaborar questões.");
+        downloaded = { text: text.slice(0, 12000), html, finalUrl: effectiveUrl };
+        break;
       }
-      if (markerIndex > MAX_SOURCE_BYTES) throw new Error("Fonte excede o limite de 5 MB.");
-      const charset = contentType.match(/charset=([^;]+)/i)?.[1]?.replace(/["']/g, "").trim() || "utf-8";
-      let html;
-      try {
-        html = new TextDecoder(charset).decode(raw.subarray(0, markerIndex));
-      } catch {
-        html = new TextDecoder("utf-8").decode(raw.subarray(0, markerIndex));
-      }
-      const text = stripTags(html);
-      if (text.length < 200) throw new Error("A página não contém texto suficiente para elaborar questões.");
-      return { text: text.slice(0, 12000), html, finalUrl };
+
+      if (!downloaded) throw new Error("Não foi possível concluir o download dentro do limite de redirecionamentos.");
+      return downloaded;
     } catch (error) {
       lastError = error;
       if (attempt < 3) await new Promise((resolve) => setTimeout(resolve, attempt * 1000));
@@ -196,6 +218,9 @@ async function fetchStudyText(sourceUrl) {
 }
 
 async function main() {
+  if (!SUPABASE_URL || !SERVICE_KEY) {
+    throw new Error("Configure SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY nos GitHub Actions Secrets.");
+  }
   console.log("Etapa 1/4: expandindo automaticamente o catálogo de matérias e assuntos.");
   const seed = await callQuestionFactory({ mode: "scheduled", seed_only: true });
   console.log(`Catálogo disponível: ${seed.topics_available || 0} assuntos.`);
@@ -340,7 +365,9 @@ function extractHeadingsFromCache(source, topic) {
   return extractHeadings(source.html, topic.discipline, topic.topic, topic.source_url);
 }
 
-main().catch((error) => {
-  console.error(error?.stack || error?.message || String(error));
-  process.exitCode = 1;
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((error) => {
+    console.error(error?.stack || error?.message || String(error));
+    process.exitCode = 1;
+  });
+}
