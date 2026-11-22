@@ -26,19 +26,17 @@ export function isTrustedPrivateStudySourceUrl(value: unknown): boolean {
     const url = new URL(value.trim());
     if (url.protocol !== "https:" || url.username || url.password) return false;
     const host = url.hostname.toLowerCase().replace(/\.$/, "");
+    const path = url.pathname.toLowerCase();
     if (!host || host.includes("..")) return false;
+    if (/(^|\.)(gov|gov\.br|jus\.br|leg\.br|mp\.br|mil\.br|def\.br)$/.test(host)) return false;
     if (host === "planalto.gov.br" || host.endsWith(".planalto.gov.br")) return false;
-    const approvedDomains = [
-      "politize.com.br",
-      "pt.wikibooks.org",
-      "pt.wikipedia.org",
-      "pt.wikiversity.org",
-      "pt.wiktionary.org"
-    ];
-    return approvedDomains.some((domain) => host === domain || host.endsWith("." + domain));
-  } catch {
-    return false;
-  }
+    const approvedHosts = ["www.politize.com.br","politize.com.br","pt.wikibooks.org","pt.wikipedia.org","pt.wikiversity.org","pt.wiktionary.org","developer.mozilla.org","docs.python.org","www.postgresql.org","doc.rust-lang.org","docs.github.com","kubernetes.io","docs.aws.amazon.com","docs.docker.com"];
+    if (!approvedHosts.includes(host)) return false;
+    if (host === "www.postgresql.org" && !path.startsWith("/docs/")) return false;
+    if (host === "kubernetes.io" && !path.startsWith("/docs/")) return false;
+    if (host === "developer.mozilla.org" && !path.includes("/docs/")) return false;
+    return true;
+  } catch { return false; }
 }
 
 export function validateQuestion(question: unknown, sourceExcerpt: string): ValidationResult {

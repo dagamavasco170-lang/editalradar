@@ -19,7 +19,7 @@ export function decodeHtmlEntities(value: string): string {
 export function htmlToReadableText(html: string): string {
   const text = String(html || "")
     .replace(/<!--[\s\S]*?-->/g, " ")
-    .replace(/<(script|style|noscript|svg|iframe|nav|footer|header|aside|form)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, " ")
+    .replace(/<(script|style|noscript|svg|iframe|nav|footer|header|aside|form|pre)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, " ")
     .replace(/<(br|\/p|\/div|\/li|\/tr|\/h[1-6]|\/section|\/article|\/main|\/blockquote|\/pre)\b[^>]*>/gi, "\n")
     .replace(/<[^>]*>/g, " ");
   return decodeHtmlEntities(text)

@@ -18,12 +18,12 @@ const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
 const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_PUBLISHABLE_KEY") || "";
 const geminiKey = Deno.env.get("GEMINI_API_KEY") || "";
-// Fixed to a free-tier Flash-Lite model. No paid provider or fallback is used.
+// Uses one explicit Gemini model only; no alternate AI provider or automatic paid fallback is called.
 const model = "gemini-3.1-flash-lite";
 const MAX_DAILY_RUNS = 3;
 const MAX_QUESTIONS_PER_RUN = 3;
 
-// Catálogo autônomo baseado em recursos privados abertos CC BY-SA e em Politize!, que autoriza reprodução com atribuição.
+// Catálogo autônomo: materiais privados com licença aberta ou permissão explícita de reutilização, sem fontes governamentais.
 const wikiUrl = (title: string) => "https://pt.wikipedia.org/wiki/" + encodeURIComponent(title.replace(/ /g, "_"));
 const bookUrl = (title: string) => "https://pt.wikibooks.org/wiki/" + encodeURIComponent(title.replace(/ /g, "_"));
 
@@ -109,6 +109,52 @@ const DEFAULT_AUTONOMOUS_TOPICS = [
   { discipline: "Língua Espanhola", topic: "Vocabulário, gramática e leitura em língua espanhola", source_url: wikiUrl("Língua espanhola") },
   { discipline: "Artes e Cultura", topic: "História da arte, movimentos e linguagens artísticas", source_url: wikiUrl("História da arte") },
   { discipline: "Educação Física", topic: "Atividade física, fisiologia do exercício e esporte", source_url: wikiUrl("Educação física") },
+
+  { discipline: "Informática", topic: "HTML, estrutura semântica e acessibilidade na web", source_url: "https://developer.mozilla.org/pt-BR/docs/Web/HTML" },
+  { discipline: "Informática", topic: "CSS, seletores, cascata e layout responsivo", source_url: "https://developer.mozilla.org/pt-BR/docs/Web/CSS" },
+  { discipline: "Programação", topic: "JavaScript, tipos, funções e estruturas de controle", source_url: "https://developer.mozilla.org/pt-BR/docs/Web/JavaScript" },
+  { discipline: "Redes de Computadores", topic: "HTTP, requisições, respostas, cabeçalhos e status", source_url: "https://developer.mozilla.org/pt-BR/docs/Web/HTTP" },
+  { discipline: "Segurança da Informação", topic: "Segurança na web, autenticação e proteção de aplicações", source_url: "https://developer.mozilla.org/pt-BR/docs/Web/Security" },
+  { discipline: "Programação", topic: "Python: sintaxe, variáveis e estruturas de controle", source_url: "https://docs.python.org/pt-br/3/tutorial/introduction.html" },
+  { discipline: "Programação", topic: "Python: listas, tuplas, conjuntos e dicionários", source_url: "https://docs.python.org/pt-br/3/tutorial/datastructures.html" },
+  { discipline: "Programação", topic: "Python: módulos, pacotes e organização de código", source_url: "https://docs.python.org/pt-br/3/tutorial/modules.html" },
+  { discipline: "Programação", topic: "Python: exceções, tratamento de erros e depuração", source_url: "https://docs.python.org/pt-br/3/tutorial/errors.html" },
+  { discipline: "Banco de Dados", topic: "SQL: consultas, seleção, ordenação e junções", source_url: "https://www.postgresql.org/docs/current/tutorial.html" },
+  { discipline: "Banco de Dados", topic: "PostgreSQL: comandos SQL e manipulação de dados", source_url: "https://www.postgresql.org/docs/current/sql.html" },
+  { discipline: "Banco de Dados", topic: "Índices, desempenho e otimização de consultas", source_url: "https://www.postgresql.org/docs/current/indexes.html" },
+  { discipline: "Banco de Dados", topic: "Transações, isolamento e concorrência", source_url: "https://www.postgresql.org/docs/current/transaction-iso.html" },
+  { discipline: "Programação", topic: "Rust: propriedade, empréstimo e referências", source_url: "https://doc.rust-lang.org/book/ch04-00-understanding-ownership.html" },
+  { discipline: "Programação", topic: "Rust: structs, enums e modelagem de dados", source_url: "https://doc.rust-lang.org/book/ch05-00-structs.html" },
+  { discipline: "Programação", topic: "Rust: tratamento de erros e tipos Result e Option", source_url: "https://doc.rust-lang.org/book/ch09-00-error-handling.html" },
+  { discipline: "Programação", topic: "Rust: concorrência e segurança entre threads", source_url: "https://doc.rust-lang.org/book/ch16-00-concurrency.html" },
+  { discipline: "Engenharia de Software", topic: "Git, repositórios, commits e histórico de versões", source_url: "https://docs.github.com/pt/get-started/using-git/about-git" },
+  { discipline: "Engenharia de Software", topic: "Branches, merge e colaboração em projetos", source_url: "https://docs.github.com/pt/pull-requests/collaborating-with-pull-requests" },
+  { discipline: "Engenharia de Software", topic: "Pull requests, revisão de código e integração contínua", source_url: "https://docs.github.com/pt/pull-requests" },
+  { discipline: "Infraestrutura e Cloud", topic: "Kubernetes: arquitetura, componentes e cluster", source_url: "https://kubernetes.io/docs/concepts/overview/" },
+  { discipline: "Infraestrutura e Cloud", topic: "Kubernetes: pods, workloads e gerenciamento de aplicações", source_url: "https://kubernetes.io/docs/concepts/workloads/pods/" },
+  { discipline: "Infraestrutura e Cloud", topic: "Kubernetes: serviços, rede e descoberta de aplicações", source_url: "https://kubernetes.io/docs/concepts/services-networking/" },
+  { discipline: "Computação em Nuvem", topic: "AWS: princípios de arquitetura e boas práticas em nuvem", source_url: "https://docs.aws.amazon.com/wellarchitected/latest/framework/welcome.html" },
+  { discipline: "Computação em Nuvem", topic: "AWS S3: armazenamento de objetos, buckets e permissões", source_url: "https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html" },
+  { discipline: "Computação em Nuvem", topic: "AWS IAM: identidade, usuários, grupos e políticas", source_url: "https://docs.aws.amazon.com/IAM/latest/UserGuide/introduction.html" },
+  { discipline: "Infraestrutura e Cloud", topic: "Docker: contêineres, imagens e ciclo de vida", source_url: "https://docs.docker.com/get-started/" },
+  { discipline: "Infraestrutura e Cloud", topic: "Docker Engine, imagens e execução de contêineres", source_url: "https://docs.docker.com/engine/" },
+  { discipline: "Infraestrutura e Cloud", topic: "Docker Compose e orquestração de aplicações", source_url: "https://docs.docker.com/compose/" },
+  { discipline: "Engenharia", topic: "Engenharia civil: estruturas, materiais e construção", source_url: wikiUrl("Engenharia civil") },
+  { discipline: "Engenharia", topic: "Engenharia elétrica: circuitos, sistemas e energia", source_url: wikiUrl("Engenharia elétrica") },
+  { discipline: "Engenharia", topic: "Engenharia mecânica: mecânica, máquinas e materiais", source_url: wikiUrl("Engenharia mecânica") },
+  { discipline: "Arquitetura e Urbanismo", topic: "Arquitetura: história, projeto, edifícios e espaços", source_url: wikiUrl("Arquitetura") },
+  { discipline: "Agronomia", topic: "Agronomia, produção vegetal e sistemas agrícolas", source_url: wikiUrl("Agronomia") },
+  { discipline: "Agronomia", topic: "Ciência do solo, propriedades e conservação", source_url: wikiUrl("Ciência do solo") },
+  { discipline: "Antropologia", topic: "Antropologia social, cultura e diversidade humana", source_url: wikiUrl("Antropologia") },
+  { discipline: "Linguística", topic: "Fonética, fonologia e sistema sonoro das línguas", source_url: wikiUrl("Fonética") },
+  { discipline: "Linguística", topic: "Linguística aplicada, aquisição e ensino de línguas", source_url: wikiUrl("Linguística aplicada") },
+  { discipline: "Saúde", topic: "Anatomia humana: sistemas e estruturas do corpo", source_url: wikiUrl("Anatomia humana") },
+  { discipline: "Saúde", topic: "Fisiologia humana: funções e regulação dos sistemas", source_url: wikiUrl("Fisiologia humana") },
+  { discipline: "Ciências Biológicas", topic: "Microbiologia: bactérias, vírus, fungos e protozoários", source_url: wikiUrl("Microbiologia") },
+  { discipline: "Ciências Biológicas", topic: "Ecologia, ecossistemas, cadeias e ciclos naturais", source_url: wikiUrl("Ecologia") },
+  { discipline: "Ciências Biológicas", topic: "Genética, hereditariedade e biologia molecular", source_url: wikiUrl("Genética") },
+  { discipline: "Nutrição", topic: "Nutrição humana, nutrientes e metabolismo energético", source_url: wikiUrl("Nutrição") },
+  { discipline: "Planejamento Urbano", topic: "Urbanismo, cidades, mobilidade e planejamento territorial", source_url: wikiUrl("Urbanismo") },
 ];
 
 const adminDb = createClient(supabaseUrl, serviceKey, {
@@ -118,36 +164,22 @@ const adminDb = createClient(supabaseUrl, serviceKey, {
 type SourceLicense = { source_license: string; source_attribution: string; content_license: string };
 
 function sourceLicenseMetadata(sourceUrl: string): SourceLicense | null {
-  let host = "";
-  try { host = new URL(sourceUrl).hostname.toLowerCase(); } catch { return null; }
-  if (host.endsWith(".wikibooks.org") || host === "wikibooks.org") {
-    return {
-      source_license: "CC BY-SA 4.0",
-      source_attribution: "Colaboradores do Wikilivros; consulte o histórico da página: " + sourceUrl + "?action=history",
-      content_license: "CC BY-SA 4.0"
-    };
-  }
-  if (host.endsWith(".wikipedia.org") || host === "wikipedia.org" || host.endsWith(".wiktionary.org") || host === "wiktionary.org") {
-    return {
-      source_license: "CC BY-SA 4.0 / GFDL (conforme a página)",
-      source_attribution: "Colaboradores da Wikimedia; consulte o histórico da página: " + sourceUrl + "?action=history",
-      content_license: "CC BY-SA 4.0"
-    };
-  }
-  if (host.endsWith(".wikiversity.org") || host === "wikiversity.org") {
-    return {
-      source_license: "CC BY-SA 3.0 / GFDL (conforme a página)",
-      source_attribution: "Colaboradores da Wikiversidade; consulte o histórico da página: " + sourceUrl + "?action=history",
-      content_license: "CC BY-SA 3.0"
-    };
-  }
-  if (host === "politize.com.br" || host.endsWith(".politize.com.br")) {
-    return {
-      source_license: "Reprodução gratuita permitida mediante crédito (Politize!)",
-      source_attribution: "Politize! — " + sourceUrl + " (crédito e link da fonte)",
-      content_license: "Conteúdo autoral EditalRadar; fonte Politize! creditada"
-    };
-  }
+  let url: URL;
+  try { url = new URL(sourceUrl); } catch { return null; }
+  const host = url.hostname.toLowerCase();
+  const path = url.pathname.toLowerCase();
+  if (host === "pt.wikibooks.org") return { source_license: "CC BY-SA 4.0", source_attribution: "Colaboradores do Wikilivros; histórico: " + sourceUrl + "?action=history", content_license: "CC BY-SA 4.0" };
+  if (host === "pt.wikipedia.org" || host === "pt.wiktionary.org") return { source_license: "CC BY-SA 4.0 / GFDL (conforme a página)", source_attribution: "Colaboradores da Wikimedia; histórico: " + sourceUrl + "?action=history", content_license: "CC BY-SA 4.0" };
+  if (host === "pt.wikiversity.org") return { source_license: "CC BY-SA 3.0 / GFDL (conforme a página)", source_attribution: "Colaboradores da Wikiversidade; histórico: " + sourceUrl + "?action=history", content_license: "CC BY-SA 3.0" };
+  if (host === "www.politize.com.br" || host === "politize.com.br") return { source_license: "Reprodução gratuita permitida mediante crédito (Politize!)", source_attribution: "Politize! — " + sourceUrl + " (crédito e link da fonte)", content_license: "Conteúdo autoral EditalRadar; fonte Politize! creditada" };
+  if (host === "developer.mozilla.org" && path.includes("/docs/")) return { source_license: "CC BY-SA 2.5 (prosa da documentação; exemplos de código excluídos)", source_attribution: "MDN Web Docs — " + sourceUrl + " (prosa sob CC BY-SA 2.5; blocos de código não utilizados)", content_license: "CC BY-SA 2.5" };
+  if (host === "docs.python.org") return { source_license: "Python Software Foundation License Version 2 (documentação)", source_attribution: "Python Software Foundation — " + sourceUrl + " (PSF License Version 2; blocos de código não utilizados)", content_license: "PSF License Version 2" };
+  if (host === "www.postgresql.org" && path.startsWith("/docs/")) return { source_license: "PostgreSQL License (documentação)", source_attribution: "PostgreSQL Global Development Group — " + sourceUrl + " (PostgreSQL License; aviso de licença preservado)", content_license: "PostgreSQL License" };
+  if (host === "doc.rust-lang.org") return { source_license: "MIT OR Apache License 2.0 (documentação oficial Rust)", source_attribution: "The Rust Project developers — " + sourceUrl + " (MIT OR Apache-2.0)", content_license: "MIT OR Apache-2.0" };
+  if (host === "docs.github.com") return { source_license: "CC BY 4.0 (documentação GitHub)", source_attribution: "GitHub Docs contributors — " + sourceUrl + " (CC BY 4.0)", content_license: "CC BY 4.0" };
+  if (host === "kubernetes.io" && path.startsWith("/docs/")) return { source_license: "CC BY 4.0 (documentação Kubernetes)", source_attribution: "Kubernetes contributors — " + sourceUrl + " (CC BY 4.0)", content_license: "CC BY 4.0" };
+  if (host === "docs.aws.amazon.com") return { source_license: "CC BY-SA 4.0 (documentação AWS; exemplos de código excluídos)", source_attribution: "Amazon Web Services — " + sourceUrl + " (documentação sob CC BY-SA 4.0; blocos de código não utilizados)", content_license: "CC BY-SA 4.0" };
+  if (host === "docs.docker.com") return { source_license: "Apache License 2.0 (documentação Docker)", source_attribution: "Docker, Inc. — " + sourceUrl + " (Apache-2.0)", content_license: "Apache-2.0" };
   return null;
 }
 
@@ -216,36 +248,28 @@ function extractMessage(payload: any): string {
 
 async function callStructuredModel(schemaName: string, schema: unknown, systemPrompt: string, userPrompt: string) {
   if (!geminiKey) throw new Error("GEMINI_API_KEY ainda não está configurada em Supabase → Edge Functions → Secrets.");
-
-  // Gemini JSON structured output. Fixed model and endpoint; never falls back to a paid provider.
+  const structuredPrompt = userPrompt + "\n\nRetorne exclusivamente JSON válido que obedeça a este esquema (sem markdown):\n" + JSON.stringify(schema);
   const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent", {
     method: "POST",
-    headers: {
-      "x-goog-api-key": geminiKey,
-      "Content-Type": "application/json"
-    },
+    headers: { "x-goog-api-key": geminiKey, "Content-Type": "application/json" },
     signal: AbortSignal.timeout(65000),
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: systemPrompt }] },
-      contents: [{ role: "user", parts: [{ text: userPrompt }] }],
-      generationConfig: {
-        temperature: 0.2,
-        responseMimeType: "application/json",
-        responseJsonSchema: schema,
-        maxOutputTokens: 8192
-      }
+      contents: [{ role: "user", parts: [{ text: structuredPrompt }] }],
+      generationConfig: { responseMimeType: "application/json", maxOutputTokens: 8192 }
     })
   });
-
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const message = String(payload?.error?.message || "Falha no provedor gratuito de IA").slice(0, 500);
-    throw new Error("Gemini API HTTP " + response.status + ": " + message + ". Nenhum provedor pago será acionado.");
+    const message = String(payload?.error?.message || "Falha ao consultar o modelo de IA").slice(0, 500);
+    throw new Error("Gemini API HTTP " + response.status + " em " + schemaName + ": " + message + ". Nenhum provedor alternativo será acionado.");
   }
-  const parts = payload?.candidates?.[0]?.content?.parts || [];
-  const content = parts.map((part: any) => typeof part?.text === "string" ? part.text : "").join("").trim();
-  if (!content) throw new Error("Gemini não retornou conteúdo estruturado.");
-  return JSON.parse(content);
+  const candidate = payload?.candidates?.[0];
+  if (candidate?.finishReason === "MAX_TOKENS") throw new Error("Gemini atingiu o limite de tokens antes de concluir " + schemaName + ".");
+  if (candidate?.finishReason === "SAFETY") throw new Error("Gemini bloqueou a resposta de " + schemaName + " pelos filtros de segurança.");
+  const content = (candidate?.content?.parts || []).map((part: any) => typeof part?.text === "string" ? part.text : "").join("").trim();
+  if (!content) throw new Error("Gemini não retornou conteúdo JSON para " + schemaName + ".");
+  try { return JSON.parse(content); } catch { throw new Error("Gemini retornou JSON inválido para " + schemaName + "."); }
 }
 
 function generationPrompts(topic: any, count: number, sourceExcerpt: string) {
@@ -530,8 +554,7 @@ async function runTopic(topic: any, triggerMode: "manual" | "scheduled", userId:
         && explanationConsistent
         && issues.length === 0;
 
-      const hardRejected = !factualSupport || !singleCorrectAnswer || !explanationConsistent || score < 60;
-      const reviewStatus = autoApproved ? "auto_approved" : hardRejected ? "rejected" : "manual_review";
+      const reviewStatus = autoApproved ? "auto_approved" : "rejected";
       const published = autoApproved;
 
       const inserted = await adminDb.from("study_questions").insert({
@@ -682,7 +705,7 @@ Deno.serve(async (req: Request) => {
     return json({ error: String(error?.message || error) }, 500);
   }
   if (!dailyBudget.allowed) {
-    return json({ error: "Limite gratuito diário atingido: no máximo " + MAX_DAILY_RUNS + " execuções por dia. Aguarde a próxima janela UTC.", free_tier_only: true, daily_limit: MAX_DAILY_RUNS }, 429);
+    return json({ error: "Limite diário de segurança atingido: no máximo " + MAX_DAILY_RUNS + " execuções por dia. Aguarde a próxima janela UTC.", free_tier_only: true, daily_limit: MAX_DAILY_RUNS }, 429);
   }
 
   if (!geminiKey) {

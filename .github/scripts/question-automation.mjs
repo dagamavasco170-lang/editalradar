@@ -72,7 +72,7 @@ function decodeEntities(value) {
 
 function stripTags(value) {
   return decodeEntities(String(value || "")
-    .replace(/<(script|style|noscript|svg|iframe|nav|footer|header|aside|form|button|select|option)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, " ")
+    .replace(/<(script|style|noscript|svg|iframe|nav|footer|header|aside|form|pre|button|select|option)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, " ")
     .replace(/<!--[\s\S]*?-->/g, " ")
     .replace(/<(br|\/p|\/div|\/li|\/tr|\/h[1-6]|\/section|\/article|\/main|\/blockquote|\/pre)\b[^>]*>/gi, "\n")
     .replace(/<[^>]*>/g, " "))
@@ -88,18 +88,21 @@ function isTrustedHost(value) {
     const url = new URL(value);
     if (url.protocol !== "https:" || url.username || url.password) return false;
     const host = url.hostname.toLowerCase().replace(/\.$/, "");
+    const path = url.pathname.toLowerCase();
+    if (/(^|\.)(gov|gov\.br|jus\.br|leg\.br|mp\.br|mil\.br|def\.br)$/.test(host)) return false;
     if (host === "planalto.gov.br" || host.endsWith(".planalto.gov.br")) return false;
-    const approvedDomains = [
-      "politize.com.br",
-      "pt.wikibooks.org",
-      "pt.wikipedia.org",
-      "pt.wikiversity.org",
-      "pt.wiktionary.org"
+    const approvedHosts = [
+      "www.politize.com.br", "politize.com.br",
+      "pt.wikibooks.org", "pt.wikipedia.org", "pt.wikiversity.org", "pt.wiktionary.org",
+      "developer.mozilla.org", "docs.python.org", "www.postgresql.org", "doc.rust-lang.org",
+      "docs.github.com", "kubernetes.io", "docs.aws.amazon.com", "docs.docker.com"
     ];
-    return approvedDomains.some((domain) => host === domain || host.endsWith("." + domain));
-  } catch {
-    return false;
-  }
+    if (!approvedHosts.includes(host)) return false;
+    if (host === "www.postgresql.org" && !path.startsWith("/docs/")) return false;
+    if (host === "kubernetes.io" && !path.startsWith("/docs/")) return false;
+    if (host === "developer.mozilla.org" && !path.includes("/docs/")) return false;
+    return true;
+  } catch { return false; }
 }
 
 function extractHeadings(html, discipline, currentTopic, sourceUrl) {
@@ -134,9 +137,9 @@ function extractHeadings(html, discipline, currentTopic, sourceUrl) {
   return rows.slice(0, 40);
 }
 
-async function fetchOfficialText(sourceUrl) {
+async function fetchStudyText(sourceUrl) {
   if (!isTrustedHost(sourceUrl)) {
-    throw new Error("Fonte fora da lista de sites privados de estudo permitidos.");
+    throw new Error("Fonte fora da lista de sites privados com licença ou permissão de reutilização cadastrada.");
   }
   let lastError;
   for (let attempt = 1; attempt <= 3; attempt += 1) {
@@ -186,7 +189,7 @@ async function fetchOfficialText(sourceUrl) {
       if (attempt < 3) await new Promise((resolve) => setTimeout(resolve, attempt * 1000));
     }
   }
-  throw new Error(String(lastError?.message || lastError || "Falha ao baixar fonte oficial."));
+  throw new Error(String(lastError?.message || lastError || "Falha ao baixar material de estudo licenciado."));
 }
 
 async function main() {
@@ -211,25 +214,41 @@ async function main() {
   const todaysRuns = await supabaseRest(`study_question_automation_runs?${runParams.toString()}`);
   const remaining = Math.max(0, DAILY_TOPIC_LIMIT - (todaysRuns || []).length);
   if (!remaining) {
-    console.log("Limite diário da modalidade gratuita atingido; novas tentativas ficam para a próxima janela UTC.");
+    console.log("Limite diário de segurança atingido; novas tentativas ficam para a próxima janela UTC.");
     return;
   }
 
   const now = Date.now();
-  const due = (topics || []).filter((topic) => {
+  const dueCandidates = (topics || []).filter((topic) => {
     if (!topic.active) return false;
     if (!topic.last_run_at) return true;
     const last = Date.parse(topic.last_run_at);
     const cadence = Math.max(1, Math.min(30, Number(topic.cadence_days) || 1));
     return !Number.isFinite(last) || now - last >= cadence * 86400000;
-  }).slice(0, remaining);
+  });
+  const due = [];
+  const selectedHosts = new Set();
+  for (const topic of dueCandidates) {
+    const host = (() => { try { return new URL(topic.source_url).hostname.toLowerCase(); } catch { return ""; } })();
+    if (!host || selectedHosts.has(host)) continue;
+    due.push(topic);
+    selectedHosts.add(host);
+    if (due.length >= remaining) break;
+  }
+  if (due.length < remaining) {
+    for (const topic of dueCandidates) {
+      if (due.includes(topic)) continue;
+      due.push(topic);
+      if (due.length >= remaining) break;
+    }
+  }
 
   if (!due.length) {
     console.log("Nenhum assunto está vencido neste ciclo. O catálogo continuará sendo ampliado automaticamente.");
     return;
   }
 
-  console.log(`Etapa 2/4: baixando fontes oficiais para ${due.length} assunto(s).`);
+  console.log(`Etapa 2/4: baixando materiais abertos e licenciados para ${due.length} assunto(s).`);
   const excerptByUrl = new Map();
   const headingRows = [];
   const sourceExcerpts = {};
@@ -241,7 +260,7 @@ async function main() {
         if (String(topic.source_excerpt || "").trim()) {
           source = { text: String(topic.source_excerpt).trim(), html: "" };
         } else {
-          source = await fetchOfficialText(topic.source_url);
+          source = await fetchStudyText(topic.source_url);
           excerptByUrl.set(topic.source_url, source);
         }
       }
