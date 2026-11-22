@@ -109,12 +109,19 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
   if(!authClient){setLicensedQuestions([]);setLicensedQuestionStatus("fallback");return undefined;}
   const loadLicensedQuestions=async()=>{
    try{
-    const {data,error}=await authClient.from("study_questions")
+    const records=[];
+    const pageSize=500;
+    for(let offset=0;!cancelled;offset+=pageSize){
+     const {data,error}=await authClient.from("study_questions")
       .select("id, discipline, topic, difficulty, board, exam_name, exam_year, prompt, options, source_url, license_status, origin, review_status")
-      .eq("published",true).order("exam_year",{ascending:false}).limit(250);
-    if(error)throw error;
+      .eq("published",true).order("created_at",{ascending:false}).range(offset,offset+pageSize-1);
+     if(error)throw error;
+     const page=Array.isArray(data)?data:[];
+     records.push(...page);
+     if(page.length<pageSize)break;
+    }
     if(cancelled)return;
-    const rows=(Array.isArray(data)?data:[]).map(record=>({
+    const rows=records.map(record=>({
      id:"licensed-"+record.id,databaseId:record.id,origin:record.origin==="ai_generated"?"generated":"licensed",
      discipline:record.discipline,topic:record.topic,difficulty:record.difficulty,
      board:record.board,examName:record.exam_name,examYear:record.exam_year,
@@ -323,7 +330,7 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
 
   <section className="panel study-question-bank" aria-label="Banco de questões">
    <div className="panel-head">
-    <div><div className="eyebrow">PRÁTICA CONTÍNUA</div><h2>Banco de questões</h2><p className="question-bank-subtitle">{questionBank.length} questões autorais · {licensedQuestions.length} reais autorizadas · cinco disciplinas.</p></div>
+    <div><div className="eyebrow">PRÁTICA CONTÍNUA</div><h2>Banco de questões</h2><p className="question-bank-subtitle">{allQuestions.length} questões disponíveis · {questionBank.length} na base inicial · {licensedQuestions.length} adicionais no banco · {new Set(allQuestions.map(item=>item.discipline)).size} disciplinas.</p></div>
     <span className="soft-pill">{totalCorrect}/{totalAttempts} acertos · {accuracy}%</span>
    </div>
    <div className="question-bank-stats" aria-label="Estatísticas do banco de questões">

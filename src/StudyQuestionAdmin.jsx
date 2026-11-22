@@ -29,7 +29,7 @@ export default function StudyQuestionAdmin({authClient,userId}){
   setLoading(true);
   try{
    const [topicRows,runRows,questionRows]=await Promise.all([
-    authClient.from("study_question_automation_topics").select("*").order("created_at",{ascending:false}).limit(30),
+    authClient.from("study_question_automation_topics").select("*").order("created_at",{ascending:false}).limit(500),
     authClient.from("study_question_automation_runs").select("*").order("started_at",{ascending:false}).limit(8),
     authClient.from("study_questions").select("id,discipline,topic,difficulty,prompt,review_status,review_score,created_at").eq("origin","ai_generated").eq("published",false).order("created_at",{ascending:false}).limit(20)
    ]);
@@ -53,7 +53,7 @@ export default function StudyQuestionAdmin({authClient,userId}){
  const saveTopic=async event=>{
   event.preventDefault();setAutomationMessage("");
   if(!authClient||!userId){setAutomationMessage("Entre com uma conta administrativa.");setAutomationKind("error");return;}
-  if(!isTrustedPrivateStudySourceUrl(topicForm.source_url)){setAutomationMessage("Use Wikilivros, Wikipédia, Wikiversidade, Wikcionário ou Politize, conforme os direitos de reutilização cadastrados.");setAutomationKind("error");return;}
+  if(!isTrustedPrivateStudySourceUrl(topicForm.source_url)){setAutomationMessage("Use apenas fontes autorizadas: Wikimedia, Politize, MDN, Python, PostgreSQL, Rust, GitHub, Kubernetes, AWS ou Docker.");setAutomationKind("error");return;}
   if(topicForm.source_excerpt.trim().length>0&&topicForm.source_excerpt.trim().length<200){setAutomationMessage("O trecho manual precisa ter pelo menos 200 caracteres. Deixe-o vazio para tentar a extração automática da página.");setAutomationKind("error");return;}
   if(topicForm.source_excerpt.trim().length>12000){setAutomationMessage("O trecho manual não pode ultrapassar 12.000 caracteres.");setAutomationKind("error");return;}
   setBusyId("save-topic");
@@ -137,7 +137,7 @@ export default function StudyQuestionAdmin({authClient,userId}){
 
  return <div className="study-question-admin-stack">
   <section className="panel admin-panel question-ai-automation" aria-label="Geração e revisão automática de questões">
-   <div className="admin-panel-heading"><div><strong>Elaboração e revisão automática por IA</strong><small>Gera questões originais a partir de material oficial, executa revisão independente e publica apenas as aprovadas.</small></div><span className="discovery-status-pill">Automação diária</span></div>
+   <div className="admin-panel-heading"><div><strong>Elaboração e revisão automática por IA</strong><small>Gera questões originais a partir de material aberto ou licenciado, executa revisão independente e publica apenas as aprovadas.</small></div><span className="discovery-status-pill">Automação diária</span></div>
    <div className="question-ai-summary">
     <div><strong>{topics.length}</strong><span>temas configurados</span></div><div><strong>{topics.filter(item=>item.active).length}</strong><span>agendamentos ativos</span></div>
     <div><strong>{pending.length}</strong><span>rascunhos em exceção</span></div><div><strong>{runs[0]?.auto_approved_count||0}</strong><span>publicadas na última execução</span></div>
@@ -146,7 +146,7 @@ export default function StudyQuestionAdmin({authClient,userId}){
    <form className="question-ai-form" onSubmit={saveTopic}>
     <div><strong>Configurar tema recorrente</strong><small>Informe uma fonte privada com licença aberta ou permissão de reutilização. O sistema registra a licença e a atribuição junto de cada questão.</small></div>
     <div className="study-admin-grid">
-     <label>Disciplina<select value={topicForm.discipline} onChange={e=>updateTopic("discipline",e.target.value)}>{["Língua Portuguesa","Raciocínio lógico","Direito Constitucional","Direito Administrativo","Informática","Direito Civil","Direito Penal","Direito Processual","Conhecimentos específicos"].map(item=><option key={item}>{item}</option>)}</select></label>
+     <label>Disciplina<input value={topicForm.discipline} onChange={e=>updateTopic("discipline",e.target.value)} required maxLength={100} placeholder="Qualquer disciplina ou área"/></label>
      <label>Dificuldade<select value={topicForm.difficulty} onChange={e=>updateTopic("difficulty",e.target.value)}>{["Fácil","Intermediária","Avançada"].map(item=><option key={item}>{item}</option>)}</select></label>
      <label className="study-admin-wide">Assunto<input value={topicForm.topic} onChange={e=>updateTopic("topic",e.target.value)} required maxLength={160} placeholder="Ex.: Direitos e garantias fundamentais"/></label>
      <label className="study-admin-wide">Fonte privada de estudo HTTPS<input type="url" value={topicForm.source_url} onChange={e=>updateTopic("source_url",e.target.value)} required placeholder="https://pt.wikibooks.org/wiki/Portugu%C3%AAs"/></label>
@@ -173,7 +173,7 @@ export default function StudyQuestionAdmin({authClient,userId}){
    </div>}
    {runs.length>0&&<div className="question-ai-runs"><strong>Execuções recentes</strong>{runs.slice(0,5).map(run=><div key={run.id}><span>{run.started_at?new Date(run.started_at).toLocaleString("pt-BR"):"—"} · {run.status}</span><small>{run.generated_count} elaboradas · {run.auto_approved_count} publicadas · {run.manual_review_count} em exceção · {run.rejected_count} reprovadas</small></div>)}</div>}
    {automationMessage&&<p className={"auth-message "+automationKind} role="status">{automationMessage}</p>}
-   <p className="study-disclaimer">Usa Gemini Flash-Lite na cota gratuita. Limite rígido: 3 execuções/dia e até 3 questões por execução. Sem fallback pago. Configure GEMINI_API_KEY em Supabase → Edge Functions → Secrets. Para garantir custo zero, não habilite faturamento no projeto Google.</p>
+   <p className="study-disclaimer">Usa exclusivamente Gemini 3.1 Flash-Lite, sem fallback para outro provedor. A conta Google determina a cota e a faixa de cobrança. Limite local de segurança: 3 execuções por dia, até 3 questões por execução. Para manter o uso sem cobrança, utilize a cota gratuita e deixe o faturamento do projeto Google desativado. Configure GEMINI_API_KEY em Supabase → Edge Functions → Secrets.</p>
   </section>
 
   <section className="panel admin-panel study-question-admin" aria-label="Cadastro de questões reais licenciadas">

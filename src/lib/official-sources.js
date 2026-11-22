@@ -10,7 +10,9 @@ const PRIVATE_STUDY_SOURCE_DOMAINS = [
   "pt.wikibooks.org",
   "pt.wikipedia.org",
   "pt.wikiversity.org",
-  "pt.wiktionary.org"
+  "pt.wiktionary.org",
+  "developer.mozilla.org", "docs.python.org", "www.postgresql.org", "doc.rust-lang.org",
+  "docs.github.com", "kubernetes.io", "docs.aws.amazon.com", "docs.docker.com"
 ];
 
 export function parseHttpsUrl(value) {
@@ -48,7 +50,13 @@ export function isTrustedPrivateStudySourceHostname(hostname) {
 
 export function isTrustedPrivateStudySourceUrl(value) {
   const url = parseHttpsUrl(value);
-  return Boolean(url && isTrustedPrivateStudySourceHostname(url.hostname));
+  if (!url || !isTrustedPrivateStudySourceHostname(url.hostname)) return false;
+  const host = url.hostname.toLowerCase();
+  const path = url.pathname.toLowerCase();
+  if ((host === "www.postgresql.org" || host === "postgresql.org") && !path.startsWith("/docs/")) return false;
+  if (host === "kubernetes.io" && !path.startsWith("/docs/")) return false;
+  if (host === "developer.mozilla.org" && !path.includes("/docs/")) return false;
+  return true;
 }
 
 export function officialSourceLabel(value) {
