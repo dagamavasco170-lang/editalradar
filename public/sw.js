@@ -1,4 +1,4 @@
-const CACHE_NAME = "editalradar-app-v2";
+const CACHE_NAME = "editalradar-app-v3";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -54,8 +54,11 @@ self.addEventListener("fetch", (event) => {
 
   if (request.mode === "navigate") {
     event.respondWith((async () => {
+      const controller = new AbortController();
+      const timeoutId = self.setTimeout(() => controller.abort(), 4500);
       try {
-        const response = await fetch(request);
+        // Em redes instáveis, não deixa a navegação presa indefinidamente antes do cache.
+        const response = await fetch(request, { signal: controller.signal });
         if (response.ok) {
           const cache = await caches.open(CACHE_NAME);
           await cache.put(request, response.clone());
@@ -66,6 +69,8 @@ self.addEventListener("fetch", (event) => {
         const exactPage = await cache.match(request);
         const appShell = await cache.match(new URL("./index.html", self.registration.scope).href);
         return exactPage || appShell || Response.error();
+      } finally {
+        self.clearTimeout(timeoutId);
       }
     })());
     return;

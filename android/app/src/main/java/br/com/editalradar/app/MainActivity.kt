@@ -8,6 +8,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.net.ConnectivityManager
@@ -20,11 +21,15 @@ import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
+import android.webkit.SslErrorHandler
+import android.net.http.SslError
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.webkit.WebSettings
 import android.view.Gravity
 import android.view.View
+import android.view.WindowInsets
+import android.view.WindowManager
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
@@ -35,6 +40,7 @@ class MainActivity : Activity() {
     companion object {
         private const val HOME_URL = "https://dagamavasco170-lang.github.io/editalradar/"
         private const val HOME_HOST = "dagamavasco170-lang.github.io"
+        private const val HOME_PATH = "/editalradar/"
         private const val NOTIFICATION_CHANNEL_ID = "editalradar_updates"
         private const val NOTIFICATION_PERMISSION_REQUEST = 8102
         const val EXTRA_PUSH_URL = "br.com.editalradar.app.EXTRA_PUSH_URL"
@@ -48,19 +54,20 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         buildScreen()
         configureNotifications()
         configureWebView()
 
-        if (savedInstanceState != null) {
-            webView.restoreState(savedInstanceState)
-        }
+        val restoredWebState = savedInstanceState != null &&
+            webView.restoreState(savedInstanceState) != null
 
         if (!handleAuthIntent(intent)) {
             val pushUrl = intent?.getStringExtra(EXTRA_PUSH_URL)
             if (!pushUrl.isNullOrBlank()) {
                 webView.loadUrl(resolvePushUrl(pushUrl))
-            } else if (savedInstanceState == null) {
+            } else if (!restoredWebState) {
+                // Não deixa a tela em branco quando o estado anterior não puder ser restaurado.
                 webView.loadUrl(HOME_URL)
             }
         }
@@ -83,14 +90,38 @@ class MainActivity : Activity() {
             minHeight = dp(38)
             setOnClickListener { webView.reload() }
             contentDescription = "Estado da conexão. Toque para atualizar."
+            accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
         }
 
         progress = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
             max = 100
             visibility = View.GONE
+            contentDescription = "Carregando EditalRadar"
+            isFocusable = false
         }
 
-        webView = WebView(this)
+        webView = WebView(this).apply {
+            contentDescription = "Conteúdo do EditalRadar"
+        }
+        root.setOnApplyWindowInsetsListener { view, insets ->
+            // O teclado usa SOFT_INPUT_ADJUST_RESIZE; não somar IME ao padding de barras.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                val safeInsets = insets.getInsets(
+                    WindowInsets.Type.systemBars() or
+                        WindowInsets.Type.displayCutout()
+                )
+                view.setPadding(safeInsets.left, safeInsets.top, safeInsets.right, safeInsets.bottom)
+            } else {
+                @Suppress("DEPRECATION")
+                view.setPadding(
+                    insets.systemWindowInsetLeft,
+                    insets.systemWindowInsetTop,
+                    insets.systemWindowInsetRight,
+                    insets.systemWindowInsetBottom
+                )
+            }
+            insets
+        }
         root.addView(statusText, LinearLayout.LayoutParams(-1, dp(40)))
         root.addView(progress, LinearLayout.LayoutParams(-1, dp(3)))
         root.addView(webView, LinearLayout.LayoutParams(-1, 0, 1f))
@@ -99,20 +130,31 @@ class MainActivity : Activity() {
 
     private fun configureWebView() {
         CookieManager.getInstance().setAcceptCookie(true)
-        CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true)
+        // O login Google abre no navegador do sistema; a WebView só precisa de cookies próprios.
+        CookieManager.getInstance().setAcceptThirdPartyCookies(webView, false)
+        WebView.setWebContentsDebuggingEnabled(
+            applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
+        )
 
         webView.settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = true
-            databaseEnabled = true
+            databaseEnabled = false
             cacheMode = WebSettings.LOAD_DEFAULT
             loadsImagesAutomatically = true
             mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
             setSupportZoom(false)
             builtInZoomControls = false
             javaScriptCanOpenWindowsAutomatically = false
+            setSupportMultipleWindows(false)
+            mediaPlaybackRequiresUserGesture = true
             allowFileAccess = false
             allowContentAccess = false
+            allowFileAccessFromFileURLs = false
+            allowUniversalAccessFromFileURLs = false
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                safeBrowsingEnabled = true
+            }
         }
 
         webView.addJavascriptInterface(NativeBridge(), "EditalRadarNative")
@@ -127,28 +169,34 @@ class MainActivity : Activity() {
         webView.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                 val uri = request.url
-                if (uri.scheme == "editalradar") {
-                    handleAuthIntent(Intent(Intent.ACTION_VIEW, uri))
-                    return true
-                }
+                val scheme = uri.scheme?.lowercase()
 
-                val host = uri.host?.lowercase() ?: return true
-                if (uri.scheme != "https") {
-                    try {
-                        startActivity(Intent(Intent.ACTION_VIEW, uri))
-                    } catch (_: Exception) {
-                        // Não há aplicativo externo compatível com este link.
+                if (scheme == "editalradar") {
+                    if (request.isForMainFrame && uri.host == "auth-callback") {
+                        handleAuthIntent(Intent(Intent.ACTION_VIEW, uri))
                     }
                     return true
                 }
 
-                if (host == HOME_HOST) return false
+                // A ponte JavaScript nativa nunca fica disponível dentro de frames externos.
+                if (!request.isForMainFrame) return !isInternalAppUrl(uri)
 
-                // OAuth and external documents use the system browser, avoiding embedded Google login.
-                try {
-                    startActivity(Intent(Intent.ACTION_VIEW, uri))
-                } catch (_: Exception) {
-                    statusText.text = "Não foi possível abrir o link externo."
+                if (isInternalAppUrl(uri)) return false
+
+                val safeExternalLink = scheme == "https" &&
+                    uri.host != null &&
+                    uri.encodedUserInfo == null &&
+                    (uri.port == -1 || uri.port == 443)
+                val supportedAppLink = scheme == "tel" || scheme == "mailto"
+
+                if (safeExternalLink || supportedAppLink) {
+                    try {
+                        startActivity(Intent(Intent.ACTION_VIEW, uri))
+                    } catch (_: Exception) {
+                        statusText.text = "Não foi possível abrir o link externo."
+                    }
+                } else {
+                    statusText.text = "Link bloqueado por segurança. Use links HTTPS."
                 }
                 return true
             }
@@ -164,7 +212,31 @@ class MainActivity : Activity() {
                     webView.settings.cacheMode = WebSettings.LOAD_CACHE_ELSE_NETWORK
                 }
             }
+
+            override fun onReceivedSslError(
+                view: WebView?,
+                handler: SslErrorHandler?,
+                error: SslError?
+            ) {
+                // Nunca permite ignorar certificado inválido ou conexão TLS adulterada.
+                handler?.cancel()
+                statusText.text = "Conexão segura inválida. O acesso foi bloqueado."
+            }
         }
+    }
+
+    private fun isInternalAppUrl(uri: Uri): Boolean {
+        if (uri.scheme?.lowercase() != "https" ||
+            !uri.host.equals(HOME_HOST, ignoreCase = true) ||
+            (uri.port != -1 && uri.port != 443) ||
+            uri.encodedUserInfo != null
+        ) return false
+
+        val path = uri.path ?: return false
+        if (path != HOME_PATH.trimEnd('/') && !path.startsWith(HOME_PATH)) return false
+
+        // Bloqueia segmentos de travessia, inclusive quando chegam codificados na URL.
+        return path.split('/').none { it == "." || it == ".." }
     }
 
     private inner class NativeBridge {
@@ -266,7 +338,7 @@ class MainActivity : Activity() {
         }
 
         val notification = builder
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setSmallIcon(R.drawable.ic_stat_editalradar)
             .setContentTitle(title)
             .setContentText(message)
             .setStyle(Notification.BigTextStyle().bigText(message))
@@ -317,14 +389,18 @@ class MainActivity : Activity() {
     private fun resolvePushUrl(value: String): String {
         val target = value.trim()
         if (target.isBlank() || target == "/") return HOME_URL
+
+        val resolved = when {
+            target.startsWith("//") -> return HOME_URL
+            target == HOME_PATH.trimEnd('/') || target.startsWith(HOME_PATH) ->
+                "https://$HOME_HOST$target"
+            target.startsWith("/") -> HOME_URL.trimEnd('/') + target
+            else -> target
+        }
+
         return try {
-            val uri = Uri.parse(target)
-            when {
-                uri.isRelative && target.startsWith("/") && !target.startsWith("//") ->
-                    HOME_URL.trimEnd('/') + target
-                uri.scheme == "https" && uri.host.equals(HOME_HOST, ignoreCase = true) -> target
-                else -> HOME_URL
-            }
+            val uri = Uri.parse(resolved)
+            if (isInternalAppUrl(uri)) uri.toString() else HOME_URL
         } catch (_: Exception) {
             HOME_URL
         }
@@ -339,6 +415,16 @@ class MainActivity : Activity() {
     private fun dispatchFcmStatus(configured: Boolean) {
         val script = "window.dispatchEvent(new CustomEvent('editalradar:fcm-status',{detail:{configured:$configured}}));"
         if (::webView.isInitialized) webView.post { webView.evaluateJavascript(script, null) }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (::webView.isInitialized) webView.onResume()
+    }
+
+    override fun onPause() {
+        if (::webView.isInitialized) webView.onPause()
+        super.onPause()
     }
 
     override fun onStart() {
