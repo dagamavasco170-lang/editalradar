@@ -5,6 +5,9 @@ import {
   getWorkerRetryDelaySeconds,
   currentPushDeliveryAttempt,
   hasPushRetryBudget,
+  canScheduleBeforePushExpiry,
+  remainingPushTtlSeconds,
+  resolvePushExpiryMs,
 } from "./policy.js";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
@@ -70,7 +73,13 @@ async function createGoogleAccessToken(account: Record<string, string>): Promise
   return String(payload.access_token);
 }
 
-async function sendFcmMessage(token: string, message: { title: string; body: string; url: string }, projectId: string, accessToken: string) {
+async function sendFcmMessage(
+  token: string,
+  message: { title: string; body: string; url: string },
+  projectId: string,
+  accessToken: string,
+  ttlSeconds = 3600,
+) {
   try {
     const response = await fetch(
       "https://fcm.googleapis.com/v1/projects/" + encodeURIComponent(projectId) + "/messages:send",
@@ -78,7 +87,14 @@ async function sendFcmMessage(token: string, message: { title: string; body: str
         method: "POST",
         headers: { Authorization: "Bearer " + accessToken, "Content-Type": "application/json" },
         body: JSON.stringify({
-          message: { token, data: message, android: { priority: "HIGH", ttl: "3600s" } },
+          message: {
+            token,
+            data: message,
+            android: {
+              priority: "HIGH",
+              ttl: `${Math.max(1, Math.min(3600, Math.trunc(ttlSeconds) || 1))}s`,
+            },
+          },
         }),
       },
     );
@@ -97,18 +113,24 @@ async function sendFcmMessage(token: string, message: { title: string; body: str
   }
 }
 
-function parseJob(message: unknown) {
+function parseJob(message: unknown, enqueuedAt: unknown) {
   if (!message || typeof message !== "object" || Array.isArray(message)) return null;
   const value = message as Record<string, unknown>;
   const token = String(value.token || "").trim();
   const title = String(value.title || "").trim().slice(0, 90);
   const body = String(value.body || "").trim().slice(0, 350);
   const url = String(value.url || "/").trim().slice(0, 512);
-  if (token.length < 32 || token.length > 4096 || !title || !body || !url.startsWith("/") || url.startsWith("//")) return null;
+  const hasExplicitExpiry = Object.prototype.hasOwnProperty.call(value, "expires_at");
+  const expiresAtMs = resolvePushExpiryMs(hasExplicitExpiry ? value.expires_at : undefined, enqueuedAt);
+  if (
+    token.length < 32 || token.length > 4096 || !title || !body
+    || !url.startsWith("/") || url.startsWith("//") || expiresAtMs === null
+  ) return null;
   return {
     token,
     notification: { title, body, url },
     attempt: Math.max(1, Number(value.attempt) || 1),
+    expiresAt: new Date(expiresAtMs).toISOString(),
   };
 }
 
@@ -118,15 +140,21 @@ async function archiveMessage(adminDb: any, msgId: number) {
 }
 
 async function processJob(adminDb: any, job: any, accessToken: string, projectId: string) {
-  const parsed = parseJob(job.message);
+  const parsed = parseJob(job.message, job.enqueued_at);
   if (!parsed) {
     const { error } = await adminDb.rpc("ack_push_delivery_retry", { p_msg_id: job.msg_id });
     if (error) throw new Error("Não foi possível descartar uma mensagem inválida da fila.");
     return { outcome: "invalid_message" };
   }
 
+  const ttlSeconds = remainingPushTtlSeconds(parsed.expiresAt);
+  if (ttlSeconds <= 0) {
+    await archiveMessage(adminDb, job.msg_id);
+    return { outcome: "expired" };
+  }
+
   const currentAttempt = currentPushDeliveryAttempt(parsed.attempt, Number(job.read_ct));
-  const result = await sendFcmMessage(parsed.token, parsed.notification, projectId, accessToken);
+  const result = await sendFcmMessage(parsed.token, parsed.notification, projectId, accessToken, ttlSeconds);
   if (result.ok) {
     await archiveMessage(adminDb, job.msg_id);
     return { outcome: "sent" };
@@ -141,8 +169,17 @@ async function processJob(adminDb: any, job: any, accessToken: string, projectId
     return { outcome: "disabled_invalid" };
   }
 
+  if (remainingPushTtlSeconds(parsed.expiresAt) <= 0) {
+    await archiveMessage(adminDb, job.msg_id);
+    return { outcome: "expired" };
+  }
+
   if (result.retryable && hasPushRetryBudget(currentAttempt, MAX_TOTAL_ATTEMPTS)) {
     const delaySeconds = getWorkerRetryDelaySeconds(result, currentAttempt);
+    if (!canScheduleBeforePushExpiry(parsed.expiresAt, delaySeconds)) {
+      await archiveMessage(adminDb, job.msg_id);
+      return { outcome: "expired_before_retry" };
+    }
     const { error } = await adminDb.rpc("reschedule_push_delivery_retry", {
       p_old_msg_id: job.msg_id,
       p_message: {
@@ -151,6 +188,7 @@ async function processJob(adminDb: any, job: any, accessToken: string, projectId
         attempt: currentAttempt,
         last_error_code: result.code,
         retry_after: result.retryAfter || null,
+        expires_at: parsed.expiresAt,
       },
       p_delay_seconds: delaySeconds,
     });
