@@ -1442,8 +1442,24 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                         const date = dateValue && !Number.isNaN(new Date(dateValue).getTime()) ? new Date(dateValue) : null;
                         return <li key={dateValue || index}>
                           <span className="detail-history-dot" />
-                          <div><strong>{record.title || record.titulo || record.description || record.descricao || record.message || record.mensagem || record.status || "Atualização registrada"}</strong>
+                          <div>
+                            <strong>{record.title || record.titulo || record.description || record.descricao || record.message || record.mensagem || record.status || "Atualização registrada"}</strong>
                             <small>{date ? date.toLocaleString("pt-BR") : "Data não informada"}{record.source ? " · " + record.source : ""}</small>
+                            {Array.isArray(record.changes) && record.changes.length > 0 && (
+                              <ul className="detail-history-changes">
+                                {record.changes.map((change, changeIndex) => {
+                                  const label = change.label || change.field || "Campo";
+                                  const before = change.oldValue ?? change.from ?? "Não informado";
+                                  const after = change.newValue ?? change.to ?? "Não informado";
+                                  const beforeText = before && typeof before === "object" ? before.valor ?? JSON.stringify(before) : String(before);
+                                  const afterText = after && typeof after === "object" ? after.valor ?? JSON.stringify(after) : String(after);
+                                  return <li key={change.field || changeIndex}><b>{label}:</b> {beforeText}<span aria-hidden="true"> → </span>{afterText}</li>;
+                                })}
+                              </ul>
+                            )}
+                            {(record.candidateUrl || record.sourceUrl) && isTrustedOfficialUrl(record.candidateUrl || record.sourceUrl) && (
+                              <a className="detail-history-source" href={record.candidateUrl || record.sourceUrl} target="_blank" rel="noopener noreferrer">Abrir documento da atualização ↗</a>
+                            )}
                           </div>
                         </li>;
                       })}

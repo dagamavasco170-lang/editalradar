@@ -4,6 +4,24 @@ import { getUpcomingMilestones } from "./dashboard.js";
 describe("agenda inteligente do candidato", () => {
   const today = new Date(2026, 10, 21, 12, 0, 0);
 
+  it("inclui datas corrigidas por retificação mesmo quando não estão no campo de situação", () => {
+    const now = new Date("2026-11-22T12:00:00.000Z");
+    const items = [{
+      id: 44,
+      cargo: "Analista",
+      orgao: "Órgão público",
+      status: "Edital publicado · inscrições até 20/12/2026",
+      prazoInscricao: "20/12/2026",
+      dataProva: "22/01/2027",
+      dataResultado: "20/03/2027"
+    }];
+    const events = getUpcomingMilestones(items, now, 10);
+    expect(events.map(event => event.type)).toEqual(["deadline", "exam", "result"]);
+    expect(events.map(event => event.date.toLocaleDateString("pt-BR"))).toEqual([
+      "20/12/2026", "22/01/2027", "20/03/2027"
+    ]);
+  });
+
   it("identifica provas, resultados e encerramento de inscrições com datas futuras", () => {
     const catalog = [
       { id: 1, cargo: "Auditor", orgao: "Receita", status: "Prova objetiva em 06/12/2026 · inscrições encerradas" },

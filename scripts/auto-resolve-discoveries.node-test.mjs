@@ -374,6 +374,93 @@ test("atualiza apenas campos explícitos da retificação e preserva histórico"
   assert.equal(result.data.cargo, existing.cargo);
 });
 
+test("atualiza remuneração somente com par explícito e valor anterior compatível", () => {
+  const existing = {
+    orgao: "Prefeitura Municipal de Igaci",
+    cargo: "Agente Administrativo",
+    remuneracao: { valor: "R$ 2.000,00", natureza: "Inicial" },
+    historicoAtualizacoes: []
+  };
+  const result = buildRetificationUpdate(
+    existing,
+    { orgao: existing.orgao, cargo: existing.cargo },
+    { ...discovery, title: "Retificação do Edital 01/2026" },
+    {
+      title: "Retificação do Edital 01/2026",
+      text: "Retificação oficial. Para o cargo, onde se lê remuneração de R$ 2.000,00, leia-se remuneração de R$ 2.450,00."
+    }
+  );
+  assert.equal(result.updated, true);
+  assert.equal(result.data.remuneracao.valor, "R$ 2.450,00");
+  assert.ok(result.changes.some(change => change.field === "remuneracao"));
+});
+
+test("mantém remuneração original quando o valor antigo não corresponde ao catálogo", () => {
+  const existing = {
+    orgao: "Prefeitura Municipal de Igaci",
+    cargo: "Agente Administrativo",
+    remuneracao: { valor: "R$ 2.700,00" },
+    historicoAtualizacoes: []
+  };
+  const result = buildRetificationUpdate(
+    existing,
+    { orgao: existing.orgao, cargo: existing.cargo },
+    { ...discovery, title: "Retificação do Edital" },
+    {
+      title: "Retificação do Edital",
+      text: "Retificação. Onde se lê remuneração de R$ 2.000,00, leia-se remuneração de R$ 2.450,00."
+    }
+  );
+  assert.equal(result.updated, false);
+  assert.equal(result.data, undefined);
+});
+
+test("atualiza prazo de inscrição e data de prova e publica o histórico legível", () => {
+  const existing = {
+    orgao: "Prefeitura Municipal de Igaci",
+    cargo: "Agente Administrativo",
+    status: "Edital publicado · inscrições abertas",
+    observacao: "Concurso para Agente Administrativo.",
+    historicoAtualizacoes: []
+  };
+  const result = buildRetificationUpdate(
+    existing,
+    { orgao: existing.orgao, cargo: existing.cargo },
+    { ...discovery, title: "Retificação do Edital 01/2026" },
+    {
+      title: "Retificação do Edital 01/2026",
+      text: "Retificação do cronograma: onde se lê período de inscrições até 10/12/2026, leia-se período de inscrições até 20/12/2026. Onde se lê data da prova objetiva 15/01/2027, leia-se data da prova objetiva 22/01/2027."
+    }
+  );
+  assert.equal(result.updated, true);
+  assert.equal(result.data.prazoInscricao, "20/12/2026");
+  assert.equal(result.data.dataProva, "22/01/2027");
+  assert.match(result.data.status, /inscrições até 20\/12\/2026/);
+  assert.match(result.data.observacao, /Prazo de inscrição alterado de 10\/12\/2026 para 20\/12\/2026/);
+  assert.match(result.data.observacao, /Data da prova alterada de 15\/01\/2027 para 22\/01\/2027/);
+  assert.ok(result.changes.some(change => change.field === "prazoInscricao"));
+  assert.ok(result.changes.some(change => change.field === "dataProva"));
+});
+
+test("não atualiza contagem de vagas quando o valor corrigido anterior diverge do catálogo", () => {
+  const existing = {
+    orgao: "Prefeitura Municipal de Igaci",
+    cargo: "Agente Administrativo",
+    vagas: 18,
+    historicoAtualizacoes: []
+  };
+  const result = buildRetificationUpdate(
+    existing,
+    { orgao: existing.orgao, cargo: existing.cargo },
+    { ...discovery, title: "Retificação do Edital" },
+    {
+      title: "Retificação do Edital",
+      text: "Onde se lê 20 vagas, leia-se 30 vagas."
+    }
+  );
+  assert.equal(result.updated, false);
+});
+
 test("não atualiza registro se órgão ou cargo não corresponder exatamente", () => {
   const result = buildRetificationUpdate(
     { orgao: "Prefeitura Municipal de Igaci", cargo: "Agente Administrativo", vagas: 20 },

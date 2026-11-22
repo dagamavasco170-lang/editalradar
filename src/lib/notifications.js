@@ -1,30 +1,56 @@
 const isPreliminary = (item) => /concurso listado\s*·\s*verificar/i.test(item?.status || "");
 
+const snapshotValue = value => {
+  if (value == null || value === "") return "";
+  if (typeof value === "object" && !Array.isArray(value)) {
+    return String(value.valor ?? value.value ?? value.amount ?? "");
+  }
+  return String(value);
+};
+
+const formatValue = (value) => {
+  const normalized = snapshotValue(value);
+  return normalized === "" ? "não informado" : normalized;
+};
+
 export function buildCatalogSnapshot(catalog = []) {
   return catalog
     .filter((item) => item && item.id != null)
-    .map((item) => ({
-      id: String(item.id),
-      cargo: String(item.cargo || ""),
-      orgao: String(item.orgao || ""),
-      status: String(item.status || ""),
-      vagas: item.vagas ?? null,
-      nivel: String(item.nivel || ""),
-      estado: String(item.estado || ""),
-      localidade: String(item.localidade || ""),
-      atoOficial: String(item.atoOficial || ""),
-      sourceUrl: String(item.sourceUrl || ""),
-      historyCount: Array.isArray(item.historicoAtualizacoes) ? item.historicoAtualizacoes.length : 0,
-      lastHistoryAt: Array.isArray(item.historicoAtualizacoes) && item.historicoAtualizacoes.length
-        ? String(item.historicoAtualizacoes[item.historicoAtualizacoes.length - 1]?.at || "")
-        : "",
-      lastHistoryType: Array.isArray(item.historicoAtualizacoes) && item.historicoAtualizacoes.length
-        ? String(item.historicoAtualizacoes[item.historicoAtualizacoes.length - 1]?.type || "")
-        : ""
-    }));
+    .map((item) => {
+      const history = Array.isArray(item.historicoAtualizacoes) ? item.historicoAtualizacoes : [];
+      const lastHistory = history.length ? history[history.length - 1] : null;
+      return {
+        id: String(item.id),
+        cargo: String(item.cargo || ""),
+        orgao: String(item.orgao || ""),
+        status: String(item.status || ""),
+        vagas: item.vagas ?? null,
+        nivel: String(item.nivel || ""),
+        estado: String(item.estado || ""),
+        localidade: String(item.localidade || ""),
+        atoOficial: String(item.atoOficial || ""),
+        sourceUrl: String(item.sourceUrl || ""),
+        remuneracao: snapshotValue(item.remuneracao ?? item.salario ?? item.salarioInicial
+          ?? item.remuneracaoInicial ?? item.vencimento),
+        vagasImediatas: item.vagasImediatas ?? null,
+        cadastroReserva: item.cadastroReserva ?? null,
+        prazoInscricao: String(item.prazoInscricao || ""),
+        dataProva: String(item.dataProva || ""),
+        dataResultado: String(item.dataResultado || ""),
+        historyCount: history.length,
+        lastHistoryAt: String(lastHistory?.at || ""),
+        lastHistoryType: String(lastHistory?.type || ""),
+        lastHistoryChanges: Array.isArray(lastHistory?.changes)
+          ? lastHistory.changes.slice(0, 12).map(change => ({
+            field: String(change.field || ""),
+            label: String(change.label || ""),
+            oldValue: change.oldValue ?? change.from ?? null,
+            newValue: change.newValue ?? change.to ?? null
+          }))
+          : []
+      };
+    });
 }
-
-const formatValue = (value) => value == null || value === "" ? "não informado" : String(value);
 
 export function detectCatalogNotifications({
   catalog = [],
@@ -45,11 +71,11 @@ export function detectCatalogNotifications({
     if (!previous) {
       if (isPreliminary(item)) continue;
       notifications.push({
-        id: `new-${item.id}`,
+        id: \`new-\${item.id}\`,
         type: "new",
         itemId: item.id,
         title: "Novo concurso no catálogo",
-        message: `${item.cargo} — ${item.orgao}`,
+        message: \`\${item.cargo} — \${item.orgao}\`,
         createdAt: new Date().toISOString(),
         read: false
       });
@@ -58,38 +84,67 @@ export function detectCatalogNotifications({
 
     if (!favorites.has(item.id)) continue;
     const changes = [];
+    const reportedFields = new Set();
     const hasNewRetification = item.historyCount > (Number(previous.historyCount) || 0)
       && item.lastHistoryType === "retificacao";
-    if (hasNewRetification) {
-      changes.push("Retificação oficial publicada");
-    }
-    if (previous.status !== item.status) {
-      changes.push(`Situação: ${formatValue(previous.status)} → ${formatValue(item.status)}`);
-    }
-    if (previous.vagas !== item.vagas) {
-      changes.push(`Vagas: ${formatValue(previous.vagas)} → ${formatValue(item.vagas)}`);
-    }
+    if (hasNewRetification) changes.push("Retificação oficial publicada");
+
+    const addChange = (field, label, previousValue, nextValue) => {
+      // Snapshots antigos não têm linha de base para os novos campos.
+      if (!Object.prototype.hasOwnProperty.call(previous, field)) return;
+      const before = previousValue == null ? "" : String(previousValue);
+      const after = nextValue == null ? "" : String(nextValue);
+      if (before === after || reportedFields.has(field)) return;
+      reportedFields.add(field);
+      changes.push(\`\${label}: \${formatValue(before)} → \${formatValue(after)}\`);
+    };
+
+    addChange("status", "Situação", previous.status, item.status);
+    addChange("vagas", "Vagas", previous.vagas, item.vagas);
     if (previous.atoOficial !== item.atoOficial) {
+      reportedFields.add("atoOficial");
       changes.push("Ato ou edital atualizado");
     }
     if (previous.cargo !== item.cargo || previous.orgao !== item.orgao) {
+      reportedFields.add("cargo");
       changes.push("Cargo ou órgão atualizado");
     }
     if (previous.nivel !== item.nivel || previous.localidade !== item.localidade || previous.estado !== item.estado) {
+      reportedFields.add("requisitos");
       changes.push("Requisito ou localidade atualizado");
     }
     if (previous.sourceUrl !== item.sourceUrl) {
+      reportedFields.add("sourceUrl");
       changes.push("Link da fonte atualizado");
     }
+
+    addChange("remuneracao", "Remuneração", previous.remuneracao, item.remuneracao);
+    addChange("vagasImediatas", "Vagas imediatas", previous.vagasImediatas, item.vagasImediatas);
+    addChange("cadastroReserva", "Cadastro de reserva", previous.cadastroReserva, item.cadastroReserva);
+    addChange("prazoInscricao", "Prazo de inscrição", previous.prazoInscricao, item.prazoInscricao);
+    addChange("dataProva", "Data da prova", previous.dataProva, item.dataProva);
+    addChange("dataResultado", "Data do resultado", previous.dataResultado, item.dataResultado);
+
+    if (hasNewRetification) {
+      for (const entry of item.lastHistoryChanges) {
+        if (!entry?.field || reportedFields.has(entry.field)) continue;
+        const label = entry.label || entry.field;
+        const before = entry.oldValue ?? "";
+        const after = entry.newValue ?? "";
+        reportedFields.add(entry.field);
+        changes.push(\`\${label}: \${formatValue(before)} → \${formatValue(after)}\`);
+      }
+    }
+
     if (changes.length) {
       notifications.push({
         id: hasNewRetification
-          ? `retification-${item.id}-${encodeURIComponent(item.lastHistoryAt || String(item.historyCount)).slice(0, 80)}`
-          : `favorite-${item.id}-${encodeURIComponent(changes.join("|")).slice(0, 100)}`,
+          ? \`retification-\${item.id}-\${encodeURIComponent(item.lastHistoryAt || String(item.historyCount)).slice(0, 80)}\`
+          : \`favorite-\${item.id}-\${encodeURIComponent(changes.join("|")).slice(0, 100)}\`,
         type: hasNewRetification ? "retification" : "favorite-update",
         itemId: item.id,
         title: hasNewRetification ? "Retificação oficial no seu favorito" : "Concurso favorito atualizado",
-        message: `${item.cargo}: ${changes.join(" · ")}`,
+        message: \`\${item.cargo}: \${changes.join(" · ")}\`,
         createdAt: new Date().toISOString(),
         read: false
       });
@@ -98,7 +153,6 @@ export function detectCatalogNotifications({
 
   return { snapshot, notifications, initialized: false };
 }
-
 
 export function dismissNotificationHistory(notifications = [], dismissedAt = new Date().toISOString()) {
   return notifications
@@ -138,11 +192,9 @@ export function mergeNotificationHistory(remote = [], local = []) {
   return [...merged.values()];
 }
 
-
 export function getVisibleNotifications(notifications = []) {
   return notifications.filter((item) => item && !item.dismissedAt);
 }
-
 
 export function dismissNotificationById(notifications = [], notificationId, dismissedAt = new Date().toISOString()) {
   return notifications.map((item) => {

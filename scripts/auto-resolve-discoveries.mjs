@@ -503,6 +503,69 @@ export function findMatchingContestForRetification({
   return sameOfficialHost.length === 1 ? sameOfficialHost[0] : null;
 }
 
+
+function parseRetificationDate(value) {
+  const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(String(value || "").trim());
+  if (!match) return null;
+  const day = Number(match[1]);
+  const month = Number(match[2]) - 1;
+  const year = Number(match[3]);
+  const date = new Date(year, month, day, 12, 0, 0, 0);
+  if (date.getFullYear() !== year || date.getMonth() !== month || date.getDate() !== day) return null;
+  return match[0];
+}
+
+function uniqueBrazilianDate(part) {
+  const matches = [...String(part || "").matchAll(/\b\d{2}\/\d{2}\/\d{4}\b/g)]
+    .map(match => parseRetificationDate(match[0]))
+    .filter(Boolean);
+  const unique = [...new Set(matches)];
+  return unique.length === 1 ? unique[0] : null;
+}
+
+function uniqueBrazilianMoney(part) {
+  const matches = [...String(part || "").matchAll(/(?:R\$\s*)?(\d{1,6}(?:\.\d{3})*,\d{2})\b/g)]
+    .map(match => match[1]);
+  const unique = [...new Set(matches)];
+  return unique.length === 1 ? unique[0] : null;
+}
+
+function uniqueRetificationCount(part) {
+  const matches = [...String(part || "").matchAll(/\b(\d{1,5})\b/g)]
+    .map(match => Number(match[1]))
+    .filter(value => Number.isInteger(value) && value >= 0 && value <= 100000);
+  const unique = [...new Set(matches)];
+  return unique.length === 1 ? unique[0] : null;
+}
+
+function amountAsNumber(value) {
+  const normalized = String(value ?? "").replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(",", ".");
+  const amount = Number(normalized);
+  return Number.isFinite(amount) ? amount : null;
+}
+
+function extractReadAsCorrections(text) {
+  const source = String(text || "");
+  const corrections = [];
+  const expression = /\bonde\s+se\s+lê\b([\s\S]{0,180}?)\bleia-se\b([\s\S]{0,180}?)(?=[.\n]|$)/gi;
+  for (const match of source.matchAll(expression)) {
+    corrections.push({
+      oldText: String(match[1] || "").trim(),
+      newText: String(match[2] || "").trim()
+    });
+  }
+  return corrections;
+}
+
+function formatRetificationObservation(existing, lines) {
+  const additions = [...new Set(lines.filter(Boolean))];
+  if (!additions.length) return existing || "";
+  const block = "[Retificação oficial monitorada] " + additions.join(" ");
+  const current = String(existing || "").trim();
+  if (current.includes(block)) return current;
+  return [current, block].filter(Boolean).join("\n\n").slice(-5000);
+}
+
 export function buildRetificationUpdate(existingData, extractedData, discovery, document) {
   const text = String(document?.text || "");
   const evidence = [discovery?.title, document?.title, document?.heading, text].filter(Boolean).join("\n");
@@ -524,13 +587,93 @@ export function buildRetificationUpdate(existingData, extractedData, discovery, 
   const setIfChanged = (field, nextValue) => {
     if (nextValue === undefined || nextValue === null || nextValue === "") return;
     const previous = updatedData[field] ?? null;
-    if (String(previous) === String(nextValue)) return;
+    const previousComparable = previous && typeof previous === "object" ? JSON.stringify(previous) : String(previous ?? "");
+    const nextComparable = nextValue && typeof nextValue === "object" ? JSON.stringify(nextValue) : String(nextValue);
+    if (previousComparable === nextComparable) return;
     changes.push({ field, oldValue: previous, newValue: nextValue });
     updatedData[field] = nextValue;
   };
 
-  const explicitVacancy = text.match(/\bleia-se\D{0,40}(\d{1,5})\s+vagas?\b/i)
-    || text.match(/\bpassa(?:m)? a ser\D{0,40}(\d{1,5})\s+vagas?\b/i)
+  const corrections = extractReadAsCorrections(text);
+  const correctionNotes = [];
+  const handledVacancyFields = new Set();
+  let explicitInscriptionStatusCorrection = false;
+
+  for (const correction of corrections) {
+    const correctionText = (correction.oldText + " " + correction.newText).toLocaleLowerCase("pt-BR");
+
+    if (/\bvagas?\b/.test(correctionText)) {
+      const oldCount = uniqueRetificationCount(correction.oldText);
+      const newCount = uniqueRetificationCount(correction.newText);
+      const field = /\bvagas?\s+imediatas?\b/.test(correctionText)
+        ? "vagasImediatas"
+        : /cadastro\s+de\s+reserva/.test(correctionText)
+          ? "cadastroReserva"
+          : "vagas";
+      handledVacancyFields.add(field);
+      const currentValue = updatedData[field];
+      if (oldCount !== null && newCount !== null && oldCount !== newCount
+        && (currentValue == null || Number(currentValue) === oldCount)) {
+        setIfChanged(field, newCount);
+      }
+    }
+
+    // Remuneração só é atualizada quando a correção traz um valor antigo e
+    // um novo valor monetário inequívocos, com indicação explícita de moeda.
+    if (/remuneraç|salário|vencimento|subsídio|vencimento básico/i.test(correctionText)) {
+      const oldMoney = uniqueBrazilianMoney(correction.oldText);
+      const newMoney = uniqueBrazilianMoney(correction.newText);
+      if (oldMoney && newMoney && /R\$/i.test(correction.oldText + " " + correction.newText)) {
+        const existingRemuneration = updatedData.remuneracao ?? updatedData.salario
+          ?? updatedData.salarioInicial ?? updatedData.remuneracaoInicial ?? updatedData.vencimento;
+        const existingAmount = existingRemuneration && typeof existingRemuneration === "object"
+          ? existingRemuneration.valor
+          : existingRemuneration;
+        const currentNumber = amountAsNumber(existingAmount);
+        const oldNumber = amountAsNumber(oldMoney);
+        if (currentNumber == null || oldNumber == null || currentNumber === oldNumber) {
+          setIfChanged("remuneracao", {
+            ...(existingRemuneration && typeof existingRemuneration === "object" ? existingRemuneration : {}),
+            valor: "R$ " + newMoney,
+            natureza: "Valor atualizado por retificação oficial"
+          });
+          if (oldMoney !== newMoney) correctionNotes.push("Remuneração alterada de R$ " + oldMoney + " para R$ " + newMoney + ".");
+        }
+      }
+    }
+
+    const oldDate = uniqueBrazilianDate(correction.oldText);
+    const newDate = uniqueBrazilianDate(correction.newText);
+    if (oldDate && newDate && oldDate !== newDate) {
+      if (/inscriç|inscricao|prazo/i.test(correctionText)) {
+        setIfChanged("prazoInscricao", newDate);
+        correctionNotes.push("Prazo de inscrição alterado de " + oldDate + " para " + newDate + ".");
+        if (/abert|até|ate/i.test(correction.newText)) {
+          setIfChanged("status", "Edital publicado · inscrições até " + newDate);
+        }
+      } else if (/prova|avaliaç|avaliac|exame/i.test(correctionText)) {
+        setIfChanged("dataProva", newDate);
+        correctionNotes.push("Data da prova alterada de " + oldDate + " para " + newDate + ".");
+      } else if (/resultado|homologaç|homologac|classificaç|classificac/i.test(correctionText)) {
+        setIfChanged("dataResultado", newDate);
+        correctionNotes.push("Data de resultado/homologação alterada de " + oldDate + " para " + newDate + ".");
+      }
+    }
+
+    if (/inscriç|inscricao|período de inscrição|periodo de inscricao/i.test(correctionText)) {
+      if (/encerrad|finalizad/i.test(correction.newText)) {
+        setIfChanged("status", "Edital publicado · inscrições encerradas");
+        explicitInscriptionStatusCorrection = true;
+      } else if (/abert/i.test(correction.newText)) {
+        setIfChanged("status", "Edital publicado · inscrições abertas");
+        explicitInscriptionStatusCorrection = true;
+      }
+    }
+  }
+
+  // Correções de vagas que não informam "onde se lê / leia-se" continuam
+  // aceitas apenas quando há um valor novo explícito e não conflitante.
+  const explicitVacancy = text.match(/\bpassa(?:m)? a ser\D{0,40}(\d{1,5})\s+vagas?\b/i)
     || text.match(/\bpassa(?:m)? para\D{0,40}(\d{1,5})\s+vagas?\b/i)
     || text.match(/\btotalizando\D{0,40}(\d{1,5})\s+vagas?\b/i);
   const vacancyMentions = [...text.matchAll(/\b(\d{1,5})\s+vagas?\b/gi)].map(match => Number(match[1]));
@@ -538,20 +681,27 @@ export function buildRetificationUpdate(existingData, extractedData, discovery, 
   const nextVacancies = explicitVacancy
     ? Number(explicitVacancy[1])
     : uniqueVacancies.length === 1 ? uniqueVacancies[0] : null;
-  if (nextVacancies !== null && Number.isInteger(nextVacancies) && nextVacancies >= 0) {
+  if (!handledVacancyFields.has("vagas") && nextVacancies !== null
+    && Number.isInteger(nextVacancies) && nextVacancies >= 0) {
     setIfChanged("vagas", nextVacancies);
   }
 
-  const immediateRetification = text.match(/\bleia-se\D{0,40}(\d{1,5})\s+vagas?\s+imediatas?\b/i)
-    || text.match(/\bpassa(?:m)? a ser\D{0,40}(\d{1,5})\s+vagas?\s+imediatas?\b/i);
-  if (immediateRetification) setIfChanged("vagasImediatas", Number(immediateRetification[1]));
-  const reserveRetification = text.match(/\bleia-se\D{0,40}(\d{1,5})\s+(?:vagas?\s+)?(?:para\s+)?cadastro de reserva\b/i)
-    || text.match(/\bpassa(?:m)? a ser\D{0,40}(\d{1,5})\s+(?:vagas?\s+)?(?:para\s+)?cadastro de reserva\b/i);
-  if (reserveRetification) setIfChanged("cadastroReserva", Number(reserveRetification[1]));
+  const immediateRetification = text.match(/\bpassa(?:m)? a ser\D{0,40}(\d{1,5})\s+vagas?\s+imediatas?\b/i);
+  if (!handledVacancyFields.has("vagasImediatas") && immediateRetification) {
+    setIfChanged("vagasImediatas", Number(immediateRetification[1]));
+  }
+  const reserveRetification = text.match(/\bpassa(?:m)? a ser\D{0,40}(\d{1,5})\s+(?:vagas?\s+)?(?:para\s+)?cadastro de reserva\b/i);
+  if (!handledVacancyFields.has("cadastroReserva") && reserveRetification) {
+    setIfChanged("cadastroReserva", Number(reserveRetification[1]));
+  }
+
+  if (correctionNotes.length) {
+    setIfChanged("observacao", formatRetificationObservation(updatedData.observacao, correctionNotes));
+  }
 
   const saysOpen = /inscrições\s+(?:estão\s+)?abertas|período de inscrições\s+aberto/i.test(text);
   const saysClosed = /inscrições\s+(?:estão\s+)?encerradas|período de inscrições\s+encerrado/i.test(text);
-  if (saysOpen !== saysClosed) {
+  if (!explicitInscriptionStatusCorrection && saysOpen !== saysClosed) {
     setIfChanged("status", saysOpen
       ? "Edital publicado · inscrições abertas"
       : "Edital publicado · inscrições encerradas");
@@ -584,7 +734,6 @@ export function buildRetificationUpdate(existingData, extractedData, discovery, 
     reason: "Retificação oficial confirmada para o mesmo órgão e cargo; campos objetivos atualizados e versão anterior preservada no histórico."
   };
 }
-
 function readPdfText(buffer) {
   try {
     return execFileSync("pdftotext", ["-layout", "-", "-"], {

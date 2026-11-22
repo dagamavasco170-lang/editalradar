@@ -36,19 +36,36 @@ export const getUpcomingMilestones = (catalog = [], now = new Date(), limit = 5)
     const status = String(item.status || "");
     if (/concurso listado\s*·\s*verificar/i.test(status)) continue;
 
-    for (const pattern of DATE_PATTERNS) {
-      const match = pattern.expression.exec(status);
-      if (!match) continue;
-      const date = parseBrazilianDate(match[1]);
-      if (!date || date < today) continue;
+    const itemEvents = new Set();
+    const addEvent = (type, label, date) => {
+      if (!date || date < today) return;
+      const key = String(item.id) + "|" + type + "|" + date.toISOString().slice(0, 10);
+      if (itemEvents.has(key)) return;
+      itemEvents.add(key);
       events.push({
         id: item.id,
-        type: pattern.type,
-        label: pattern.label,
+        type,
+        label,
         title: item.cargo || "Concurso sem cargo informado",
         orgao: item.orgao || "Órgão não informado",
         date
       });
+    };
+
+    for (const pattern of DATE_PATTERNS) {
+      const match = pattern.expression.exec(status);
+      if (!match) continue;
+      addEvent(pattern.type, pattern.label, parseBrazilianDate(match[1]));
+    }
+
+    const structuredDates = [
+      ["prazoInscricao", "deadline", "Fim das inscrições"],
+      ["dataProva", "exam", "Prova"],
+      ["dataResultado", "result", "Resultado / homologação"]
+    ];
+    for (const [field, type, label] of structuredDates) {
+      const date = parseBrazilianDate(item[field]);
+      if (date) addEvent(type, label, date);
     }
   }
 

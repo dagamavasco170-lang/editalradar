@@ -84,6 +84,76 @@ describe("Notificações do catálogo", () => {
     expect(result.notifications[0].id).toContain("retification-10-");
   });
 
+  it("notifica favoritos com detalhes de remuneração, vagas imediatas, reserva e cronograma", () => {
+    const previous = contest({
+      remuneracao: { valor: "R$ 2.000,00" },
+      vagasImediatas: 10,
+      cadastroReserva: 5,
+      prazoInscricao: "10/12/2026",
+      dataProva: "15/01/2027"
+    });
+    const previousSnapshot = buildCatalogSnapshot([previous]);
+    const updated = contest({
+      remuneracao: { valor: "R$ 2.450,00" },
+      vagasImediatas: 15,
+      cadastroReserva: 10,
+      prazoInscricao: "20/12/2026",
+      dataProva: "22/01/2027",
+      historicoAtualizacoes: [{
+        at: "2026-11-22T13:00:00.000Z",
+        type: "retificacao",
+        title: "Retificação do Edital 01/2026",
+        changes: [
+          { field: "remuneracao", oldValue: { valor: "R$ 2.000,00" }, newValue: { valor: "R$ 2.450,00" } },
+          { field: "vagasImediatas", oldValue: 10, newValue: 15 },
+          { field: "cadastroReserva", oldValue: 5, newValue: 10 },
+          { field: "prazoInscricao", oldValue: "10/12/2026", newValue: "20/12/2026" },
+          { field: "dataProva", oldValue: "15/01/2027", newValue: "22/01/2027" }
+        ]
+      }]
+    });
+    const result = detectCatalogNotifications({
+      catalog: [updated],
+      previousSnapshot,
+      favoriteIds: [10]
+    });
+
+    expect(result.notifications).toHaveLength(1);
+    const message = result.notifications[0].message;
+    expect(message).toContain("Remuneração: R$ 2.000,00 → R$ 2.450,00");
+    expect(message).toContain("Vagas imediatas: 10 → 15");
+    expect(message).toContain("Cadastro de reserva: 5 → 10");
+    expect(message).toContain("Prazo de inscrição: 10/12/2026 → 20/12/2026");
+    expect(message).toContain("Data da prova: 15/01/2027 → 22/01/2027");
+  });
+
+  it("não gera alertas falsos na primeira atualização de snapshots antigos", () => {
+    const previousSnapshot = buildCatalogSnapshot([contest()]).map(item => {
+      const oldVersion = { ...item };
+      delete oldVersion.remuneracao;
+      delete oldVersion.vagasImediatas;
+      delete oldVersion.cadastroReserva;
+      delete oldVersion.prazoInscricao;
+      delete oldVersion.dataProva;
+      delete oldVersion.dataResultado;
+      delete oldVersion.lastHistoryChanges;
+      return oldVersion;
+    });
+    const updated = contest({
+      remuneracao: { valor: "R$ 2.000,00" },
+      vagasImediatas: 20,
+      cadastroReserva: 5,
+      prazoInscricao: "20/12/2026",
+      dataProva: "22/01/2027"
+    });
+    const result = detectCatalogNotifications({
+      catalog: [updated],
+      previousSnapshot,
+      favoriteIds: [10]
+    });
+    expect(result.notifications).toEqual([]);
+  });
+
   it("não gera aviso de retificação quando o concurso não é favorito", () => {
     const previousSnapshot = buildCatalogSnapshot([contest()]);
     const result = detectCatalogNotifications({
