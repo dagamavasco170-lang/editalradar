@@ -1,5 +1,6 @@
 import process from "node:process";
 import { execFileSync } from "node:child_process";
+import { buildDailyAutomationRunQuery } from "../../scripts/question-automation-budget.mjs";
 
 const SUPABASE_URL = String(process.env.SUPABASE_URL || "").replace(/\/$/, "");
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
@@ -208,13 +209,7 @@ async function main() {
   const topics = await supabaseRest(`study_question_automation_topics?${topicParams.toString()}`);
   const utcStart = new Date();
   utcStart.setUTCHours(0, 0, 0, 0);
-  const runParams = new URLSearchParams({
-    select: "id",
-    started_at: `gte.${utcStart.toISOString()}`,
-    trigger_mode: "eq.scheduled",
-    status: "neq.failed",
-    limit: String(DAILY_TOPIC_LIMIT)
-  });
+  const runParams = buildDailyAutomationRunQuery(utcStart.toISOString(), DAILY_TOPIC_LIMIT);
   const todaysRuns = await supabaseRest(`study_question_automation_runs?${runParams.toString()}`);
   const remaining = Math.max(0, DAILY_TOPIC_LIMIT - (todaysRuns || []).length);
   if (!remaining) {

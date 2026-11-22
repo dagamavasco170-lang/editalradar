@@ -465,7 +465,7 @@ async function dailyRunBudgetAvailable(triggerMode: "manual" | "scheduled"): Pro
     .select("id")
     .gte("started_at", start)
     .eq("trigger_mode", triggerMode)
-    .neq("status", "failed")
+    // Count every attempt, including failures, to prevent unlimited retries.
     .limit(limit);
   if (error) throw new Error("Não foi possível verificar o limite diário da automação: " + error.message);
   const count = (data || []).length;
