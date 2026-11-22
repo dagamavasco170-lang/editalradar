@@ -158,7 +158,7 @@ async function fetchOfficialText(sourceUrl) {
       const html = new TextDecoder("utf-8").decode(bytes);
       const text = stripTags(html);
       if (text.length < 200) throw new Error("A página não contém texto suficiente para elaborar questões.");
-      return { text: text.slice(0, 12000), headings: extractHeadings(html, "", "", sourceUrl) };
+      return { text: text.slice(0, 12000), html };
     } catch (error) {
       lastError = error;
       if (attempt < 3) await new Promise((resolve) => setTimeout(resolve, attempt * 1000));
@@ -217,11 +217,11 @@ async function main() {
       let source = excerptByUrl.get(topic.source_url);
       if (!source) {
         if (String(topic.source_excerpt || "").trim()) {
-          source = { text: String(topic.source_excerpt).trim(), headings: [] };
+          source = { text: String(topic.source_excerpt).trim(), html: "" };
         } else {
           source = await fetchOfficialText(topic.source_url);
+          excerptByUrl.set(topic.source_url, source);
         }
-        excerptByUrl.set(topic.source_url, source);
       }
       if (source.text.length < 200) throw new Error("Trecho da fonte contém menos de 200 caracteres.");
       sourceExcerpts[topic.id] = source.text.slice(0, 12000);
