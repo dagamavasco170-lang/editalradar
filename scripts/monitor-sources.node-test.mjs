@@ -487,14 +487,16 @@ test("não reenfileira notícias já vistas em execuções anteriores do monitor
 
 
 test("mantém feeds editoriais auxiliares explícitos, HTTPS e independentes do Google Notícias", () => {
-  assert.equal(SECONDARY_NEWS_FEEDS.length, 2);
+  assert.equal(SECONDARY_NEWS_FEEDS.length, 3);
   assert.ok(SECONDARY_NEWS_FEEDS.every(feed => feed.feedUrl.startsWith("https://")));
-  assert.ok(SECONDARY_NEWS_FEEDS.some(feed => feed.id === "concursos-no-brasil"));
+  assert.ok(SECONDARY_NEWS_FEEDS.some(feed => feed.id === "concursos-no-brasil"
+    && feed.feedUrl === "https://concursosnobrasil.com.br/feed/"));
   assert.ok(SECONDARY_NEWS_FEEDS.some(feed => feed.id === "estrategia-concursos"));
+  assert.ok(SECONDARY_NEWS_FEEDS.some(feed => feed.id === "g1-concursos"));
 });
 
 test("extrai pistas recentes de RSS editorial sem tratar o artigo como prova oficial", () => {
-  const feedUrl = "https://www.concursosnobrasil.com.br/feed/";
+  const feedUrl = "https://concursosnobrasil.com.br/feed/";
   const xml = [
     "<rss><channel><item>",
     "<title>Prefeitura de Igaci publica edital de concurso público com 20 vagas</title>",
@@ -605,4 +607,61 @@ test("transporte curl rejeita feed não autorizado antes de qualquer requisiçã
     () => fetchNewsFeedWithCurl("https://example.org/rss"),
     /transporte alternativo/
   );
+});
+
+
+test("aceita manchetes de concursos do G1 como pistas e mantém o destino oficial obrigatório", () => {
+  const feed = SECONDARY_NEWS_FEEDS.find(item => item.id === "g1-concursos");
+  const xml = [
+    "<rss><channel><item>",
+    "<title>Idaf lança edital de concurso público com salários de R$ 8 mil</title>",
+    "<link>https://g1.globo.com/espirito-santo/noticia/2026/11/22/idaf-lanca-edital.ghtml</link>",
+    "<pubDate>Sun, 22 Nov 2026 18:00:00 GMT</pubDate>",
+    "<description>O edital do concurso oferece vagas para cargos de nível superior.</description>",
+    "</item></channel></rss>"
+  ].join("");
+  const leads = parseSecondaryNewsRss(xml, {
+    now: new Date("2026-11-22T18:30:00Z"),
+    feedUrl: feed.feedUrl,
+    feedLabel: feed.label
+  });
+  assert.equal(leads.length, 1);
+  assert.match(leads[0].candidate_url, /^https:\/\/g1\.globo\.com\//);
+  assert.match(leads[0].context, /ainda não é confirmação/);
+});
+
+test("pausa novas consultas ao Google Notícias depois de um HTTP 503 e continua com os feeds independentes", async () => {
+  const queries = Array.from({ length: 5 }, (_, index) => ({
+    label: "Consulta " + index,
+    query: "concurso edital " + index
+  }));
+  let googleRequests = 0;
+  let secondaryRequests = 0;
+  const result = await searchInternetForContestLeads({
+    queries,
+    secondaryFeeds: [SECONDARY_NEWS_FEEDS.find(item => item.id === "g1-concursos")],
+    concurrency: 2,
+    googleConcurrency: 1,
+    attempts: 1,
+    retryDelayMs: 0,
+    fallbackFetch: async () => new Response("temporariamente indisponível", { status: 503 }),
+    fetchImpl: async url => {
+      if (url.includes("news.google.com")) {
+        googleRequests += 1;
+        return new Response("temporariamente indisponível", { status: 503 });
+      }
+      secondaryRequests += 1;
+      return new Response("<rss><channel></channel></rss>", {
+        status: 200,
+        headers: { "content-type": "application/rss+xml" }
+      });
+    }
+  });
+
+  assert.equal(googleRequests, 1);
+  assert.equal(secondaryRequests, 1);
+  assert.equal(result.googleFeedsChecked, 5);
+  assert.equal(result.googleSkippedAfter503, 4);
+  assert.equal(result.secondaryFeedsChecked, 1);
+  assert.equal(result.errors.length, 5);
 });

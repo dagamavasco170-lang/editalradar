@@ -23,7 +23,8 @@ const PENDING_DISCOVERY_TYPES = new Set(["new_link", "page_change", "web_search_
 const SECONDARY_NEWS_HOSTS = [
   "concursosnobrasil.com.br",
   "concursos.estrategia.com",
-  "estrategiaconcursos.com.br"
+  "estrategiaconcursos.com.br",
+  "g1.globo.com"
 ];
 
 export function isTrustedSecondaryNewsHost(hostname) {

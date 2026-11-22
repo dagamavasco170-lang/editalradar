@@ -443,12 +443,17 @@ export const SECONDARY_NEWS_FEEDS = [
   {
     id: "concursos-no-brasil",
     label: "Concursos no Brasil",
-    feedUrl: "https://www.concursosnobrasil.com.br/feed/"
+    feedUrl: "https://concursosnobrasil.com.br/feed/"
   },
   {
     id: "estrategia-concursos",
     label: "Estratégia Concursos",
     feedUrl: "https://concursos.estrategia.com/portal/feed/"
+  },
+  {
+    id: "g1-concursos",
+    label: "G1 — Concursos",
+    feedUrl: "https://g1.globo.com/rss/g1/trabalho-e-carreira/concursos/"
   }
 ];
 
@@ -456,7 +461,8 @@ const GOOGLE_NEWS_RSS_ENDPOINT = "https://news.google.com/rss/search";
 const SECONDARY_NEWS_HOSTS = [
   "concursosnobrasil.com.br",
   "concursos.estrategia.com",
-  "estrategiaconcursos.com.br"
+  "estrategiaconcursos.com.br",
+  "g1.globo.com"
 ];
 
 export function isTrustedSecondaryNewsHost(hostname) {
@@ -864,11 +870,24 @@ export async function searchInternetForContestLeads(options = {}) {
   const queries = Array.isArray(options.queries) ? options.queries : INTERNET_SEARCH_QUERIES;
   const secondaryFeeds = Array.isArray(options.secondaryFeeds) ? options.secondaryFeeds : SECONDARY_NEWS_FEEDS;
   const concurrency = Math.max(1, Math.min(4, Number(options.concurrency) || 3));
+  const googleConcurrency = Math.max(1, Math.min(2, Number(options.googleConcurrency) || 2));
   const now = options.now instanceof Date ? options.now : new Date(options.now || Date.now());
   const maxResultsPerQuery = Math.max(1, Math.min(20, Number(options.maxResultsPerQuery) || 8));
+  let googleCircuitOpen = false;
 
-  const googleChecked = await mapWithConcurrency(queries, concurrency, async entry => {
+  const googleChecked = await mapWithConcurrency(queries, googleConcurrency, async entry => {
     const feedUrl = buildGoogleNewsRssUrl(entry.query);
+    if (googleCircuitOpen) {
+      return {
+        label: entry.label,
+        feedUrl,
+        discoveries: [],
+        error: "Google Notícias pausado neste ciclo após responder HTTP 503; as outras fontes continuam ativas.",
+        provider: "Google Notícias",
+        skipped: true
+      };
+    }
+
     try {
       const response = await fetchNewsFeedWithRetry(feedUrl, {
         fetchImpl: request,
@@ -879,7 +898,10 @@ export async function searchInternetForContestLeads(options = {}) {
         fallbackFetch: options.fallbackFetch || fetchNewsFeedWithCurl,
         nowMs: options.nowMs
       });
-      if (!response.ok) throw new Error("Google Notícias respondeu HTTP " + response.status + ".");
+      if (!response.ok) {
+        if (response.status === 503) googleCircuitOpen = true;
+        throw new Error("Google Notícias respondeu HTTP " + response.status + ".");
+      }
       const contentLength = Number(response.headers?.get?.("content-length") || 0);
       if (contentLength > WEB_SEARCH_MAX_FEED_BYTES) throw new Error("O feed excede o limite de 2 MB.");
       const xml = await response.text();
@@ -888,11 +910,13 @@ export async function searchInternetForContestLeads(options = {}) {
       const discoveries = parseGoogleNewsRss(xml, { now, queryLabel: entry.label, feedUrl, maxResults: maxResultsPerQuery });
       return { label: entry.label, feedUrl, discoveries, error: null, provider: "Google Notícias" };
     } catch (error) {
-      return { label: entry.label, feedUrl, discoveries: [], error: String(error?.message || error).slice(0, 260), provider: "Google Notícias" };
+      const message = String(error?.message || error).slice(0, 260);
+      if (/HTTP 503/i.test(message)) googleCircuitOpen = true;
+      return { label: entry.label, feedUrl, discoveries: [], error: message, provider: "Google Notícias" };
     }
   });
 
-  const secondaryChecked = await mapWithConcurrency(secondaryFeeds, Math.min(concurrency, 2), async feed => {
+  const secondaryChecked = await mapWithConcurrency(secondaryFeeds, Math.min(concurrency, 3), async feed => {
     try {
       const response = await fetchNewsFeedWithRetry(feed.feedUrl, {
         fetchImpl: request,
@@ -935,17 +959,18 @@ export async function searchInternetForContestLeads(options = {}) {
   }
 
   const discoveries = [...unique.values()];
+  const googleSkippedAfter503 = googleChecked.filter(item => item.skipped).length;
   return {
     provider: "Google Notícias RSS + feeds editoriais independentes",
     feedsChecked: checked.length,
     googleFeedsChecked: googleChecked.length,
     secondaryFeedsChecked: secondaryChecked.length,
+    googleSkippedAfter503,
     leadCount: discoveries.length,
     errors: checked.filter(item => item.error).map(item => ({ label: item.label, error: item.error })),
     discoveries
   };
 }
-
 
 export function filterUnseenWebSearchDiscoveries(discoveries = [], previousKeys = [], maxKeys = 1500) {
   const limit = Math.max(100, Math.min(5000, Number(maxKeys) || 1500));
@@ -1026,6 +1051,7 @@ async function runMonitor() {
       feedsChecked: internetSearch.feedsChecked,
       googleFeedsChecked: internetSearch.googleFeedsChecked,
       secondaryFeedsChecked: internetSearch.secondaryFeedsChecked,
+      googleSkippedAfter503: internetSearch.googleSkippedAfter503,
       foundCount: internetSearch.leadCount,
       leadCount: unseenWebSearch.discoveries.length,
       errors: internetSearch.errors
@@ -1059,7 +1085,7 @@ async function runMonitor() {
     "Fontes acompanhadas: " + report.monitoredCount,
     "Concorrência: " + report.concurrency + " · tentativas por fonte: 3",
     "Consultas recuperadas pelo transporte alternativo: " + report.fallbackCount,
-    "Buscas automáticas na internet: " + internetSearch.feedsChecked + " feeds/consultas (" + internetSearch.googleFeedsChecked + " do Google Notícias e " + internetSearch.secondaryFeedsChecked + " editoriais) · " + internetSearch.leadCount + " resultados atuais · " + unseenWebSearch.discoveries.length + " pistas novas.",
+    "Buscas automáticas na internet: " + internetSearch.feedsChecked + " feeds/consultas (" + internetSearch.googleFeedsChecked + " do Google Notícias e " + internetSearch.secondaryFeedsChecked + " editoriais; " + internetSearch.googleSkippedAfter503 + " consultas do Google pausadas após HTTP 503) · " + internetSearch.leadCount + " resultados atuais · " + unseenWebSearch.discoveries.length + " pistas novas.",
     "Falhas de consulta na internet: " + internetSearch.errors.length,
     ...(firstRun ? ["Esta foi a primeira leitura; os resultados formam a linha de base."] : []),
     ""
