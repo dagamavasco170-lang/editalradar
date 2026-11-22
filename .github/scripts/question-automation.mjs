@@ -71,7 +71,7 @@ function decodeEntities(value) {
 
 function stripTags(value) {
   return decodeEntities(String(value || "")
-    .replace(/<\/?(script|style|noscript|svg|iframe|nav|footer|header|aside|form|button|select|option)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, " ")
+    .replace(/<(script|style|noscript|svg|iframe|nav|footer|header|aside|form|button|select|option)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, " ")
     .replace(/<!--[\s\S]*?-->/g, " ")
     .replace(/<(br|\/p|\/div|\/li|\/tr|\/h[1-6]|\/section|\/article|\/main|\/blockquote|\/pre)\b[^>]*>/gi, "\n")
     .replace(/<[^>]*>/g, " "))
@@ -155,7 +155,13 @@ async function fetchOfficialText(sourceUrl) {
       }
       const bytes = new Uint8Array(await response.arrayBuffer());
       if (bytes.byteLength > MAX_SOURCE_BYTES) throw new Error("Fonte excede o limite de 5 MB.");
-      const html = new TextDecoder("utf-8").decode(bytes);
+      const charset = contentType.match(/charset=([^;]+)/i)?.[1]?.replace(/["']/g, "").trim() || "utf-8";
+      let html;
+      try {
+        html = new TextDecoder(charset).decode(bytes);
+      } catch {
+        html = new TextDecoder("utf-8").decode(bytes);
+      }
       const text = stripTags(html);
       if (text.length < 200) throw new Error("A página não contém texto suficiente para elaborar questões.");
       return { text: text.slice(0, 12000), html };
@@ -175,8 +181,8 @@ async function main() {
   const topicParams = new URLSearchParams({
     select: "id,discipline,topic,source_url,source_excerpt,active,last_run_at,cadence_days,created_at",
     active: "eq.true",
-    order: "created_at.asc,id.asc",
-    limit: "100"
+    order: "last_run_at.asc.nullsfirst,created_at.asc,id.asc",
+    limit: "1000"
   });
   const topics = await supabaseRest(`study_question_automation_topics?${topicParams.toString()}`);
   const utcStart = new Date();
