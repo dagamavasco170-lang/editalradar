@@ -515,6 +515,32 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     return () => { cancelled = true; };
   }, [authClient, authUser?.id]);
 
+  // O Android devolve a decisão de permissão de forma assíncrona.
+  // Sem ouvir esse evento, o estado permanecia "default" e o token FCM nunca era registrado.
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+
+    const handleNativeNotificationPermission = (event) => {
+      const enabled = event?.detail?.granted === true;
+      setNotificationPermission(enabled ? "granted" : "denied");
+      setBrowserNotificationsEnabled(enabled);
+      try {
+        localStorage.setItem("er-browser-notifications", JSON.stringify(enabled));
+      } catch {
+        // A permissão continua válida mesmo se o armazenamento local estiver indisponível.
+      }
+      setNotificationMessage(enabled
+        ? "Notificações nativas ativadas neste dispositivo. O cadastro do push será concluído automaticamente."
+        : "A permissão não foi concedida. Autorize as notificações nas configurações do Android para receber avisos.");
+    };
+
+    window.addEventListener("editalradar:native-notification-permission", handleNativeNotificationPermission);
+    return () => window.removeEventListener(
+      "editalradar:native-notification-permission",
+      handleNativeNotificationPermission
+    );
+  }, []);
+
   useEffect(() => {
     const nativeBridge = typeof window !== "undefined" ? window.EditalRadarNative : null;
     if (!authClient || !authUser?.id || !browserNotificationsEnabled

@@ -6,6 +6,27 @@ import { scoreRecommendation } from "./App.jsx";
 import { buildCatalogSnapshot, getVisibleNotifications } from "./lib/notifications";
 
 describe("EditalRadar", () => {
+  it("atualiza o estado quando o Android confirma a permissão de notificações", () => {
+    localStorage.clear();
+    Object.defineProperty(window, "EditalRadarNative", {
+      configurable: true,
+      value: { requestNotificationPermission: () => false }
+    });
+
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "Ativar notificações" }));
+    expect(screen.getByText(/Autorize as notificações na janela do Android/)).toBeInTheDocument();
+
+    fireEvent(window, new CustomEvent("editalradar:native-notification-permission", {
+      detail: { granted: true }
+    }));
+
+    expect(screen.getByRole("button", { name: "Notificações ativadas" })).toBeDisabled();
+    expect(screen.getByText(/cadastro do push será concluído automaticamente/)).toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem("er-browser-notifications"))).toBe(true);
+    delete window.EditalRadarNative;
+  });
+
   it("detecta um novo concurso e abre seus detalhes pela central de notificações", async () => {
     localStorage.clear();
     const latest = [...concursos].reverse().find((item) => !String(item.status || "").toLowerCase().includes("concurso listado"));
