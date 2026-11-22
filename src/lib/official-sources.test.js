@@ -1,8 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { isTrustedOfficialHostname, isTrustedOfficialUrl, officialSourceLabel, parseHttpsUrl } from "./official-sources.js";
+import {
+  isTrustedOfficialHostname,
+  isTrustedOfficialUrl,
+  isTrustedPrivateStudySourceUrl,
+  officialSourceLabel,
+  parseHttpsUrl,
+  privateStudySourceLabel
+} from "./official-sources.js";
 
-describe("validação de fontes privadas de estudo", () => {
-  it("aceita apenas editoras, plataformas e organizações educacionais privadas selecionadas", () => {
+describe("fontes de estudo privadas e fontes de prova", () => {
+  it("aceita fontes privadas selecionadas para elaboração automática", () => {
     for (const url of [
       "https://brasilescola.uol.com.br/gramatica",
       "https://www.mundoeducacao.uol.com.br/matematica",
@@ -12,33 +19,44 @@ describe("validação de fontes privadas de estudo", () => {
       "https://www.jrconcursos.com.br/materiais-gratuitos-para-concursos-publicos/materiais-por-disciplinas/",
       "https://blog.grancursosonline.com.br/informatica-para-concursos-conceitos-basicos-para-prova/",
       "https://www.somatematica.com.br/"
-    ]) expect(isTrustedOfficialUrl(url), url).toBe(true);
+    ]) expect(isTrustedPrivateStudySourceUrl(url), url).toBe(true);
   });
 
-  it("rejeita HTTP, credenciais embutidas, URLs inválidas e domínios parecidos", () => {
+  it("não aceita órgãos públicos como fontes para a geração automática", () => {
     for (const url of [
-      "http://brasilescola.uol.com.br/gramatica",
       "https://www.gov.br/concursos",
       "https://www2.camara.leg.br/atividade-legislativa",
       "https://educa.ibge.gov.br/",
+      "https://www.bcb.gov.br/",
+      "https://www.gov.br.evil.com/concursos",
+      "http://brasilescola.uol.com.br/gramatica",
       "https://brasilescola.uol.com.br.evil.com/concursos",
       "https://brasilescola.uol.com.br@evil.com/concursos",
-      "https://evil.com/www.gov.br",
       "javascript:alert(1)",
       "not-a-url",
       ""
-    ]) expect(isTrustedOfficialUrl(url), url).toBe(false);
+    ]) expect(isTrustedPrivateStudySourceUrl(url), url).toBe(false);
   });
 
-  it("identifica uma referência secundária não selecionada", () => {
-    expect(isTrustedOfficialUrl("https://concursor.com.br/editais?uf=AL")).toBe(false);
-    expect(officialSourceLabel("https://concursor.com.br/editais?uf=AL")).toContain("Referência externa");
-    expect(officialSourceLabel("https://brasilescola.uol.com.br/gramatica")).toBe("Fonte de estudo selecionada");
+  it("mantém fontes oficiais e bancas para comprovar questões reais importadas", () => {
+    expect(isTrustedOfficialUrl("https://www.gov.br/concursos")).toBe(true);
+    expect(isTrustedOfficialUrl("https://www.cebraspe.org.br/concursos")).toBe(true);
+    expect(isTrustedOfficialUrl("https://conhecimento.fgv.br/concursos")).toBe(true);
+    expect(isTrustedOfficialUrl("https://brasilescola.uol.com.br/gramatica")).toBe(false);
   });
 
-  it("não aceita hostname falso nem URL com usuário e senha", () => {
+  it("rejeita HTTP, credenciais e domínios falsos para comprovação de prova", () => {
+    expect(isTrustedOfficialUrl("http://www.gov.br/")).toBe(false);
+    expect(isTrustedOfficialUrl("https://www.gov.br.evil.com/concursos")).toBe(false);
+    expect(isTrustedOfficialUrl("https://gov.br@evil.com/concursos")).toBe(false);
     expect(isTrustedOfficialHostname("evilgov.br")).toBe(false);
     expect(isTrustedOfficialHostname("not.gov.br.evil.com")).toBe(false);
     expect(parseHttpsUrl("https://user:password@www.gov.br")).toBeNull();
+  });
+
+  it("mostra rótulos diferentes para as duas finalidades", () => {
+    expect(officialSourceLabel("https://www.gov.br/concursos")).toBe("Fonte oficial");
+    expect(privateStudySourceLabel("https://brasilescola.uol.com.br/gramatica")).toBe("Fonte privada de estudo selecionada");
+    expect(privateStudySourceLabel("https://www.gov.br/concursos")).toBe("Fonte externa não selecionada");
   });
 });
