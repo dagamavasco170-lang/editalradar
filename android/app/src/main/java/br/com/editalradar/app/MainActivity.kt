@@ -292,11 +292,11 @@ class MainActivity : Activity() {
 
                 if (isFinishing || isDestroyed) return@downloadAndVerify
                 result.onSuccess { apkFile ->
-                    if (!appUpdateManager.hasSameInstalledSignature(apkFile)) {
+                    if (!appUpdateManager.isValidUpdatePackage(apkFile, release)) {
                         apkFile.delete()
                         AlertDialog.Builder(this)
-                            .setTitle("Não foi possível instalar")
-                            .setMessage("Esta versão não corresponde à assinatura do aplicativo instalado. A instalação foi interrompida por segurança.")
+                            .setTitle("Atualização inválida")
+                            .setMessage("O arquivo recebido não corresponde à versão oficial esperada. Nenhuma alteração foi feita no aplicativo.")
                             .setPositiveButton("Entendi", null)
                             .show()
                         return@onSuccess
@@ -347,8 +347,8 @@ class MainActivity : Activity() {
     }
 
     private fun commitApkInstall(apkFile: File) {
-        if (!appUpdateManager.hasSameInstalledSignature(apkFile)) {
-            Toast.makeText(this, "A atualização não passou pela verificação de segurança.", Toast.LENGTH_LONG).show()
+        if (!appUpdateManager.isValidUpdatePackage(apkFile)) {
+            Toast.makeText(this, "O arquivo de atualização não corresponde a uma versão válida. Baixe novamente.", Toast.LENGTH_LONG).show()
             return
         }
 
@@ -357,6 +357,8 @@ class MainActivity : Activity() {
                 setAppPackageName(packageName)
                 setSize(apkFile.length())
             }
+            // O PackageInstaller do Android valida a assinatura/cadeia de certificados
+            // ao confirmar a sessão. Não duplicar essa validação com metadados do arquivo.
             val installer = packageManager.packageInstaller
             val sessionId = installer.createSession(parameters)
 
@@ -405,7 +407,7 @@ class MainActivity : Activity() {
             !pendingPath.isNullOrBlank()
         ) {
             val pendingFile = File(pendingPath)
-            if (pendingFile.isFile && appUpdateManager.hasSameInstalledSignature(pendingFile)) {
+            if (pendingFile.isFile && appUpdateManager.isValidUpdatePackage(pendingFile)) {
                 commitApkInstall(pendingFile)
             } else {
                 Toast.makeText(this, "O arquivo de atualização precisa ser baixado novamente.", Toast.LENGTH_LONG).show()

@@ -15,7 +15,11 @@ class UpdateInstallReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != ACTION_INSTALL_STATUS) return
 
-        when (intent.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE)) {
+        val installStatus = intent.getIntExtra(
+            PackageInstaller.EXTRA_STATUS,
+            PackageInstaller.STATUS_FAILURE
+        )
+        when (installStatus) {
             PackageInstaller.STATUS_PENDING_USER_ACTION -> {
                 val confirmationIntent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     intent.getParcelableExtra(Intent.EXTRA_INTENT, Intent::class.java)
@@ -46,10 +50,27 @@ class UpdateInstallReceiver : BroadcastReceiver() {
                 ).show()
             }
 
+            PackageInstaller.STATUS_FAILURE_CONFLICT,
+            PackageInstaller.STATUS_FAILURE_INVALID -> {
+                Toast.makeText(
+                    context,
+                    "O Android não aceitou esta atualização. Sua versão atual continua instalada e seus dados foram preservados.",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+
+            PackageInstaller.STATUS_FAILURE_STORAGE -> {
+                Toast.makeText(
+                    context,
+                    "Não há espaço suficiente para concluir a atualização. Libere espaço e tente novamente.",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+
             else -> {
                 Toast.makeText(
                     context,
-                    "Não foi possível concluir a atualização. Tente novamente.",
+                    "Não foi possível concluir a atualização. Sua versão atual continua instalada.",
                     Toast.LENGTH_LONG
                 ).show()
             }

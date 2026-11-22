@@ -1,8 +1,6 @@
 package br.com.editalradar.app
 
 import android.content.Context
-import android.content.pm.PackageInfo
-import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -341,38 +339,46 @@ internal class AppUpdateManager(context: Context) {
         }
     }
 
-    fun hasSameInstalledSignature(apkFile: File): Boolean {
+    /**
+     * Verifies that the downloaded archive is the expected EditalRadar package and
+     * is a genuine upgrade. The Android PackageInstaller remains the authority for
+     * signing-certificate compatibility when the installation is committed.
+     *
+     * This deliberately does not compare PackageInfo.signingInfo from an archive
+     * with the installed PackageInfo: some device/package-manager combinations
+     * return incomplete archive signing metadata, which can reject a correctly
+     * signed update before Android's own installer can validate it.
+     */
+    fun isValidUpdatePackage(
+        apkFile: File,
+        expectedRelease: AppUpdateRelease? = null
+    ): Boolean {
         if (!apkFile.isFile || apkFile.length() <= 0L) return false
 
-        val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            PackageManager.GET_SIGNING_CERTIFICATES
-        } else {
-            @Suppress("DEPRECATION")
-            PackageManager.GET_SIGNATURES
-        }
-
         return try {
-            val installedInfo = appContext.packageManager.getPackageInfo(appContext.packageName, flags)
-            val candidateInfo = appContext.packageManager.getPackageArchiveInfo(apkFile.absolutePath, flags)
-                ?: return false
+            val candidateInfo = appContext.packageManager.getPackageArchiveInfo(
+                apkFile.absolutePath,
+                0
+            ) ?: return false
 
             if (candidateInfo.packageName != appContext.packageName) return false
 
-            fun certificates(info: PackageInfo): Set<String> {
-                return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                    info.signingInfo?.apkContentsSigners
-                        ?.map { it.toCharsString() }
-                        ?.toSet()
-                        .orEmpty()
-                } else {
-                    @Suppress("DEPRECATION")
-                    info.signatures?.map { it.toCharsString() }?.toSet().orEmpty()
-                }
+            val candidateVersionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                candidateInfo.longVersionCode
+            } else {
+                @Suppress("DEPRECATION")
+                candidateInfo.versionCode.toLong()
             }
 
-            val installedCertificates = certificates(installedInfo)
-            val updateCertificates = certificates(candidateInfo)
-            installedCertificates.isNotEmpty() && installedCertificates == updateCertificates
+            if (candidateVersionCode <= installedVersionCode()) return false
+
+            if (expectedRelease != null && (
+                candidateVersionCode != expectedRelease.versionCode ||
+                    candidateInfo.versionName != expectedRelease.versionName
+                )
+            ) return false
+
+            true
         } catch (_: Exception) {
             false
         }
