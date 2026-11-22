@@ -48,13 +48,13 @@ jobs:
     timeout-minutes: 40
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Test Android security and offline safeguards
         run: node --test scripts/platform-resilience.node-test.mjs
 
       - name: Set up Java 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: "17"
@@ -247,7 +247,7 @@ jobs:
           echo "Build de verificação. Não instalar sobre versões existentes nem distribuir como atualização." > release-assets/README.txt
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: EditalRadar-Android-v${{ steps.version.outputs.name }}
           path: release-assets/*
@@ -268,7 +268,7 @@ jobs:
       contents: write
     steps:
       - name: Download signed release assets
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: EditalRadar-Android-v${{ needs.android-build.outputs.version_name }}
           path: release-assets
@@ -305,7 +305,7 @@ jobs:
           EOF
 
       - name: Publish permanently signed GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: android-v${{ needs.android-build.outputs.version_name }}
           name: EditalRadar Android v${{ needs.android-build.outputs.version_name }}
