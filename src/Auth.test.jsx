@@ -120,7 +120,7 @@ describe("Autenticação EditalRadar", () => {
     }));
     expect(await screen.findByText(/Teste enviado ao seu aparelho/)).toBeInTheDocument();
 
-    fireEvent.click(await screen.findByRole("button", { name: "Testar com app fechado (15 s)" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Testar em segundo plano (15 s)" }));
     expect(await screen.findByText(/Saia do EditalRadar e bloqueie a tela agora/)).toBeInTheDocument();
     await waitFor(() => expect(client.functions.invoke).toHaveBeenCalledWith("push-notifications", {
       body: { action: "test_self_background" }
