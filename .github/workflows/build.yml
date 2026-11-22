@@ -146,46 +146,53 @@ jobs:
           if-no-files-found: ignore
 
   vercel-production-test:
-    name: Verificar produção na Vercel (versão e navegador)
+    name: Verificar produção na Vercel (opcional)
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: deploy
     permissions:
       contents: read
     runs-on: ubuntu-latest
     steps:
+      - name: Verificar disponibilidade da Vercel
+        id: vercel_health
+        continue-on-error: true
+        env:
+          PLAYWRIGHT_BASE_URL: https://editalradar-gamma.vercel.app/
+        run: |
+          curl --fail --location --connect-timeout 5 --max-time 20 --retry 2 --retry-delay 3 --retry-all-errors "$PLAYWRIGHT_BASE_URL"
       - name: Checkout
+        if: steps.vercel_health.outcome == 'success'
         uses: actions/checkout@v6
         with:
           persist-credentials: false
       - name: Configurar Node.js
+        if: steps.vercel_health.outcome == 'success'
         uses: actions/setup-node@v6
         with:
           node-version: 22
       - name: Instalar dependências
+        if: steps.vercel_health.outcome == 'success'
         run: |
           if [ ! -f package-lock.json ]; then
             npm install --package-lock-only --ignore-scripts --no-audit --no-fund
           fi
           npm ci --no-audit --no-fund
       - name: Instalar Chromium
+        if: steps.vercel_health.outcome == 'success'
         run: npx playwright install --with-deps chromium
-      - name: Aguardar a Vercel publicar a versão mais recente
-        env:
-          PLAYWRIGHT_BASE_URL: https://editalradar-gamma.vercel.app/
-        run: |
-          curl --fail --location --retry 18 --retry-delay 10 --retry-all-errors "$PLAYWRIGHT_BASE_URL"
       - name: Conferir se a Vercel publicou o commit esperado
         id: vercel_version
+        if: steps.vercel_health.outcome == 'success'
         continue-on-error: true
         env:
           PLAYWRIGHT_BASE_URL: https://editalradar-gamma.vercel.app/
           EXPECTED_APP_COMMIT: ${{ github.sha }}
         run: npx playwright test e2e/version.spec.js
-      - name: Avisar quando a Vercel estiver em uma versão antiga
-        if: steps.vercel_version.outcome != 'success'
-        run: echo "::warning::A Vercel respondeu, mas ainda não está servindo o commit ${{ github.sha }}. Os testes completos desse domínio foram ignorados; o GitHub Pages já foi validado."
+      - name: Avisar quando a Vercel estiver indisponível ou em versão antiga
+        if: steps.vercel_health.outcome != 'success' || steps.vercel_version.outcome != 'success'
+        run: echo "::warning::A Vercel não está disponível ou ainda não serve o commit ${{ github.sha }}. O GitHub Pages continua sendo a publicação principal e já foi validado."
       - name: Executar testes de navegador no domínio da Vercel
-        if: steps.vercel_version.outcome == 'success'
+        if: steps.vercel_health.outcome == 'success' && steps.vercel_version.outcome == 'success'
         env:
           PLAYWRIGHT_BASE_URL: https://editalradar-gamma.vercel.app/
           EXPECTED_APP_COMMIT: ${{ github.sha }}
