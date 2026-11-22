@@ -36,7 +36,7 @@ export function scoreDiscoveryPriority(item = {}, now = Date.now()) {
   if (/\b(retificacao|retificacoes|errata|aditivo|alteracao do edital|cronograma retificado)\b/.test(text)) score += 28;
   if (/\b(resultado final|homologacao|convocacao|nomeacao|classificacao final)\b/.test(text)) score += 18;
   if (/\b(pre edital|pre-edital|autorizacao|comissao formada|banca definida|edital previsto)\b/.test(text)) score += 6;
-  if (/\bedital(?:\s+(?:n[º°.]?\s*)?[\w./-]+|\s+20\d{2})\b/.test(title)) score += 24;
+  if (/\bedital\s+(?:n[º°.]?\s*)?\d{1,4}(?:[./-]\d{2,4})?\b/.test(title)) score += 24;
   else if (/\bedital\b/.test(text)) score += 10;
   if (/\b(concurso publico|processo seletivo|selecao publica)\b/.test(text)) score += 14;
   if (/\b(vagas?|cargos?|funcoes?|inscricoes abertas|prazo de inscricao)\b/.test(text)) score += 10;
