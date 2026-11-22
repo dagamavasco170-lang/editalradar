@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { concursos } from "../src/data/concursos.js";
-import { collectSourceUrls, compareSource, fingerprintContent, normalizeHtml, extractOpportunityLinks, buildDiscoveriesForSource, fetchOfficialSource, fetchNewsFeedWithRetry, isTrustedOfficialHost, pruneSourceState, buildGoogleNewsRssUrl, parseGoogleNewsRss, searchInternetForContestLeads, filterUnseenWebSearchDiscoveries, INTERNET_SEARCH_QUERIES, classifyContestLead, SECONDARY_NEWS_FEEDS, parseSecondaryNewsRss } from "./monitor-sources.mjs";
+import { collectSourceUrls, compareSource, fingerprintContent, normalizeHtml, extractOpportunityLinks, buildDiscoveriesForSource, fetchOfficialSource, fetchNewsFeedWithRetry, isTrustedOfficialHost, pruneSourceState, buildGoogleNewsRssUrl, parseGoogleNewsRss, searchInternetForContestLeads, filterUnseenWebSearchDiscoveries, INTERNET_SEARCH_QUERIES, classifyContestLead, SECONDARY_NEWS_FEEDS, parseSecondaryNewsRss, isActionableSecondaryNewsLead, fetchNewsFeedWithCurl } from "./monitor-sources.mjs";
 
 test("coleta somente URLs HTTPS únicas", () => {
   const urls = collectSourceUrls([
@@ -443,6 +443,7 @@ test("consulta a busca pública com HTTPS, bloqueio de redirecionamentos e trata
     secondaryFeeds: [],
     now: new Date("2026-11-21T19:00:00-03:00"),
     attempts: 1,
+    fallbackFetch: async () => { throw new Error("Fallback simulado indisponível"); },
     fetchImpl: async (url, options) => {
       requested.push({ url, options });
       if (url.includes("Alagoas")) throw new Error("Falha simulada");
@@ -541,4 +542,67 @@ test("busca feed editorial independente e transforma itens em pistas externas", 
   assert.equal(result.feedsChecked, 1);
   assert.equal(result.secondaryFeedsChecked, 1);
   assert.equal(result.leadCount, 1);
+});
+
+
+test("filtra materiais de estudo e gabaritos antes de criar pistas editoriais", () => {
+  assert.equal(isActionableSecondaryNewsLead(
+    "Gabarito Extraoficial TCDF – Analista Administrativo",
+    "As provas foram aplicadas hoje; confira o gabarito comentado segundo o edital."
+  ), false);
+  assert.equal(isActionableSecondaryNewsLead(
+    "Concurso CGU – Evidência e Conclusão",
+    "Resumo de conteúdo de auditoria previsto no edital de todos os cargos."
+  ), false);
+  assert.equal(isActionableSecondaryNewsLead(
+    "Leis de De Morgan: Resumo para concursos",
+    "Material de estudo de lógica proposicional."
+  ), false);
+  assert.equal(isActionableSecondaryNewsLead(
+    "Concurso BACEN terá a FGV como banca: 170 vagas!",
+    "Novo concurso autorizado com vagas para cargos efetivos."
+  ), true);
+  assert.equal(isActionableSecondaryNewsLead(
+    "Concurso Custódia PE: edital publicado com 1,2 mil vagas!",
+    "A prefeitura publicou o edital do processo seletivo."
+  ), true);
+  assert.equal(isActionableSecondaryNewsLead(
+    "Prefeitura de Igaci abre processo seletivo com 20 vagas",
+    "Seleção pública para cargos temporários."
+  ), true);
+});
+
+test("usa transporte alternativo restrito quando o feed falha no fetch ou responde 403", async () => {
+  const feedUrl = SECONDARY_NEWS_FEEDS[0].feedUrl;
+  for (const mode of ["network", "forbidden"]) {
+    let primaryCalls = 0;
+    let fallbackCalls = 0;
+    const result = await fetchNewsFeedWithRetry(feedUrl, {
+      attempts: 1,
+      retryDelayMs: 0,
+      fetchImpl: async () => {
+        primaryCalls += 1;
+        if (mode === "network") throw new Error("fetch failed");
+        return new Response("bloqueado", { status: 403 });
+      },
+      fallbackFetch: async url => {
+        fallbackCalls += 1;
+        assert.equal(url, feedUrl);
+        return new Response("<rss><channel></channel></rss>", {
+          status: 200,
+          headers: { "content-type": "application/rss+xml" }
+        });
+      }
+    });
+    assert.equal(primaryCalls, 1);
+    assert.equal(fallbackCalls, 1);
+    assert.equal(result.status, 200);
+  }
+});
+
+test("transporte curl rejeita feed não autorizado antes de qualquer requisição", async () => {
+  await assert.rejects(
+    () => fetchNewsFeedWithCurl("https://example.org/rss"),
+    /transporte alternativo/
+  );
 });
