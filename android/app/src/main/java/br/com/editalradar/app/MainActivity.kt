@@ -51,6 +51,7 @@ class MainActivity : Activity() {
     private lateinit var statusText: TextView
     private var connectivityManager: ConnectivityManager? = null
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
+    private var lastKnownOnlineState: Boolean? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -88,8 +89,8 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(16), dp(8), dp(16), dp(8))
             minHeight = dp(38)
-            setOnClickListener { webView.reload() }
-            contentDescription = "Estado da conexão. Toque para atualizar."
+            setOnClickListener { retryCurrentPage() }
+            contentDescription = "Estado da conexão. Toque para tentar novamente."
             accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
         }
 
@@ -207,9 +208,30 @@ class MainActivity : Activity() {
                 error: android.webkit.WebResourceError?
             ) {
                 super.onReceivedError(view, request, error)
-                if (request?.isForMainFrame == true && !isInternetAvailable()) {
-                    statusText.text = "Sem internet • tentando abrir dados salvos. Toque para tentar novamente."
-                    webView.settings.cacheMode = WebSettings.LOAD_CACHE_ELSE_NETWORK
+                if (request?.isForMainFrame == true) {
+                    if (!isInternetAvailable()) {
+                        statusText.text = "Sem internet • tentando abrir dados salvos. Toque para tentar novamente."
+                        statusText.setBackgroundColor(Color.rgb(154, 91, 29))
+                        webView.settings.cacheMode = WebSettings.LOAD_CACHE_ELSE_NETWORK
+                    } else {
+                        statusText.text = "Não foi possível carregar esta página • toque para tentar novamente"
+                        statusText.setBackgroundColor(Color.rgb(154, 91, 29))
+                    }
+                }
+            }
+
+            override fun onReceivedHttpError(
+                view: WebView?,
+                request: WebResourceRequest?,
+                errorResponse: android.webkit.WebResourceResponse?
+            ) {
+                super.onReceivedHttpError(view, request, errorResponse)
+                if (request?.isForMainFrame == true &&
+                    errorResponse?.statusCode != null &&
+                    errorResponse.statusCode >= 500
+                ) {
+                    statusText.text = "Servidor temporariamente indisponível • toque para tentar novamente"
+                    statusText.setBackgroundColor(Color.rgb(154, 91, 29))
                 }
             }
 
@@ -221,6 +243,7 @@ class MainActivity : Activity() {
                 // Nunca permite ignorar certificado inválido ou conexão TLS adulterada.
                 handler?.cancel()
                 statusText.text = "Conexão segura inválida. O acesso foi bloqueado."
+                statusText.setBackgroundColor(Color.rgb(154, 65, 45))
             }
         }
     }
@@ -476,20 +499,52 @@ class MainActivity : Activity() {
 
     private fun refreshConnectivity() {
         val online = isInternetAvailable()
+        val connectionRestored = online && lastKnownOnlineState == false
+        lastKnownOnlineState = online
+
         statusText.text = if (online) {
-            "EditalRadar • conectado"
+            if (connectionRestored) "Conexão restabelecida • atualizando…" else "EditalRadar • conectado"
         } else {
             "Sem internet • conteúdo em cache quando disponível • toque para tentar novamente"
         }
         statusText.setBackgroundColor(
             if (online) Color.rgb(24, 105, 87) else Color.rgb(154, 91, 29)
         )
+
         if (::webView.isInitialized) {
             webView.settings.cacheMode = if (online) {
                 WebSettings.LOAD_DEFAULT
             } else {
                 WebSettings.LOAD_CACHE_ELSE_NETWORK
             }
+
+            // Recupera automaticamente a tela que falhou durante uma queda de rede.
+            if (connectionRestored) {
+                webView.post {
+                    if (isFinishing || isDestroyed || !isInternetAvailable()) return@post
+                    val currentUri = webView.url?.let(Uri::parse)
+                    if (currentUri != null && isInternalAppUrl(currentUri)) {
+                        webView.reload()
+                    } else {
+                        webView.loadUrl(HOME_URL)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun retryCurrentPage() {
+        if (!::webView.isInitialized) return
+        webView.settings.cacheMode = if (isInternetAvailable()) {
+            WebSettings.LOAD_DEFAULT
+        } else {
+            WebSettings.LOAD_CACHE_ELSE_NETWORK
+        }
+        val currentUri = webView.url?.let(Uri::parse)
+        if (currentUri != null && isInternalAppUrl(currentUri)) {
+            webView.reload()
+        } else {
+            webView.loadUrl(HOME_URL)
         }
     }
 
