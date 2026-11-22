@@ -113,8 +113,8 @@ test("assinatura de distribuição usa apenas a chave permanente recebida pelo a
   assert.match(androidGradle, /ANDROID_RELEASE_KEY_ALIAS/);
   assert.match(androidGradle, /ANDROID_RELEASE_KEY_PASSWORD/);
   assert.match(androidGradle, /signingConfig signingConfigs\.getByName\('release'\)/);
-  assert.match(androidGradle, /versionCode 13/);
-  assert.ok(androidGradle.includes("versionName '1.3.0'"));
+  assert.match(androidGradle, /versionCode 14/);
+  assert.ok(androidGradle.includes("versionName '1.3.1'"));
   assert.ok(androidGradle.includes("androidx.webkit:webkit:1.18.0"));
   assert.doesNotMatch(androidGradle, /storePassword\s*['"][^'"]+['"]/);
 });
@@ -195,7 +195,15 @@ test("atualizador valida pacote e versão antes de delegar assinatura ao Android
   assert.ok(android.includes("appUpdateManager.isValidUpdatePackage(apkFile)"));
   assert.ok(!android.includes("hasSameInstalledSignature"));
   assert.ok(android.includes("PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL)"));
-  assert.ok(android.includes("session.commit(statusPendingIntent.intentSender)"));
+  assert.ok(android.includes("session.commit(statusPendingIntent.intentSender)")); 
+  const installCallbackBlock = android.slice(
+    android.indexOf("val callbackIntent = Intent(this, UpdateInstallReceiver::class.java)"),
+    android.indexOf("session.commit(statusPendingIntent.intentSender)")
+  );
+  assert.match(installCallbackBlock, /val mutabilityFlag = PendingIntent\.FLAG_MUTABLE/);
+  assert.doesNotMatch(installCallbackBlock, /PendingIntent\.FLAG_IMMUTABLE/);
+  assert.ok(android.includes('append("\nCódigo do instalador:'));
+  assert.ok(android.includes('"\n\nSua versão atual e seus dados foram mantidos. "'));
   assert.ok(android.includes("val installer = packageManager.packageInstaller"));
   assert.ok(android.includes("Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES"));
   assert.ok(androidManifest.includes("android.permission.REQUEST_INSTALL_PACKAGES"));
