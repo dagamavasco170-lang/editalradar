@@ -2015,7 +2015,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                         {pushTestBusy ? "Enviando teste..." : "Testar recebimento push"}
                       </button>
                       <button className="detail-btn" type="button" onClick={() => sendPushSelfTest(true)} disabled={pushTestBusy}>
-                        {pushTestBusy ? "Preparando teste..." : "Testar com app fechado (15 s)"}
+                        {pushTestBusy ? "Preparando teste..." : "Testar em segundo plano (15 s)"}
                       </button>
                     </>
                   )}
