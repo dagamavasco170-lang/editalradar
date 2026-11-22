@@ -202,8 +202,8 @@ test("atualizador valida pacote e versão antes de delegar assinatura ao Android
   );
   assert.match(installCallbackBlock, /val mutabilityFlag = PendingIntent\.FLAG_MUTABLE/);
   assert.doesNotMatch(installCallbackBlock, /PendingIntent\.FLAG_IMMUTABLE/);
-  assert.ok(android.includes('append("\nCódigo do instalador:'));
-  assert.ok(android.includes('"\n\nSua versão atual e seus dados foram mantidos. "'));
+  assert.ok(android.includes(String.raw`append("\nCódigo do instalador:`));
+  assert.ok(android.includes(String.raw`"\n\nSua versão atual e seus dados foram mantidos. "`));
   assert.ok(android.includes("val installer = packageManager.packageInstaller"));
   assert.ok(android.includes("Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES"));
   assert.ok(androidManifest.includes("android.permission.REQUEST_INSTALL_PACKAGES"));
