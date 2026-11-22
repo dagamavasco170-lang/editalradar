@@ -8,6 +8,8 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageInstaller
@@ -794,6 +796,70 @@ class MainActivity : Activity() {
     override fun onResume() {
         super.onResume()
         if (::webView.isInitialized) webView.onResume()
+        showPendingInstallFailureIfAny()
+    }
+
+    private fun showPendingInstallFailureIfAny() {
+        if (isFinishing || isDestroyed) return
+
+        val preferences = getSharedPreferences(UPDATE_PREFERENCES, Context.MODE_PRIVATE)
+        if (!preferences.contains(UpdateInstallReceiver.PENDING_FAILURE_STATUS_KEY)) return
+
+        val status = preferences.getInt(
+            UpdateInstallReceiver.PENDING_FAILURE_STATUS_KEY,
+            PackageInstaller.STATUS_FAILURE
+        )
+        val statusMessage = preferences.getString(
+            UpdateInstallReceiver.PENDING_FAILURE_MESSAGE_KEY,
+            ""
+        ).orEmpty()
+        val otherPackage = preferences.getString(
+            UpdateInstallReceiver.PENDING_FAILURE_OTHER_PACKAGE_KEY,
+            ""
+        ).orEmpty()
+
+        preferences.edit()
+            .remove(UpdateInstallReceiver.PENDING_FAILURE_STATUS_KEY)
+            .remove(UpdateInstallReceiver.PENDING_FAILURE_MESSAGE_KEY)
+            .remove(UpdateInstallReceiver.PENDING_FAILURE_OTHER_PACKAGE_KEY)
+            .apply()
+
+        val versionName = runCatching {
+            @Suppress("DEPRECATION")
+            packageManager.getPackageInfo(packageName, 0).versionName
+        }.getOrNull().orEmpty()
+        val statusLabel = when (status) {
+            PackageInstaller.STATUS_FAILURE_ABORTED -> "cancelada"
+            PackageInstaller.STATUS_FAILURE_BLOCKED -> "bloqueada pelo Android"
+            PackageInstaller.STATUS_FAILURE_CONFLICT -> "conflito com a instalação existente"
+            PackageInstaller.STATUS_FAILURE_INVALID -> "arquivo rejeitado"
+            PackageInstaller.STATUS_FAILURE_INCOMPATIBLE -> "incompatibilidade com o aparelho"
+            PackageInstaller.STATUS_FAILURE_STORAGE -> "armazenamento insuficiente"
+            PackageInstaller.STATUS_FAILURE_TIMEOUT -> "tempo limite excedido"
+            else -> "falha não especificada"
+        }
+        val diagnostic = buildString {
+            append("EditalRadar Android ").append(versionName.ifBlank { "versão desconhecida" })
+            append("\\nCódigo do instalador: ").append(status)
+            append("\\nMotivo: ").append(statusLabel)
+            if (statusMessage.isNotBlank()) append("\\nMensagem do Android: ").append(statusMessage)
+            if (otherPackage.isNotBlank()) append("\\nPacote relacionado: ").append(otherPackage)
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle("A atualização não foi concluída")
+            .setMessage(
+                UpdateInstallReceiver.userMessageForStatus(status) +
+                    "\\n\\nSua versão atual e seus dados foram mantidos. " +
+                    "Você pode copiar os detalhes para nos ajudar a identificar a causa."
+            )
+            .setNeutralButton("Copiar detalhes") { _, _ ->
+                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                clipboard.setPrimaryClip(ClipData.newPlainText("Diagnóstico da atualização", diagnostic))
+                Toast.makeText(this, "Detalhes copiados. Cole-os aqui na conversa.", Toast.LENGTH_LONG).show()
+            }
+            .setPositiveButton("Fechar", null)
+            .show()
     }
 
     override fun onPause() {
