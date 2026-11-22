@@ -7,3 +7,6 @@ dist
 .cache
 playwright-report
 test-results
+
+# Firebase Android configuration (injected from CI secret)
+android/app/google-services.json

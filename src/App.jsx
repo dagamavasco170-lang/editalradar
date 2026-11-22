@@ -268,6 +268,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   const notificationsColumnAvailableRef = useRef(null);
   const pendingChangesRef = useRef({});
   const pendingWritesRef = useRef(0);
+  const fcmTokenRef = useRef(null);
   const [showAuth, setShowAuth] = useState(false);
   const [authMode, setAuthMode] = useState("login");
   const [authEmail, setAuthEmail] = useState("");
@@ -513,6 +514,46 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     void refreshAccountClaims();
     return () => { cancelled = true; };
   }, [authClient, authUser?.id]);
+
+  useEffect(() => {
+    const nativeBridge = typeof window !== "undefined" ? window.EditalRadarNative : null;
+    if (!authClient || !authUser?.id || !browserNotificationsEnabled
+      || typeof nativeBridge?.requestFcmToken !== "function"
+      || typeof authClient.functions?.invoke !== "function") return undefined;
+
+    let cancelled = false;
+    const registerFcmToken = async (event) => {
+      const token = String(event?.detail?.token || "").trim();
+      if (cancelled || token.length < 32) return;
+      fcmTokenRef.current = token;
+      try {
+        const { error } = await authClient.functions.invoke("push-notifications", {
+          body: { action: "register_device", token, platform: "android" }
+        });
+        if (error && !cancelled) {
+          console.warn("Não foi possível registrar o token de notificações push:", error);
+          setNotificationMessage("O aparelho está autorizado, mas o cadastro do push ainda não foi concluído.");
+        }
+      } catch (error) {
+        if (!cancelled) console.warn("Falha ao registrar dispositivo para push:", error);
+      }
+    };
+    const handleFcmStatus = (event) => {
+      if (!cancelled && event?.detail?.configured === false) {
+        setNotificationMessage("O recebimento de avisos com o aplicativo fechado será ativado após configurar o Firebase.");
+      }
+    };
+
+    window.addEventListener("editalradar:fcm-token", registerFcmToken);
+    window.addEventListener("editalradar:fcm-status", handleFcmStatus);
+    nativeBridge.requestFcmToken();
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener("editalradar:fcm-token", registerFcmToken);
+      window.removeEventListener("editalradar:fcm-status", handleFcmStatus);
+    };
+  }, [authClient, authUser?.id, browserNotificationsEnabled]);
 
   useLayoutEffect(() => {
     if (!authClient || !authUser) {
@@ -1026,6 +1067,17 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
 
   const handleSignOut = async () => {
     if (!authClient) return;
+    if (fcmTokenRef.current && typeof authClient.functions?.invoke === "function") {
+      try {
+        const { error: pushError } = await authClient.functions.invoke("push-notifications", {
+          body: { action: "unregister_device", token: fcmTokenRef.current }
+        });
+        if (pushError) console.warn("Não foi possível desvincular o dispositivo do push:", pushError);
+      } catch (pushError) {
+        console.warn("Falha ao desvincular o dispositivo do push:", pushError);
+      }
+      fcmTokenRef.current = null;
+    }
     const { error } = await authClient.auth.signOut();
     if (error) {
       setAuthMessage("Não foi possível sair da conta. Tente novamente.");
@@ -1309,6 +1361,20 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
       setAdminDraft(null);
       setAdminMessage(successMessage);
       setAdminMessageType("success");
+      if (typeof authClient.functions?.invoke === "function") {
+        const pushTitle = editing ? "Concurso atualizado no EditalRadar" : "Novo concurso no EditalRadar";
+        const pushBody = (data.orgao + ": " + data.cargo + (data.estado ? " — " + data.estado : "")).slice(0, 350);
+        void authClient.functions.invoke("push-notifications", {
+          body: { action: "broadcast", title: pushTitle, body: pushBody, url: "/" }
+        }).then(({ error: pushError, data: pushResult }) => {
+          if (pushError) {
+            console.warn("O concurso foi salvo, mas o push não foi enviado:", pushError);
+            setNotificationMessage("Concurso salvo. O envio de avisos push depende da configuração do Firebase.");
+          } else if (pushResult?.sent > 0) {
+            setNotificationMessage("Aviso push enviado para " + pushResult.sent + " dispositivo(s).");
+          }
+        }).catch((pushError) => console.warn("Falha ao enviar aviso push:", pushError));
+      }
     } catch(error) {
       setAdminMessage(error?.message || "Não foi possível salvar. Confira a migração e sua permissão.");
       setAdminMessageType("error");
@@ -1876,7 +1942,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                 </div>
                 <div className="notification-actions">
                   <button className="detail-btn" type="button" onClick={enableBrowserNotifications} disabled={notificationPermission === "unsupported" || (notificationPermission === "granted" && browserNotificationsEnabled)}>
-                    {notificationPermission === "granted" && browserNotificationsEnabled ? "Notificações ativadas" : notificationPermission === "denied" ? "Permissão bloqueada" : "Ativar no navegador"}
+                    {notificationPermission === "granted" && browserNotificationsEnabled ? "Notificações ativadas" : notificationPermission === "denied" ? "Permissão bloqueada" : "Ativar notificações"}
                   </button>
                   {unreadNotificationCount > 0 && <button className="alert-remove" type="button" onClick={markAllNotificationsRead}>Marcar como lidas</button>}
                   {activeNotifications.length > 0 && <button className="alert-remove" type="button" onClick={clearNotificationHistory}>Limpar histórico</button>}
@@ -1927,7 +1993,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                     : notificationPermission === "unsupported"
                       ? "Seu navegador não oferece notificações de desktop."
                       : "Ative os avisos do navegador para receber uma notificação quando o EditalRadar detectar novidades."}
-                {" "}Os avisos são detectados quando você abre ou atualiza o site após uma mudança no catálogo.
+                {" "}Os avisos locais aparecem após a sincronização. No Android, os avisos com o aplicativo fechado dependem da configuração do Firebase Cloud Messaging.
               </small>
               {notificationMessage && <small className="notification-feedback" role="status">{notificationMessage}</small>}
             </section>

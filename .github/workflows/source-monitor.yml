@@ -68,17 +68,22 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
 
 
-      - name: Instalar leitor de PDFs pesquisáveis
+      - name: Instalar leitores de PDF e OCR em português
         run: |
           sudo apt-get update
-          sudo apt-get install -y poppler-utils
+          sudo apt-get install -y poppler-utils tesseract-ocr tesseract-ocr-por
 
       - name: Triar e cadastrar automaticamente oportunidades confirmadas
         id: resolve
+        timeout-minutes: 30
         run: npm run auto:resolve
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          TRIAGE_CONCURRENCY: 8
+          TRIAGE_ATTEMPTS: 4
+          TRIAGE_TIMEOUT_MS: 12000
+          TRIAGE_RETRY_DELAY_MS: 600
 
       - name: Salvar histórico da verificação
         uses: actions/cache/save@v4

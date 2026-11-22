@@ -1,17 +1,18 @@
 import { pathToFileURL } from "node:url";
-import { appendFile } from "node:fs/promises";
+import { appendFile, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { execFile, execFileSync } from "node:child_process";
 import { promisify } from "node:util";
-
-const execFileAsync = promisify(execFile);
-import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { concursos } from "../src/data/concursos.js";
 import { isTrustedOfficialHost, resolveTrustedOfficialUrl, validateTrustedOfficialUrl } from "./monitor-sources.mjs";
 
+const execFileAsync = promisify(execFile);
+
 const MAX_BYTES = 4 * 1024 * 1024;
-const TIMEOUT_MS = 8000;
+const TIMEOUT_MS = 12000;
+const OCR_MAX_PAGES = 3;
+const OCR_PAGE_TIMEOUT_MS = 6000;
 
 const STATE_NAMES = {
   ac: "Acre", al: "Alagoas", ap: "Amapá", am: "Amazonas", ba: "Bahia",
@@ -734,16 +735,56 @@ export function buildRetificationUpdate(existingData, extractedData, discovery, 
     reason: "Retificação oficial confirmada para o mesmo órgão e cargo; campos objetivos atualizados e versão anterior preservada no histórico."
   };
 }
-function readPdfText(buffer) {
+async function readPdfText(buffer) {
+  let extractedText = "";
   try {
-    return execFileSync("pdftotext", ["-layout", "-", "-"], {
+    extractedText = execFileSync("pdftotext", ["-layout", "-", "-"], {
       input: buffer,
       encoding: "utf8",
       maxBuffer: MAX_BYTES * 8,
       timeout: TIMEOUT_MS
     }).trim();
   } catch {
-    return "";
+    // PDFs digitalizados podem não possuir camada de texto.
+  }
+  if (extractedText.length >= 120) return extractedText;
+
+  // Fallback OCR limitado aos três primeiros fólios, somente após falha da extração
+  // textual. O processo é temporário, tem timeout e não altera o documento original.
+  let directory = "";
+  try {
+    directory = await mkdtemp(join(tmpdir(), "editalradar-ocr-"));
+    const pdfPath = join(directory, "source.pdf");
+    const outputPrefix = join(directory, "page");
+    await writeFile(pdfPath, buffer);
+    await execFileAsync("pdftoppm", [
+      "-f", "1", "-l", String(OCR_MAX_PAGES), "-r", "110", "-png",
+      pdfPath, outputPrefix
+    ], { encoding: "utf8", timeout: 12000, maxBuffer: 128 * 1024 });
+
+    const pages = (await readdir(directory))
+      .filter(name => /^page-\d+\.png$/i.test(name))
+      .sort((a, b) => Number(a.match(/\d+/)?.[0] || 0) - Number(b.match(/\d+/)?.[0] || 0))
+      .slice(0, OCR_MAX_PAGES);
+    const ocrText = [];
+    for (const page of pages) {
+      try {
+        const { stdout } = await execFileAsync("tesseract", [
+          join(directory, page), "stdout", "-l", "por+eng", "--psm", "6"
+        ], { encoding: "utf8", timeout: OCR_PAGE_TIMEOUT_MS, maxBuffer: 512 * 1024 });
+        if (stdout.trim()) ocrText.push(stdout.trim());
+      } catch {
+        // Se um fólio falhar, tenta os restantes antes de deixar o item pendente.
+      }
+    }
+    const combined = ocrText.join("\n\n").trim();
+    return combined.length >= 120 ? combined : extractedText;
+  } catch {
+    // Mantém a extração normal como fallback quando o OCR não está instalado
+    // ou o PDF não pode ser convertido dentro dos limites de segurança.
+    return extractedText;
+  } finally {
+    if (directory) await rm(directory, { recursive: true, force: true }).catch(() => {});
   }
 }
 
@@ -752,7 +793,7 @@ async function extractCandidateDocument(response, item, finalUrl, contentType) {
   if (bytes.byteLength > MAX_BYTES) return null;
   const isPdf = /application\/pdf/i.test(contentType) || /\.pdf(?:$|[?#])/i.test(finalUrl);
   if (isPdf) {
-    const text = readPdfText(bytes);
+    const text = await readPdfText(bytes);
     if (text.length < 120) return null;
     return { title: item.title || "", heading: item.title || "", text };
   }
@@ -930,20 +971,44 @@ export function buildPendingDiscoveriesUrl(baseUrl, now = new Date(), cooldownMs
   const retryBefore = new Date(now.getTime() - cooldownMs).toISOString();
   url.searchParams.set("select", "id,source_url,candidate_url,title,context,discovery_type,status");
   url.searchParams.set("status", "eq.pending");
-  // Only direct newly discovered links from already trusted official sources are auto-triaged.
-  // Internet search results (web_search_lead) are secondary-source leads and always require human verification.
-  // Page-wide changes and baseline pages also stay visible for human review.
-  url.searchParams.set("discovery_type", "eq.new_link");
+  // Search leads are included only to check their declared publisher URL against the
+  // official-source allowlist below. The Google News URL itself is never proof.
+  // Initial baseline pages remain outside automatic publication.
+  url.searchParams.set("discovery_type", "in.(new_link,page_change,web_search_lead)");
   url.searchParams.set("or", "(reviewed_at.is.null,reviewed_at.lt." + retryBefore + ")");
   url.searchParams.set("order", "detected_at.asc");
-  url.searchParams.set("limit", "200");
+  url.searchParams.set("limit", "300");
   return url.toString();
 }
 
 export async function prepareDiscoveryDocument(item, request = fetch, options = {}) {
   let candidate;
+  let candidateValue = item?.candidate_url;
+  if (item?.discovery_type === "web_search_lead") {
+    // A search-engine lead is only a pointer. Use its declared publisher URL if
+    // and only if that exact HTTPS host is in the trusted official-source allowlist.
+    const sourceMatch = String(item?.context || "").match(/Endereço informado para a fonte:\s*(https:\/\/[^\s<>"]+)/i);
+    const declaredSource = sourceMatch?.[1] || "";
+    try {
+      const source = new URL(declaredSource);
+      if (source.protocol !== "https:" || source.username || source.password
+        || !isTrustedOfficialHost(source.hostname)) {
+        return {
+          stage: "review",
+          reason: "A pista da busca ainda não aponta para uma fonte oficial autorizada. O sistema não usa o agregador de notícias como prova; aguardará uma referência oficial."
+        };
+      }
+      candidateValue = source.toString();
+    } catch {
+      return {
+        stage: "review",
+        reason: "A pista externa não forneceu um endereço HTTPS oficial verificável. Ela continua na fila, sem publicação automática."
+      };
+    }
+  }
+
   try {
-    candidate = new URL(item?.candidate_url);
+    candidate = new URL(candidateValue);
   } catch {
     return { stage: "review", reason: "O link armazenado não é uma URL válida." };
   }
@@ -982,6 +1047,9 @@ export async function prepareDiscoveryDocument(item, request = fetch, options = 
   const contentType = response.headers?.get?.("content-type") || "";
   const isPdf = /application\/pdf/i.test(contentType) || /\.pdf(?:$|[?#])/i.test(finalUrl);
   if (!response.ok) {
+    if ([404, 410].includes(response.status)) {
+      return { stage: "dismiss", reason: "O endereço oficial respondeu HTTP " + response.status + " e não está mais disponível; o link foi encerrado automaticamente, sem criar uma ficha incompleta." };
+    }
     return { stage: "review", reason: "A fonte oficial respondeu HTTP " + response.status + "." };
   }
   if (!isTrustedOfficialHost(finalHost)) {
@@ -1026,18 +1094,59 @@ function headersFor(key, extra = {}) {
   };
 }
 
-async function requestJson(request, url, key, options = {}) {
-  const response = await request(url, {
-    ...options,
-    headers: headersFor(key, options.headers || {})
-  });
-  if (!response.ok) {
-    const detail = await response.text().catch(() => "");
-    throw new Error("Supabase retornou HTTP " + response.status + ": " + detail.slice(0, 400));
+export async function requestJson(request, url, key, options = {}) {
+  const method = String(options.method || "GET").toUpperCase();
+  // Avoid replaying a non-idempotent catalog insert after an ambiguous timeout.
+  // GET/PATCH/DELETE and explicit PostgREST upserts can be retried safely.
+  const retryable = ["GET", "HEAD", "PATCH", "DELETE"].includes(method)
+    || (method === "POST" && new URL(url).searchParams.has("on_conflict"));
+  const attempts = Math.max(1, Math.min(4, Number(options.retryAttempts) || (retryable ? 4 : 1)));
+  const retryDelayMs = Math.max(100, Math.min(3000, Number(options.retryDelayMs) || 350));
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    let response;
+    try {
+      const {
+        retryAttempts: _retryAttempts,
+        retryDelayMs: _retryDelayMs,
+        ...requestOptions
+      } = options;
+      response = await request(url, {
+        ...requestOptions,
+        headers: headersFor(key, options.headers || {})
+      });
+    } catch (error) {
+      lastError = error;
+      if (attempt >= attempts || !retryable) throw error;
+    }
+
+    if (response) {
+      if (!response.ok) {
+        const detail = await response.text().catch(() => "");
+        const error = new Error("Supabase retornou HTTP " + response.status + ": " + detail.slice(0, 400));
+        error.status = response.status;
+        const transient = response.status === 408 || response.status === 425
+          || response.status === 429 || response.status >= 500;
+        if (!retryable || !transient || attempt >= attempts) throw error;
+        lastError = error;
+        const retryAfter = Number(response.headers?.get?.("retry-after"));
+        const wait = Number.isFinite(retryAfter) && retryAfter > 0
+          ? Math.min(10000, retryAfter * 1000)
+          : retryDelayMs * attempt;
+        await new Promise(resolveDelay => setTimeout(resolveDelay, wait));
+        continue;
+      }
+      if (response.status === 204) return null;
+      const body = await response.text();
+      return body ? JSON.parse(body) : null;
+    }
+
+    if (attempt < attempts) {
+      await new Promise(resolveDelay => setTimeout(resolveDelay, retryDelayMs * attempt));
+    }
   }
-  if (response.status === 204) return null;
-  const body = await response.text();
-  return body ? JSON.parse(body) : null;
+  throw lastError || new Error("Falha ao consultar o Supabase após as tentativas automáticas.");
 }
 
 async function updateDiscovery(request, baseUrl, key, item, patch) {
@@ -1080,13 +1189,13 @@ export async function autoResolvePending(options = {}) {
     });
   };
 
-  const concurrency = Math.max(1, Math.min(8, Number(options.concurrency) || 5));
+  const concurrency = Math.max(1, Math.min(8, Number(options.concurrency) || 8));
   const preparedDiscoveries = await mapWithConcurrency(discoveries, concurrency, async item => {
     try {
       return await prepareDiscoveryDocument(item, request, {
         timeoutMs: options.timeoutMs ?? TIMEOUT_MS,
-        attempts: options.attempts ?? 3,
-        retryDelayMs: options.retryDelayMs ?? 750,
+        attempts: options.attempts ?? 4,
+        retryDelayMs: options.retryDelayMs ?? 600,
         fallbackRequest: options.fallbackRequest || fetchCandidateWithCurl
       });
     } catch (error) {
@@ -1242,7 +1351,12 @@ export async function autoResolvePending(options = {}) {
 }
 
 async function main() {
-  const result = await autoResolvePending();
+  const result = await autoResolvePending({
+    concurrency: Number(process.env.TRIAGE_CONCURRENCY) || 8,
+    attempts: Number(process.env.TRIAGE_ATTEMPTS) || 4,
+    timeoutMs: Number(process.env.TRIAGE_TIMEOUT_MS) || TIMEOUT_MS,
+    retryDelayMs: Number(process.env.TRIAGE_RETRY_DELAY_MS) || 600
+  });
   const summary = [
     "## Triagem automática de oportunidades",
     "",

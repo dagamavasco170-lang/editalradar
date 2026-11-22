@@ -28,6 +28,8 @@ import android.view.View
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
+import com.google.firebase.FirebaseApp
+import com.google.firebase.messaging.FirebaseMessaging
 
 class MainActivity : Activity() {
     companion object {
@@ -35,6 +37,7 @@ class MainActivity : Activity() {
         private const val HOME_HOST = "editalradar-gamma.vercel.app"
         private const val NOTIFICATION_CHANNEL_ID = "editalradar_updates"
         private const val NOTIFICATION_PERMISSION_REQUEST = 8102
+        const val EXTRA_PUSH_URL = "br.com.editalradar.app.EXTRA_PUSH_URL"
     }
 
     private lateinit var webView: WebView
@@ -53,8 +56,13 @@ class MainActivity : Activity() {
             webView.restoreState(savedInstanceState)
         }
 
-        if (!handleAuthIntent(intent) && savedInstanceState == null) {
-            webView.loadUrl(HOME_URL)
+        if (!handleAuthIntent(intent)) {
+            val pushUrl = intent?.getStringExtra(EXTRA_PUSH_URL)
+            if (!pushUrl.isNullOrBlank()) {
+                webView.loadUrl(resolvePushUrl(pushUrl))
+            } else if (savedInstanceState == null) {
+                webView.loadUrl(HOME_URL)
+            }
         }
         refreshConnectivity()
     }
@@ -193,6 +201,34 @@ class MainActivity : Activity() {
                 )
             }
         }
+
+        @JavascriptInterface
+        fun requestFcmToken() {
+            runOnUiThread {
+                if (FirebaseApp.getApps(this@MainActivity).isEmpty()) {
+                    dispatchFcmStatus(configured = false)
+                    return@runOnUiThread
+                }
+                val cachedToken = getSharedPreferences("editalradar_push", Context.MODE_PRIVATE)
+                    .getString("fcm_token", null)
+                if (!cachedToken.isNullOrBlank()) dispatchFcmToken(cachedToken)
+                try {
+                    FirebaseMessaging.getInstance().token
+                        .addOnCompleteListener { task ->
+                            if (!task.isSuccessful) {
+                                dispatchFcmStatus(configured = true)
+                                return@addOnCompleteListener
+                            }
+                            val token = task.result ?: return@addOnCompleteListener
+                            getSharedPreferences("editalradar_push", Context.MODE_PRIVATE)
+                                .edit().putString("fcm_token", token).apply()
+                            dispatchFcmToken(token)
+                        }
+                } catch (_: Exception) {
+                    dispatchFcmStatus(configured = false)
+                }
+            }
+        }
     }
 
     private fun configureNotifications() {
@@ -270,7 +306,39 @@ class MainActivity : Activity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        handleAuthIntent(intent)
+        if (!handleAuthIntent(intent)) {
+            val pushUrl = intent.getStringExtra(EXTRA_PUSH_URL)
+            if (!pushUrl.isNullOrBlank() && ::webView.isInitialized) {
+                webView.loadUrl(resolvePushUrl(pushUrl))
+            }
+        }
+    }
+
+    private fun resolvePushUrl(value: String): String {
+        val target = value.trim()
+        if (target.isBlank() || target == "/") return HOME_URL
+        return try {
+            val uri = Uri.parse(target)
+            when {
+                uri.isRelative && target.startsWith("/") && !target.startsWith("//") ->
+                    HOME_URL.trimEnd('/') + target
+                uri.scheme == "https" && uri.host.equals(HOME_HOST, ignoreCase = true) -> target
+                else -> HOME_URL
+            }
+        } catch (_: Exception) {
+            HOME_URL
+        }
+    }
+
+    private fun dispatchFcmToken(token: String) {
+        val safeToken = org.json.JSONObject.quote(token)
+        val script = "window.dispatchEvent(new CustomEvent('editalradar:fcm-token',{detail:{token:$safeToken}}));"
+        if (::webView.isInitialized) webView.post { webView.evaluateJavascript(script, null) }
+    }
+
+    private fun dispatchFcmStatus(configured: Boolean) {
+        val script = "window.dispatchEvent(new CustomEvent('editalradar:fcm-status',{detail:{configured:$configured}}));"
+        if (::webView.isInitialized) webView.post { webView.evaluateJavascript(script, null) }
     }
 
     override fun onStart() {

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { appendContext, buildPendingDiscoveriesUrl, buildRetificationUpdate, classifyDiscovery, extractDocumentText, extractRoleNamesFromText, extractVacancyDetails, fetchCandidateWithRetry, findMatchingContestForRetification, inferOrganization, mapWithConcurrency, normalizeContestIdentity, prepareDiscoveryDocument, summarizeFetchError , assessNoticeFreshness} from "./auto-resolve-discoveries.mjs";
+import { appendContext, buildPendingDiscoveriesUrl, buildRetificationUpdate, classifyDiscovery, extractDocumentText, extractRoleNamesFromText, extractVacancyDetails, fetchCandidateWithRetry, findMatchingContestForRetification, inferOrganization, mapWithConcurrency, normalizeContestIdentity, prepareDiscoveryDocument, requestJson, summarizeFetchError , assessNoticeFreshness} from "./auto-resolve-discoveries.mjs";
 
 const discovery = {
   id: 1,
@@ -542,20 +542,98 @@ test("limita a concorrência e mantém a ordem dos resultados", async () => {
   assert.equal(peak, 3);
 });
 
-test("triagem automática processa somente links diretos oficiais e nunca notícias da busca web", () => {
+test("a triagem repete automaticamente consultas Supabase com falha temporária", async () => {
+  let calls = 0;
+  const result = await requestJson(async () => {
+    calls += 1;
+    if (calls < 3) {
+      return new Response("temporariamente indisponível", { status: 503 });
+    }
+    return new Response(JSON.stringify([{ id: 7 }]), {
+      status: 200,
+      headers: { "content-type": "application/json" }
+    });
+  }, "https://example.supabase.co/rest/v1/contest_discoveries", "test-service-role", {
+    retryDelayMs: 100
+  });
+  assert.equal(calls, 3);
+  assert.deepEqual(result, [{ id: 7 }]);
+});
+
+test("a triagem não repete inserção de catálogo não idempotente após resposta ambígua", async () => {
+  let calls = 0;
+  await assert.rejects(() => requestJson(async () => {
+    calls += 1;
+    return new Response("erro interno", { status: 503 });
+  }, "https://example.supabase.co/rest/v1/contest_catalog", "test-service-role", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ data: {} }),
+    retryDelayMs: 100
+  }), /HTTP 503/);
+  assert.equal(calls, 1);
+});
+
+test("triagem automática processa links oficiais e valida pistas externas pela fonte indicada", () => {
   const url = new URL(buildPendingDiscoveriesUrl(
     "https://example.supabase.co",
     new Date("2026-11-21T18:00:00.000Z")
   ));
 
   assert.equal(url.searchParams.get("status"), "eq.pending");
-  assert.equal(url.searchParams.get("discovery_type"), "eq.new_link");
-  assert.notEqual(url.searchParams.get("discovery_type"), "eq.web_search_lead");
+  assert.equal(url.searchParams.get("discovery_type"), "in.(new_link,page_change,web_search_lead)");
   assert.match(url.searchParams.get("or"), /reviewed_at\.is\.null/);
   assert.match(url.searchParams.get("or"), /reviewed_at\.lt\.2026-11-21T12:00:00/);
-  assert.equal(url.searchParams.get("limit"), "200");
+  assert.equal(url.searchParams.get("limit"), "300");
 });
 
+
+test("inclui páginas oficiais alteradas e pistas externas para validação por fonte oficial", () => {
+  const url = new URL(buildPendingDiscoveriesUrl(
+    "https://example.supabase.co",
+    new Date("2026-11-21T18:00:00.000Z")
+  ));
+  assert.equal(url.searchParams.get("discovery_type"), "in.(new_link,page_change,web_search_lead)");
+  assert.doesNotMatch(url.searchParams.get("discovery_type"), /source_baseline/);
+});
+
+test("converte uma pista da busca em verificação somente quando ela aponta para fonte oficial", async () => {
+  const officialUrl = "https://igaci.al.gov.br/concursos/edital-01-2026";
+  const html = "<html><head><title>Edital 01/2026</title></head><body><h1>Concurso público</h1><p>Edital da Prefeitura Municipal de Igaci. 20 vagas.</p></body></html>";
+  let requested = "";
+  const prepared = await prepareDiscoveryDocument({
+    ...discovery,
+    discovery_type: "web_search_lead",
+    candidate_url: "https://news.google.com/rss/articles/opaque",
+    context: "Pista externa. Endereço informado para a fonte: " + officialUrl
+  }, async url => {
+    requested = url;
+    return {
+      ok: true,
+      status: 200,
+      url,
+      headers: new Headers({ "content-type": "text/html; charset=utf-8" }),
+      arrayBuffer: async () => new TextEncoder().encode(html).buffer
+    };
+  }, { fallbackRequest: async () => { throw new Error("fallback inesperado"); } });
+
+  assert.equal(requested, officialUrl);
+  assert.equal(prepared.stage, "ready");
+  assert.equal(prepared.candidateUrl, officialUrl);
+});
+
+test("mantém pistas externas sem domínio oficial na fila em vez de descartá-las ou publicá-las", async () => {
+  let calls = 0;
+  const prepared = await prepareDiscoveryDocument({
+    ...discovery,
+    discovery_type: "web_search_lead",
+    candidate_url: "https://news.google.com/rss/articles/opaque",
+    context: "Pista externa. Endereço informado para a fonte: https://portal-privado.example.org/concursos"
+  }, async () => { calls += 1; throw new Error("não deveria requisitar domínio não autorizado"); });
+  assert.equal(prepared.stage, "review");
+  assert.equal(calls, 0);
+  assert.match(prepared.reason, /fonte oficial autorizada/);
+});
 
 test("descarta páginas genéricas de categoria da banca sem consultar conteúdo como edital", async () => {
   let calls=0;

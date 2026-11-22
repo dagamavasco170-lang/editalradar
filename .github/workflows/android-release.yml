@@ -6,6 +6,11 @@ on:
     paths:
       - "android/**"
       - ".github/workflows/android-release.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "android/**"
+      - ".github/workflows/android-release.yml"
   workflow_dispatch:
 
 permissions:
@@ -30,10 +35,11 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Install Gradle 8.10.2
-        uses: gradle/gradle-build-action@v3
+      - name: Set up Gradle with dependency cache
+        uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: 8.10.2
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
 
       - name: Read Android version
         id: version
@@ -47,9 +53,45 @@ jobs:
           echo "code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
           echo "Android version: $VERSION_NAME ($VERSION_CODE)"
 
-      - name: Build installable APK and test AAB
+      - name: Configure Firebase for Android (optional until FCM is connected)
+        env:
+          GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
+        shell: bash
+        run: |
+          if [ -n "$GOOGLE_SERVICES_JSON_BASE64" ]; then
+            printf '%s' "$GOOGLE_SERVICES_JSON_BASE64" | base64 --decode > android/app/google-services.json
+            python3 - <<'PY'
+          import json
+          from pathlib import Path
+          config = json.loads(Path("android/app/google-services.json").read_text())
+          package_names = {
+              item.get("client_info", {}).get("android_client_info", {}).get("package_name")
+              for item in config.get("client", [])
+          }
+          if "br.com.editalradar.app" not in package_names:
+              raise SystemExit("google-services.json não contém br.com.editalradar.app")
+          print("Configuração Firebase Android validada.")
+          PY
+          else
+            echo "::warning::GOOGLE_SERVICES_JSON_BASE64 não configurado; o APK será compilado sem registrar dispositivos no FCM."
+          fi
+
+      - name: Build installable APK and test AAB (automatic retry for repository rate limits)
         working-directory: android
-        run: gradle assembleDebug bundleDebug --no-daemon
+        timeout-minutes: 25
+        shell: bash
+        run: |
+          for attempt in 1 2 3; do
+            echo "Build Android attempt $attempt/3"
+            if gradle assembleDebug bundleDebug --no-daemon --max-workers=2; then
+              exit 0
+            fi
+            if [ "$attempt" -lt 3 ]; then
+              echo "Build failed; waiting before automatic retry."
+              sleep $((attempt * 20))
+            fi
+          done
+          exit 1
 
       - name: Prepare release assets and checksums
         env:
@@ -73,7 +115,7 @@ jobs:
           - Inclui cache offline do conteúdo previamente carregado, indicador de conexão, canal de notificações nativas e callback de autenticação Google por esquema de aplicativo.
 
           Para login Google, adicione a URL editalradar://auth-callback às Redirect URLs em Supabase Authentication.
-          As notificações desta versão são disparadas quando o app está aberto e detecta novidades após sincronizar; push remoto em segundo plano ainda requer Firebase Cloud Messaging.
+          A versão inclui o receptor FCM e uma função de envio protegida. O push remoto em segundo plano será ativado quando GOOGLE_SERVICES_JSON_BASE64 (GitHub Actions) e FCM_SERVICE_ACCOUNT_JSON (Supabase Edge Functions Secrets) forem configurados.
           EOF
 
       - name: Upload build artifacts
@@ -85,6 +127,7 @@ jobs:
           retention-days: 90
 
       - name: Publish versioned GitHub Release
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: android-v${{ steps.version.outputs.name }}

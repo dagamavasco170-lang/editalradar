@@ -22,9 +22,24 @@ O provedor Google deve continuar configurado para usar a URL de callback do Supa
 
 Sem a inclusão da URL personalizada na lista de redirecionamentos do Supabase, o login Google no APK não será concluído. Login por e-mail e senha continua usando o fluxo web.
 
-## Limite das notificações nesta versão
+## Firebase Cloud Messaging (push em segundo plano)
 
-As notificações são nativas e locais: o app as dispara quando está aberto e consegue sincronizar/detectar uma novidade. Push remoto em segundo plano, com o app fechado, exige Firebase Cloud Messaging e credenciais de um projeto Firebase; isso não está ativado nesta versão.
+O aplicativo já inclui o serviço Android para receber mensagens FCM mesmo quando a interface está em segundo plano ou fechada. A ativação depende de credenciais do projeto Firebase e é feita sem colocar chaves privadas no APK ou no navegador.
+
+1. No Firebase Console, crie ou selecione um projeto e adicione um app Android com o identificador exato `br.com.editalradar.app`.
+2. Baixe o arquivo `google-services.json` desse app.
+3. Converta o arquivo para Base64 e cadastre o resultado no GitHub, em **Settings → Secrets and variables → Actions**, com o nome `GOOGLE_SERVICES_JSON_BASE64`. O workflow valida o identificador antes de compilar.
+4. No Google Cloud associado ao Firebase, habilite a Firebase Cloud Messaging API e crie uma chave de conta de serviço com permissão para enviar mensagens FCM.
+5. Cadastre o JSON completo da conta de serviço no Supabase, em **Edge Functions → Secrets**, com o nome `FCM_SERVICE_ACCOUNT_JSON`.
+6. Faça login no app Android, entre na área de notificações e toque em **Ativar notificações**. O token será vinculado à conta autenticada.
+
+Quando um administrador cadastrar ou atualizar um concurso, a função protegida `push-notifications` enviará o aviso aos aparelhos Android que autorizaram notificações. Tokens inválidos são removidos automaticamente. O limite atual de envio por chamada é de 1.000 dispositivos.
+
+**Importante:** sem os dois secrets acima, o app continua compilando e funcionando normalmente, mas o push remoto fica desativado. O JSON da conta de serviço deve permanecer apenas no Supabase; nunca o envie ao GitHub nem ao aplicativo.
+
+## Limite das notificações locais
+
+Os avisos locais existentes continuam funcionando quando o aplicativo está aberto e sincroniza novidades. Para notificações com o app fechado, é necessário concluir a configuração do Firebase descrita acima.
 
 ## Pacotes publicados
 
