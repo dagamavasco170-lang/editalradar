@@ -11,6 +11,7 @@ import { buildContestChangeHistory, formatContestHistoryDate } from "./lib/admin
 import { classifyDiscoveryKind, classifyDiscoveryTopic, discoveryKindLabel, discoveryTopicLabel, discoveryStatusLabel, filterDiscoveries, countDiscoveriesByStatus } from "./lib/discovery-filters.js";
 const StudyArea = React.lazy(() => import("./StudyArea.jsx"));
 const StudyQuestionAdmin = React.lazy(() => import("./StudyQuestionAdmin.jsx"));
+const PushHealthPanel = React.lazy(() => import("./PushHealthPanel.jsx"));
 
 export const scoreRecommendation = (item, profile = {}) => {
  const area=(profile.interest_area||"").toLowerCase(), text=[item.cargo,item.orgao,item.area,item.nivel,item.estado,item.localidade,item.status].join(" ").toLowerCase();
@@ -1767,6 +1768,9 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
             <div className="eyebrow">GESTÃO DO CATÁLOGO</div>
             <h1>Administração</h1>
             <p className="subhead">Cadastre, revise e remova oportunidades. As alterações são exibidas para todos os usuários.</p>
+            <React.Suspense fallback={<div className="panel admin-panel"><p className="muted">Carregando saúde das notificações…</p></div>}>
+              <PushHealthPanel authClient={authClient} />
+            </React.Suspense>
             <div className="panel admin-panel">
               <div className="admin-panel-heading">
                 <div><strong>Concursos cadastrados</strong><small>{catalog.length} oportunidade(s) no catálogo</small></div>
