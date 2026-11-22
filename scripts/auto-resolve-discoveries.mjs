@@ -17,6 +17,9 @@ const OCR_PAGE_TIMEOUT_MS = 6000;
 
 const GOOGLE_NEWS_HOST = "news.google.com";
 const GOOGLE_REDIRECT_HOSTS = new Set(["news.google.com", "google.com", "www.google.com"]);
+const DEFAULT_OFFICIAL_RETRY_COOLDOWN_MS = 6 * 60 * 60 * 1000;
+const DEFAULT_EXTERNAL_RETRY_COOLDOWN_MS = 24 * 60 * 60 * 1000;
+const PENDING_DISCOVERY_TYPES = new Set(["new_link", "page_change", "web_search_lead"]);
 
 const STATE_NAMES = {
   ac: "Acre", al: "Alagoas", ap: "Amapá", am: "Amazonas", ba: "Bahia",
@@ -970,15 +973,24 @@ export async function mapWithConcurrency(items, limit, worker) {
   return output;
 }
 
-export function buildPendingDiscoveriesUrl(baseUrl, now = new Date(), cooldownMs = 6 * 60 * 60 * 1000) {
+export function buildPendingDiscoveriesUrl(
+  baseUrl,
+  now = new Date(),
+  cooldownMs = DEFAULT_OFFICIAL_RETRY_COOLDOWN_MS,
+  discoveryTypes = ["new_link", "page_change", "web_search_lead"]
+) {
+  const types = [...new Set((Array.isArray(discoveryTypes) ? discoveryTypes : [])
+    .filter(type => PENDING_DISCOVERY_TYPES.has(type)))];
+  if (!types.length) throw new Error("Informe ao menos um tipo permitido de descoberta para consultar a fila.");
+
   const url = new URL("/rest/v1/contest_discoveries", baseUrl);
-  const retryBefore = new Date(now.getTime() - cooldownMs).toISOString();
-  url.searchParams.set("select", "id,source_url,candidate_url,title,context,discovery_type,status");
+  const retryBefore = new Date(now.getTime() - Math.max(0, Number(cooldownMs) || 0)).toISOString();
+  url.searchParams.set("select", "id,source_url,candidate_url,title,context,discovery_type,status,detected_at,reviewed_at");
   url.searchParams.set("status", "eq.pending");
-  // Search leads are included only to check their declared publisher URL against the
-  // official-source allowlist below. The Google News URL itself is never proof.
-  // Initial baseline pages remain outside automatic publication.
-  url.searchParams.set("discovery_type", "in.(new_link,page_change,web_search_lead)");
+  // Pistas externas nunca usam news.google.com como prova; sua cadência é menor
+  // para que links oficiais monitorados recebam prioridade e capacidade de rede.
+  // Páginas source_baseline continuam fora da publicação automática.
+  url.searchParams.set("discovery_type", "in.(" + types.join(",") + ")");
   url.searchParams.set("or", "(reviewed_at.is.null,reviewed_at.lt." + retryBefore + ")");
   url.searchParams.set("order", "detected_at.asc");
   url.searchParams.set("limit", "300");
@@ -1080,7 +1092,36 @@ export function prioritizePendingDiscoveries(items = [], now = Date.now()) {
   );
 }
 
+
+const UNRELATED_ADMINISTRATIVE_TITLE_PATTERNS = [
+  /\b(?:atos? declaratorios? executivos?)\b/i,
+  /\bconsulta(?:r)? editais? e ades?\b/i,
+  /\b(?:avisos? de )?editais? de leil[aã]o\b/i,
+  /\bprocuraç(?:ão|ões|ao|oes)\s*\(autorizaç(?:ão|ões|ao|oes) de acesso\)\b/i,
+  /\bprocesso administrativo de responsabilizaç(?:ão|ao)\b/i,
+  /\bconsulta fiscal\b/i,
+  /\blicitaç(?:ão|ao)\b/i,
+  /\bpreg(?:ão|ao)\b/i
+];
+
+export function isClearlyUnrelatedAdministrativeDiscovery(item = {}) {
+  if (!["new_link", "page_change"].includes(item.discovery_type)) return false;
+  const title = String(item.title || "").normalize("NFC");
+  const candidate = String(item.candidate_url || "");
+  let pathname = "";
+  try { pathname = new URL(candidate).pathname; } catch { /* O título ainda pode ser avaliado. */ }
+  const text = title + " " + pathname;
+  return UNRELATED_ADMINISTRATIVE_TITLE_PATTERNS.some(pattern => pattern.test(text));
+}
+
 export async function prepareDiscoveryDocument(item, request = fetch, options = {}) {
+  if (isClearlyUnrelatedAdministrativeDiscovery(item)) {
+    return {
+      stage: "dismiss",
+      reason: "O título e o endereço identificam um serviço administrativo sem relação com concurso ou processo seletivo (por exemplo, leilão, ADE, procuração ou licitação). O link foi descartado sem tentativa de download."
+    };
+  }
+
   let candidate;
   let candidateValue = item?.candidate_url;
   if (item?.discovery_type === "web_search_lead") {
@@ -1297,14 +1338,28 @@ export async function autoResolvePending(options = {}) {
   if (new URL(baseUrl).protocol !== "https:") throw new Error("SUPABASE_URL precisa usar HTTPS.");
 
   const request = options.fetchImpl || fetch;
-  const pending = await requestJson(request, buildPendingDiscoveriesUrl(baseUrl), key);
-  const discoveries = prioritizePendingDiscoveries(Array.isArray(pending) ? pending : []);
+  const now = options.now instanceof Date ? options.now : new Date();
+  const officialCooldownMs = Math.max(0, Number(options.officialCooldownMs) || DEFAULT_OFFICIAL_RETRY_COOLDOWN_MS);
+  const externalCooldownMs = Math.max(0, Number(options.externalCooldownMs) || DEFAULT_EXTERNAL_RETRY_COOLDOWN_MS);
+  const [officialPending, externalPending] = await Promise.all([
+    requestJson(request, buildPendingDiscoveriesUrl(
+      baseUrl, now, officialCooldownMs, ["new_link", "page_change"]
+    ), key),
+    requestJson(request, buildPendingDiscoveriesUrl(
+      baseUrl, now, externalCooldownMs, ["web_search_lead"]
+    ), key)
+  ]);
+  const officialItems = Array.isArray(officialPending) ? officialPending : [];
+  const externalItems = Array.isArray(externalPending) ? externalPending : [];
+  const discoveries = prioritizePendingDiscoveries([...officialItems, ...externalItems], now.getTime());
   const queuePriorities = discoveries.reduce((counts, item) => {
     const level = item.discovery_type === "web_search_lead" ? "pistas_externas" : "fontes_monitoradas";
     counts[level] = (counts[level] || 0) + 1;
     return counts;
   }, {});
-  console.log("Fila ordenada por evidência e envelhecimento: " + JSON.stringify(queuePriorities) + ".");
+  console.log("Cadência da fila: fontes oficiais " + Math.round(officialCooldownMs / 3600000) +
+    "h; pistas externas " + Math.round(externalCooldownMs / 3600000) + "h.");
+  console.log("Fila elegível ordenada por evidência e idade: " + JSON.stringify(queuePriorities) + ".");
   if (!discoveries.length) {
     let pendingTotal = null;
     let errors = 0;
@@ -1507,7 +1562,9 @@ async function main() {
     concurrency: Number(process.env.TRIAGE_CONCURRENCY) || 8,
     attempts: Number(process.env.TRIAGE_ATTEMPTS) || 4,
     timeoutMs: Number(process.env.TRIAGE_TIMEOUT_MS) || TIMEOUT_MS,
-    retryDelayMs: Number(process.env.TRIAGE_RETRY_DELAY_MS) || 600
+    retryDelayMs: Number(process.env.TRIAGE_RETRY_DELAY_MS) || 600,
+    officialCooldownMs: Number(process.env.TRIAGE_OFFICIAL_COOLDOWN_HOURS || 6) * 60 * 60 * 1000,
+    externalCooldownMs: Number(process.env.TRIAGE_EXTERNAL_COOLDOWN_HOURS || 24) * 60 * 60 * 1000
   });
   const summary = [
     "## Triagem automática de oportunidades",
