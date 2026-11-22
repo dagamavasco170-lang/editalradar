@@ -58,7 +58,7 @@ describe("PushHealthPanel", () => {
     expect(screen.getByText("HTTP 200")).toBeTruthy();
     expect(screen.getByText("1 ativo")).toBeTruthy();
     expect(screen.getByText("Resultado do último lote")).toBeTruthy();
-    expect(screen.getByText("Aguardando recuperação")).toBeTruthy();
+    expect(screen.getAllByText("Aguardando recuperação")).toHaveLength(2);
     expect(screen.getByText("Falhas definitivas")).toBeTruthy();
     expect(screen.getByText("Histórico das últimas 24 horas")).toBeTruthy();
     expect(screen.getByText("1.440 execuções · última em " + new Date(snapshotNow).toLocaleString("pt-BR"))).toBeTruthy();
@@ -77,7 +77,7 @@ describe("PushHealthPanel", () => {
     render(<PushHealthPanel authClient={authClient} />);
 
     expect(await screen.findByText("Atenção necessária")).toBeTruthy();
-    expect(screen.getByText("Aguardando recuperação")).toBeTruthy();
+    expect(screen.getAllByText("Aguardando recuperação")).toHaveLength(2);
   });
 
   it("warns from persistent 24-hour history even when the latest batch is clean", async () => {
