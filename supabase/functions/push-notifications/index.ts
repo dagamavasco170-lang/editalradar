@@ -154,23 +154,38 @@ async function disableInvalidTokens(adminDb: any, tokens: string[]): Promise<num
   return uniqueTokens.length;
 }
 
-async function queueRetry(adminDb: any, token: string, notification: { title: string; body: string; url: string }, failure: FcmFailure) {
-  const delaySeconds = Math.ceil(getFcmRetryDelayMs(failure, 1) / 1000);
-  const { data, error } = await adminDb.rpc("enqueue_push_delivery", {
-    p_message: {
-      token,
+async function queueRetries(
+  adminDb: any,
+  jobs: Array<{ token: string; failure: FcmFailure }>,
+  notification: { title: string; body: string; url: string },
+) {
+  const batches = new Map<number, Array<Record<string, unknown>>>();
+  for (const job of jobs) {
+    const delaySeconds = Math.ceil(getFcmRetryDelayMs(job.failure, 1) / 1000);
+    const batch = batches.get(delaySeconds) || [];
+    batch.push({
+      token: job.token,
       ...notification,
       attempt: 1,
-      last_error_code: failure.code,
-      retry_after: failure.retryAfter || null,
-    },
-    p_delay_seconds: delaySeconds,
-  });
-  if (error || !data) {
-    console.error("[push-notifications] Não foi possível persistir a retentativa:", error?.message || "id ausente");
-    return false;
+      last_error_code: job.failure.code,
+      retry_after: job.failure.retryAfter || null,
+    });
+    batches.set(delaySeconds, batch);
   }
-  return true;
+
+  let queued = 0;
+  for (const [delaySeconds, messages] of batches) {
+    const { data, error } = await adminDb.rpc("enqueue_push_deliveries", {
+      p_messages: messages,
+      p_delay_seconds: delaySeconds,
+    });
+    if (error || Number(data) !== messages.length) {
+      console.error("[push-notifications] Não foi possível persistir um lote de retentativas:", error?.message || "contagem divergente");
+      continue;
+    }
+    queued += messages.length;
+  }
+  return { queued, failed: jobs.length - queued };
 }
 
 Deno.serve(async (req: Request) => {
@@ -303,10 +318,9 @@ Deno.serve(async (req: Request) => {
     }
 
     disabledInvalid = await disableInvalidTokens(adminDb, invalidTokens);
-    for (const job of retryJobs) {
-      if (await queueRetry(adminDb, job.token, notification, job.failure)) retryScheduled += 1;
-      else retryEnqueueFailed += 1;
-    }
+    const queuedRetries = await queueRetries(adminDb, retryJobs, notification);
+    retryScheduled = queuedRetries.queued;
+    retryEnqueueFailed = queuedRetries.failed;
 
     const errorCodes = [...failureCodes.entries()]
       .slice(0, 4)
