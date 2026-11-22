@@ -68,5 +68,5 @@ export function isTrustedOfficialUrl(value) {
 
 export function officialSourceLabel(value) {
   if (isTrustedOfficialUrl(value)) return "Fonte de estudo selecionada";
-  return parseHttpsUrl(value) ? "Referência externa · confirme no órgão" : "Fonte não verificada";
+  return parseHttpsUrl(value) ? "Fonte externa não selecionada" : "Fonte não verificada";
 }
