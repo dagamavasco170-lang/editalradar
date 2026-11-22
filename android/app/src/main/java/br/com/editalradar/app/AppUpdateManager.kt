@@ -167,7 +167,7 @@ internal class AppUpdateManager(context: Context) {
         }
 
         val checksumPattern = Regex(
-            "^([a-fA-F0-9]{64})\\s+\\*?\${Regex.escape(release.apkName)}$"
+            "^([a-fA-F0-9]{64})\\s+\\*?" + Regex.escape(release.apkName) + "$"
         )
         val expectedHash = checksumText.lineSequence()
             .mapNotNull { checksumPattern.matchEntire(it.trim())?.groupValues?.get(1) }
@@ -223,7 +223,7 @@ internal class AppUpdateManager(context: Context) {
                 throw IllegalStateException("O download não foi concluído corretamente.")
             }
 
-            val actualHash = digest.digest().joinToString("") { "%02x".format(it) }
+            val actualHash = digest.digest().joinToString("") { "%02x".format(it.toInt() and 0xff) }
             if (!MessageDigest.isEqual(
                     actualHash.toByteArray(Charsets.US_ASCII),
                     expectedHash.toByteArray(Charsets.US_ASCII)
