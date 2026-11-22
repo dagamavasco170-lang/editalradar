@@ -59,7 +59,7 @@ describe("PushHealthPanel", () => {
     expect(screen.getByText("1 ativo")).toBeTruthy();
     expect(screen.getByText("Resultado do último lote")).toBeTruthy();
     expect(screen.getAllByText("Aguardando recuperação")).toHaveLength(2);
-    expect(screen.getByText("Falhas definitivas")).toBeTruthy();
+    expect(screen.getAllByText("Falhas definitivas")).toHaveLength(2);
     expect(screen.getByText("Histórico das últimas 24 horas")).toBeTruthy();
     expect(screen.getByText("1.440 execuções · última em " + new Date(snapshotNow).toLocaleString("pt-BR"))).toBeTruthy();
     expect(authClient.rpc).toHaveBeenCalledWith("get_push_notification_health");
