@@ -2098,7 +2098,7 @@ button,.detail-btn,.primary-btn{line-height:1.35}
 .discovery-summary>div{display:grid;gap:4px;min-width:0;padding:11px;border:1px solid #e6ecea;border-radius:9px;background:#fbfdfc}
 .discovery-summary strong{font:800 19px Manrope,sans-serif;color:#23495a}
 .discovery-summary span{font-size:9px;color:#7b8c94;line-height:1.35}
-.discovery-toolbar{display:grid;grid-template-columns:minmax(180px,1.4fr) repeat(3,minmax(140px,1fr));gap:9px;margin:12px 0 14px}
+.discovery-toolbar{display:grid;grid-template-columns:minmax(180px,1.4fr) repeat(4,minmax(125px,1fr));gap:9px;margin:12px 0 14px}
 .discovery-toolbar label{display:grid;gap:5px;min-width:0;color:#627985;font-size:9px;font-weight:800}
 .discovery-toolbar input,.discovery-toolbar select{width:100%;min-width:0;height:37px;padding:0 9px;border:1px solid #dce6e5;border-radius:8px;background:#fff;color:#29495b;font:500 10px 'DM Sans',sans-serif}
 .discovery-row-tags{display:flex;align-items:center;gap:6px;flex-wrap:wrap}

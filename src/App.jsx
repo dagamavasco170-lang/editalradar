@@ -8,7 +8,7 @@ import { getUpcomingMilestones } from "./lib/dashboard";
 import { parseBrazilianNumber } from "./lib/brazilian-numbers.js";
 import { buildCsv } from "./lib/csv-export.js";
 import { buildContestChangeHistory, formatContestHistoryDate } from "./lib/admin-history.js";
-import { classifyDiscoveryKind, discoveryKindLabel, discoveryStatusLabel, filterDiscoveries, countDiscoveriesByStatus } from "./lib/discovery-filters.js";
+import { classifyDiscoveryKind, classifyDiscoveryTopic, discoveryKindLabel, discoveryTopicLabel, discoveryStatusLabel, filterDiscoveries, countDiscoveriesByStatus } from "./lib/discovery-filters.js";
 const StudyArea = React.lazy(() => import("./StudyArea.jsx"));
 const StudyQuestionAdmin = React.lazy(() => import("./StudyQuestionAdmin.jsx"));
 
@@ -231,6 +231,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   const [discoverySyncMessage, setDiscoverySyncMessage] = useState("");
   const [discoveryQuery, setDiscoveryQuery] = useState("");
   const [discoveryKind, setDiscoveryKind] = useState("all");
+  const [discoveryTopic, setDiscoveryTopic] = useState("all");
   const [discoveryStatus, setDiscoveryStatus] = useState("pending");
   const [discoveryPeriod, setDiscoveryPeriod] = useState("all");
   const [discoveryDraftId, setDiscoveryDraftId] = useState(null);
@@ -1289,9 +1290,10 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   const filteredDiscoveryItems = useMemo(() => filterDiscoveries(discoveryItems, {
     query: discoveryQuery,
     kind: discoveryKind,
+    topic: discoveryTopic,
     status: discoveryStatus,
     period: discoveryPeriod
-  }), [discoveryItems, discoveryQuery, discoveryKind, discoveryStatus, discoveryPeriod]);
+  }), [discoveryItems, discoveryQuery, discoveryKind, discoveryTopic, discoveryStatus, discoveryPeriod]);
 
   return (
     <div className="app-shell" data-page={page}>
@@ -1609,14 +1611,20 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                 <label>Pesquisar oportunidade
                   <input value={discoveryQuery} onChange={event => setDiscoveryQuery(event.target.value)} placeholder="Título, órgão, link ou texto..." />
                 </label>
-                <label>Tipo de oportunidade
+                <label>Origem
                   <select value={discoveryKind} onChange={event => setDiscoveryKind(event.target.value)}>
-                    <option value="all">Todos os tipos</option>
-                    <option value="official">Links de fontes oficiais</option>
+                    <option value="all">Todas as origens</option>
+                    <option value="official">Fontes oficiais</option>
                     <option value="secondary">Notícias e pistas externas</option>
+                  </select>
+                </label>
+                <label>Assunto
+                  <select value={discoveryTopic} onChange={event => setDiscoveryTopic(event.target.value)}>
+                    <option value="all">Todos os assuntos</option>
                     <option value="retification">Retificações e erratas</option>
                     <option value="result">Resultados e convocações</option>
                     <option value="pre_notice">Pré-edital e autorizações</option>
+                    <option value="general">Editais e outras atualizações</option>
                   </select>
                 </label>
                 <label>Situação da revisão
@@ -1653,6 +1661,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                           <strong>{item.title}</strong>
                           <div className="discovery-row-tags">
                             <span className={`discovery-chip discovery-chip-${kind}`}>{discoveryKindLabel(kind)}</span>
+                            <span className="discovery-chip discovery-chip-topic">{discoveryTopicLabel(classifyDiscoveryTopic(item))}</span>
                             <span className={`discovery-chip discovery-status-${item.status || "unknown"}`}>{discoveryStatusLabel(item.status)}</span>
                             <small>{item.detected_at ? new Date(item.detected_at).toLocaleString("pt-BR") : "Data não informada"}</small>
                             {item.reviewed_at && <small>Revisada em {new Date(item.reviewed_at).toLocaleString("pt-BR")}</small>}

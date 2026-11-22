@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   classifyDiscoveryKind,
+  classifyDiscoveryTopic,
   countDiscoveriesByStatus,
   filterDiscoveries,
   discoveryKindLabel,
-  discoveryStatusLabel
+  discoveryStatusLabel,
+  discoveryTopicLabel
 } from "./discovery-filters.js";
 
 const rows = [
@@ -16,18 +18,20 @@ const rows = [
 ];
 
 describe("filtros da fila de descobertas", () => {
-  it("classifica origem externa, retificação, resultado e pré-edital", () => {
+  it("separa origem oficial ou secundária do assunto da publicação", () => {
     expect(classifyDiscoveryKind(rows[2])).toBe("secondary");
-    expect(classifyDiscoveryKind(rows[1])).toBe("retification");
-    expect(classifyDiscoveryKind(rows[3])).toBe("result");
-    expect(classifyDiscoveryKind(rows[4])).toBe("pre_notice");
+    expect(classifyDiscoveryKind(rows[1])).toBe("official");
+    expect(classifyDiscoveryTopic(rows[1])).toBe("retification");
+    expect(classifyDiscoveryTopic(rows[3])).toBe("result");
+    expect(classifyDiscoveryTopic(rows[4])).toBe("pre_notice");
     expect(discoveryKindLabel("secondary")).toBe("Pista externa");
+    expect(discoveryTopicLabel("retification")).toBe("Retificação / errata");
     expect(discoveryStatusLabel("published")).toBe("Publicada");
   });
 
-  it("filtra por status, tipo e texto ignorando acentos e caixa", () => {
+  it("filtra por origem, assunto, situação e texto ignorando acentos e caixa", () => {
     expect(filterDiscoveries(rows, { status: "pending", kind: "official", query: "edital" }).map(item => item.id)).toEqual([1]);
-    expect(filterDiscoveries(rows, { status: "all", kind: "retification", query: "RETIFICACAO" }).map(item => item.id)).toEqual([2]);
+    expect(filterDiscoveries(rows, { status: "all", kind: "official", topic: "retification", query: "RETIFICACAO" }).map(item => item.id)).toEqual([2]);
     expect(filterDiscoveries(rows, { status: "all", kind: "secondary" }).map(item => item.id)).toEqual([3]);
   });
 
