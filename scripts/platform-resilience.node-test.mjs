@@ -62,12 +62,11 @@ test("PWA limita a espera de navegação e volta ao cache em redes instáveis", 
 });
 
 test("falha de um recurso opcional não impede a atualização do service worker", () => {
-  assert.match(serviceWorker, /requiredShellUrls/);
-  assert.match(serviceWorker, /optionalShellUrls/);
-  assert.match(serviceWorker, /Promise\.allSettled\(optionalShellUrls/);
-  assert.match(serviceWorker, /await Promise\\.allSettled\\(optionalShellUrls\\.map/);
-  assert.match(serviceWorker, /await cache\\.addAll\\(\\[\\.\\.\\.new Set\\(assetPaths\\)\\]\\)/);
-  assert.match(serviceWorker, /Keep the current worker/);
+  assert.ok(serviceWorker.includes("requiredShellUrls"));
+  assert.ok(serviceWorker.includes("optionalShellUrls"));
+  assert.ok(serviceWorker.includes("Promise.allSettled(optionalShellUrls.map"));
+  assert.ok(serviceWorker.includes("await cache.addAll([...new Set(assetPaths)])"));
+  assert.ok(serviceWorker.includes("Keep the current worker"));
 });
 
 test("falha de cache não transforma uma resposta online válida em erro de navegação", () => {
