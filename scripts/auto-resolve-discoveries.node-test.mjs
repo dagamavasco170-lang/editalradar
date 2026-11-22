@@ -845,7 +845,7 @@ test("mantém pistas externas sem domínio oficial na fila em vez de descartá-l
   }, async () => { calls += 1; throw new Error("não deveria requisitar domínio não autorizado"); });
   assert.equal(prepared.stage, "review");
   assert.equal(calls, 0);
-  assert.match(prepared.reason, /fonte oficial autorizada/);
+  assert.match(prepared.reason, /veículo editorial auxiliar autorizado/);
 });
 
 test("descarta páginas genéricas de categoria da banca sem consultar conteúdo como edital", async () => {
@@ -914,8 +914,8 @@ test("triagem de notícia editorial só abre a publicação depois de localizar 
     throw new Error("URL inesperada: " + url);
   }, { fallbackRequest: async () => { throw new Error("fallback inesperado"); } });
 
+  assert.equal(prepared.stage, "ready", prepared.reason);
   assert.deepEqual(requested, [articleUrl, officialUrl]);
-  assert.equal(prepared.stage, "ready");
   assert.equal(prepared.candidateUrl, officialUrl);
   assert.match(prepared.document.text, /Prefeitura Municipal de Igaci/);
 });
