@@ -20,7 +20,7 @@ export function normalizeText(value: unknown): string {
     .replace(/\s+/g, " ");
 }
 
-export function isTrustedOfficialUrl(value: unknown): boolean {
+export function isTrustedPrivateStudySourceUrl(value: unknown): boolean {
   if (typeof value !== "string" || !value.trim()) return false;
   try {
     const url = new URL(value.trim());
