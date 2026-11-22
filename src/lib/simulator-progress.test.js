@@ -34,6 +34,23 @@ describe("persistência de simulados", () => {
     expect(restored?.deadlineAt).toBe(run.deadlineAt);
   });
 
+  it("restaura questões adicionais sem depender de novo carregamento da API", () => {
+    const storage = createStorage();
+    const run = sampleRun();
+    const additional = {
+      id:"licensed-501",databaseId:501,origin:"generated",discipline:"Biologia",topic:"Genética",
+      difficulty:"Intermediária",board:"EditalRadar",prompt:"Questão gerada restaurada",
+      options:[["A. Sim","a"],["B. Não","b"]],sourceUrl:"https://www.gapminder.org/teaching/materials/",
+      licenseStatus:"cc_by"
+    };
+    run.questions[0] = additional;
+    run.answers = {[additional.id]:"b"};
+    expect(saveActiveSimulation("user-1",run,storage)).toBe(true);
+    const restored = loadActiveSimulation("user-1",questionBank,storage);
+    expect(restored?.questions[0]).toMatchObject({id:additional.id,databaseId:501,origin:"generated",prompt:additional.prompt});
+    expect(restored?.answers).toEqual({[additional.id]:"b"});
+  });
+
   it("separa sessões por conta e por visitante", () => {
     const storage = createStorage();
     const run = sampleRun();

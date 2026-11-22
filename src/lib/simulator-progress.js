@@ -16,6 +16,29 @@ function getStorage(storage) {
   return typeof localStorage === "undefined" ? null : localStorage;
 }
 
+function restoreGeneratedQuestionSnapshot(snapshot, expectedId) {
+  if (!snapshot || String(snapshot.id) !== String(expectedId) || snapshot.origin !== "generated") return null;
+  const databaseId = Number(snapshot.databaseId);
+  if (!Number.isSafeInteger(databaseId) || databaseId <= 0 || !Array.isArray(snapshot.options) || snapshot.options.length < 2 || snapshot.options.length > 6) return null;
+  const options = snapshot.options.map(option => Array.isArray(option) && option.length >= 2
+    ? [String(option[0]).slice(0, 180), String(option[1]).slice(0, 12)] : null);
+  if (options.some(option => !option || !option[0] || !option[1]) || new Set(options.map(option => option[1])).size !== options.length) return null;
+  const prompt = String(snapshot.prompt || "");
+  if (!prompt.trim() || prompt.length > 6000) return null;
+  return {
+    id: String(snapshot.id), databaseId, origin: "generated",
+    discipline: String(snapshot.discipline || "Diversas disciplinas").slice(0, 180),
+    topic: String(snapshot.topic || "").slice(0, 300),
+    difficulty: String(snapshot.difficulty || "Intermediária").slice(0, 40),
+    board: String(snapshot.board || "EditalRadar").slice(0, 80),
+    examName: String(snapshot.examName || "").slice(0, 220),
+    examYear: Number.isInteger(Number(snapshot.examYear)) ? Number(snapshot.examYear) : null,
+    prompt, options,
+    sourceUrl: String(snapshot.sourceUrl || "").slice(0, 1200),
+    licenseStatus: String(snapshot.licenseStatus || "").slice(0, 40)
+  };
+}
+
 export function loadActiveSimulation(userId, questionBank = [], storage, now = Date.now()) {
   const target = getStorage(storage);
   if (!target) return null;
@@ -30,8 +53,9 @@ export function loadActiveSimulation(userId, questionBank = [], storage, now = D
     const ids = source.questionIds.map(String);
     if (new Set(ids).size !== ids.length) throw new Error("Questões repetidas no estado salvo.");
     const questionsById = new Map(questionBank.map(question => [String(question.id), question]));
-    const questions = ids.map(id => questionsById.get(id));
-    if (questions.some(question => !question || !Array.isArray(question.options))) throw new Error("O banco de questões mudou.");
+    const snapshots = Array.isArray(source.questionSnapshots) ? source.questionSnapshots : [];
+    const questions = ids.map((id,index) => questionsById.get(id) || restoreGeneratedQuestionSnapshot(snapshots[index], id));
+    if (questions.some(question => !question || !Array.isArray(question.options) || question.options.length < 2)) throw new Error("O banco de questões mudou.");
     const startedAt = Date.parse(source.startedAt);
     const deadline = Date.parse(source.deadlineAt);
     const durationMinutes = Number(source.durationMinutes);
@@ -70,6 +94,17 @@ export function saveActiveSimulation(userId, run, storage) {
       run: {
         id: run.id,
         questionIds: run.questions.map(question => String(question.id)),
+        questionSnapshots: run.questions.map(question => {
+          if (!question.databaseId || question.origin !== "generated") return null;
+          return {
+            id: String(question.id), databaseId: Number(question.databaseId), origin: "generated",
+            discipline: question.discipline, topic: question.topic, difficulty: question.difficulty,
+            board: question.board, examName: question.examName, examYear: question.examYear,
+            prompt: question.prompt,
+            options: Array.isArray(question.options) ? question.options.map(option => [String(option[0]), String(option[1])]) : [],
+            sourceUrl: question.sourceUrl, licenseStatus: question.licenseStatus
+          };
+        }),
         answers: run.answers,
         currentIndex: run.currentIndex,
         startedAt: run.startedAt,

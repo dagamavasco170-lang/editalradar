@@ -167,6 +167,9 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
  },[questionProgress.attempts]);
  const savedQuestions=useMemo(()=>new Set(questionProgress.saved),[questionProgress.saved]);
  const allQuestions=useMemo(()=>[...questionBank,...licensedQuestions],[licensedQuestions]);
+ const simulatorQuestions=useMemo(()=>allQuestions.filter(question=>
+  question.origin!=="licensed"&&(!question.databaseId||Boolean(activeUserId&&authClient))
+ ),[allQuestions,activeUserId,authClient]);
  const questionBase=useMemo(()=>allQuestions.filter(q=>
   (discipline==="Todas"||q.discipline===discipline)
   &&(board==="Todas"||q.board===board)
@@ -211,10 +214,12 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
   });
  };
  const completeSimulation=(summary)=>{
+  const reviewByQuestion=new Map((summary.review||[]).map(item=>[String(item.questionId),item]));
   const attempts=summary.questionIds.map(questionId=>{
-   const question=questionBank.find(item=>item.id===questionId);
+   const review=reviewByQuestion.get(String(questionId));
+   const question=allQuestions.find(item=>String(item.id)===String(questionId));
    const answerValue=summary.answers[questionId]||"";
-   return {id:summary.id+":"+questionId,questionId,answer:answerValue,correct:Boolean(question&&answerValue&&answerValue===question.answer),at:summary.completedAt,source:"simulado",simulationId:summary.id};
+   return {id:summary.id+":"+questionId,questionId,answer:answerValue,correct:Boolean(answerValue&&review?.correct),at:summary.completedAt,source:question?.origin==="generated"?"autoral-gerada":"simulado",simulationId:summary.id};
   });
   updateQuestionProgress(current=>({
    ...current,
@@ -322,7 +327,7 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
   </div>
 
   <React.Suspense fallback={<section className="panel simulator-panel"><p className="muted">Carregando simulados…</p></section>}>
-   <SimulatorPanel key={activeUserId || "visitor"} userId={activeUserId} questionBank={questionBank} history={questionProgress.simulations} onComplete={completeSimulation}/>
+   <SimulatorPanel key={activeUserId || "visitor"} userId={activeUserId} authClient={authClient} questionBank={simulatorQuestions} history={questionProgress.simulations} onComplete={completeSimulation}/>
   </React.Suspense>
   <React.Suspense fallback={<section className="panel official-exams-panel"><p className="muted">Carregando catálogo de provas oficiais…</p></section>}>
    <ExamSourcesPanel authClient={authClient}/>
