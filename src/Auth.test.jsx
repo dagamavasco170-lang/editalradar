@@ -50,6 +50,9 @@ const createAuthClient = () => {
     adminCatalog,
     adminDiscoveries,
     callback: null,
+    functions: {
+      invoke: vi.fn().mockResolvedValue({ data: { ok: true, total: 1, sent: 1, failed: 0 }, error: null })
+    },
     auth: {
       getSession: vi.fn().mockResolvedValue({ data: { session: null }, error: null }),
       onAuthStateChange: vi.fn((callback) => {
@@ -83,6 +86,42 @@ afterEach(() => {
 });
 
 describe("Autenticação EditalRadar", () => {
+  it("oferece teste push privado e envia apenas para os aparelhos da conta autenticada", async () => {
+    localStorage.setItem("er-browser-notifications", JSON.stringify(true));
+    Object.defineProperty(window, "EditalRadarNative", {
+      configurable: true,
+      value: {
+        requestFcmToken: vi.fn(() => {
+          window.dispatchEvent(new CustomEvent("editalradar:fcm-token", {
+            detail: { token: "fcm-test-token-".padEnd(80, "x") }
+          }));
+        })
+      }
+    });
+    const client = createAuthClient();
+    render(<App authClient={client} authConfigured />);
+
+    await waitFor(() => expect(client.callback).toBeTypeOf("function"));
+    client.callback("SIGNED_IN", {
+      user: { id: "user-push-test", email: "aluno@exemplo.com" }
+    });
+
+    await waitFor(() => expect(client.functions.invoke).toHaveBeenCalledWith("push-notifications", {
+      body: {
+        action: "register_device",
+        token: "fcm-test-token-".padEnd(80, "x"),
+        platform: "android"
+      }
+    }));
+
+    fireEvent.click(await screen.findByRole("button", { name: "Testar recebimento push" }));
+    await waitFor(() => expect(client.functions.invoke).toHaveBeenCalledWith("push-notifications", {
+      body: { action: "test_self" }
+    }));
+    expect(await screen.findByText(/Teste enviado ao seu aparelho/)).toBeInTheDocument();
+    delete window.EditalRadarNative;
+  });
+
   it("inicia autenticação com Google e retorna ao GitHub Pages", async () => {
     const client = createAuthClient();
     render(<App authClient={client} authConfigured />);

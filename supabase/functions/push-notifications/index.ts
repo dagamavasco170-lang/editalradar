@@ -136,17 +136,24 @@ Deno.serve(async (req: Request) => {
     return json({ ok: true, removed: true });
   }
 
-  if (action !== "broadcast") return json({ error: "Ação não reconhecida." }, 400);
-  if (user.app_metadata?.role !== "admin") {
+  const isSelfTest = action === "test_self";
+  if (action !== "broadcast" && !isSelfTest) {
+    return json({ error: "Ação não reconhecida." }, 400);
+  }
+  if (action === "broadcast" && user.app_metadata?.role !== "admin") {
     return json({ error: "Apenas administradores podem enviar avisos gerais." }, 403);
   }
   if (!serviceAccountValue) {
     return json({ error: "FCM ainda não foi configurado. Cadastre o secret FCM_SERVICE_ACCOUNT_JSON no Supabase." }, 503);
   }
 
-  const title = String(body.title || "").trim().slice(0, 90);
-  const messageBody = String(body.body || "").trim().slice(0, 350);
-  const destination = String(body.url || "/").trim().slice(0, 512);
+  const title = isSelfTest
+    ? "Teste de notificações do EditalRadar"
+    : String(body.title || "").trim().slice(0, 90);
+  const messageBody = isSelfTest
+    ? "Seu aparelho está recebendo avisos push."
+    : String(body.body || "").trim().slice(0, 350);
+  const destination = isSelfTest ? "/" : String(body.url || "/").trim().slice(0, 512);
   if (!title || !messageBody) return json({ error: "Título e mensagem são obrigatórios." }, 400);
   if (!destination.startsWith("/") || destination.startsWith("//")) {
     return json({ error: "O destino do aviso deve ser um caminho interno do aplicativo." }, 400);
@@ -161,18 +168,24 @@ Deno.serve(async (req: Request) => {
 
   try {
     const accessToken = await createGoogleAccessToken(serviceAccount);
-    const { data: devices, error: devicesError } = await adminDb
+    let devicesQuery = adminDb
       .from("push_devices")
       .select("token")
-      .eq("enabled", true)
-      .limit(1000);
+      .eq("enabled", true);
+    if (isSelfTest) devicesQuery = devicesQuery.eq("user_id", user.id);
+    const { data: devices, error: devicesError } = await devicesQuery.limit(1000);
     if (devicesError) throw new Error("Não foi possível carregar os dispositivos registrados.");
     const tokens = (devices || []).map((row: { token: string }) => row.token).filter(Boolean);
-    if (!tokens.length) return json({ ok: true, total: 0, sent: 0, failed: 0 });
+    if (!tokens.length) {
+      return isSelfTest
+        ? json({ ok: false, error: "Nenhum aparelho está registrado nesta conta. Ative as notificações no Android e tente novamente." })
+        : json({ ok: true, total: 0, sent: 0, failed: 0 });
+    }
 
     let sent = 0;
     let failed = 0;
     const expiredTokens: string[] = [];
+    const failureCodes = new Map<string, number>();
     for (let offset = 0; offset < tokens.length; offset += 20) {
       const batch = tokens.slice(offset, offset + 20);
       const results = await Promise.all(batch.map(async (token) => {
@@ -195,7 +208,12 @@ Deno.serve(async (req: Request) => {
         );
         const result = await response.json().catch(() => ({}));
         if (response.ok) return { sent: true, expired: false };
-        const status = String(result?.error?.details?.find((item: any) => item?.errorCode)?.errorCode || "");
+        const status = String(
+          result?.error?.details?.find((item: any) => item?.errorCode)?.errorCode
+          || result?.error?.status
+          || "FCM_SEND_FAILED"
+        );
+        failureCodes.set(status, (failureCodes.get(status) || 0) + 1);
         return { sent: false, expired: status === "UNREGISTERED" };
       }));
       for (let index = 0; index < results.length; index += 1) {
@@ -210,7 +228,28 @@ Deno.serve(async (req: Request) => {
     if (expiredTokens.length) {
       await adminDb.from("push_devices").delete().in("token", expiredTokens);
     }
-    return json({ ok: true, total: tokens.length, sent, failed, removed_expired: expiredTokens.length });
+    const errorCodes = [...failureCodes.entries()]
+      .slice(0, 4)
+      .map(([code, count]) => ({ code, count }));
+    if (isSelfTest && sent === 0) {
+      return json({
+        ok: false,
+        error: "O Firebase recusou o envio do teste. Verifique a credencial da conta de serviço e o projeto Firebase.",
+        total: tokens.length,
+        sent,
+        failed,
+        error_codes: errorCodes,
+        removed_expired: expiredTokens.length,
+      });
+    }
+    return json({
+      ok: true,
+      total: tokens.length,
+      sent,
+      failed,
+      ...(isSelfTest ? { error_codes: errorCodes } : {}),
+      removed_expired: expiredTokens.length,
+    });
   } catch (error) {
     return json({ error: String(error?.message || error).slice(0, 300) }, 502);
   }
