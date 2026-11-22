@@ -26,56 +26,64 @@ const MAX_QUESTIONS_PER_RUN = 3;
 // A primeira execução agenda um catálogo-base de assuntos sem exigir cadastro manual.
 // Todas as fontes são textos legislativos oficiais hospedados no Planalto.
 const DEFAULT_AUTONOMOUS_TOPICS = [
-  {
-    discipline: "Direito Constitucional",
-    topic: "Fundamentos e princípios fundamentais da República",
-    source_url: "https://www.planalto.gov.br/ccivil_03/constituicao/constituicao.htm"
-  },
-  {
-    discipline: "Direito Constitucional",
-    topic: "Direitos e garantias fundamentais",
-    source_url: "https://www.planalto.gov.br/ccivil_03/constituicao/constituicao.htm"
-  },
-  {
-    discipline: "Direito Constitucional",
-    topic: "Organização político-administrativa do Estado",
-    source_url: "https://www.planalto.gov.br/ccivil_03/constituicao/constituicao.htm"
-  },
-  {
-    discipline: "Direito Administrativo",
-    topic: "Regime jurídico dos servidores públicos federais",
-    source_url: "https://www.planalto.gov.br/ccivil_03/leis/l8112cons.htm"
-  },
-  {
-    discipline: "Direito Administrativo",
-    topic: "Processo administrativo federal",
-    source_url: "https://www.planalto.gov.br/ccivil_03/leis/l9784.htm"
-  },
-  {
-    discipline: "Direito Administrativo",
-    topic: "Licitações e contratos administrativos",
-    source_url: "https://www.planalto.gov.br/ccivil_03/_ato2019-2022/2021/lei/l14133.htm"
-  },
-  {
-    discipline: "Direito Administrativo",
-    topic: "Acesso à informação e transparência pública",
-    source_url: "https://www.planalto.gov.br/ccivil_03/_ato2011-2014/2011/lei/l12527.htm"
-  },
-  {
-    discipline: "Legislação Educacional",
-    topic: "Diretrizes e bases da educação nacional",
-    source_url: "https://www.planalto.gov.br/ccivil_03/leis/l9394compilado.htm"
-  },
-  {
-    discipline: "Legislação Especial",
-    topic: "Estatuto da Criança e do Adolescente",
-    source_url: "https://www.planalto.gov.br/ccivil_03/leis/l8069compilado.htm"
-  },
-  {
-    discipline: "Legislação Especial",
-    topic: "Lei Geral de Proteção de Dados Pessoais",
-    source_url: "https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/l13709compilado.htm"
-  }
+  { discipline: "Língua Portuguesa", topic: "Redação oficial e comunicações administrativas", source_url: "https://www4.planalto.gov.br/centrodeestudos/pages/assuntos/manual-de-redacao-da-presidencia-da-republica.html" },
+  { discipline: "Língua Portuguesa", topic: "Elaboração e padronização de atos normativos", source_url: "https://www4.planalto.gov.br/centrodeestudos/pages/assuntos/manual-de-redacao-da-presidencia-da-republica.html" },
+  { discipline: "Matemática", topic: "Leitura, interpretação e análise de dados estatísticos", source_url: "https://educa.ibge.gov.br/" },
+  { discipline: "Matemática", topic: "Indicadores sociais, econômicos e demográficos", source_url: "https://educa.ibge.gov.br/" },
+  { discipline: "Estatística", topic: "Estatística descritiva e interpretação de indicadores", source_url: "https://educa.ibge.gov.br/" },
+  { discipline: "Geografia", topic: "Geografia do Brasil e organização territorial", source_url: "https://educa.ibge.gov.br/" },
+  { discipline: "Geografia", topic: "População, demografia e indicadores regionais", source_url: "https://educa.ibge.gov.br/" },
+  { discipline: "História", topic: "História e formação do Brasil", source_url: "https://www.gov.br/" },
+  { discipline: "Raciocínio Lógico", topic: "Raciocínio lógico e interpretação de informações", source_url: "https://educa.ibge.gov.br/" },
+  { discipline: "Informática", topic: "Segurança da informação e cidadania digital", source_url: "https://www.gov.br/gsi/pt-br/assuntos/seguranca-da-informacao-e-cibernetica/cibereducacao" },
+  { discipline: "Informática", topic: "Privacidade, proteção de dados e uso seguro da internet", source_url: "https://www.gov.br/gsi/pt-br/assuntos/seguranca-da-informacao-e-cibernetica/cibereducacao" },
+  { discipline: "Direito Constitucional", topic: "Fundamentos e princípios fundamentais da República", source_url: "https://www.planalto.gov.br/ccivil_03/constituicao/constituicao.htm" },
+  { discipline: "Direito Constitucional", topic: "Direitos e garantias fundamentais", source_url: "https://www.planalto.gov.br/ccivil_03/constituicao/constituicao.htm" },
+  { discipline: "Direito Constitucional", topic: "Organização político-administrativa do Estado", source_url: "https://www.planalto.gov.br/ccivil_03/constituicao/constituicao.htm" },
+  { discipline: "Direito Constitucional", topic: "Administração pública na Constituição Federal", source_url: "https://www.planalto.gov.br/ccivil_03/constituicao/constituicao.htm" },
+  { discipline: "Direito Administrativo", topic: "Regime jurídico dos servidores públicos federais", source_url: "https://www.planalto.gov.br/ccivil_03/leis/l8112cons.htm" },
+  { discipline: "Direito Administrativo", topic: "Processo administrativo federal", source_url: "https://www.planalto.gov.br/ccivil_03/leis/l9784.htm" },
+  { discipline: "Direito Administrativo", topic: "Licitações e contratos administrativos", source_url: "https://www.planalto.gov.br/ccivil_03/_ato2019-2022/2021/lei/l14133.htm" },
+  { discipline: "Direito Administrativo", topic: "Acesso à informação e transparência pública", source_url: "https://www.planalto.gov.br/ccivil_03/_ato2011-2014/2011/lei/l12527.htm" },
+  { discipline: "Direito Administrativo", topic: "Proteção de dados pessoais no setor público", source_url: "https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/l13709compilado.htm" },
+  { discipline: "Direito Administrativo", topic: "Ética e conduta do servidor público federal", source_url: "https://www.planalto.gov.br/ccivil_03/decreto/d1171.htm" },
+  { discipline: "Direito Civil", topic: "Parte geral e pessoas no Código Civil", source_url: "https://www.planalto.gov.br/ccivil_03/leis/2002/l10406compilada.htm" },
+  { discipline: "Direito Civil", topic: "Obrigações e contratos", source_url: "https://www.planalto.gov.br/ccivil_03/leis/2002/l10406compilada.htm" },
+  { discipline: "Direito do Consumidor", topic: "Direitos básicos e proteção do consumidor", source_url: "https://www.planalto.gov.br/ccivil_03/leis/l8078compilado.htm" },
+  { discipline: "Direito Penal", topic: "Princípios e aplicação da lei penal", source_url: "https://www.planalto.gov.br/ccivil_03/decreto-lei/del2848compilado.htm" },
+  { discipline: "Direito Penal", topic: "Crimes contra a administração pública", source_url: "https://www.planalto.gov.br/ccivil_03/decreto-lei/del2848compilado.htm" },
+  { discipline: "Processo Penal", topic: "Inquérito policial e ação penal", source_url: "https://www.planalto.gov.br/ccivil_03/decreto-lei/del3689.htm" },
+  { discipline: "Direito do Trabalho", topic: "Direitos individuais e contrato de trabalho", source_url: "https://www.planalto.gov.br/ccivil_03/decreto-lei/del5452.htm" },
+  { discipline: "Direito Previdenciário", topic: "Custeio da seguridade social", source_url: "https://www.planalto.gov.br/ccivil_03/leis/l8212cons.htm" },
+  { discipline: "Direito Previdenciário", topic: "Planos de benefícios da Previdência Social", source_url: "https://www.planalto.gov.br/ccivil_03/leis/l8213cons.htm" },
+  { discipline: "Direito Tributário", topic: "Sistema tributário e Código Tributário Nacional", source_url: "https://www.planalto.gov.br/ccivil_03/leis/l5172compilado.htm" },
+  { discipline: "Direito Financeiro", topic: "Normas gerais de direito financeiro e orçamento público", source_url: "https://www.planalto.gov.br/ccivil_03/leis/l4320.htm" },
+  { discipline: "Orçamento Público", topic: "Responsabilidade fiscal e gestão orçamentária", source_url: "https://www.planalto.gov.br/ccivil_03/leis/lcp/lcp101.htm" },
+  { discipline: "Contabilidade Pública", topic: "Procedimentos de contabilidade aplicada ao setor público", source_url: "https://www.gov.br/tesouronacional/pt-br/contabilidade-e-custos/manuais/manual-de-contabilidade-aplicada-ao-setor-publico-mcasp-1" },
+  { discipline: "Contabilidade Pública", topic: "Demonstrações contábeis e patrimônio público", source_url: "https://www.gov.br/tesouronacional/pt-br/contabilidade-e-custos/manuais/manual-de-contabilidade-aplicada-ao-setor-publico-mcasp-1" },
+  { discipline: "Administração Pública", topic: "Governança e políticas de gestão pública", source_url: "https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2017/decreto/d9203.htm" },
+  { discipline: "Administração Pública", topic: "Organização e funcionamento da administração pública", source_url: "https://www.planalto.gov.br/ccivil_03/constituicao/constituicao.htm" },
+  { discipline: "Legislação Educacional", topic: "Diretrizes e bases da educação nacional", source_url: "https://www.planalto.gov.br/ccivil_03/leis/l9394compilado.htm" },
+  { discipline: "Legislação Educacional", topic: "Plano Nacional de Educação", source_url: "https://www.planalto.gov.br/ccivil_03/_ato2011-2014/2014/lei/l13005.htm" },
+  { discipline: "Legislação Educacional", topic: "Financiamento da educação básica e Fundeb", source_url: "https://www.planalto.gov.br/ccivil_03/leis/lcp/lcp14.htm" },
+  { discipline: "Legislação Especial", topic: "Estatuto da Criança e do Adolescente", source_url: "https://www.planalto.gov.br/ccivil_03/leis/l8069compilado.htm" },
+  { discipline: "Legislação Especial", topic: "Estatuto da Pessoa Idosa", source_url: "https://www.planalto.gov.br/ccivil_03/leis/2003/l10.741.htm" },
+  { discipline: "Legislação Especial", topic: "Estatuto da Pessoa com Deficiência", source_url: "https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2015/lei/l13146.htm" },
+  { discipline: "Legislação Especial", topic: "Lei Maria da Penha e proteção contra violência doméstica", source_url: "https://www.planalto.gov.br/ccivil_03/_ato2004-2006/2006/lei/l11340.htm" },
+  { discipline: "Legislação Especial", topic: "Lei Geral de Proteção de Dados Pessoais", source_url: "https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/l13709compilado.htm" },
+  { discipline: "Saúde Pública", topic: "Organização e princípios do Sistema Único de Saúde", source_url: "https://www.planalto.gov.br/ccivil_03/leis/l8080.htm" },
+  { discipline: "Saúde Pública", topic: "Participação social e financiamento do SUS", source_url: "https://www.planalto.gov.br/ccivil_03/leis/l8142.htm" },
+  { discipline: "Saúde Pública", topic: "Vigilância epidemiológica e notificação de doenças", source_url: "https://www.planalto.gov.br/ccivil_03/leis/l6259.htm" },
+  { discipline: "Serviço Social", topic: "Lei Orgânica da Assistência Social", source_url: "https://www.planalto.gov.br/ccivil_03/leis/l8742.htm" },
+  { discipline: "Meio Ambiente", topic: "Política Nacional do Meio Ambiente", source_url: "https://www.planalto.gov.br/ccivil_03/leis/l6938.htm" },
+  { discipline: "Meio Ambiente", topic: "Crimes ambientais e responsabilidade ambiental", source_url: "https://www.planalto.gov.br/ccivil_03/leis/l9605.htm" },
+  { discipline: "Meio Ambiente", topic: "Código Florestal e proteção da vegetação nativa", source_url: "https://www.planalto.gov.br/ccivil_03/_ato2011-2014/2012/lei/l12651.htm" },
+  { discipline: "Trânsito", topic: "Código de Trânsito Brasileiro", source_url: "https://www.planalto.gov.br/ccivil_03/leis/l9503compilado.htm" },
+  { discipline: "Segurança Pública", topic: "Sistema Único de Segurança Pública", source_url: "https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/l13675.htm" },
+  { discipline: "Arquivologia", topic: "Política nacional de arquivos públicos e privados", source_url: "https://www.planalto.gov.br/ccivil_03/leis/l8159.htm" },
+  { discipline: "Políticas Públicas", topic: "Acesso à informação, transparência e controle social", source_url: "https://www.planalto.gov.br/ccivil_03/_ato2011-2014/2011/lei/l12527.htm" },
+  { discipline: "Direitos Humanos", topic: "Convenção sobre os Direitos das Pessoas com Deficiência", source_url: "https://www.planalto.gov.br/ccivil_03/_ato2007-2010/2009/decreto/d6949.htm" },
+  { discipline: "Licitações", topic: "Contratação pública, planejamento e modalidades licitatórias", source_url: "https://www.planalto.gov.br/ccivil_03/_ato2019-2022/2021/lei/l14133.htm" }
 ];
 
 const adminDb = createClient(supabaseUrl, serviceKey, {
@@ -304,20 +312,8 @@ function isDue(topic: any, now: Date) {
 }
 
 async function ensureAutonomousTopics(): Promise<{ seeded: boolean; topics: number }> {
-  const { data: existing, error: existingError } = await adminDb
-    .from("study_question_automation_topics")
-    .select("id")
-    .limit(1);
-  if (existingError) throw new Error("Não foi possível verificar o catálogo automático: " + existingError.message);
-  if ((existing || []).length > 0) {
-    const { count, error } = await adminDb
-      .from("study_question_automation_topics")
-      .select("id", { count: "exact", head: true })
-      .eq("active", true);
-    if (error) throw new Error("Não foi possível contar os temas ativos: " + error.message);
-    return { seeded: false, topics: count || 0 };
-  }
-
+  // Idempotent catalog expansion: each deployment can add new subjects without
+  // replacing existing topics or requiring an administrator to register them.
   const now = new Date().toISOString();
   const rows = DEFAULT_AUTONOMOUS_TOPICS.map((item) => ({
     ...item,
@@ -337,8 +333,13 @@ async function ensureAutonomousTopics(): Promise<{ seeded: boolean; topics: numb
       ignoreDuplicates: true
     })
     .select("id");
-  if (error) throw new Error("Não foi possível criar o catálogo inicial de temas: " + error.message);
-  return { seeded: true, topics: (data || []).length };
+  if (error) throw new Error("Não foi possível expandir o catálogo autônomo de matérias: " + error.message);
+  const { count, error: countError } = await adminDb
+    .from("study_question_automation_topics")
+    .select("id", { count: "exact", head: true })
+    .eq("active", true);
+  if (countError) throw new Error("Não foi possível contar os temas ativos: " + countError.message);
+  return { seeded: (data || []).length > 0, topics: count || 0 };
 }
 
 async function dailyRunBudgetAvailable(): Promise<{ allowed: boolean; count: number }> {
@@ -351,7 +352,7 @@ async function dailyRunBudgetAvailable(): Promise<{ allowed: boolean; count: num
   return { allowed: count < MAX_DAILY_RUNS, count };
 }
 
-async function runTopic(topic: any, triggerMode: "manual" | "scheduled", userId: string | null) {
+async function runTopic(topic: any, triggerMode: "manual" | "scheduled", userId: string | null, suppliedExcerpt?: string) {
   if (!isTrustedOfficialUrl(topic.source_url)) {
     return { topicId: topic.id, status: "skipped", reason: "A fonte não pertence a um domínio oficial permitido." };
   }
@@ -359,7 +360,11 @@ async function runTopic(topic: any, triggerMode: "manual" | "scheduled", userId:
   if (configuredExcerpt && (configuredExcerpt.length < 200 || configuredExcerpt.length > 12000)) {
     return { topicId: topic.id, status: "skipped", reason: "O trecho manual precisa ter entre 200 e 12.000 caracteres." };
   }
-  const excerpt = configuredExcerpt || await fetchOfficialSourceExcerpt(topic.source_url);
+  const workflowExcerpt = String(suppliedExcerpt || "").trim();
+  const excerpt = configuredExcerpt || workflowExcerpt || await fetchOfficialSourceExcerpt(topic.source_url);
+  if (excerpt.length < 200 || excerpt.length > 12000) {
+    return { topicId: topic.id, status: "skipped", reason: "A fonte oficial não forneceu texto suficiente (200 a 12.000 caracteres)." };
+  }
   const requested = Math.max(1, Math.min(MAX_QUESTIONS_PER_RUN, Number(topic.questions_per_run) || 3));
   const runInsert = await adminDb.from("study_question_automation_runs").insert({
     topic_id: topic.id,
@@ -581,6 +586,25 @@ Deno.serve(async (req: Request) => {
     return json({ error: String(error?.message || error) }, 401);
   }
 
+  let autonomousCatalog: { seeded: boolean; topics: number } | null = null;
+  if (mode === "scheduled") {
+    try {
+      autonomousCatalog = await ensureAutonomousTopics();
+    } catch (error) {
+      return json({ error: String(error?.message || error), ok: false }, 500);
+    }
+    // GitHub calls this lightweight phase first to seed the catalog without
+    // consuming a Gemini request; it then downloads official source text.
+    if (body?.seed_only === true) {
+      return json({
+        ok: true,
+        seed_only: true,
+        catalog_expanded: autonomousCatalog.seeded,
+        topics_available: autonomousCatalog.topics
+      });
+    }
+  }
+
   let dailyBudget: { allowed: boolean; count: number };
   try {
     dailyBudget = await dailyRunBudgetAvailable();
@@ -589,15 +613,6 @@ Deno.serve(async (req: Request) => {
   }
   if (!dailyBudget.allowed) {
     return json({ error: "Limite gratuito diário atingido: no máximo " + MAX_DAILY_RUNS + " execuções por dia. Aguarde a próxima janela UTC.", free_tier_only: true, daily_limit: MAX_DAILY_RUNS }, 429);
-  }
-
-  let autonomousCatalog: { seeded: boolean; topics: number } | null = null;
-  if (mode === "scheduled") {
-    try {
-      autonomousCatalog = await ensureAutonomousTopics();
-    } catch (error) {
-      return json({ error: String(error?.message || error), ok: false }, 500);
-    }
   }
 
   if (!geminiKey) {
@@ -630,10 +645,11 @@ Deno.serve(async (req: Request) => {
   // budget limits the number of topic runs, even when GitHub invokes this once.
   const remainingDailyRuns = Math.max(0, MAX_DAILY_RUNS - dailyBudget.count);
   const due = (topics || []).filter((topic: any) => isDue(topic, now)).slice(0, remainingDailyRuns);
+  const sourceExcerpts = body?.sourceExcerpts && typeof body.sourceExcerpts === "object" ? body.sourceExcerpts : {};
   const results = [];
   for (const topic of due) {
     try {
-      results.push(await runTopic(topic, "scheduled", null));
+      results.push(await runTopic(topic, "scheduled", null, sourceExcerpts[topic.id]));
     } catch (error) {
       results.push({ topicId: topic.id, status: "failed", reason: String(error?.message || error).slice(0, 500) });
     }
