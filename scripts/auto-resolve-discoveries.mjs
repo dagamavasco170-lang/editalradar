@@ -335,7 +335,7 @@ export function classifyDiscovery(discovery, document, responseUrl = discovery?.
     .test([discovery?.title, document?.title, document?.heading].filter(Boolean).join(" "));
   const selectionEvidence = hasPublicSelection || (hasExplicitRetification && hasNotice);
   if (!selectionEvidence || !hasNotice || !hasPositionEvidence) {
-    const unrelatedTitle = /\b(transação tributária|atos? declaratórios? executivos?|notificações? e intimações|processo administrativo de responsabilização|licitação|ouvidoria|transparência|consulta fiscal|leilão|procurações?|pregão|contratos? administrativos?)\b/i.test(title || discovery?.title || "");
+    const unrelatedTitle = /\b(transação tributária|atos? declaratórios? executivos?|notificações? e intimações|processo administrativo de responsabilização|licitação|ouvidoria|transparência|consulta fiscal|leilão|procurações?|pregão|contratos? administrativos?|consultar editais? e ade?s)\b/i.test(title || discovery?.title || "");
     if (discovery?.discovery_type === "new_link" && unrelatedTitle && !hasPublicSelection) {
       return { decision: "dismiss", reason: "O conteúdo identificado trata de assunto administrativo sem evidência de concurso ou processo seletivo público." };
     }
@@ -1300,8 +1300,7 @@ export async function autoResolvePending(options = {}) {
   const pending = await requestJson(request, buildPendingDiscoveriesUrl(baseUrl), key);
   const discoveries = prioritizePendingDiscoveries(Array.isArray(pending) ? pending : []);
   const queuePriorities = discoveries.reduce((counts, item) => {
-    const score = sortDiscoveriesByPriority([item])[0] ? item : null;
-    const level = score ? (score.discovery_type === "web_search_lead" ? "pistas_externas" : "fontes_monitoradas") : "outras";
+    const level = item.discovery_type === "web_search_lead" ? "pistas_externas" : "fontes_monitoradas";
     counts[level] = (counts[level] || 0) + 1;
     return counts;
   }, {});
