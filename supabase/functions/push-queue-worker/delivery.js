@@ -57,8 +57,7 @@ export async function processPushDeliveryJob({
 
   const parsed = parseJob(job?.message, job?.enqueued_at);
   if (!parsed) {
-    const { error } = await adminDb.rpc("ack_push_delivery_retry", { p_msg_id: job?.msg_id });
-    if (error) throw new Error("Não foi possível descartar uma mensagem inválida da fila.");
+    await archiveMessage(adminDb, job?.msg_id);
     return { outcome: "invalid_message" };
   }
 
