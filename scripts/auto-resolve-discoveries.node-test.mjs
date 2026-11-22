@@ -656,7 +656,7 @@ test("descarta serviços administrativos claramente alheios a concursos antes de
   ];
   let networkCalls = 0;
   for (const item of unrelated) {
-    assert.equal(isClearlyUnrelatedAdministrativeDiscovery({ ...item, discovery_type: "new_link" }), true);
+    assert.equal(isClearlyUnrelatedAdministrativeDiscovery({ ...item, discovery_type: "new_link" }), true, item.title);
     const prepared = await prepareDiscoveryDocument({
       ...discovery, ...item, discovery_type: "new_link"
     }, async () => {
