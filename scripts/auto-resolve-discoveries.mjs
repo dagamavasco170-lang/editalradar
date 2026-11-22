@@ -1050,8 +1050,8 @@ export async function prepareDiscoveryDocument(item, request = fetch, options = 
   let candidate;
   let candidateValue = item?.candidate_url;
   if (item?.discovery_type === "web_search_lead") {
-    // A notícia é resolvida manualmente até o domínio oficial informado no RSS.
-    // Nunca se usa o domínio do Google nem a página inicial do veículo como prova.
+    // Resolve o link do Google Notícias e só aceita o publisher HTTPS declarado no feed.
+    // Nunca usa o agregador ou o veículo jornalístico como prova do edital.
     const declaredSource = extractDeclaredPublisherUrl(item?.context);
     if (!declaredSource) {
       return {
