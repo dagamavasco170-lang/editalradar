@@ -5,11 +5,12 @@ on:
     # Execução diária às 07:30 no horário de Brasília (10:30 UTC).
     - cron: "30 10 * * *"
   workflow_dispatch:
-  # Também valida automaticamente o catálogo quando este workflow for atualizado.
   push:
     branches: [main]
     paths:
       - ".github/workflows/question-automation.yml"
+      - ".github/scripts/question-automation.mjs"
+      - "supabase/functions/question-factory/**"
 
 permissions:
   contents: read
@@ -20,75 +21,15 @@ concurrency:
 
 jobs:
   generate-and-review:
-    name: Gerar questões e executar revisão independente
+    name: Descobrir matérias, elaborar questões e revisar
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
-      - name: Chamar automação protegida do Supabase
+      - name: Baixar repositório
+        uses: actions/checkout@v4
+
+      - name: Executar descoberta, elaboração e revisão autônomas
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: |
-          set -euo pipefail
-          if [ -z "${SUPABASE_URL:-}" ] || [ -z "${SUPABASE_SERVICE_ROLE_KEY:-}" ]; then
-            echo "::error::Configure SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY nos segredos do repositório."
-            exit 1
-          fi
-
-          response="$(curl --silent --show-error --fail-with-body \
-            --connect-timeout 20 --max-time 720 \
-            --request POST "${SUPABASE_URL}/functions/v1/question-factory" \
-            --header "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
-            --header "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
-            --header "Content-Type: application/json" \
-            --data '{"mode":"scheduled"}')"
-
-          printf '%s\n' "$response" | node --input-type=module -e '
-            let raw = "";
-            for await (const chunk of process.stdin) raw += chunk;
-            let result;
-            try {
-              result = JSON.parse(raw);
-            } catch {
-              console.error("A função retornou uma resposta que não é JSON válido.");
-              process.exit(1);
-            }
-
-            if (result.setup_required) {
-              console.error("Configuração obrigatória: " + (result.message || "verifique a chave Gemini no Supabase."));
-              process.exit(1);
-            }
-            if (result.ok !== true) {
-              console.error(JSON.stringify(result));
-              process.exit(1);
-            }
-            if (result.skipped && (!Array.isArray(result.results) || result.results.length === 0)) {
-              console.log("Nenhum tema ativo está vencido para geração neste ciclo.");
-              process.exit(0);
-            }
-
-            const rows = Array.isArray(result.results) ? result.results : [];
-            for (const item of rows) {
-              console.log(JSON.stringify(item));
-            }
-
-            const totals = rows.reduce((acc, item) => {
-              acc.generated += Number(item.generated || 0);
-              acc.approved += Number(item.approved || 0);
-              acc.manualReview += Number(item.manualReview || 0);
-              acc.rejected += Number(item.rejected || 0);
-              return acc;
-            }, { generated: 0, approved: 0, manualReview: 0, rejected: 0 });
-
-            console.log("Temas processados: " + result.processed);
-            console.log("Questões geradas: " + totals.generated);
-            console.log("Aprovadas automaticamente: " + totals.approved);
-            console.log("Retidas para revisão: " + totals.manualReview);
-            console.log("Rejeitadas: " + totals.rejected);
-
-            const failures = rows.filter((item) => item.status === "failed");
-            if (failures.length) {
-              console.error("Falha em " + failures.length + " tema(s). O workflow será marcado como falho.");
-              process.exit(1);
-            }
-          '
+        run: node .github/scripts/question-automation.mjs
