@@ -2172,3 +2172,15 @@ button,.detail-btn,.primary-btn{line-height:1.35}
 .push-health-privacy{margin:12px 0 0;color:#8a979b;font-size:9px;line-height:1.5}
 @media(max-width:760px){.push-health-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.push-health-updated{width:100%;margin-left:19px}}
 @media(max-width:420px){.push-health-grid{grid-template-columns:1fr}.push-health-card{padding:10px}.push-health-heading{align-items:flex-start}.push-health-heading>.detail-btn{white-space:nowrap}}
+
+
+/* Resultado agregado do último lote executado pelo worker FCM. */
+.push-health-batch{margin-top:13px;padding:12px;border:1px solid #e5ece9;border-radius:9px;background:#fbfdfc}
+.push-health-batch-heading{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:9px}
+.push-health-batch-heading strong{font-size:10px;color:#385667}
+.push-health-batch-heading small{font-size:8px;color:#8a979b;text-align:right}
+.push-health-batch-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
+.push-health-batch-grid>div{display:grid;gap:3px;padding:8px;border:1px solid #e9efec;border-radius:7px;background:#fff;min-width:0}
+.push-health-batch-grid strong{font:800 15px Manrope,sans-serif;color:#24485a}
+.push-health-batch-grid span{font-size:8px;color:#7c8d92;line-height:1.35;overflow-wrap:anywhere}
+@media(max-width:560px){.push-health-batch-heading{align-items:flex-start;flex-direction:column}.push-health-batch-heading small{text-align:left}.push-health-batch-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
