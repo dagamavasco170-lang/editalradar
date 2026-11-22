@@ -1198,20 +1198,24 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     }
   };
 
-  const sendPushSelfTest = async () => {
+  const sendPushSelfTest = async (background = false) => {
     if (!authUser?.id || typeof authClient?.functions?.invoke !== "function") {
       setNotificationMessage("Entre na sua conta para testar as notificações push.");
       return;
     }
     setPushTestBusy(true);
-    setNotificationMessage("");
+    setNotificationMessage(background
+      ? "Teste programado para daqui a 15 segundos. Saia do EditalRadar e bloqueie a tela agora."
+      : "");
     try {
       const { data, error } = await authClient.functions.invoke("push-notifications", {
-        body: { action: "test_self" }
+        body: { action: background ? "test_self_background" : "test_self" }
       });
       if (error) throw error;
       if (data?.ok && data.sent > 0) {
-        setNotificationMessage("Teste enviado ao seu aparelho. Confira a central de notificações do Android.");
+        setNotificationMessage(background
+          ? "Teste em segundo plano enviado. Confira a notificação com o aplicativo minimizado ou a tela bloqueada."
+          : "Teste enviado ao seu aparelho. Confira a central de notificações do Android.");
       } else {
         setNotificationMessage(data?.error || "O teste não foi enviado. Ative as notificações e confirme o cadastro do aparelho.");
       }
@@ -2006,9 +2010,14 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                     {notificationPermission === "granted" && browserNotificationsEnabled ? "Notificações ativadas" : notificationPermission === "denied" ? "Permissão bloqueada" : "Ativar notificações"}
                   </button>
                   {authUser && browserNotificationsEnabled && typeof window.EditalRadarNative?.requestFcmToken === "function" && (
-                    <button className="detail-btn" type="button" onClick={sendPushSelfTest} disabled={pushTestBusy}>
-                      {pushTestBusy ? "Enviando teste..." : "Testar recebimento push"}
-                    </button>
+                    <>
+                      <button className="detail-btn" type="button" onClick={() => sendPushSelfTest(false)} disabled={pushTestBusy}>
+                        {pushTestBusy ? "Enviando teste..." : "Testar recebimento push"}
+                      </button>
+                      <button className="detail-btn" type="button" onClick={() => sendPushSelfTest(true)} disabled={pushTestBusy}>
+                        {pushTestBusy ? "Preparando teste..." : "Testar em segundo plano (15 s)"}
+                      </button>
+                    </>
                   )}
                   {unreadNotificationCount > 0 && <button className="alert-remove" type="button" onClick={markAllNotificationsRead}>Marcar como lidas</button>}
                   {activeNotifications.length > 0 && <button className="alert-remove" type="button" onClick={clearNotificationHistory}>Limpar histórico</button>}

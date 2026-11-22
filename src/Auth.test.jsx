@@ -119,6 +119,13 @@ describe("Autenticação EditalRadar", () => {
       body: { action: "test_self" }
     }));
     expect(await screen.findByText(/Teste enviado ao seu aparelho/)).toBeInTheDocument();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Testar em segundo plano (15 s)" }));
+    expect(await screen.findByText(/Saia do EditalRadar e bloqueie a tela agora/)).toBeInTheDocument();
+    await waitFor(() => expect(client.functions.invoke).toHaveBeenCalledWith("push-notifications", {
+      body: { action: "test_self_background" }
+    }));
+    expect(await screen.findByText(/Teste em segundo plano enviado/)).toBeInTheDocument();
     delete window.EditalRadarNative;
   });
 

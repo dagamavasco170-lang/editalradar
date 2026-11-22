@@ -136,7 +136,8 @@ Deno.serve(async (req: Request) => {
     return json({ ok: true, removed: true });
   }
 
-  const isSelfTest = action === "test_self";
+  const isBackgroundTest = action === "test_self_background";
+  const isSelfTest = action === "test_self" || isBackgroundTest;
   if (action !== "broadcast" && !isSelfTest) {
     return json({ error: "Ação não reconhecida." }, 400);
   }
@@ -150,9 +151,11 @@ Deno.serve(async (req: Request) => {
   const title = isSelfTest
     ? "Teste de notificações do EditalRadar"
     : String(body.title || "").trim().slice(0, 90);
-  const messageBody = isSelfTest
-    ? "Seu aparelho está recebendo avisos push."
-    : String(body.body || "").trim().slice(0, 350);
+  const messageBody = isBackgroundTest
+    ? "Este aviso foi entregue com o EditalRadar em segundo plano."
+    : isSelfTest
+      ? "Seu aparelho está recebendo avisos push."
+      : String(body.body || "").trim().slice(0, 350);
   const destination = isSelfTest ? "/" : String(body.url || "/").trim().slice(0, 512);
   if (!title || !messageBody) return json({ error: "Título e mensagem são obrigatórios." }, 400);
   if (!destination.startsWith("/") || destination.startsWith("//")) {
@@ -180,6 +183,11 @@ Deno.serve(async (req: Request) => {
       return isSelfTest
         ? json({ ok: false, error: "Nenhum aparelho está registrado nesta conta. Ative as notificações no Android e tente novamente." })
         : json({ ok: true, total: 0, sent: 0, failed: 0 });
+    }
+
+    // Gives the user time to leave the app and lock the screen before delivery.
+    if (isBackgroundTest) {
+      await new Promise((resolve) => setTimeout(resolve, 15_000));
     }
 
     let sent = 0;
