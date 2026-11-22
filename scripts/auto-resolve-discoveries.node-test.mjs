@@ -778,7 +778,7 @@ test("mantém notícia pendente quando o Google não revela um destino oficial",
     headers: { "content-type": "text/html" }
   }));
   assert.equal(prepared.stage, "review");
-  assert.match(prepared.reason, /não revelou um redirecionamento verificável/);
+  assert.match(prepared.reason, /não revelou um endereço verificável/);
 });
 
 test("extrai somente publisher HTTPS presente na lista de fontes oficiais", () => {

@@ -11,6 +11,8 @@ on:
       - scripts/publish-discoveries.node-test.mjs
       - scripts/auto-resolve-discoveries.mjs
       - scripts/auto-resolve-discoveries.node-test.mjs
+      - scripts/google-news-url-resolver.mjs
+      - scripts/google-news-url-resolver.node-test.mjs
       - package.json
       - supabase/migrations/202611220004_auto_publish.sql
       - supabase/migrations/20261121225302_allow_web_search_leads_in_contest_discoveries.sql

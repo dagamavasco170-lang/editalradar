@@ -7,6 +7,8 @@ import { join, resolve } from "node:path";
 import { concursos } from "../src/data/concursos.js";
 import { sortDiscoveriesByPriority } from "../src/lib/discovery-filters.js";
 import { isTrustedOfficialHost, resolveTrustedOfficialUrl, validateTrustedOfficialUrl } from "./monitor-sources.mjs";
+import { resolveGoogleNewsArticleUrl } from "./google-news-url-resolver.mjs";
+export { resolveGoogleNewsArticleUrl };
 
 const execFileAsync = promisify(execFile);
 
@@ -15,8 +17,6 @@ const TIMEOUT_MS = 12000;
 const OCR_MAX_PAGES = 3;
 const OCR_PAGE_TIMEOUT_MS = 6000;
 
-const GOOGLE_NEWS_HOST = "news.google.com";
-const GOOGLE_REDIRECT_HOSTS = new Set(["news.google.com", "google.com", "www.google.com"]);
 const DEFAULT_OFFICIAL_RETRY_COOLDOWN_MS = 6 * 60 * 60 * 1000;
 const DEFAULT_EXTERNAL_RETRY_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 const PENDING_DISCOVERY_TYPES = new Set(["new_link", "page_change", "web_search_lead"]);
@@ -1010,81 +1010,6 @@ export function extractDeclaredPublisherUrl(context = "") {
   }
 }
 
-function isSameDeclaredPublisherHost(candidateHost, declaredHost) {
-  const normalize = value => String(value || "").toLowerCase().replace(/\.$/, "").replace(/^www\./, "");
-  const candidate = normalize(candidateHost);
-  const declared = normalize(declaredHost);
-  return candidate === declared || candidate.endsWith("." + declared);
-}
-
-export async function resolveGoogleNewsArticleUrl(candidateUrl, declaredSourceUrl, request = fetch, options = {}) {
-  let newsUrl;
-  let declaredSource;
-  try {
-    newsUrl = new URL(candidateUrl);
-    declaredSource = validateTrustedOfficialUrl(declaredSourceUrl);
-  } catch {
-    return null;
-  }
-  if (newsUrl.protocol !== "https:" || newsUrl.hostname.toLowerCase() !== GOOGLE_NEWS_HOST
-    || !newsUrl.pathname.startsWith("/rss/articles/") || newsUrl.username || newsUrl.password) {
-    return null;
-  }
-
-  const timeoutMs = Math.max(1000, Number(options.timeoutMs) || TIMEOUT_MS);
-  const maxRedirects = Math.max(1, Math.min(8, Number(options.maxRedirects) || 5));
-  let currentUrl = newsUrl;
-  for (let redirectCount = 0; redirectCount < maxRedirects; redirectCount += 1) {
-    const response = await request(currentUrl.href, {
-      redirect: "manual",
-      signal: AbortSignal.timeout(timeoutMs),
-      headers: {
-        "User-Agent": "EditalRadar-NewsLeadResolver/1.0 (+https://github.com/dagamavasco170-lang/editalradar)",
-        Accept: "text/html,application/xhtml+xml,*/*;q=0.8"
-      }
-    });
-    if (![301, 302, 303, 307, 308].includes(response.status)) return null;
-    const location = response.headers?.get?.("location");
-    if (!location) return null;
-
-    let next;
-    try {
-      next = new URL(location, currentUrl);
-    } catch {
-      throw new Error("O Google Notícias devolveu um redirecionamento inválido.");
-    }
-    if (next.protocol !== "https:" || next.username || next.password) {
-      throw new Error("Redirecionamento inseguro ao resolver a notícia.");
-    }
-
-    if (GOOGLE_REDIRECT_HOSTS.has(next.hostname.toLowerCase())) {
-      for (const parameter of ["url", "q", "adurl", "continue", "uddg"]) {
-        const value = next.searchParams.get(parameter);
-        if (!value) continue;
-        try {
-          const target = new URL(value);
-          if (target.protocol === "https:" && !target.username && !target.password
-            && isTrustedOfficialHost(target.hostname)
-            && isSameDeclaredPublisherHost(target.hostname, declaredSource.hostname)) {
-            return validateTrustedOfficialUrl(target.href).href;
-          }
-        } catch {
-          // Parâmetro de redirecionamento malformado é ignorado; só se segue Google HTTPS.
-        }
-      }
-      currentUrl = next;
-      continue;
-    }
-
-    if (!isTrustedOfficialHost(next.hostname)
-      || !isSameDeclaredPublisherHost(next.hostname, declaredSource.hostname)) {
-      throw new Error("O redirecionamento da notícia não corresponde ao domínio oficial indicado pela fonte.");
-    }
-    return validateTrustedOfficialUrl(next.href).href;
-  }
-  return null;
-}
-
 export function prioritizePendingDiscoveries(items = [], now = Date.now()) {
   return sortDiscoveriesByPriority(
     (Array.isArray(items) ? items : []).filter(item => item?.status === "pending"),
@@ -1125,8 +1050,8 @@ export async function prepareDiscoveryDocument(item, request = fetch, options = 
   let candidate;
   let candidateValue = item?.candidate_url;
   if (item?.discovery_type === "web_search_lead") {
-    // A notícia é resolvida manualmente até o domínio oficial informado no RSS.
-    // Nunca se usa o domínio do Google nem a página inicial do veículo como prova.
+    // Resolve o link do Google Notícias e só aceita o publisher HTTPS declarado no feed.
+    // Nunca usa o agregador ou o veículo jornalístico como prova do edital.
     const declaredSource = extractDeclaredPublisherUrl(item?.context);
     if (!declaredSource) {
       return {
@@ -1144,7 +1069,7 @@ export async function prepareDiscoveryDocument(item, request = fetch, options = 
       if (!resolvedArticle) {
         return {
           stage: "review",
-          reason: "O link do Google Notícias não revelou um redirecionamento verificável para a publicação no domínio oficial indicado. A pista permanece pendente, sem cadastro automático."
+          reason: "O link do Google Notícias não revelou um endereço verificável da publicação no domínio oficial indicado. A pista permanece pendente, sem cadastro automático."
         };
       }
       candidateValue = resolvedArticle;
