@@ -425,8 +425,9 @@ function isDue(topic: any, now: Date) {
   return now.getTime() - last >= cadence * 24 * 60 * 60 * 1000;
 }
 
-function orderTopicsFairly(topics: any[], recentRuns: any[], now: Date): any[] {
-  const topicById = new Map(topics.map((topic) => [String(topic.id), topic]));
+function orderTopicsFairly(topics: any[], recentRuns: any[], now: Date, disciplineCatalog: any[] = topics): any[] {
+  // Map history through the full catalog, including topics not due today.
+  const topicById = new Map(disciplineCatalog.map((topic) => [String(topic.id), topic]));
   const historyByDiscipline = new Map<string, { attempts: number; lastAttemptAt: number }>();
 
   for (const run of recentRuns || []) {
@@ -880,7 +881,7 @@ Deno.serve(async (req: Request) => {
     .limit(1000);
   if (historyError) return json({ error: "Não foi possível consultar o histórico de distribuição: " + historyError.message }, 500);
 
-  const fairDue = orderTopicsFairly(dueCandidates, recentRuns || [], now);
+  const fairDue = orderTopicsFairly(dueCandidates, recentRuns || [], now, topics || []);
   const due = fairDue.slice(0, remainingDailyRuns);
   const sourceExcerpts = body?.sourceExcerpts && typeof body.sourceExcerpts === "object" ? body.sourceExcerpts : {};
   const results = [];
