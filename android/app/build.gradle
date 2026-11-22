@@ -8,6 +8,20 @@ if (file('google-services.json').exists()) {
     apply plugin: 'com.google.gms.google-services'
 }
 
+// A chave privada nunca faz parte do repositório. O CI injeta estes valores
+// somente nos builds autorizados a gerar uma versão distribuível.
+def releaseStoreFilePath = System.getenv('ANDROID_RELEASE_KEYSTORE_FILE')
+def releaseStorePassword = System.getenv('ANDROID_RELEASE_STORE_PASSWORD')
+def releaseKeyAlias = System.getenv('ANDROID_RELEASE_KEY_ALIAS')
+def releaseKeyPassword = System.getenv('ANDROID_RELEASE_KEY_PASSWORD')
+def releaseSigningConfigured = [
+    releaseStoreFilePath,
+    releaseStorePassword,
+    releaseKeyAlias,
+    releaseKeyPassword
+].every { it != null && !it.trim().isEmpty() } &&
+    new File(releaseStoreFilePath ?: '').isFile()
+
 android {
     namespace 'br.com.editalradar.app'
     compileSdk 35
@@ -16,8 +30,27 @@ android {
         applicationId 'br.com.editalradar.app'
         minSdk 24
         targetSdk 35
-        versionCode 7
-        versionName '1.2.4'
+        versionCode 8
+        versionName '1.2.5'
+    }
+
+    signingConfigs {
+        if (releaseSigningConfigured) {
+            create('release') {
+                storeFile file(releaseStoreFilePath)
+                storePassword releaseStorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            if (releaseSigningConfigured) {
+                signingConfig signingConfigs.getByName('release')
+            }
+        }
     }
 
     compileOptions {
