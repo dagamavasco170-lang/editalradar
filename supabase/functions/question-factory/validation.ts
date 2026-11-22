@@ -27,6 +27,7 @@ export function isTrustedOfficialUrl(value: unknown): boolean {
     if (url.protocol !== "https:" || url.username || url.password) return false;
     const host = url.hostname.toLowerCase().replace(/\.$/, "");
     if (!host || host.includes("..")) return false;
+    if (host === "planalto.gov.br" || host.endsWith(".planalto.gov.br")) return false;
     const publicSuffixes = [".gov.br", ".jus.br", ".leg.br", ".mp.br", ".mil.br", ".def.br"];
     const boards = [
       "cebraspe.org.br", "igeduc.selecao.net.br", "igeduc.org.br", "ibfc.org.br",
