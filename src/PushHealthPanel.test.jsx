@@ -28,7 +28,7 @@ const healthSnapshot = {
     result_counts: {
       available: true, processed: 4, sent: 1, rescheduled: 1, expired: 1,
       expired_before_retry: 0, disabled_invalid: 0, invalid_message: 0,
-      dead_letter: 0, pending_redelivery: 1
+      dead_letter: 0, pending_redelivery: 0
     }
   },
   devices: { total: 1, enabled: 1, disabled: 0 },
@@ -48,6 +48,21 @@ describe("PushHealthPanel", () => {
     expect(screen.getByText("Aguardando recuperação")).toBeTruthy();
     expect(screen.getByText("Falhas definitivas")).toBeTruthy();
     expect(authClient.rpc).toHaveBeenCalledWith("get_push_notification_health");
+  });
+
+  it("warns when the worker leaves a message pending redelivery", async () => {
+    const snapshot = {
+      ...healthSnapshot,
+      worker_http: {
+        ...healthSnapshot.worker_http,
+        result_counts: { ...healthSnapshot.worker_http.result_counts, pending_redelivery: 1 }
+      }
+    };
+    const authClient = { rpc: vi.fn().mockResolvedValue({ data: snapshot, error: null }) };
+    render(<PushHealthPanel authClient={authClient} />);
+
+    expect(await screen.findByText("Atenção necessária")).toBeTruthy();
+    expect(screen.getByText("Aguardando recuperação")).toBeTruthy();
   });
 
   it("allows an administrator to refresh the snapshot", async () => {
