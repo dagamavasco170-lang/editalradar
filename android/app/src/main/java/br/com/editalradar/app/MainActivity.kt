@@ -33,8 +33,8 @@ import com.google.firebase.messaging.FirebaseMessaging
 
 class MainActivity : Activity() {
     companion object {
-        private const val HOME_URL = "https://editalradar-gamma.vercel.app/"
-        private const val HOME_HOST = "editalradar-gamma.vercel.app"
+        private const val HOME_URL = "https://dagamavasco170-lang.github.io/editalradar/"
+        private const val HOME_HOST = "dagamavasco170-lang.github.io"
         private const val NOTIFICATION_CHANNEL_ID = "editalradar_updates"
         private const val NOTIFICATION_PERMISSION_REQUEST = 8102
         const val EXTRA_PUSH_URL = "br.com.editalradar.app.EXTRA_PUSH_URL"
