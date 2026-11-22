@@ -617,7 +617,7 @@ test("conta somente pendências que representam oportunidades acionáveis", asyn
 
   assert.equal(count, 27);
   assert.match(requestUrl, /status=eq\.pending/);
-  assert.match(requestUrl, /discovery_type=in\.\(new_link%2Cpage_change%2Cweb_search_lead\)|discovery_type=in\.\(new_link,page_change,web_search_lead\)/);
+  assert.equal(new URL(requestUrl).searchParams.get("discovery_type"), "in.(new_link,page_change,web_search_lead)");
   assert.equal(requestOptions.method, "HEAD");
   assert.match(requestOptions.headers.Prefer, /count=exact/);
 });
