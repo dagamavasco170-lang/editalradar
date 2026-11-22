@@ -113,8 +113,8 @@ test("assinatura de distribuição usa apenas a chave permanente recebida pelo a
   assert.match(androidGradle, /ANDROID_RELEASE_KEY_ALIAS/);
   assert.match(androidGradle, /ANDROID_RELEASE_KEY_PASSWORD/);
   assert.match(androidGradle, /signingConfig signingConfigs\.getByName\('release'\)/);
-  assert.match(androidGradle, /versionCode 12/);
-  assert.ok(androidGradle.includes("versionName '1.2.9'"));
+  assert.match(androidGradle, /versionCode 13/);
+  assert.ok(androidGradle.includes("versionName '1.3.0'"));
   assert.ok(androidGradle.includes("androidx.webkit:webkit:1.18.0"));
   assert.doesNotMatch(androidGradle, /storePassword\s*['"][^'"]+['"]/);
 });
@@ -202,6 +202,13 @@ test("atualizador valida pacote e versão antes de delegar assinatura ao Android
   assert.ok(androidManifest.includes('android:name=".UpdateInstallReceiver"'));
   assert.ok(updateReceiver.includes("STATUS_PENDING_USER_ACTION"));
   assert.ok(updateReceiver.includes("STATUS_FAILURE_CONFLICT"));
+  assert.ok(updateReceiver.includes("EXTRA_STATUS_MESSAGE"));
+  assert.ok(updateReceiver.includes("PENDING_FAILURE_STATUS_KEY"));
+  assert.ok(updateReceiver.includes("userMessageForStatus"));
+  assert.ok(updateReceiver.includes("Log.w("));
+  assert.ok(android.includes("showPendingInstallFailureIfAny"));
+  assert.ok(android.includes("Copiar detalhes"));
+  assert.ok(android.includes("Mensagem do Android"));
   assert.ok(updateReceiver.includes("context.startActivity(confirmationIntent)"));
 });
 
