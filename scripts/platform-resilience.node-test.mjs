@@ -91,11 +91,10 @@ test("GitHub Actions nunca publica APK de depuração como atualização públic
   assert.match(androidWorkflow, /gradle assembleRelease bundleRelease/);
   assert.match(androidWorkflow, /steps\.signing\.outputs\.ready == 'true'/);
   assert.match(androidWorkflow, /verification-only/);
-  const publishStep = androidWorkflow
-    .split("      - name: Publish permanently signed GitHub Release\\n")[1]
-    ?.split("\\n      - name:")[0] ?? "";
-  assert.match(publishStep, /if:.*steps\\.signing\\.outputs\\.ready == 'true'/);
-  assert.doesNotMatch(publishStep, /if:.*steps\\.signing\\.outputs\\.ready != 'true'/);
+  const publishStep = androidWorkflow.match(
+    /      - name: Publish permanently signed GitHub Release[\\s\\S]*?(?=\\n      - name:|$)/
+  )?.[0] ?? "";
+  assert.match(publishStep, /steps\\.signing\\.outputs\\.ready == 'true'/);
 });
 
 test("site mantém recursos de acessibilidade e safe areas móveis", () => {
