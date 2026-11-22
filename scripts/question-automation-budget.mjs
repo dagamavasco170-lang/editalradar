@@ -12,8 +12,9 @@ export function buildDailyAutomationRunQuery(utcStart, limit) {
 
 // Interleave overdue topics so one discipline cannot monopolize a daily batch.
 // Recent attempts count regardless of outcome; this spreads coverage, not just successes.
-export function orderTopicsFairly(topics = [], recentRuns = [], now = new Date()) {
-  const topicById = new Map(topics.map((topic) => [String(topic.id), topic]));
+export function orderTopicsFairly(topics = [], recentRuns = [], now = new Date(), disciplineCatalog = topics) {
+  // Map recent attempts through the full catalog, including topics not due today.
+  const topicById = new Map(disciplineCatalog.map((topic) => [String(topic.id), topic]));
   const historyByDiscipline = new Map();
 
   for (const run of recentRuns) {
