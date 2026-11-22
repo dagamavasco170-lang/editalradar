@@ -170,7 +170,7 @@ async function fetchOfficialText(sourceUrl) {
       if (!(contentType.includes("html") || contentType.startsWith("text/") || contentType.includes("xml"))) {
         throw new Error("Formato não suportado pelo extrator gratuito: " + (contentType || "desconhecido"));
       }
-      if (Buffer.byteLength(html, "utf8") > MAX_SOURCE_BYTES) throw new Error("Fonte excede o limite de 5 MB.");
+      if (markerIndex > MAX_SOURCE_BYTES) throw new Error("Fonte excede o limite de 5 MB.");
       const charset = contentType.match(/charset=([^;]+)/i)?.[1]?.replace(/["']/g, "").trim() || "utf-8";
       let html;
       try {
