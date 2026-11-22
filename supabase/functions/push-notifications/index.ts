@@ -1,5 +1,10 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import {
+  canRetryFcmFailure,
+  classifyFcmFailure,
+  getFcmRetryDelayMs,
+} from "./policy.js";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -17,6 +22,8 @@ const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_PUBL
 const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 const serviceAccountValue = Deno.env.get("FCM_SERVICE_ACCOUNT_JSON") || "";
 const encoder = new TextEncoder();
+const MAX_BACKGROUND_RETRIES = 50;
+const MAX_RETRY_WAIT_MS = 110_000;
 
 function base64Url(value: string | Uint8Array): string {
   const bytes = typeof value === "string" ? encoder.encode(value) : value;
@@ -90,6 +97,122 @@ async function authenticate(req: Request) {
   return { user: data.user, adminDb };
 }
 
+type FcmFailure = ReturnType<typeof classifyFcmFailure> & { retryAfter?: string | null };
+type FcmSendResult = { ok: true } | ({ ok: false } & FcmFailure);
+
+async function sendFcmMessage(
+  token: string,
+  message: { title: string; body: string; url: string },
+  projectId: string,
+  accessToken: string,
+): Promise<FcmSendResult> {
+  try {
+    const response = await fetch(
+      "https://fcm.googleapis.com/v1/projects/" + encodeURIComponent(projectId) + "/messages:send",
+      {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer " + accessToken,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: {
+            token,
+            data: message,
+            android: { priority: "HIGH", ttl: "3600s" },
+          },
+        }),
+      },
+    );
+    if (response.ok) return { ok: true };
+    const payload = await response.json().catch(() => ({}));
+    return {
+      ok: false,
+      ...classifyFcmFailure(response.status, payload),
+      retryAfter: response.headers.get("Retry-After"),
+    };
+  } catch {
+    return {
+      ok: false,
+      code: "NETWORK_ERROR",
+      permanentTokenError: false,
+      retryable: true,
+      quotaLimited: false,
+      retryAfter: null,
+    };
+  }
+}
+
+async function disableInvalidTokens(adminDb: any, tokens: string[]): Promise<number> {
+  const uniqueTokens = [...new Set(tokens.filter(Boolean))];
+  if (!uniqueTokens.length) return 0;
+  const { error } = await adminDb.from("push_devices")
+    .update({ enabled: false, updated_at: new Date().toISOString() })
+    .in("token", uniqueTokens);
+  if (error) {
+    console.error("[push-notifications] Não foi possível desativar tokens inválidos:", error.message);
+    return 0;
+  }
+  console.info("[push-notifications] Tokens FCM inválidos desativados:", uniqueTokens.length);
+  return uniqueTokens.length;
+}
+
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function retryOneDelivery(
+  token: string,
+  firstFailure: FcmFailure,
+  message: { title: string; body: string; url: string },
+  projectId: string,
+  accessToken: string,
+  adminDb: any,
+) {
+  let failure = firstFailure;
+  let retriesMade = 0;
+  while (canRetryFcmFailure(failure, retriesMade)) {
+    const retryNumber = retriesMade + 1;
+    const delayMs = getFcmRetryDelayMs(failure, retryNumber);
+    // Do not keep an Edge Function worker alive beyond a safe runtime window.
+    if (delayMs > MAX_RETRY_WAIT_MS) {
+      return { outcome: "deferred", code: failure.code };
+    }
+    await wait(delayMs);
+    retriesMade += 1;
+    const result = await sendFcmMessage(token, message, projectId, accessToken);
+    if (result.ok) return { outcome: "sent" };
+    failure = result;
+    if (failure.permanentTokenError) {
+      const disabled = await disableInvalidTokens(adminDb, [token]);
+      return { outcome: disabled ? "disabled" : "disable_failed", code: failure.code };
+    }
+  }
+  return { outcome: "failed", code: failure.code };
+}
+
+async function retryTransientDeliveries(
+  jobs: Array<{ token: string; failure: FcmFailure }>,
+  message: { title: string; body: string; url: string },
+  projectId: string,
+  accessToken: string,
+  adminDb: any,
+) {
+  const retryJobs = jobs.slice(0, MAX_BACKGROUND_RETRIES);
+  const results = await Promise.all(retryJobs.map((job) =>
+    retryOneDelivery(job.token, job.failure, message, projectId, accessToken, adminDb)
+  ));
+  const summary = results.reduce((counts: Record<string, number>, result) => {
+    counts[result.outcome] = (counts[result.outcome] || 0) + 1;
+    return counts;
+  }, {});
+  console.info("[push-notifications] Retentativas FCM concluídas:", summary);
+  if (jobs.length > retryJobs.length) {
+    console.warn("[push-notifications] Limite de retentativas em segundo plano atingido:", {
+      scheduled: retryJobs.length,
+      skipped: jobs.length - retryJobs.length,
+    });
+  }
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Método não permitido." }, 405);
@@ -124,7 +247,7 @@ Deno.serve(async (req: Request) => {
       updated_at: new Date().toISOString(),
     }, { onConflict: "token" });
     if (error) return json({ error: "Não foi possível registrar o dispositivo." }, 500);
-    return json({ ok: true, registered: true });
+    return json({ ok: true, registered: true, enabled: true });
   }
 
   if (action === "unregister_device") {
@@ -187,67 +310,67 @@ Deno.serve(async (req: Request) => {
 
     // Gives the user time to leave the app and lock the screen before delivery.
     if (isBackgroundTest) {
-      await new Promise((resolve) => setTimeout(resolve, 15_000));
+      await wait(15_000);
     }
 
+    const notification = { title, body: messageBody, url: destination };
     let sent = 0;
     let failed = 0;
-    const expiredTokens: string[] = [];
+    let disabledInvalid = 0;
+    const invalidTokens: string[] = [];
+    const retryJobs: Array<{ token: string; failure: FcmFailure }> = [];
     const failureCodes = new Map<string, number>();
+
     for (let offset = 0; offset < tokens.length; offset += 20) {
       const batch = tokens.slice(offset, offset + 20);
-      const results = await Promise.all(batch.map(async (token) => {
-        const response = await fetch(
-          "https://fcm.googleapis.com/v1/projects/" + encodeURIComponent(serviceAccount.project_id) + "/messages:send",
-          {
-            method: "POST",
-            headers: {
-              Authorization: "Bearer " + accessToken,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              message: {
-                token,
-                data: { title, body: messageBody, url: destination },
-                android: { priority: "HIGH", ttl: "3600s" },
-              },
-            }),
-          },
-        );
-        const result = await response.json().catch(() => ({}));
-        if (response.ok) return { sent: true, expired: false };
-        const status = String(
-          result?.error?.details?.find((item: any) => item?.errorCode)?.errorCode
-          || result?.error?.status
-          || "FCM_SEND_FAILED"
-        );
-        failureCodes.set(status, (failureCodes.get(status) || 0) + 1);
-        return { sent: false, expired: status === "UNREGISTERED" };
-      }));
-      for (let index = 0; index < results.length; index += 1) {
-        if (results[index].sent) sent += 1;
-        else {
-          failed += 1;
-          if (results[index].expired) expiredTokens.push(batch[index]);
+      const results = await Promise.all(batch.map(async (token) => ({
+        token,
+        result: await sendFcmMessage(token, notification, serviceAccount.project_id, accessToken),
+      })));
+      for (const item of results) {
+        if (item.result.ok) {
+          sent += 1;
+          continue;
         }
+        failed += 1;
+        const failure = item.result;
+        failureCodes.set(failure.code, (failureCodes.get(failure.code) || 0) + 1);
+        if (failure.permanentTokenError) invalidTokens.push(item.token);
+        else if (failure.retryable) retryJobs.push({ token: item.token, failure });
       }
     }
 
-    if (expiredTokens.length) {
-      await adminDb.from("push_devices").delete().in("token", expiredTokens);
+    disabledInvalid = await disableInvalidTokens(adminDb, invalidTokens);
+    let retryScheduled = 0;
+    let retrySkipped = 0;
+    if (retryJobs.length) {
+      const scheduledJobs = retryJobs.slice(0, MAX_BACKGROUND_RETRIES);
+      retryScheduled = scheduledJobs.length;
+      retrySkipped = retryJobs.length - scheduledJobs.length;
+      // Retrying in the background keeps the API response quick and respects
+      // FCM Retry-After / exponential backoff without blocking the user.
+      EdgeRuntime.waitUntil(
+        retryTransientDeliveries(scheduledJobs, notification, serviceAccount.project_id, accessToken, adminDb)
+          .catch((error) => console.error("[push-notifications] Falha na rotina de retentativa:", error?.message || error)),
+      );
     }
+
     const errorCodes = [...failureCodes.entries()]
       .slice(0, 4)
       .map(([code, count]) => ({ code, count }));
     if (isSelfTest && sent === 0) {
       return json({
         ok: false,
-        error: "O Firebase recusou o envio do teste. Verifique a credencial da conta de serviço e o projeto Firebase.",
+        error: retryScheduled
+          ? "O Firebase apresentou uma falha temporária. Uma nova tentativa automática foi programada."
+          : "O Firebase recusou o envio do teste. Verifique a credencial da conta de serviço e o projeto Firebase.",
         total: tokens.length,
         sent,
         failed,
         error_codes: errorCodes,
-        removed_expired: expiredTokens.length,
+        disabled_invalid: disabledInvalid,
+        retry_scheduled: retryScheduled,
+        retry_skipped: retrySkipped,
       });
     }
     return json({
@@ -256,7 +379,9 @@ Deno.serve(async (req: Request) => {
       sent,
       failed,
       ...(isSelfTest ? { error_codes: errorCodes } : {}),
-      removed_expired: expiredTokens.length,
+      disabled_invalid: disabledInvalid,
+      retry_scheduled: retryScheduled,
+      retry_skipped: retrySkipped,
     });
   } catch (error) {
     return json({ error: String(error?.message || error).slice(0, 300) }, 502);
