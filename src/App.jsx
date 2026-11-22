@@ -8,7 +8,7 @@ import { getUpcomingMilestones } from "./lib/dashboard";
 import { parseBrazilianNumber } from "./lib/brazilian-numbers.js";
 import { buildCsv } from "./lib/csv-export.js";
 import { buildContestChangeHistory, formatContestHistoryDate } from "./lib/admin-history.js";
-import { classifyDiscoveryKind, classifyDiscoveryTopic, discoveryKindLabel, discoveryTopicLabel, discoveryStatusLabel, filterDiscoveries, countDiscoveriesByStatus } from "./lib/discovery-filters.js";
+import { classifyDiscoveryKind, classifyDiscoveryPriority, classifyDiscoveryTopic, discoveryKindLabel, discoveryPriorityLabel, discoveryTopicLabel, discoveryStatusLabel, filterDiscoveries, sortDiscoveriesByPriority, countDiscoveriesByStatus } from "./lib/discovery-filters.js";
 const StudyArea = React.lazy(() => import("./StudyArea.jsx"));
 const StudyQuestionAdmin = React.lazy(() => import("./StudyQuestionAdmin.jsx"));
 const PushHealthPanel = React.lazy(() => import("./PushHealthPanel.jsx"));
@@ -233,6 +233,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   const [discoveryQuery, setDiscoveryQuery] = useState("");
   const [discoveryKind, setDiscoveryKind] = useState("all");
   const [discoveryTopic, setDiscoveryTopic] = useState("all");
+  const [discoveryPriority, setDiscoveryPriority] = useState("all");
   const [discoveryStatus, setDiscoveryStatus] = useState("pending");
   const [discoveryPeriod, setDiscoveryPeriod] = useState("all");
   const [discoveryDraftId, setDiscoveryDraftId] = useState(null);
@@ -1482,13 +1483,14 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   const verifiedRecords = catalog.filter((item) => item && !isPreliminary(item));
   const totalVagas = verifiedRecords.reduce((sum, item) => sum + (Number(item.vagas) || 0), 0);
   const discoveryCounts = useMemo(() => countDiscoveriesByStatus(discoveryItems), [discoveryItems]);
-  const filteredDiscoveryItems = useMemo(() => filterDiscoveries(discoveryItems, {
+  const filteredDiscoveryItems = useMemo(() => sortDiscoveriesByPriority(filterDiscoveries(discoveryItems, {
     query: discoveryQuery,
     kind: discoveryKind,
     topic: discoveryTopic,
+    priority: discoveryPriority,
     status: discoveryStatus,
     period: discoveryPeriod
-  }), [discoveryItems, discoveryQuery, discoveryKind, discoveryTopic, discoveryStatus, discoveryPeriod]);
+  })), [discoveryItems, discoveryQuery, discoveryKind, discoveryTopic, discoveryPriority, discoveryStatus, discoveryPeriod]);
 
   return (
     <div className="app-shell" data-page={page}>
@@ -1813,7 +1815,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                 <div><strong>Oportunidades detectadas e histórico</strong><small>{discoveryCounts.pending} pendente(s) · {discoveryCounts.published} publicada(s) · {discoveryCounts.dismissed} descartada(s) · últimos {discoveryItems.length} registros carregados</small></div>
                 <span className="discovery-status-pill">Monitoramento automático</span>
               </div>
-              <p className="muted discovery-help">O monitor verifica fontes e pesquisa a internet automaticamente a cada 6 horas. Use os filtros para localizar pistas, retificações e decisões anteriores. Notícias externas nunca são publicadas como concurso sem confirmação no site oficial do órgão ou da banca.</p>
+              <p className="muted discovery-help">O monitor verifica fontes e pesquisa a internet automaticamente a cada 6 horas. A fila agora prioriza editais específicos, retificações e links oficiais com evidências fortes; a idade ajuda a recuperar pendências antigas. Notícias externas ficam em prioridade média ou baixa e só avançam quando o redirecionamento termina no domínio oficial declarado. Casos ambíguos permanecem pendentes.</p>
               {discoverySyncMessage && <p className="auth-message info" role="status">Histórico indisponível. Execute a migração <strong>202611220003_contest_discoveries.sql</strong> no Supabase e configure os secrets do GitHub Actions. Detalhe: {discoverySyncMessage}</p>}
               <div className="discovery-summary" aria-label="Resumo da fila de oportunidades">
                 <div><strong>{discoveryCounts.pending}</strong><span>Pendentes</span></div>
@@ -1839,6 +1841,14 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                     <option value="result">Resultados e convocações</option>
                     <option value="pre_notice">Pré-edital e autorizações</option>
                     <option value="general">Editais e outras atualizações</option>
+                  </select>
+                </label>
+                <label>Prioridade
+                  <select value={discoveryPriority} onChange={event => setDiscoveryPriority(event.target.value)}>
+                    <option value="all">Todas as prioridades</option>
+                    <option value="high">Alta prioridade</option>
+                    <option value="medium">Prioridade média</option>
+                    <option value="low">Baixa prioridade</option>
                   </select>
                 </label>
                 <label>Situação da revisão
@@ -1876,6 +1886,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                           <div className="discovery-row-tags">
                             <span className={`discovery-chip discovery-chip-${kind}`}>{discoveryKindLabel(kind)}</span>
                             <span className="discovery-chip discovery-chip-topic">{discoveryTopicLabel(classifyDiscoveryTopic(item))}</span>
+                            <span className={`discovery-chip discovery-priority-${classifyDiscoveryPriority(item)}`}>{discoveryPriorityLabel(classifyDiscoveryPriority(item))}</span>
                             <span className={`discovery-chip discovery-status-${item.status || "unknown"}`}>{discoveryStatusLabel(item.status)}</span>
                             <small>{item.detected_at ? new Date(item.detected_at).toLocaleString("pt-BR") : "Data não informada"}</small>
                             {item.reviewed_at && <small>Revisada em {new Date(item.reviewed_at).toLocaleString("pt-BR")}</small>}
