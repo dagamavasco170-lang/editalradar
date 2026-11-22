@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { appendContext, buildPendingDiscoveriesUrl, buildRetificationUpdate, classifyDiscovery, extractDocumentText, extractRoleNamesFromText, extractVacancyDetails, fetchCandidateWithRetry, findMatchingContestForRetification, inferOrganization, mapWithConcurrency, normalizeContestIdentity, prepareDiscoveryDocument, countPendingDiscoveries, requestJson, summarizeFetchError, assessNoticeFreshness, extractDeclaredPublisherUrl, resolveGoogleNewsArticleUrl, prioritizePendingDiscoveries, isClearlyUnrelatedAdministrativeDiscovery } from "./auto-resolve-discoveries.mjs";
+import { appendContext, buildPendingDiscoveriesUrl, buildNonActionablePendingDiscoveriesUrl, dismissNonActionablePendingDiscoveries, buildRetificationUpdate, classifyDiscovery, extractDocumentText, extractRoleNamesFromText, extractVacancyDetails, fetchCandidateWithRetry, findMatchingContestForRetification, inferOrganization, mapWithConcurrency, normalizeContestIdentity, prepareDiscoveryDocument, countPendingDiscoveries, requestJson, summarizeFetchError, assessNoticeFreshness, extractDeclaredPublisherUrl, resolveGoogleNewsArticleUrl, prioritizePendingDiscoveries, isClearlyUnrelatedAdministrativeDiscovery } from "./auto-resolve-discoveries.mjs";
 
 const discovery = {
   id: 1,
@@ -562,7 +562,48 @@ test("limita a concorrência e mantém a ordem dos resultados", async () => {
   assert.equal(peak, 3);
 });
 
-test("conta todas as pendências do banco antes de fechar alertas", async () => {
+test("a URL da fila de manutenção seleciona apenas linhas de base pendentes", () => {
+  const url = new URL(buildNonActionablePendingDiscoveriesUrl("https://example.supabase.co"));
+  assert.equal(url.searchParams.get("status"), "eq.pending");
+  assert.equal(url.searchParams.get("discovery_type"), "eq.source_baseline");
+  assert.equal(url.searchParams.get("order"), "detected_at.asc");
+  assert.equal(url.searchParams.get("limit"), "1000");
+});
+
+test("encerra linhas de base sem tratá-las como oportunidades de concurso", async () => {
+  const requests = [];
+  const dismissed = await dismissNonActionablePendingDiscoveries(
+    async (url, options) => {
+      requests.push({ url, options });
+      if (options.method === "PATCH") return new Response(null, { status: 204 });
+      return new Response(JSON.stringify([{
+        id: 901,
+        source_url: "https://banca.org.br/concursos/",
+        candidate_url: "https://banca.org.br/concursos/",
+        title: "Página inicial acompanhada",
+        context: "Primeira leitura da fonte.",
+        discovery_type: "source_baseline",
+        status: "pending"
+      }]), {
+        status: 200,
+        headers: { "content-type": "application/json" }
+      });
+    },
+    "https://example.supabase.co",
+    "test-service-role"
+  );
+
+  assert.equal(dismissed, 1);
+  assert.equal(requests.length, 2);
+  assert.match(requests[0].url, /discovery_type=eq\.source_baseline/);
+  assert.equal(requests[1].options.method, "PATCH");
+  const patch = JSON.parse(requests[1].options.body);
+  assert.equal(patch.status, "dismissed");
+  assert.match(patch.context, /Linha de base inicial/);
+  assert.ok(patch.reviewed_at);
+});
+
+test("conta somente pendências que representam oportunidades acionáveis", async () => {
   let requestUrl = "";
   let requestOptions;
   const count = await countPendingDiscoveries(async (url, options) => {
@@ -576,6 +617,7 @@ test("conta todas as pendências do banco antes de fechar alertas", async () => 
 
   assert.equal(count, 27);
   assert.match(requestUrl, /status=eq\.pending/);
+  assert.match(requestUrl, /discovery_type=in\.\(new_link%2Cpage_change%2Cweb_search_lead\)|discovery_type=in\.\(new_link,page_change,web_search_lead\)/);
   assert.equal(requestOptions.method, "HEAD");
   assert.match(requestOptions.headers.Prefer, /count=exact/);
 });
