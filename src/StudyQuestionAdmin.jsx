@@ -53,7 +53,7 @@ export default function StudyQuestionAdmin({authClient,userId}){
  const saveTopic=async event=>{
   event.preventDefault();setAutomationMessage("");
   if(!authClient||!userId){setAutomationMessage("Entre com uma conta administrativa.");setAutomationKind("error");return;}
-  if(!isTrustedPrivateStudySourceUrl(topicForm.source_url)){setAutomationMessage("Use uma editora ou plataforma privada de estudo da lista autorizada.");setAutomationKind("error");return;}
+  if(!isTrustedPrivateStudySourceUrl(topicForm.source_url)){setAutomationMessage("Use Wikilivros, Wikipédia, Wikiversidade, Wikcionário, Politize ou Escolha Livre, conforme os direitos de reutilização cadastrados.");setAutomationKind("error");return;}
   if(topicForm.source_excerpt.trim().length>0&&topicForm.source_excerpt.trim().length<200){setAutomationMessage("O trecho manual precisa ter pelo menos 200 caracteres. Deixe-o vazio para tentar a extração automática da página.");setAutomationKind("error");return;}
   if(topicForm.source_excerpt.trim().length>12000){setAutomationMessage("O trecho manual não pode ultrapassar 12.000 caracteres.");setAutomationKind("error");return;}
   setBusyId("save-topic");
@@ -144,12 +144,12 @@ export default function StudyQuestionAdmin({authClient,userId}){
    </div>
    <div className="question-ai-how"><strong>Revisão em duas etapas</strong><p>Gemini Flash-Lite elabora a questão e um segundo passe revisa a resposta, os distratores, a justificativa e a aderência à fonte. Há validação automática de evidência literal e duplicidade. Somente questões com nota mínima de 90/100 e todos os critérios atendidos são publicadas.</p></div>
    <form className="question-ai-form" onSubmit={saveTopic}>
-    <div><strong>Configurar tema recorrente</strong><small>Informe uma fonte privada de estudo. O sistema tenta extrair o texto automaticamente; para PDFs e imagens, cole um trecho permitido pelo titular do conteúdo.</small></div>
+    <div><strong>Configurar tema recorrente</strong><small>Informe uma fonte privada com licença aberta ou permissão de reutilização. O sistema registra a licença e a atribuição junto de cada questão.</small></div>
     <div className="study-admin-grid">
      <label>Disciplina<select value={topicForm.discipline} onChange={e=>updateTopic("discipline",e.target.value)}>{["Língua Portuguesa","Raciocínio lógico","Direito Constitucional","Direito Administrativo","Informática","Direito Civil","Direito Penal","Direito Processual","Conhecimentos específicos"].map(item=><option key={item}>{item}</option>)}</select></label>
      <label>Dificuldade<select value={topicForm.difficulty} onChange={e=>updateTopic("difficulty",e.target.value)}>{["Fácil","Intermediária","Avançada"].map(item=><option key={item}>{item}</option>)}</select></label>
      <label className="study-admin-wide">Assunto<input value={topicForm.topic} onChange={e=>updateTopic("topic",e.target.value)} required maxLength={160} placeholder="Ex.: Direitos e garantias fundamentais"/></label>
-     <label className="study-admin-wide">Fonte privada de estudo HTTPS<input type="url" value={topicForm.source_url} onChange={e=>updateTopic("source_url",e.target.value)} required placeholder="https://brasilescola.uol.com.br/..."/></label>
+     <label className="study-admin-wide">Fonte privada de estudo HTTPS<input type="url" value={topicForm.source_url} onChange={e=>updateTopic("source_url",e.target.value)} required placeholder="https://pt.wikibooks.org/wiki/Portugu%C3%AAs"/></label>
      <label>Questões por execução<select value={topicForm.questions_per_run} onChange={e=>updateTopic("questions_per_run",Number(e.target.value))}>{[1,2,3].map(value=><option key={value} value={value}>{value}</option>)}</select></label>
      <label>Frequência<select value={topicForm.cadence_days} onChange={e=>updateTopic("cadence_days",Number(e.target.value))}>{[{value:1,label:"Diária"},{value:2,label:"A cada 2 dias"},{value:7,label:"Semanal"},{value:14,label:"A cada 14 dias"},{value:30,label:"Mensal"}].map(item=><option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
     </div>
