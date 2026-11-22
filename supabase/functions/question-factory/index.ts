@@ -23,107 +23,141 @@ const model = "gemini-3.1-flash-lite";
 const MAX_DAILY_RUNS = 3;
 const MAX_QUESTIONS_PER_RUN = 3;
 
-// Catálogo autônomo amplo, baseado em editoras, plataformas e organizações privadas de educação.
+// Catálogo autônomo baseado em recursos privados abertos CC BY-SA e em Politize!, que autoriza reprodução com atribuição.
+const wikiUrl = (title: string) => "https://pt.wikipedia.org/wiki/" + encodeURIComponent(title.replace(/ /g, "_"));
+const bookUrl = (title: string) => "https://pt.wikibooks.org/wiki/" + encodeURIComponent(title.replace(/ /g, "_"));
+
 const DEFAULT_AUTONOMOUS_TOPICS = [
-  { discipline: "Língua Portuguesa", topic: "Gramática normativa: classes de palavras, flexões e estrutura da língua", source_url: "https://brasilescola.uol.com.br/gramatica" },
-  { discipline: "Língua Portuguesa", topic: "Sintaxe: termos da oração, período simples e composto", source_url: "https://www.todamateria.com.br/gramatica/" },
-  { discipline: "Língua Portuguesa", topic: "Ortografia, acentuação, pontuação e emprego dos porquês", source_url: "https://www.soportugues.com.br/" },
-  { discipline: "Língua Portuguesa", topic: "Concordância verbal e nominal, regência e crase", source_url: "https://brasilescola.uol.com.br/gramatica" },
-  { discipline: "Língua Portuguesa", topic: "Interpretação, compreensão e tipologia textual", source_url: "https://www.todoestudo.com.br/portugues" },
-  { discipline: "Redação Oficial", topic: "Comunicação escrita, clareza, concisão e adequação textual", source_url: "https://brasilescola.uol.com.br/gramatica" },
-  { discipline: "Literatura", topic: "Literatura brasileira: escolas literárias, autores e obras", source_url: "https://www.todamateria.com.br/literatura/" },
-  { discipline: "Literatura", topic: "Gêneros literários, figuras de linguagem e interpretação", source_url: "https://brasilescola.uol.com.br/literatura" },
-  { discipline: "Matemática", topic: "Aritmética, números, operações, frações e razão", source_url: "https://www.somatematica.com.br/" },
-  { discipline: "Matemática", topic: "Álgebra, equações, expressões e sistemas lineares", source_url: "https://www.somatematica.com.br/" },
-  { discipline: "Matemática", topic: "Geometria plana e espacial: perímetros, áreas e volumes", source_url: "https://www.todamateria.com.br/matematica/" },
-  { discipline: "Matemática", topic: "Porcentagem, regra de três, proporções e escalas", source_url: "https://www.todoestudo.com.br/matematica" },
-  { discipline: "Matemática Financeira", topic: "Juros simples, juros compostos, taxas e descontos", source_url: "https://brasilescola.uol.com.br/matematica/matematica-financeira.htm" },
-  { discipline: "Matemática Financeira", topic: "Capital, montante, equivalência de taxas e séries de pagamentos", source_url: "https://www.somatematica.com.br/" },
-  { discipline: "Raciocínio Lógico", topic: "Proposições, conectivos, tabelas-verdade e equivalências", source_url: "https://brasilescola.uol.com.br/gramatica" },
-  { discipline: "Raciocínio Lógico", topic: "Argumentação lógica, inferências, diagramas e sequências", source_url: "https://www.somatematica.com.br/" },
-  { discipline: "Estatística", topic: "Estatística descritiva, média, mediana, moda e dispersão", source_url: "https://brasilescola.uol.com.br/matematica/estatistica-1.htm" },
-  { discipline: "Estatística", topic: "Probabilidade, análise combinatória e distribuições", source_url: "https://brasilescola.uol.com.br/matematica/probabilidade.htm" },
-  { discipline: "Estatística", topic: "Gráficos, tabelas, amostragem e interpretação de dados", source_url: "https://www.somatematica.com.br/" },
-  { discipline: "Geografia", topic: "Geografia física: clima, relevo, hidrografia e vegetação", source_url: "https://brasilescola.uol.com.br/geografia" },
-  { discipline: "Geografia", topic: "Geografia humana: população, urbanização e migrações", source_url: "https://www.todamateria.com.br/geografia/" },
-  { discipline: "Geografia", topic: "Globalização, geopolítica, economia e relações internacionais", source_url: "https://www.mundoeducacao.uol.com.br/geografia" },
-  { discipline: "Geografia", topic: "Cartografia, escalas, coordenadas e fusos horários", source_url: "https://www.todoestudo.com.br/geografia" },
-  { discipline: "História", topic: "História do Brasil: Colônia, Império e República", source_url: "https://brasilescola.uol.com.br/historia" },
-  { discipline: "História", topic: "História geral: Antiguidade, Idade Média, Moderna e Contemporânea", source_url: "https://www.todamateria.com.br/historia/" },
-  { discipline: "História", topic: "História política, social e econômica do Brasil", source_url: "https://cpdoc.fgv.br/" },
-  { discipline: "História", topic: "Revoluções, guerras mundiais e formação do mundo contemporâneo", source_url: "https://www.mundoeducacao.uol.com.br/historia" },
-  { discipline: "Atualidades", topic: "Cidadania, democracia, instituições políticas e participação social", source_url: "https://www.politize.com.br/trilhas/" },
-  { discipline: "Atualidades", topic: "Políticas públicas: ciclo, atores, avaliação e participação", source_url: "https://www.politize.com.br/trilhas/politicas-publicas/" },
-  { discipline: "Atualidades", topic: "Direitos civis, políticos e sociais na sociedade contemporânea", source_url: "https://www.politize.com.br/search/direitos" },
-  { discipline: "Filosofia", topic: "Ética, moral, conhecimento e filosofia política", source_url: "https://www.todamateria.com.br/filosofia/" },
-  { discipline: "Filosofia", topic: "Filosofia antiga, moderna e contemporânea", source_url: "https://brasilescola.uol.com.br/filosofia" },
-  { discipline: "Sociologia", topic: "Cultura, sociedade, instituições e desigualdade social", source_url: "https://www.mundoeducacao.uol.com.br/sociologia" },
-  { discipline: "Sociologia", topic: "Cidadania, movimentos sociais e relações de trabalho", source_url: "https://www.todoestudo.com.br/sociologia" },
-  { discipline: "Biologia", topic: "Citologia, genética, evolução e ecologia", source_url: "https://brasilescola.uol.com.br/biologia" },
-  { discipline: "Biologia", topic: "Fisiologia humana, saúde, reprodução e sistemas do corpo", source_url: "https://www.todamateria.com.br/biologia/" },
-  { discipline: "Biologia", topic: "Ecossistemas, biodiversidade, cadeias e ciclos biogeoquímicos", source_url: "https://www.mundoeducacao.uol.com.br/biologia" },
-  { discipline: "Física", topic: "Mecânica, cinemática, dinâmica, trabalho e energia", source_url: "https://brasilescola.uol.com.br/fisica" },
-  { discipline: "Física", topic: "Eletricidade, magnetismo, ondas, óptica e termologia", source_url: "https://www.todamateria.com.br/fisica/" },
-  { discipline: "Química", topic: "Estrutura atômica, tabela periódica e ligações químicas", source_url: "https://www.manualdaquimica.com/" },
-  { discipline: "Química", topic: "Estequiometria, soluções, reações e funções inorgânicas", source_url: "https://brasilescola.uol.com.br/quimica" },
-  { discipline: "Química", topic: "Química orgânica, propriedades e reações de compostos", source_url: "https://www.mundoeducacao.uol.com.br/quimica" },
-  { discipline: "Meio Ambiente", topic: "Ecologia, sustentabilidade, conservação e impactos ambientais", source_url: "https://brasilescola.uol.com.br/geografia" },
-  { discipline: "Meio Ambiente", topic: "Mudanças climáticas, energia, recursos naturais e poluição", source_url: "https://www.politize.com.br/conteudo/" },
-  { discipline: "Informática", topic: "Sistemas operacionais, arquivos, aplicativos e pacote Office", source_url: "https://blog.grancursosonline.com.br/informatica-para-concursos-conceitos-basicos-para-prova/" },
-  { discipline: "Informática", topic: "Internet, redes, navegadores, correio eletrônico e nuvem", source_url: "https://www.tecmundo.com.br/" },
-  { discipline: "Informática", topic: "Segurança da informação, ameaças, backup e proteção de dados", source_url: "https://www.olhardigital.com.br/" },
-  { discipline: "Tecnologia da Informação", topic: "Redes, banco de dados, SQL, engenharia de software e programação", source_url: "https://blog.grancursosonline.com.br/concursos-ti-em-2027/" },
-  { discipline: "Tecnologia da Informação", topic: "Computação em nuvem, inteligência artificial e governança de TI", source_url: "https://www.tecmundo.com.br/" },
-  { discipline: "Administração Geral", topic: "Planejamento, organização, direção, controle e processos", source_url: "https://www.todamateria.com.br/administracao/" },
-  { discipline: "Administração Geral", topic: "Teorias administrativas, eficiência, eficácia e efetividade", source_url: "https://blog.grancursosonline.com.br/direito-administrativo-como-estudar/" },
-  { discipline: "Administração Pública", topic: "Gestão pública, governança, gestão de pessoas e resultados", source_url: "https://brasilescola.uol.com.br/gramatica" },
-  { discipline: "Administração Pública", topic: "Políticas públicas, planejamento e participação cidadã", source_url: "https://www.politize.com.br/trilhas/politicas-publicas/" },
-  { discipline: "Direito Administrativo", topic: "Princípios administrativos, atos, poderes e organização administrativa", source_url: "https://blog.grancursosonline.com.br/direito-administrativo-como-estudar/" },
-  { discipline: "Direito Administrativo", topic: "Licitações, contratos, agentes públicos e responsabilização", source_url: "https://blog.grancursosonline.com.br/direito-administrativo-como-estudar/" },
-  { discipline: "Direito Constitucional", topic: "Direitos fundamentais, organização do Estado e separação de poderes", source_url: "https://blog.grancursosonline.com.br/direito-administrativo-como-estudar/" },
-  { discipline: "Direito Constitucional", topic: "Constitucionalismo, democracia, cidadania e direitos sociais", source_url: "https://www.politize.com.br/search/direitos" },
-  { discipline: "Direito Civil", topic: "Pessoas, bens, fatos jurídicos, obrigações e contratos", source_url: "https://www.direitonet.com.br/" },
-  { discipline: "Direito do Consumidor", topic: "Relações de consumo, responsabilidade e proteção contratual", source_url: "https://www.direitonet.com.br/" },
-  { discipline: "Direito Penal", topic: "Teoria do crime, aplicação da lei penal e princípios", source_url: "https://blog.grancursosonline.com.br/direito-administrativo-como-estudar/" },
-  { discipline: "Direito Penal", topic: "Crimes contra a pessoa, patrimônio e administração pública", source_url: "https://www.direitonet.com.br/" },
-  { discipline: "Processo Penal", topic: "Investigação, ação penal, provas e procedimentos", source_url: "https://www.direitonet.com.br/" },
-  { discipline: "Direito do Trabalho", topic: "Relações de trabalho, contrato, jornada e direitos trabalhistas", source_url: "https://www.direitonet.com.br/" },
-  { discipline: "Direitos Humanos", topic: "Direitos humanos, dignidade, igualdade e não discriminação", source_url: "https://www.politize.com.br/search/direitos" },
-  { discipline: "Direito Previdenciário", topic: "Seguridade social, benefícios e custeio previdenciário", source_url: "https://blog.grancursosonline.com.br/direito-administrativo-como-estudar/" },
-  { discipline: "Direito Tributário", topic: "Tributos, obrigação tributária, crédito e espécies tributárias", source_url: "https://www.direitonet.com.br/" },
-  { discipline: "Contabilidade Geral", topic: "Patrimônio, contas, escrituração e demonstrações contábeis", source_url: "https://www.contabeis.com.br/" },
-  { discipline: "Contabilidade Geral", topic: "Princípios, competência, caixa, lançamentos e balancetes", source_url: "https://www.contabeis.com.br/" },
-  { discipline: "Contabilidade Pública", topic: "Orçamento, patrimônio, receitas, despesas e demonstrações públicas", source_url: "https://blog.grancursosonline.com.br/concursos-contabilidade/" },
-  { discipline: "Finanças Públicas", topic: "Receita, despesa, orçamento, dívida e responsabilidade fiscal", source_url: "https://brasilescola.uol.com.br/gramatica" },
-  { discipline: "Economia", topic: "Microeconomia, macroeconomia, inflação, PIB e mercado", source_url: "https://brasilescola.uol.com.br/economia" },
-  { discipline: "Economia", topic: "Economia brasileira, desenvolvimento, emprego e indicadores", source_url: "https://www.politize.com.br/conteudo/" },
-  { discipline: "Educação", topic: "Teorias da aprendizagem, desenvolvimento e práticas pedagógicas", source_url: "https://novaescola.org.br/" },
-  { discipline: "Educação", topic: "Didática, currículo, avaliação e planejamento educacional", source_url: "https://www.todoestudo.com.br/educacao" },
-  { discipline: "Legislação Educacional", topic: "Políticas educacionais, gestão escolar e direito à educação", source_url: "https://brasilescola.uol.com.br/gramatica" },
-  { discipline: "Pedagogia", topic: "Alfabetização, letramento, inclusão e avaliação da aprendizagem", source_url: "https://novaescola.org.br/" },
-  { discipline: "Saúde Pública", topic: "Saúde coletiva, prevenção, promoção e determinantes sociais", source_url: "https://drauziovarella.uol.com.br/" },
-  { discipline: "Saúde Pública", topic: "Epidemiologia, doenças transmissíveis e vigilância em saúde", source_url: "https://www.minhavida.com.br/" },
-  { discipline: "Serviço Social", topic: "Proteção social, vulnerabilidade e políticas sociais", source_url: "https://www.politize.com.br/trilhas/politicas-publicas/" },
-  { discipline: "Serviço Social", topic: "Direitos sociais, cidadania e assistência social", source_url: "https://www.todoestudo.com.br/sociologia" },
-  { discipline: "Arquivologia", topic: "Gestão documental, arquivos, classificação e preservação", source_url: "https://brasilescola.uol.com.br/gramatica" },
-  { discipline: "Gestão de Pessoas", topic: "Recrutamento, seleção, treinamento, desempenho e liderança", source_url: "https://blog.grancursosonline.com.br/" },
-  { discipline: "Gestão de Projetos", topic: "Escopo, cronograma, riscos, custos e metodologias ágeis", source_url: "https://www.tecmundo.com.br/" },
-  { discipline: "Segurança da Informação", topic: "Confidencialidade, integridade, disponibilidade e controles de segurança", source_url: "https://blog.grancursosonline.com.br/concursos-ti-em-2027/" },
-  { discipline: "Ética e Cidadania", topic: "Ética, integridade, responsabilidade e dilemas na vida pública", source_url: "https://www.politize.com.br/" },
-  { discipline: "Comunicação e Redação", topic: "Comunicação organizacional, linguagem clara e produção textual", source_url: "https://www.todoestudo.com.br/portugues" },
-  { discipline: "Inglês", topic: "Leitura, interpretação, vocabulário e estruturas gramaticais", source_url: "https://www.todamateria.com.br/ingles/" },
-  { discipline: "Espanhol", topic: "Leitura, interpretação, vocabulário e estruturas gramaticais", source_url: "https://www.todamateria.com.br/espanhol/" },
-  { discipline: "Artes e Cultura", topic: "Movimentos artísticos, patrimônio, cultura e linguagem visual", source_url: "https://www.todamateria.com.br/artes/" },
-  { discipline: "Educação Física", topic: "Corpo humano, atividade física, esportes e saúde", source_url: "https://www.todamateria.com.br/educacao-fisica/" },
-  { discipline: "Atualidades e Geopolítica", topic: "Conflitos internacionais, globalização e relações entre países", source_url: "https://www.politize.com.br/conteudo/" },
-  { discipline: "Atualidades", topic: "Temas contemporâneos, geopolítica e impactos na sociedade", source_url: "https://guiadoestudante.abril.com.br/atualidades/" },
-  { discipline: "Atualidades", topic: "Mudanças climáticas, energia e desafios globais recentes", source_url: "https://guiadoestudante.abril.com.br/atualidades/8-atualidades-que-podem-aparecer-na-fuvest-2027/" },
-  { discipline: "Economia", topic: "Economia internacional, comércio e integração regional", source_url: "https://guiadoestudante.abril.com.br/atualidades/" },
+  { discipline: "Língua Portuguesa", topic: "Gramática e estrutura da língua portuguesa", source_url: bookUrl("Português") },
+  { discipline: "Língua Portuguesa", topic: "Sintaxe, termos da oração e período composto", source_url: wikiUrl("Sintaxe") },
+  { discipline: "Língua Portuguesa", topic: "Morfologia, classes de palavras e flexões", source_url: wikiUrl("Morfologia") },
+  { discipline: "Língua Portuguesa", topic: "Ortografia, acentuação e pontuação", source_url: wikiUrl("Ortografia") },
+  { discipline: "Língua Portuguesa", topic: "Semântica, significação e relações lexicais", source_url: wikiUrl("Semântica") },
+  { discipline: "Língua Portuguesa", topic: "Literatura brasileira e movimentos literários", source_url: wikiUrl("Literatura brasileira") },
+  { discipline: "Língua Portuguesa", topic: "Linguística, linguagem, texto e discurso", source_url: wikiUrl("Linguística") },
+  { discipline: "Matemática", topic: "Aritmética, números, operações e divisibilidade", source_url: wikiUrl("Aritmética") },
+  { discipline: "Matemática", topic: "Álgebra, equações e sistemas lineares", source_url: wikiUrl("Álgebra") },
+  { discipline: "Matemática", topic: "Geometria plana e espacial", source_url: wikiUrl("Geometria") },
+  { discipline: "Matemática", topic: "Trigonometria e funções", source_url: wikiUrl("Trigonometria") },
+  { discipline: "Matemática", topic: "Matrizes, determinantes e sistemas", source_url: wikiUrl("Matriz (matemática)") },
+  { discipline: "Matemática Financeira", topic: "Juros simples, compostos e equivalência de taxas", source_url: wikiUrl("Matemática financeira") },
+  { discipline: "Raciocínio Lógico", topic: "Lógica proposicional, conectivos e tabelas-verdade", source_url: wikiUrl("Lógica proposicional") },
+  { discipline: "Raciocínio Lógico", topic: "Argumentação, inferência e dedução", source_url: wikiUrl("Lógica") },
+  { discipline: "Estatística", topic: "Estatística descritiva, média, mediana e dispersão", source_url: wikiUrl("Estatística descritiva") },
+  { discipline: "Estatística", topic: "Probabilidade e análise combinatória", source_url: wikiUrl("Probabilidade") },
+  { discipline: "Estatística", topic: "Amostragem, distribuições e interpretação de dados", source_url: wikiUrl("Amostragem") },
+  { discipline: "Geografia", topic: "Geografia física, relevo, clima e hidrografia", source_url: wikiUrl("Geografia física") },
+  { discipline: "Geografia", topic: "Geografia humana, população e urbanização", source_url: wikiUrl("Geografia humana") },
+  { discipline: "Geografia", topic: "Cartografia, coordenadas, escalas e fusos horários", source_url: wikiUrl("Cartografia") },
+  { discipline: "Geografia", topic: "Demografia, migrações e dinâmica populacional", source_url: wikiUrl("Demografia") },
+  { discipline: "Geografia", topic: "Globalização, geopolítica e relações internacionais", source_url: wikiUrl("Globalização") },
+  { discipline: "História", topic: "História do Brasil: Colônia, Império e República", source_url: wikiUrl("História do Brasil") },
+  { discipline: "História", topic: "História geral e períodos históricos", source_url: wikiUrl("História") },
+  { discipline: "História", topic: "Revoluções industriais e transformações econômicas", source_url: wikiUrl("Revolução Industrial") },
+  { discipline: "História", topic: "Guerras mundiais e século XX", source_url: wikiUrl("Segunda Guerra Mundial") },
+  { discipline: "Filosofia", topic: "Filosofia antiga, moderna e contemporânea", source_url: wikiUrl("Filosofia") },
+  { discipline: "Filosofia", topic: "Ética, moral e teorias éticas", source_url: wikiUrl("Ética") },
+  { discipline: "Sociologia", topic: "Cultura, sociedade e instituições sociais", source_url: wikiUrl("Sociologia") },
+  { discipline: "Sociologia", topic: "Estratificação, desigualdade e mobilidade social", source_url: wikiUrl("Estratificação social") },
+  { discipline: "Atualidades", topic: "Democracia, cidadania e participação política", source_url: "https://www.politize.com.br/trilhas/" },
+  { discipline: "Atualidades", topic: "Políticas públicas: formulação, implementação e avaliação", source_url: "https://www.politize.com.br/trilhas/politicas-publicas/" },
+  { discipline: "Atualidades", topic: "Direitos humanos, igualdade e participação social", source_url: "https://www.politize.com.br/" },
+  { discipline: "Atualidades", topic: "Instituições políticas e organização da sociedade", source_url: "https://www.politize.com.br/trilhas/" },
+  { discipline: "Direito Constitucional", topic: "Constitucionalismo, constituição e poder constituinte", source_url: wikiUrl("Constitucionalismo") },
+  { discipline: "Direito Constitucional", topic: "Direitos fundamentais e direitos humanos: conceitos", source_url: wikiUrl("Direitos fundamentais") },
+  { discipline: "Direito Administrativo", topic: "Administração pública: princípios e organização conceitual", source_url: wikiUrl("Administração pública") },
+  { discipline: "Direito Administrativo", topic: "Atos administrativos e poderes da administração: conceitos", source_url: wikiUrl("Ato administrativo") },
+  { discipline: "Direito Civil", topic: "Pessoas, bens, fatos jurídicos e obrigações: conceitos", source_url: wikiUrl("Direito civil") },
+  { discipline: "Direito do Consumidor", topic: "Relações de consumo e proteção do consumidor: conceitos", source_url: wikiUrl("Direito do consumidor") },
+  { discipline: "Direito Penal", topic: "Teoria do crime, tipicidade, ilicitude e culpabilidade: conceitos", source_url: wikiUrl("Teoria do crime") },
+  { discipline: "Direito do Trabalho", topic: "Relações de trabalho, contrato e organização laboral: conceitos", source_url: wikiUrl("Direito do trabalho") },
+  { discipline: "Direitos Humanos", topic: "Dignidade, igualdade e direitos humanos: fundamentos", source_url: wikiUrl("Direitos humanos") },
+  { discipline: "Economia", topic: "Microeconomia, oferta, demanda e estruturas de mercado", source_url: wikiUrl("Microeconomia") },
+  { discipline: "Economia", topic: "Macroeconomia, inflação, PIB e desemprego", source_url: wikiUrl("Macroeconomia") },
+  { discipline: "Economia", topic: "Moeda, sistema financeiro e política monetária: conceitos", source_url: wikiUrl("Moeda") },
+  { discipline: "Contabilidade Geral", topic: "Patrimônio, contas, ativos, passivos e demonstrações", source_url: wikiUrl("Contabilidade") },
+  { discipline: "Administração Geral", topic: "Teorias administrativas, planejamento e organização", source_url: wikiUrl("Administração") },
+  { discipline: "Administração Pública", topic: "Gestão pública, governança e administração pública: conceitos", source_url: wikiUrl("Administração pública") },
+  { discipline: "Gestão de Pessoas", topic: "Liderança, motivação, recrutamento e desenvolvimento", source_url: wikiUrl("Gestão de recursos humanos") },
+  { discipline: "Gestão de Projetos", topic: "Escopo, prazo, custo, riscos e ciclo de vida do projeto", source_url: wikiUrl("Gestão de projetos") },
+  { discipline: "Biologia", topic: "Citologia, organelas e metabolismo celular", source_url: wikiUrl("Biologia celular") },
+  { discipline: "Biologia", topic: "Genética, hereditariedade e biologia molecular", source_url: wikiUrl("Genética") },
+  { discipline: "Biologia", topic: "Ecologia, ecossistemas e biodiversidade", source_url: wikiUrl("Ecologia") },
+  { discipline: "Biologia", topic: "Evolução, seleção natural e diversidade biológica", source_url: wikiUrl("Evolução") },
+  { discipline: "Física", topic: "Mecânica, cinemática, dinâmica e energia", source_url: wikiUrl("Mecânica clássica") },
+  { discipline: "Física", topic: "Termodinâmica, calor e temperatura", source_url: wikiUrl("Termodinâmica") },
+  { discipline: "Física", topic: "Eletricidade, magnetismo e circuitos", source_url: wikiUrl("Eletromagnetismo") },
+  { discipline: "Física", topic: "Ondulatória e óptica", source_url: wikiUrl("Óptica") },
+  { discipline: "Química", topic: "Estrutura atômica e tabela periódica", source_url: wikiUrl("Modelo atômico") },
+  { discipline: "Química", topic: "Ligações químicas, reações e estequiometria", source_url: wikiUrl("Ligação química") },
+  { discipline: "Química", topic: "Química orgânica e funções orgânicas", source_url: bookUrl("Química Orgânica") },
+  { discipline: "Informática", topic: "Sistemas operacionais e organização de arquivos", source_url: wikiUrl("Sistema operacional") },
+  { discipline: "Informática", topic: "Internet, protocolos, redes e computação em nuvem", source_url: wikiUrl("Rede de computadores") },
+  { discipline: "Tecnologia da Informação", topic: "Banco de dados, modelo relacional e SQL", source_url: wikiUrl("Banco de dados") },
+  { discipline: "Tecnologia da Informação", topic: "Engenharia de software e desenvolvimento de sistemas", source_url: wikiUrl("Engenharia de software") },
+  { discipline: "Tecnologia da Informação", topic: "Segurança da informação e criptografia: conceitos", source_url: wikiUrl("Segurança da informação") },
+  { discipline: "Tecnologia da Informação", topic: "Inteligência artificial, aprendizagem de máquina e dados", source_url: wikiUrl("Inteligência artificial") },
+  { discipline: "Educação", topic: "Teorias da aprendizagem e desenvolvimento humano", source_url: wikiUrl("Teoria da aprendizagem") },
+  { discipline: "Pedagogia", topic: "Didática, currículo, avaliação e planejamento educacional", source_url: wikiUrl("Didática") },
+  { discipline: "Psicologia", topic: "Processos cognitivos, memória, atenção e aprendizagem", source_url: wikiUrl("Psicologia cognitiva") },
+  { discipline: "Saúde Pública", topic: "Saúde coletiva, prevenção e promoção da saúde: conceitos", source_url: wikiUrl("Saúde pública") },
+  { discipline: "Saúde Pública", topic: "Epidemiologia, incidência, prevalência e risco", source_url: wikiUrl("Epidemiologia") },
+  { discipline: "Serviço Social", topic: "Políticas sociais, proteção social e vulnerabilidade", source_url: "https://www.politize.com.br/trilhas/politicas-publicas/" },
+  { discipline: "Arquivologia", topic: "Arquivos, gestão documental e preservação da informação", source_url: wikiUrl("Arquivologia") },
+  { discipline: "Comunicação", topic: "Comunicação, linguagem, meios e teorias da comunicação", source_url: wikiUrl("Comunicação") },
+  { discipline: "Língua Inglesa", topic: "Vocabulário, gramática e leitura em língua inglesa", source_url: wikiUrl("Língua inglesa") },
+  { discipline: "Língua Espanhola", topic: "Vocabulário, gramática e leitura em língua espanhola", source_url: wikiUrl("Língua espanhola") },
+  { discipline: "Artes e Cultura", topic: "História da arte, movimentos e linguagens artísticas", source_url: wikiUrl("História da arte") },
+  { discipline: "Educação Física", topic: "Atividade física, fisiologia do exercício e esporte", source_url: wikiUrl("Educação física") },
+  { discipline: "Educação Aberta", topic: "Recursos educacionais abertos e licenças livres", source_url: "https://escolhalivre.org.br/en/about/" }
 ];
 
 const adminDb = createClient(supabaseUrl, serviceKey, {
   auth: { persistSession: false, autoRefreshToken: false }
 });
+
+type SourceLicense = { source_license: string; source_attribution: string; content_license: string };
+
+function sourceLicenseMetadata(sourceUrl: string): SourceLicense | null {
+  let host = "";
+  try { host = new URL(sourceUrl).hostname.toLowerCase(); } catch { return null; }
+  if (host.endsWith(".wikibooks.org") || host === "wikibooks.org") {
+    return {
+      source_license: "CC BY-SA 4.0",
+      source_attribution: "Colaboradores do Wikilivros; consulte o histórico da página: " + sourceUrl + "?action=history",
+      content_license: "CC BY-SA 4.0"
+    };
+  }
+  if (host.endsWith(".wikipedia.org") || host === "wikipedia.org" || host.endsWith(".wiktionary.org") || host === "wiktionary.org") {
+    return {
+      source_license: "CC BY-SA 4.0 / GFDL (conforme a página)",
+      source_attribution: "Colaboradores da Wikimedia; consulte o histórico da página: " + sourceUrl + "?action=history",
+      content_license: "CC BY-SA 4.0"
+    };
+  }
+  if (host.endsWith(".wikiversity.org") || host === "wikiversity.org") {
+    return {
+      source_license: "CC BY-SA 3.0 / GFDL (conforme a página)",
+      source_attribution: "Colaboradores da Wikiversidade; consulte o histórico da página: " + sourceUrl + "?action=history",
+      content_license: "CC BY-SA 3.0"
+    };
+  }
+  if (host === "politize.com.br" || host.endsWith(".politize.com.br")) {
+    return {
+      source_license: "Reprodução gratuita permitida mediante crédito (Politize!)",
+      source_attribution: "Politize! — " + sourceUrl + " (crédito e link da fonte)",
+      content_license: "Conteúdo autoral EditalRadar; fonte Politize! creditada"
+    };
+  }
+  if (host === "escolhalivre.org.br" || host.endsWith(".escolhalivre.org.br")) {
+    return {
+      source_license: "CC BY-SA IGO 3.0",
+      source_attribution: "Escolha Livre — " + sourceUrl + " (CC BY-SA IGO 3.0)",
+      content_license: "CC BY-SA IGO 3.0"
+    };
+  }
+  return null;
+}
 
 const questionSchema = {
   type: "object",
@@ -352,6 +386,7 @@ async function ensureAutonomousTopics(): Promise<{ seeded: boolean; topics: numb
   const now = new Date().toISOString();
   const rows = DEFAULT_AUTONOMOUS_TOPICS.map((item) => ({
     ...item,
+    ...sourceLicenseMetadata(item.source_url),
     difficulty: "Intermediária",
     source_excerpt: null,
     questions_per_run: MAX_QUESTIONS_PER_RUN,
@@ -388,8 +423,9 @@ async function dailyRunBudgetAvailable(): Promise<{ allowed: boolean; count: num
 }
 
 async function runTopic(topic: any, triggerMode: "manual" | "scheduled", userId: string | null, suppliedExcerpt?: string) {
-  if (!isTrustedOfficialUrl(topic.source_url)) {
-    return { topicId: topic.id, status: "skipped", reason: "A fonte não pertence à lista de sites privados de estudo permitidos." };
+  const sourceLicense = sourceLicenseMetadata(topic.source_url);
+  if (!isTrustedPrivateStudySourceUrl(topic.source_url) || !sourceLicense) {
+    return { topicId: topic.id, status: "skipped", reason: "A fonte não tem uma licença aberta ou permissão de reutilização aprovada." };
   }
   const configuredExcerpt = String(topic.source_excerpt || "").trim();
   if (configuredExcerpt && (configuredExcerpt.length < 200 || configuredExcerpt.length > 12000)) {
@@ -516,7 +552,10 @@ async function runTopic(topic: any, triggerMode: "manual" | "scheduled", userId:
         options: candidate.options.map((option) => ({ id: option.id, text: option.text.trim() })),
         explanation: "",
         source_url: topic.source_url,
-        rights_holder: "EditalRadar — conteúdo original gerado e revisado por IA",
+        source_license: sourceLicense.source_license,
+        source_attribution: sourceLicense.source_attribution,
+        content_license: sourceLicense.content_license,
+        rights_holder: "EditalRadar — questão autoral gerada por IA; consulte a atribuição e licença da fonte nos campos de referência",
         license_status: "original_content",
         license_proof_url: null,
         published,
@@ -546,6 +585,9 @@ async function runTopic(topic: any, triggerMode: "manual" | "scheduled", userId:
         run_id: runId,
         source_excerpt: excerpt,
         evidence_excerpt: candidate.evidence_excerpt,
+        source_license: sourceLicense.source_license,
+        source_attribution: sourceLicense.source_attribution,
+        content_license: sourceLicense.content_license,
         reviewer_model: model,
         reviewer_score: score,
         approved: autoApproved,
