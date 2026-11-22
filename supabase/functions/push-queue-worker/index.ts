@@ -2,6 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { classifyWorkerFcmFailure } from "./policy.js";
 import { processPushDeliveryJob } from "./delivery.js";
+import { persistPushWorkerRun, summarizePushWorkerOutcomes } from "./observability.js";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
 const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
@@ -129,6 +130,7 @@ Deno.serve(async (req: Request) => {
     return json({ error: "A credencial FCM não contém JSON válido." }, 503);
   }
 
+  const runStartedAt = Date.now();
   try {
     const { data: jobs, error: readError } = await adminDb.rpc("read_push_delivery_retries", {
       p_qty: MAX_MESSAGES_PER_RUN,
@@ -136,7 +138,9 @@ Deno.serve(async (req: Request) => {
     });
     if (readError) throw new Error("Não foi possível ler a fila persistente.");
     if (!Array.isArray(jobs) || jobs.length === 0) {
-      return json({ ok: true, processed: 0, sent: 0, rescheduled: 0, dead_letter: 0 });
+      const summary = { processed: 0, ...summarizePushWorkerOutcomes([]) };
+      await persistPushWorkerRun(adminDb, summary, Date.now() - runStartedAt, (message) => console.error(message));
+      return json({ ok: true, ...summary });
     }
 
     const accessToken = await createGoogleAccessToken(serviceAccount);
@@ -157,12 +161,13 @@ Deno.serve(async (req: Request) => {
       }
     }));
 
-    const counts = results.reduce((summary: Record<string, number>, item: any) => {
-      summary[item.outcome] = (summary[item.outcome] || 0) + 1;
-      return summary;
-    }, {});
-    console.info("[push-queue-worker] Lote concluído:", counts);
-    return json({ ok: true, processed: jobs.length, ...counts });
+    const summary = {
+      processed: jobs.length,
+      ...summarizePushWorkerOutcomes(results),
+    };
+    await persistPushWorkerRun(adminDb, summary, Date.now() - runStartedAt, (message) => console.error(message));
+    console.info("[push-queue-worker] Lote concluído:", summary);
+    return json({ ok: true, ...summary });
   } catch (error) {
     console.error("[push-queue-worker] Falha geral:", error?.message || error);
     return json({ error: String(error?.message || error).slice(0, 250) }, 500);

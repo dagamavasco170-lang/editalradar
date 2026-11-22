@@ -57,6 +57,7 @@ export default function PushHealthPanel({ authClient }) {
   const scheduler = health?.scheduler || {};
   const worker = health?.worker_http || {};
   const workerResult = worker?.result_counts || {};
+  const workerHistory = health?.worker_history || {};
   const devices = health?.devices || {};
   const failures = health?.failures || {};
   const recentErrors = Array.isArray(health?.recent_errors) ? health.recent_errors : [];
@@ -75,7 +76,9 @@ export default function PushHealthPanel({ authClient }) {
   const warning = Number(failures.last_24h) > 0
     || staleQueue
     || Number(workerResult.dead_letter) > 0
-    || Number(workerResult.pending_redelivery) > 0;
+    || Number(workerResult.pending_redelivery) > 0
+    || Number(workerHistory.dead_letter_24h) > 0
+    || Number(workerHistory.pending_redelivery_24h) > 0;
   const healthy = schedulerOk && workerOk && !warning;
   const status = !schedulerOk || !workerOk ? "error" : warning ? "warning" : "success";
   const statusText = status === "success" ? "Operação normal" : status === "warning" ? "Atenção necessária" : "Verificar serviço";
@@ -144,7 +147,7 @@ export default function PushHealthPanel({ authClient }) {
             <div className="push-health-batch" aria-label="Resultado do último lote processado">
               <div className="push-health-batch-heading">
                 <strong>Resultado do último lote</strong>
-                <small>{formatDate(worker.created_at)} · dados agregados do worker</small>
+                <small>{formatDate(workerHistory.last_run_at || worker.created_at)} · {number(workerHistory.last_duration_ms)} ms · dados agregados</small>
               </div>
               <div className="push-health-batch-grid">
                 {[
@@ -164,6 +167,32 @@ export default function PushHealthPanel({ authClient }) {
                 ))}
               </div>
             </div>
+          )}
+          {workerHistory.available === true ? (
+            <div className="push-health-history" aria-label="Histórico de notificações nas últimas 24 horas">
+              <div className="push-health-history-heading">
+                <strong>Histórico das últimas 24 horas</strong>
+                <small>{number(workerHistory.runs_24h)} execuções · última em {formatDate(workerHistory.last_run_at)}</small>
+              </div>
+              <div className="push-health-history-grid">
+                {[
+                  ["Processadas", workerHistory.processed_24h],
+                  ["Enviadas", workerHistory.sent_24h],
+                  ["Reagendadas", workerHistory.rescheduled_24h],
+                  ["Vencidas", workerHistory.expired_24h],
+                  ["Tokens desativados", workerHistory.disabled_invalid_24h],
+                  ["Falhas definitivas", workerHistory.dead_letter_24h],
+                  ["Aguardando recuperação", workerHistory.pending_redelivery_24h]
+                ].map(([label, value]) => (
+                  <div key={label}>
+                    <strong>{number(value)}</strong>
+                    <span>{label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <p className="push-health-history-empty">O histórico persistente será preenchido após a próxima execução do worker.</p>
           )}
           <div className="push-health-footer">
             <span>Fila mais antiga: {ageLabel(queue.oldest_message_age_seconds)}</span>
