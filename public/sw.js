@@ -31,9 +31,9 @@ async function precacheAppShell() {
     .map((url) => url.href);
 
   if (assetPaths.length > 0) {
-    // A transient CDN response for one fingerprinted bundle must not block
-    // the worker upgrade. Successfully fetched assets remain available offline.
-    await Promise.allSettled([...new Set(assetPaths)].map((url) => cache.add(url)));
+    // The entry bundles are required to boot offline. Keep the current worker
+    // active if any required JavaScript or CSS asset cannot be cached yet.
+    await cache.addAll([...new Set(assetPaths)]);
   }
 }
 
