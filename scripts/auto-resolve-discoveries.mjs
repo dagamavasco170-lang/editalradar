@@ -1073,18 +1073,54 @@ function headersFor(key, extra = {}) {
   };
 }
 
-async function requestJson(request, url, key, options = {}) {
-  const response = await request(url, {
-    ...options,
-    headers: headersFor(key, options.headers || {})
-  });
-  if (!response.ok) {
-    const detail = await response.text().catch(() => "");
-    throw new Error("Supabase retornou HTTP " + response.status + ": " + detail.slice(0, 400));
+export async function requestJson(request, url, key, options = {}) {
+  const method = String(options.method || "GET").toUpperCase();
+  // Avoid replaying a non-idempotent catalog insert after an ambiguous timeout.
+  // GET/PATCH/DELETE and explicit PostgREST upserts can be retried safely.
+  const retryable = ["GET", "HEAD", "PATCH", "DELETE"].includes(method)
+    || (method === "POST" && new URL(url).searchParams.has("on_conflict"));
+  const attempts = Math.max(1, Math.min(4, Number(options.retryAttempts) || (retryable ? 4 : 1)));
+  const retryDelayMs = Math.max(100, Math.min(3000, Number(options.retryDelayMs) || 350));
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    let response;
+    try {
+      response = await request(url, {
+        ...options,
+        headers: headersFor(key, options.headers || {})
+      });
+    } catch (error) {
+      lastError = error;
+      if (attempt >= attempts || !retryable) throw error;
+    }
+
+    if (response) {
+      if (!response.ok) {
+        const detail = await response.text().catch(() => "");
+        const error = new Error("Supabase retornou HTTP " + response.status + ": " + detail.slice(0, 400));
+        error.status = response.status;
+        const transient = response.status === 408 || response.status === 425
+          || response.status === 429 || response.status >= 500;
+        if (!retryable || !transient || attempt >= attempts) throw error;
+        lastError = error;
+        const retryAfter = Number(response.headers?.get?.("retry-after"));
+        const wait = Number.isFinite(retryAfter) && retryAfter > 0
+          ? Math.min(10000, retryAfter * 1000)
+          : retryDelayMs * attempt;
+        await new Promise(resolveDelay => setTimeout(resolveDelay, wait));
+        continue;
+      }
+      if (response.status === 204) return null;
+      const body = await response.text();
+      return body ? JSON.parse(body) : null;
+    }
+
+    if (attempt < attempts) {
+      await new Promise(resolveDelay => setTimeout(resolveDelay, retryDelayMs * attempt));
+    }
   }
-  if (response.status === 204) return null;
-  const body = await response.text();
-  return body ? JSON.parse(body) : null;
+  throw lastError || new Error("Falha ao consultar o Supabase após as tentativas automáticas.");
 }
 
 async function updateDiscovery(request, baseUrl, key, item, patch) {
