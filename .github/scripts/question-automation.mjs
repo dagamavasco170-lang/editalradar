@@ -95,7 +95,7 @@ function isTrustedHost(value) {
       "www.politize.com.br", "politize.com.br",
       "pt.wikibooks.org", "pt.wikipedia.org", "pt.wikiversity.org", "pt.wiktionary.org",
       "developer.mozilla.org", "docs.python.org", "www.postgresql.org", "doc.rust-lang.org",
-      "docs.github.com", "kubernetes.io", "docs.aws.amazon.com", "docs.docker.com"
+      "docs.github.com", "kubernetes.io", "docs.aws.amazon.com", "docs.docker.com", "wikieducator.org"
     ];
     if (!approvedHosts.includes(host)) return false;
     if (host === "www.postgresql.org" && !path.startsWith("/docs/")) return false;

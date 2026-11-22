@@ -109,6 +109,9 @@ const DEFAULT_AUTONOMOUS_TOPICS = [
   { discipline: "Língua Espanhola", topic: "Vocabulário, gramática e leitura em língua espanhola", source_url: wikiUrl("Língua espanhola") },
   { discipline: "Artes e Cultura", topic: "História da arte, movimentos e linguagens artísticas", source_url: wikiUrl("História da arte") },
   { discipline: "Educação Física", topic: "Atividade física, fisiologia do exercício e esporte", source_url: wikiUrl("Educação física") },
+  { discipline: "Educação", topic: "Educação aberta, recursos educacionais e aprendizagem colaborativa", source_url: "https://wikieducator.org/WikiEducator:About" },
+  { discipline: "Educação", topic: "Licenças abertas, direitos autorais e reutilização de materiais didáticos", source_url: "https://wikieducator.org/WikiEducator:Copyrights" },
+  { discipline: "Tecnologia Educacional", topic: "Desenvolvimento de cursos digitais e recursos educacionais abertos", source_url: "https://wikieducator.org/Digital_skills_for_collaborative_OER_development" },
 
   { discipline: "Informática", topic: "HTML, estrutura semântica e acessibilidade na web", source_url: "https://developer.mozilla.org/pt-BR/docs/Web/HTML" },
   { discipline: "Informática", topic: "CSS, seletores, cascata e layout responsivo", source_url: "https://developer.mozilla.org/pt-BR/docs/Web/CSS" },
@@ -180,6 +183,7 @@ function sourceLicenseMetadata(sourceUrl: string): SourceLicense | null {
   if (host === "kubernetes.io" && path.startsWith("/docs/")) return { source_license: "CC BY 4.0 (documentação Kubernetes)", source_attribution: "Kubernetes contributors — " + sourceUrl + " (CC BY 4.0)", content_license: "CC BY 4.0" };
   if (host === "docs.aws.amazon.com") return { source_license: "CC BY-SA 4.0 (documentação AWS; exemplos de código excluídos)", source_attribution: "Amazon Web Services — " + sourceUrl + " (documentação sob CC BY-SA 4.0; blocos de código não utilizados)", content_license: "CC BY-SA 4.0" };
   if (host === "docs.docker.com") return { source_license: "Apache License 2.0 (documentação Docker)", source_attribution: "Docker, Inc. — " + sourceUrl + " (Apache-2.0)", content_license: "Apache-2.0" };
+  if (host === "wikieducator.org") return { source_license: "CC BY-SA 4.0 (padrão WikiEducator; respeitar licenças CC BY/CC0 específicas indicadas na página)", source_attribution: "WikiEducator contributors — " + sourceUrl + " (verificar o rodapé e histórico da página; atribuição e compartilhamento pela mesma licença)", content_license: "CC BY-SA 4.0; página pode especificar CC BY 4.0 ou CC0" };
   return null;
 }
 

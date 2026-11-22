@@ -12,7 +12,7 @@ const PRIVATE_STUDY_SOURCE_DOMAINS = [
   "pt.wikiversity.org",
   "pt.wiktionary.org",
   "developer.mozilla.org", "docs.python.org", "www.postgresql.org", "doc.rust-lang.org",
-  "docs.github.com", "kubernetes.io", "docs.aws.amazon.com", "docs.docker.com"
+  "docs.github.com", "kubernetes.io", "docs.aws.amazon.com", "docs.docker.com", "wikieducator.org"
 ];
 
 export function parseHttpsUrl(value) {
