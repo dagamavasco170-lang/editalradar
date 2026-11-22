@@ -425,6 +425,69 @@ function isDue(topic: any, now: Date) {
   return now.getTime() - last >= cadence * 24 * 60 * 60 * 1000;
 }
 
+function orderTopicsFairly(topics: any[], recentRuns: any[], now: Date): any[] {
+  const topicById = new Map(topics.map((topic) => [String(topic.id), topic]));
+  const historyByDiscipline = new Map<string, { attempts: number; lastAttemptAt: number }>();
+
+  for (const run of recentRuns || []) {
+    const topic = topicById.get(String(run.topic_id));
+    if (!topic) continue;
+    const discipline = String(topic.discipline || "Outras matérias").trim();
+    const timestamp = Date.parse(run.started_at || "");
+    const history = historyByDiscipline.get(discipline) || {
+      attempts: 0,
+      lastAttemptAt: Number.NEGATIVE_INFINITY
+    };
+    history.attempts += 1;
+    if (Number.isFinite(timestamp)) history.lastAttemptAt = Math.max(history.lastAttemptAt, timestamp);
+    historyByDiscipline.set(discipline, history);
+  }
+
+  const buckets = new Map<string, any[]>();
+  for (const topic of topics) {
+    const discipline = String(topic.discipline || "Outras matérias").trim();
+    if (!buckets.has(discipline)) buckets.set(discipline, []);
+    buckets.get(discipline)!.push(topic);
+  }
+
+  const names = [...buckets.keys()].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  const dayNumber = Math.floor(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) / 86400000);
+  const offset = names.length ? ((dayNumber % names.length) + names.length) % names.length : 0;
+
+  const groups = names.map((discipline, index) => {
+    const bucket = buckets.get(discipline)!;
+    const history = historyByDiscipline.get(discipline);
+    const topicLastRun = bucket.reduce((latest, topic) => {
+      const value = Date.parse(topic.last_run_at || "");
+      return Number.isFinite(value) ? Math.max(latest, value) : latest;
+    }, Number.NEGATIVE_INFINITY);
+    return {
+      discipline,
+      topics: bucket,
+      attempts: history?.attempts || 0,
+      lastActivity: Number.isFinite(history?.lastAttemptAt) ? history.lastAttemptAt : topicLastRun,
+      rotationRank: (index - offset + names.length) % Math.max(1, names.length)
+    };
+  }).sort((a, b) =>
+    a.attempts - b.attempts
+    || a.lastActivity - b.lastActivity
+    || a.rotationRank - b.rotationRank
+    || a.discipline.localeCompare(b.discipline, "pt-BR")
+  );
+
+  const ordered: any[] = [];
+  let added = true;
+  while (added) {
+    added = false;
+    for (const group of groups) {
+      if (!group.topics.length) continue;
+      ordered.push(group.topics.shift());
+      added = true;
+    }
+  }
+  return ordered;
+}
+
 async function ensureAutonomousTopics(): Promise<{ seeded: boolean; topics: number }> {
   // Idempotent catalog expansion: each deployment can add new subjects without
   // replacing existing topics or requiring an administrator to register them.
@@ -806,9 +869,19 @@ Deno.serve(async (req: Request) => {
   const requestedTopicIds = Array.isArray(body?.topicIds)
     ? new Set(body.topicIds.filter((value: unknown) => typeof value === "string"))
     : null;
-  const due = (topics || [])
-    .filter((topic: any) => isDue(topic, now) && (!requestedTopicIds || requestedTopicIds.has(topic.id)))
-    .slice(0, remainingDailyRuns);
+  const dueCandidates = (topics || [])
+    .filter((topic: any) => isDue(topic, now) && (!requestedTopicIds || requestedTopicIds.has(topic.id)));
+  const historyStart = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000).toISOString();
+  const { data: recentRuns, error: historyError } = await adminDb
+    .from("study_question_automation_runs")
+    .select("topic_id,started_at")
+    .gte("started_at", historyStart)
+    .order("started_at", { ascending: false })
+    .limit(1000);
+  if (historyError) return json({ error: "Não foi possível consultar o histórico de distribuição: " + historyError.message }, 500);
+
+  const fairDue = orderTopicsFairly(dueCandidates, recentRuns || [], now);
+  const due = fairDue.slice(0, remainingDailyRuns);
   const sourceExcerpts = body?.sourceExcerpts && typeof body.sourceExcerpts === "object" ? body.sourceExcerpts : {};
   const results = [];
   for (const topic of due) {

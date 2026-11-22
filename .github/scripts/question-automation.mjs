@@ -1,6 +1,6 @@
 import process from "node:process";
 import { execFileSync } from "node:child_process";
-import { buildDailyAutomationRunQuery } from "../../scripts/question-automation-budget.mjs";
+import { buildDailyAutomationRunQuery, orderTopicsFairly } from "../../scripts/question-automation-budget.mjs";
 
 const SUPABASE_URL = String(process.env.SUPABASE_URL || "").replace(/\/$/, "");
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
@@ -225,17 +225,31 @@ async function main() {
     const cadence = Math.max(1, Math.min(30, Number(topic.cadence_days) || 1));
     return !Number.isFinite(last) || now - last >= cadence * 86400000;
   });
-  // Tenta até quatro fontes adicionais para substituir páginas indisponíveis,
-  // sem desperdiçar as vagas diárias com links que não fornecem material legível.
+
+  // Histórico de 14 dias permite priorizar disciplinas que receberam menos tentativas.
+  const historyStart = new Date(now - 14 * 86400000).toISOString();
+  const historyParams = new URLSearchParams({
+    select: "topic_id,started_at",
+    started_at: `gte.${historyStart}`,
+    order: "started_at.desc",
+    limit: "1000"
+  });
+  const recentRuns = await supabaseRest(`study_question_automation_runs?${historyParams.toString()}`);
+  const fairDueCandidates = orderTopicsFairly(dueCandidates, recentRuns || [], new Date(now));
+  const disciplineCount = new Set(fairDueCandidates.map((topic) => topic.discipline)).size;
+  console.log(`Equilíbrio de matérias: ${disciplineCount} disciplinas com assuntos vencidos; alternância aplicada.`);
+
+  // Intercala disciplinas primeiro e fontes depois; tenta até quatro reservas
+  // para substituir páginas indisponíveis sem desperdiçar vagas diárias.
   const candidateQueue = [];
   const selectedHosts = new Set();
-  for (const topic of dueCandidates) {
+  for (const topic of fairDueCandidates) {
     const host = (() => { try { return new URL(topic.source_url).hostname.toLowerCase(); } catch { return ""; } })();
     if (!host || selectedHosts.has(host)) continue;
     candidateQueue.push(topic);
     selectedHosts.add(host);
   }
-  for (const topic of dueCandidates) {
+  for (const topic of fairDueCandidates) {
     if (!candidateQueue.includes(topic)) candidateQueue.push(topic);
   }
   const sourceCandidates = candidateQueue.slice(0, Math.min(candidateQueue.length, remaining + 4));
