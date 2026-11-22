@@ -29,7 +29,8 @@ export function resolvePushExpiryMs(expiresAt, enqueuedAt, ttlSeconds = DEFAULT_
 export function remainingPushTtlSeconds(expiresAt, now = Date.now()) {
   const expiry = parseTimestamp(expiresAt);
   if (expiry === null) return 0;
-  return Math.max(0, Math.ceil((expiry - now) / 1000));
+  // Floor rather than ceil so the FCM integer TTL never extends the original deadline.
+  return Math.max(0, Math.floor((expiry - now) / 1000));
 }
 
 export function canScheduleBeforePushExpiry(expiresAt, delaySeconds, now = Date.now()) {
