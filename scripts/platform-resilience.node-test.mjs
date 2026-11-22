@@ -39,12 +39,28 @@ test("WebView respeita o ciclo de vida e recupera a página inicial", () => {
   assert.match(android, /webView\.onResume\(\)/);
 });
 
+test("Android tenta novamente automaticamente quando a conectividade validada retorna", () => {
+  assert.match(android, /lastKnownOnlineState: Boolean\? = null/);
+  assert.match(android, /connectionRestored = online && lastKnownOnlineState == false/);
+  assert.match(android, /if \(connectionRestored\)/);
+  assert.match(android, /private fun retryCurrentPage\(\)/);
+  assert.match(android, /onReceivedHttpError/);
+  assert.match(android, /errorResponse != null\s+&&\s+errorResponse\.statusCode >= 500/);
+});
+
 test("PWA limita a espera de navegação e volta ao cache em redes instáveis", () => {
-  assert.match(serviceWorker, /editalradar-app-v3/);
+  assert.match(serviceWorker, /editalradar-app-v4/);
   assert.match(serviceWorker, /new AbortController\(\)/);
   assert.match(serviceWorker, /controller\.abort\(\), 4500/);
   assert.match(serviceWorker, /self\.clearTimeout\(timeoutId\)/);
   assert.match(serviceWorker, /exactPage \|\| appShell \|\| Response\.error\(\)/);
+});
+
+test("PWA usa cache local em erros temporários do servidor", () => {
+  assert.match(serviceWorker, /response\.status >= 500/);
+  assert.match(serviceWorker, /response\.status === 408/);
+  assert.match(serviceWorker, /response\.status === 429/);
+  assert.match(serviceWorker, /exactPage \|\| appShell \|\| response/);
 });
 
 test("site mantém recursos de acessibilidade e safe areas móveis", () => {
