@@ -10,9 +10,7 @@ const PRIVATE_STUDY_SOURCE_DOMAINS = [
   "pt.wikibooks.org",
   "pt.wikipedia.org",
   "pt.wikiversity.org",
-  "pt.wiktionary.org",
-  "escolhalivre.org.br",
-];
+  "pt.wiktionary.org",];
 
 export function parseHttpsUrl(value) {
   if (typeof value !== "string" || !value.trim()) return null;
