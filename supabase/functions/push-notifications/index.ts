@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import {
+  canScheduleFcmRetryBeforeExpiry,
   classifyFcmFailure,
   getFcmRetryDelayMs,
 } from "./policy.js";
@@ -21,6 +22,7 @@ const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_PUBL
 const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 const serviceAccountValue = Deno.env.get("FCM_SERVICE_ACCOUNT_JSON") || "";
 const encoder = new TextEncoder();
+const PUSH_TTL_SECONDS = 3600;
 
 function base64Url(value: string | Uint8Array): string {
   const bytes = typeof value === "string" ? encoder.encode(value) : value;
@@ -116,7 +118,7 @@ async function sendFcmMessage(
           message: {
             token,
             data: message,
-            android: { priority: "HIGH", ttl: "3600s" },
+            android: { priority: "HIGH", ttl: `${PUSH_TTL_SECONDS}s` },
           },
         }),
       },
@@ -158,10 +160,23 @@ async function queueRetries(
   adminDb: any,
   jobs: Array<{ token: string; failure: FcmFailure }>,
   notification: { title: string; body: string; url: string },
+  expiresAt: string,
 ) {
+  const expiresAtMs = Date.parse(expiresAt);
+  if (!jobs.length) return { queued: 0, failed: 0, expired: 0 };
+  if (!Number.isFinite(expiresAtMs) || expiresAtMs <= Date.now()) {
+    return { queued: 0, failed: 0, expired: jobs.length };
+  }
+
   const batches = new Map<number, Array<Record<string, unknown>>>();
+  let expired = 0;
   for (const job of jobs) {
-    const delaySeconds = Math.ceil(getFcmRetryDelayMs(job.failure, 1) / 1000);
+    const delayMs = getFcmRetryDelayMs(job.failure, 1);
+    if (!canScheduleFcmRetryBeforeExpiry(expiresAt, delayMs)) {
+      expired += 1;
+      continue;
+    }
+    const delaySeconds = Math.ceil(delayMs / 1000);
     const batch = batches.get(delaySeconds) || [];
     batch.push({
       token: job.token,
@@ -169,6 +184,7 @@ async function queueRetries(
       attempt: 1,
       last_error_code: job.failure.code,
       retry_after: job.failure.retryAfter || null,
+      expires_at: expiresAt,
     });
     batches.set(delaySeconds, batch);
   }
@@ -188,7 +204,7 @@ async function queueRetries(
       queued += chunk.length;
     }
   }
-  return { queued, failed: jobs.length - queued };
+  return { queued, failed: jobs.length - queued - expired, expired };
 }
 
 Deno.serve(async (req: Request) => {
@@ -300,6 +316,7 @@ Deno.serve(async (req: Request) => {
     const invalidTokens: string[] = [];
     const retryJobs: Array<{ token: string; failure: FcmFailure }> = [];
     const failureCodes = new Map<string, number>();
+    const deliveryExpiresAt = new Date(Date.now() + PUSH_TTL_SECONDS * 1000).toISOString();
 
     for (let offset = 0; offset < tokens.length; offset += 20) {
       const batch = tokens.slice(offset, offset + 20);
@@ -321,9 +338,10 @@ Deno.serve(async (req: Request) => {
     }
 
     disabledInvalid = await disableInvalidTokens(adminDb, invalidTokens);
-    const queuedRetries = await queueRetries(adminDb, retryJobs, notification);
+    const queuedRetries = await queueRetries(adminDb, retryJobs, notification, deliveryExpiresAt);
     retryScheduled = queuedRetries.queued;
     retryEnqueueFailed = queuedRetries.failed;
+    const retryExpired = queuedRetries.expired;
 
     const errorCodes = [...failureCodes.entries()]
       .slice(0, 4)
@@ -341,6 +359,7 @@ Deno.serve(async (req: Request) => {
         disabled_invalid: disabledInvalid,
         retry_scheduled: retryScheduled,
         retry_enqueue_failed: retryEnqueueFailed,
+        retry_expired: retryExpired,
       });
     }
     return json({
@@ -352,6 +371,7 @@ Deno.serve(async (req: Request) => {
       disabled_invalid: disabledInvalid,
       retry_scheduled: retryScheduled,
       retry_enqueue_failed: retryEnqueueFailed,
+      retry_expired: retryExpired,
     });
   } catch (error) {
     return json({ error: String(error?.message || error).slice(0, 300) }, 502);

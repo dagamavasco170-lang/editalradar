@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   canRetryFcmFailure,
+  canScheduleFcmRetryBeforeExpiry,
   classifyFcmFailure,
   getFcmRetryDelayMs,
 } from "../../supabase/functions/push-notifications/policy.js";
@@ -55,6 +56,15 @@ describe("política de saúde e retentativa FCM", () => {
     expect(getFcmRetryDelayMs({ ...failure, retryAfter: null }, 2, Date.now(), () => 0)).toBe(2_000);
     expect(canRetryFcmFailure(failure, 0)).toBe(true);
     expect(canRetryFcmFailure(failure, 2)).toBe(false);
+  });
+
+  it("não persiste retentativas iniciais cuja espera alcançaria ou ultrapassaria o prazo do aviso", () => {
+    const expiry = Date.parse("2026-11-22T11:00:00.000Z");
+    const now = Date.parse("2026-11-22T10:59:00.000Z");
+    expect(canScheduleFcmRetryBeforeExpiry(new Date(expiry).toISOString(), 59_000, now)).toBe(true);
+    expect(canScheduleFcmRetryBeforeExpiry(new Date(expiry).toISOString(), 60_000, now)).toBe(false);
+    expect(canScheduleFcmRetryBeforeExpiry(new Date(expiry).toISOString(), 61_000, now)).toBe(false);
+    expect(canScheduleFcmRetryBeforeExpiry("data inválida", 1000, now)).toBe(false);
   });
 
   it("não tenta novamente erros permanentes ou falhas de credencial", () => {
