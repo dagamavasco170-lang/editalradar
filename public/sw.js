@@ -59,9 +59,17 @@ self.addEventListener("fetch", (event) => {
       try {
         // Em redes instáveis, não deixa a navegação presa indefinidamente antes do cache.
         const response = await fetch(request, { signal: controller.signal });
+        const cache = await caches.open(CACHE_NAME);
         if (response.ok) {
-          const cache = await caches.open(CACHE_NAME);
           await cache.put(request, response.clone());
+          return response;
+        }
+
+        // Preserva a última versão funcional durante falhas temporárias do servidor.
+        if (response.status >= 500 || response.status === 408 || response.status === 429) {
+          const exactPage = await cache.match(request);
+          const appShell = await cache.match(new URL("./index.html", self.registration.scope).href);
+          return exactPage || appShell || response;
         }
         return response;
       } catch {
