@@ -93,8 +93,8 @@ test("assinatura de distribuição usa apenas a chave permanente recebida pelo a
   assert.match(androidGradle, /ANDROID_RELEASE_KEY_ALIAS/);
   assert.match(androidGradle, /ANDROID_RELEASE_KEY_PASSWORD/);
   assert.match(androidGradle, /signingConfig signingConfigs\.getByName\('release'\)/);
-  assert.match(androidGradle, /versionCode 10/);
-  assert.ok(androidGradle.includes("versionName '1.2.7'"));
+  assert.match(androidGradle, /versionCode 11/);
+  assert.ok(androidGradle.includes("versionName '1.2.8'"));
   assert.doesNotMatch(androidGradle, /storePassword\s*['"][^'"]+['"]/);
 });
 
@@ -163,17 +163,24 @@ test("download do atualizador valida origem, redirects, tamanho e SHA-256", () =
   assert.ok(appUpdate.includes("output.fd.sync()"));
 });
 
-test("atualizador confirma o mesmo pacote e certificado antes de instalar", () => {
+test("atualizador valida pacote e versão antes de delegar assinatura ao Android", () => {
   assert.ok(appUpdate.includes("getPackageArchiveInfo"));
   assert.ok(appUpdate.includes("candidateInfo.packageName != appContext.packageName"));
-  assert.ok(appUpdate.includes("hasSameInstalledSignature"));
-  assert.ok(android.includes("appUpdateManager.hasSameInstalledSignature(apkFile)"));
+  assert.ok(appUpdate.includes("candidateVersionCode <= installedVersionCode()"));
+  assert.ok(appUpdate.includes("expectedRelease.versionCode"));
+  assert.ok(appUpdate.includes("expectedRelease.versionName"));
+  assert.ok(!appUpdate.includes("hasSameInstalledSignature"));
+  assert.ok(android.includes("appUpdateManager.isValidUpdatePackage(apkFile, release)"));
+  assert.ok(android.includes("appUpdateManager.isValidUpdatePackage(apkFile)"));
+  assert.ok(!android.includes("hasSameInstalledSignature"));
   assert.ok(android.includes("PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL)"));
   assert.ok(android.includes("session.commit(statusPendingIntent.intentSender)"));
+  assert.ok(android.includes("val installer = packageManager.packageInstaller"));
   assert.ok(android.includes("Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES"));
   assert.ok(androidManifest.includes("android.permission.REQUEST_INSTALL_PACKAGES"));
   assert.ok(androidManifest.includes('android:name=".UpdateInstallReceiver"'));
   assert.ok(updateReceiver.includes("STATUS_PENDING_USER_ACTION"));
+  assert.ok(updateReceiver.includes("STATUS_FAILURE_CONFLICT"));
   assert.ok(updateReceiver.includes("context.startActivity(confirmationIntent)"));
 });
 
