@@ -985,8 +985,32 @@ export function buildPendingDiscoveriesUrl(baseUrl, now = new Date(), cooldownMs
 
 export async function prepareDiscoveryDocument(item, request = fetch, options = {}) {
   let candidate;
+  let candidateValue = item?.candidate_url;
+  if (item?.discovery_type === "web_search_lead") {
+    // A search-engine lead is only a pointer. Use its declared publisher URL if
+    // and only if that exact HTTPS host is in the trusted official-source allowlist.
+    const sourceMatch = String(item?.context || "").match(/Endereço informado para a fonte:\s*(https:\/\/[^\s<>"]+)/i);
+    const declaredSource = sourceMatch?.[1] || "";
+    try {
+      const source = new URL(declaredSource);
+      if (source.protocol !== "https:" || source.username || source.password
+        || !isTrustedOfficialHost(source.hostname)) {
+        return {
+          stage: "review",
+          reason: "A pista da busca ainda não aponta para uma fonte oficial autorizada. O sistema não usa o agregador de notícias como prova; aguardará uma referência oficial."
+        };
+      }
+      candidateValue = source.toString();
+    } catch {
+      return {
+        stage: "review",
+        reason: "A pista externa não forneceu um endereço HTTPS oficial verificável. Ela continua na fila, sem publicação automática."
+      };
+    }
+  }
+
   try {
-    candidate = new URL(item?.candidate_url);
+    candidate = new URL(candidateValue);
   } catch {
     return { stage: "review", reason: "O link armazenado não é uma URL válida." };
   }
