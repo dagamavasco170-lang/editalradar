@@ -227,7 +227,7 @@ class MainActivity : Activity() {
             ) {
                 super.onReceivedHttpError(view, request, errorResponse)
                 if (request?.isForMainFrame == true &&
-                    errorResponse?.statusCode != null &&
+                    errorResponse != null &&
                     errorResponse.statusCode >= 500
                 ) {
                     statusText.text = "Servidor temporariamente indisponível • toque para tentar novamente"
