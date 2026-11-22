@@ -45,7 +45,7 @@ test("Android tenta novamente automaticamente quando a conectividade validada re
   assert.match(android, /if \(connectionRestored\)/);
   assert.match(android, /private fun retryCurrentPage\(\)/);
   assert.match(android, /onReceivedHttpError/);
-  assert.match(android, /errorResponse\.statusCode >= 500/);
+  assert.match(android, /errorResponse != null && errorResponse.statusCode >= 500/);
 });
 
 test("PWA limita a espera de navegação e volta ao cache em redes instáveis", () => {
