@@ -443,7 +443,7 @@ export const SECONDARY_NEWS_FEEDS = [
   {
     id: "concursos-no-brasil",
     label: "Concursos no Brasil",
-    feedUrl: "https://concursosnobrasil.com.br/feed/"
+    feedUrl: "https://www.concursosnobrasil.com.br/feed/"
   },
   {
     id: "estrategia-concursos",

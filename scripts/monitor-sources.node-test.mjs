@@ -490,13 +490,13 @@ test("mantém feeds editoriais auxiliares explícitos, HTTPS e independentes do 
   assert.equal(SECONDARY_NEWS_FEEDS.length, 3);
   assert.ok(SECONDARY_NEWS_FEEDS.every(feed => feed.feedUrl.startsWith("https://")));
   assert.ok(SECONDARY_NEWS_FEEDS.some(feed => feed.id === "concursos-no-brasil"
-    && feed.feedUrl === "https://concursosnobrasil.com.br/feed/"));
+    && feed.feedUrl === "https://www.concursosnobrasil.com.br/feed/"));
   assert.ok(SECONDARY_NEWS_FEEDS.some(feed => feed.id === "estrategia-concursos"));
   assert.ok(SECONDARY_NEWS_FEEDS.some(feed => feed.id === "g1-concursos"));
 });
 
 test("extrai pistas recentes de RSS editorial sem tratar o artigo como prova oficial", () => {
-  const feedUrl = "https://concursosnobrasil.com.br/feed/";
+  const feedUrl = "https://www.concursosnobrasil.com.br/feed/";
   const xml = [
     "<rss><channel><item>",
     "<title>Prefeitura de Igaci publica edital de concurso público com 20 vagas</title>",
@@ -668,8 +668,8 @@ test("pausa novas consultas ao Google Notícias depois de um HTTP 503 e continua
 
 
 test("segue redirecionamento HTTPS entre domínio raiz e www do mesmo veículo editorial", async () => {
-  const start = "https://concursosnobrasil.com.br/feed/";
-  const destination = "https://www.concursosnobrasil.com.br/feed/";
+  const start = "https://www.concursosnobrasil.com.br/feed/";
+  const destination = "https://concursosnobrasil.com.br/feed/";
   const calls = [];
   const response = await fetchNewsFeedWithRetry(start, {
     attempts: 1,
@@ -717,7 +717,7 @@ test("permite redirecionamentos apenas entre hosts da mesma família editorial",
 });
 
 test("bloqueia redirecionamento de feed para outro veículo autorizado ou destino HTTP", async () => {
-  const start = "https://concursosnobrasil.com.br/feed/";
+  const start = "https://www.concursosnobrasil.com.br/feed/";
   for (const target of [
     "https://g1.globo.com/rss/feed.xml",
     "http://www.concursosnobrasil.com.br/feed/"
