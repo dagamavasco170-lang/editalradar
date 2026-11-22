@@ -3,7 +3,8 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import {
   classifyWorkerFcmFailure,
   getWorkerRetryDelaySeconds,
-  nextPushRetryAttempt,
+  currentPushDeliveryAttempt,
+  hasPushRetryBudget,
 } from "./policy.js";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
@@ -124,7 +125,7 @@ async function processJob(adminDb: any, job: any, accessToken: string, projectId
     return { outcome: "invalid_message" };
   }
 
-  const effectiveAttempt = parsed.attempt + Math.max(0, Number(job.read_ct) - 1);
+  const currentAttempt = currentPushDeliveryAttempt(parsed.attempt, Number(job.read_ct));
   const result = await sendFcmMessage(parsed.token, parsed.notification, projectId, accessToken);
   if (result.ok) {
     await archiveMessage(adminDb, job.msg_id);
@@ -140,35 +141,31 @@ async function processJob(adminDb: any, job: any, accessToken: string, projectId
     return { outcome: "disabled_invalid" };
   }
 
-  const nextAttempt = result.retryable
-    ? nextPushRetryAttempt(parsed.attempt, Number(job.read_ct), MAX_TOTAL_ATTEMPTS)
-    : null;
-
-  if (nextAttempt !== null) {
-    const delaySeconds = getWorkerRetryDelaySeconds(result, nextAttempt);
+  if (result.retryable && hasPushRetryBudget(currentAttempt, MAX_TOTAL_ATTEMPTS)) {
+    const delaySeconds = getWorkerRetryDelaySeconds(result, currentAttempt);
     const { error } = await adminDb.rpc("reschedule_push_delivery_retry", {
       p_old_msg_id: job.msg_id,
       p_message: {
         token: parsed.token,
         ...parsed.notification,
-        attempt: nextAttempt,
+        attempt: currentAttempt,
         last_error_code: result.code,
         retry_after: result.retryAfter || null,
       },
       p_delay_seconds: delaySeconds,
     });
     if (error) throw new Error("Não foi possível reagendar a retentativa persistente.");
-    return { outcome: "rescheduled", error_code: result.code, next_attempt: nextAttempt };
+    return { outcome: "rescheduled", error_code: result.code, attempts: currentAttempt };
   }
 
   const { error } = await adminDb.rpc("fail_push_delivery_retry", {
     p_msg_id: job.msg_id,
     p_token: parsed.token,
     p_error_code: result.code,
-    p_attempt_count: effectiveAttempt,
+    p_attempt_count: currentAttempt,
   });
   if (error) throw new Error("Não foi possível registrar a falha definitiva da notificação.");
-  return { outcome: "dead_letter", error_code: result.code, attempts: effectiveAttempt };
+  return { outcome: "dead_letter", error_code: result.code, attempts: currentAttempt };
 }
 
 Deno.serve(async (req: Request) => {
