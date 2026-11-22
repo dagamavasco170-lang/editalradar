@@ -24,9 +24,15 @@ const createAuthClient = () => {
   const adminDiscoveries = {
     items: [],
     select: vi.fn(() => ({
-      eq: vi.fn(() => ({
+      eq: vi.fn((_column, value) => ({
         order: vi.fn(async () => ({
-          data: adminDiscoveries.items.filter(item => item.status === "pending"),
+          data: adminDiscoveries.items.filter(item => item.status === value),
+          error: null
+        }))
+      })),
+      order: vi.fn(() => ({
+        limit: vi.fn(async () => ({
+          data: [...adminDiscoveries.items].sort((a, b) => Date.parse(b.detected_at || 0) - Date.parse(a.detected_at || 0)).slice(0, 300),
           error: null
         }))
       }))
@@ -316,6 +322,47 @@ describe("Autenticação EditalRadar", () => {
     fireEvent.click(screen.getByRole("button", { name: "Revisar e cadastrar" }));
     expect(screen.getByLabelText("Cargo")).toHaveValue("Edital 2027 - Analista");
     expect(screen.getByLabelText("Link oficial (HTTPS)")).toHaveValue("https://orgao.gov.br/editais/edital-2027.pdf");
+  });
+
+  it("exibe descobertas publicadas e descartadas no histórico administrativo", async () => {
+    const client = createAuthClient();
+    client.adminDiscoveries.items = [
+      {
+        id: 91, source_url: "https://orgao.gov.br/concursos", candidate_url: "https://orgao.gov.br/edital-2026.pdf",
+        title: "Edital 2026 - Analista", context: "Fonte oficial", discovery_type: "new_link",
+        detected_at: "2026-11-22T10:00:00.000Z", status: "pending"
+      },
+      {
+        id: 92, source_url: "https://orgao.gov.br/concursos", candidate_url: "https://orgao.gov.br/retificacao.pdf",
+        title: "Retificação do edital 2026", context: "Errata publicada", discovery_type: "new_link",
+        detected_at: "2026-11-21T10:00:00.000Z", status: "published", reviewed_at: "2026-11-21T11:00:00.000Z",
+        published_catalog_id: 5001
+      },
+      {
+        id: 93, source_url: "https://news.google.com/rss/search?q=concursos", candidate_url: "https://news.google.com/rss/articles/abc",
+        title: "Pista externa", context: "Notícia secundária", discovery_type: "web_search_lead",
+        detected_at: "2026-11-20T10:00:00.000Z", status: "dismissed", reviewed_at: "2026-11-20T11:00:00.000Z"
+      }
+    ];
+
+    render(<App authClient={client} authConfigured />);
+    await waitFor(() => expect(client.callback).toBeTypeOf("function"));
+    client.callback("SIGNED_IN", {
+      user: { id: "admin-history", email: "admin@example.com", app_metadata: { role: "admin" } }
+    });
+    await screen.findByText("Dados sincronizados");
+    fireEvent.click(await screen.findByRole("button", { name: "Administração" }));
+
+    expect(await screen.findByText("Edital 2026 - Analista")).toBeInTheDocument();
+    expect(screen.queryByText("Retificação do edital 2026")).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Situação da revisão"), { target: { value: "all" } });
+    expect(await screen.findByText("Retificação do edital 2026")).toBeInTheDocument();
+    expect(screen.getByText("Pista externa")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Situação da revisão"), { target: { value: "published" } });
+    expect(screen.getByText("Retificação do edital 2026")).toBeInTheDocument();
+    expect(screen.queryByText("Edital 2026 - Analista")).not.toBeInTheDocument();
   });
 
   it("permite editar e salvar o nome de exibição no perfil da conta", async () => {
