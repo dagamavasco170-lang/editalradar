@@ -4,12 +4,15 @@ import { readFile } from "node:fs/promises";
 
 const readProjectFile = (path) => readFile(new URL(path, import.meta.url), "utf8");
 
-const [android, serviceWorker, styles, androidGradle, androidWorkflow] = await Promise.all([
+const [android, serviceWorker, styles, androidGradle, androidWorkflow, appUpdate, updateReceiver, androidManifest] = await Promise.all([
   readProjectFile("../android/app/src/main/java/br/com/editalradar/app/MainActivity.kt"),
   readProjectFile("../public/sw.js"),
   readProjectFile("../src/styles.css"),
   readProjectFile("../android/app/build.gradle"),
-  readProjectFile("../.github/workflows/android-release.yml")
+  readProjectFile("../.github/workflows/android-release.yml"),
+  readProjectFile("../android/app/src/main/java/br/com/editalradar/app/AppUpdateManager.kt"),
+  readProjectFile("../android/app/src/main/java/br/com/editalradar/app/UpdateInstallReceiver.kt"),
+  readProjectFile("../android/app/src/main/AndroidManifest.xml")
 ]);
 
 test("WebView mantém navegação interna restrita à origem e ao caminho do app", () => {
@@ -104,6 +107,50 @@ test("GitHub Actions nunca publica APK de depuração como atualização públic
   assert.notEqual(publishStepStart, -1);
   const publishCondition = androidWorkflow.slice(publishStepStart).split(String.fromCharCode(10))[1] ?? "";
   assert.ok(publishCondition.includes("steps.signing.outputs.ready == 'true'"));
+});
+
+
+test("atualizador nativo consulta apenas releases oficiais e evita downgrade", () => {
+  assert.match(appUpdate, /api\\.github\\.com\\/repos\\/dagamavasco170-lang\\/editalradar\\/releases\\/latest/);
+  assert.match(appUpdate, /android-v\\(\\\\d\+\\\\\\.\\\\d\+\\\\\\.\\\\d\+\\)/);
+  assert.match(appUpdate, /versionCode <= installedVersionCode\\(\\)/);
+  assert.match(appUpdate, /draft/);
+  assert.match(appUpdate, /prerelease/);
+  assert.match(appUpdate, /EditalRadar-Android-v/);
+});
+
+test("download do atualizador valida origem, redirects, tamanho e SHA-256", () => {
+  assert.match(appUpdate, /RELEASE_ASSET_PREFIX/);
+  assert.match(appUpdate, /release-assets\\.githubusercontent\\.com/);
+  assert.match(appUpdate, /objects\\.githubusercontent\\.com/);
+  assert.match(appUpdate, /MAX_APK_BYTES/);
+  assert.match(appUpdate, /MessageDigest\\.getInstance\\("SHA-256"\\)/);
+  assert.match(appUpdate, /MessageDigest\\.isEqual/);
+  assert.match(appUpdate, /SHA256SUMS\\.txt/);
+  assert.match(appUpdate, /output\\.fd\\.sync\\(\\)/);
+});
+
+test("atualizador confirma o mesmo pacote e certificado antes de instalar", () => {
+  assert.match(appUpdate, /getPackageArchiveInfo/);
+  assert.match(appUpdate, /candidateInfo\\.packageName != appContext\\.packageName/);
+  assert.match(appUpdate, /hasSameInstalledSignature/);
+  assert.match(android, /appUpdateManager\\.hasSameInstalledSignature\\(apkFile\\)/);
+  assert.match(android, /PackageInstaller\\.SessionParams\\(PackageInstaller\\.SessionParams\\.MODE_FULL_INSTALL\\)/);
+  assert.match(android, /session\\.commit\\(statusPendingIntent\\.intentSender\\)/);
+  assert.match(android, /Settings\\.ACTION_MANAGE_UNKNOWN_APP_SOURCES/);
+  assert.match(androidManifest, /android\\.permission\\.REQUEST_INSTALL_PACKAGES/);
+  assert.match(androidManifest, /android:name="\\.UpdateInstallReceiver"/);
+  assert.match(updateReceiver, /STATUS_PENDING_USER_ACTION/);
+  assert.match(updateReceiver, /context\\.startActivity\\(confirmationIntent\\)/);
+});
+
+test("tela do aplicativo permite verificar e acompanhar atualizações sem abrir links externos", () => {
+  assert.match(android, /text = "Atualizações"/);
+  assert.match(android, /setOnClickListener \\{ checkForUpdates\\(manual = true\\) \\}/);
+  assert.match(android, /AUTO_UPDATE_CHECK_INTERVAL_MS = 6L \\* 60L \\* 60L \\* 1000L/);
+  assert.match(android, /Baixar e instalar/);
+  assert.match(android, /downloadProgressBar/);
+  assert.match(android, /Confirme a atualização na tela do Android/);
 });
 
 test("site mantém recursos de acessibilidade e safe areas móveis", () => {
