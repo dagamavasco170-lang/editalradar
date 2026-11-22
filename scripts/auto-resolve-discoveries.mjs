@@ -1243,10 +1243,35 @@ function headersFor(key, extra = {}) {
   };
 }
 
+export function buildNonActionablePendingDiscoveriesUrl(baseUrl) {
+  const url = new URL("/rest/v1/contest_discoveries", baseUrl);
+  url.searchParams.set("select", "id,source_url,candidate_url,title,context,discovery_type,status");
+  url.searchParams.set("status", "eq.pending");
+  url.searchParams.set("discovery_type", "eq.source_baseline");
+  url.searchParams.set("order", "detected_at.asc");
+  url.searchParams.set("limit", "1000");
+  return url.toString();
+}
+
+export async function dismissNonActionablePendingDiscoveries(request, baseUrl, key) {
+  const rows = await requestJson(request, buildNonActionablePendingDiscoveriesUrl(baseUrl), key) || [];
+  for (const item of rows) {
+    await updateDiscovery(request, baseUrl, key, item, {
+      status: "dismissed",
+      context: appendContext(
+        item.context,
+        "Linha de base inicial; não representa uma oportunidade nova e não exige revisão."
+      )
+    });
+  }
+  return rows.length;
+}
+
 export async function countPendingDiscoveries(request, baseUrl, key) {
   const url = new URL("/rest/v1/contest_discoveries", baseUrl);
   url.searchParams.set("select", "id");
   url.searchParams.set("status", "eq.pending");
+  url.searchParams.set("discovery_type", "in.(new_link,page_change,web_search_lead)");
   const response = await request(url.toString(), {
     method: "HEAD",
     headers: headersFor(key, { Prefer: "count=exact", Range: "0-0" })
@@ -1341,6 +1366,12 @@ export async function autoResolvePending(options = {}) {
   const now = options.now instanceof Date ? options.now : new Date();
   const officialCooldownMs = Math.max(0, Number(options.officialCooldownMs) || DEFAULT_OFFICIAL_RETRY_COOLDOWN_MS);
   const externalCooldownMs = Math.max(0, Number(options.externalCooldownMs) || DEFAULT_EXTERNAL_RETRY_COOLDOWN_MS);
+  // "source_baseline" marks the first snapshot of a source, not a new contest.
+  // Close these housekeeping rows before counting the actionable review queue.
+  const baselineDismissed = await dismissNonActionablePendingDiscoveries(request, baseUrl, key);
+  if (baselineDismissed) {
+    console.log("Linhas de base iniciais encerradas automaticamente: " + baselineDismissed + ".");
+  }
   const [officialPending, externalPending] = await Promise.all([
     requestJson(request, buildPendingDiscoveriesUrl(
       baseUrl, now, officialCooldownMs, ["new_link", "page_change"]
@@ -1371,12 +1402,12 @@ export async function autoResolvePending(options = {}) {
     }
     return {
       inspected: 0, published: 0, updated: 0, dismissed: 0,
-      pending: 0, errors, pendingTotal
+      baselineDismissed, pending: 0, errors, pendingTotal
     };
   }
 
   const existingRows = await requestJson(request, baseUrl + "/rest/v1/contest_catalog?select=id,data,deleted&limit=1000", key) || [];
-  const result = { inspected: 0, published: 0, updated: 0, dismissed: 0, pending: 0, errors: 0, pendingReasons: {} };
+  const result = { inspected: 0, published: 0, updated: 0, dismissed: 0, baselineDismissed, pending: 0, errors: 0, pendingReasons: {} };
   const keepPending = async (item, reason) => {
     result.pending += 1;
     const label = String(reason || "Não foi possível confirmar os dados na fonte oficial.").slice(0, 500);
@@ -1573,6 +1604,7 @@ async function main() {
     "- Publicadas: " + result.published,
     "- Atualizadas: " + (result.updated || 0),
     "- Descartadas: " + result.dismissed,
+    "- Linhas de base iniciais encerradas automaticamente: " + (result.baselineDismissed || 0),
     "- Aguardando revisão nesta execução: " + result.pending,
     "- Pendências totais no banco: " + (Number.isInteger(result.pendingTotal) ? result.pendingTotal : "não foi possível confirmar"),
     "- Falhas técnicas: " + result.errors,
@@ -1588,6 +1620,7 @@ async function main() {
       "published_count=" + result.published,
       "updated_count=" + (result.updated || 0),
       "dismissed_count=" + result.dismissed,
+      "baseline_dismissed_count=" + (result.baselineDismissed || 0),
       "pending_count=" + result.pending,
       "pending_total_count=" + (Number.isInteger(result.pendingTotal) ? result.pendingTotal : "unknown"),
       "error_count=" + result.errors,
