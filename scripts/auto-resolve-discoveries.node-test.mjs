@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { appendContext, buildPendingDiscoveriesUrl, buildNonActionablePendingDiscoveriesUrl, dismissNonActionablePendingDiscoveries, buildRetificationUpdate, classifyDiscovery, extractDocumentText, extractRoleNamesFromText, extractVacancyDetails, fetchCandidateWithRetry, findMatchingContestForRetification, inferOrganization, mapWithConcurrency, normalizeContestIdentity, prepareDiscoveryDocument, countPendingDiscoveries, requestJson, summarizeFetchError, assessNoticeFreshness, extractDeclaredPublisherUrl, resolveGoogleNewsArticleUrl, prioritizePendingDiscoveries, selectDiscoveriesForTriage, isClearlyUnrelatedAdministrativeDiscovery } from "./auto-resolve-discoveries.mjs";
+import { appendContext, buildPendingDiscoveriesUrl, buildNonActionablePendingDiscoveriesUrl, dismissNonActionablePendingDiscoveries, buildRetificationUpdate, classifyDiscovery, extractDocumentText, extractRoleNamesFromText, extractVacancyDetails, fetchCandidateWithRetry, findMatchingContestForRetification, inferOrganization, mapWithConcurrency, normalizeContestIdentity, prepareDiscoveryDocument, countPendingDiscoveries, requestJson, summarizeFetchError, assessNoticeFreshness, extractDeclaredPublisherUrl, resolveGoogleNewsArticleUrl, prioritizePendingDiscoveries, selectDiscoveriesForTriage, isClearlyUnrelatedAdministrativeDiscovery, isTrustedSecondaryNewsHost, extractOfficialReferenceLinks, fetchSecondaryNewsArticle } from "./auto-resolve-discoveries.mjs";
 
 const discovery = {
   id: 1,
@@ -877,4 +877,85 @@ test("prepara documento oficial para triagem sem escrever no banco", async () =>
   assert.equal(prepared.stage, "ready");
   assert.equal(prepared.candidateUrl, discovery.candidate_url);
   assert.match(prepared.document.text, /20 vagas/);
+});
+
+
+test("localiza exatamente um link de edital oficial dentro de artigo secundário", async () => {
+  const articleUrl = "https://www.concursosnobrasil.com.br/noticias/concurso-igaci-2026/";
+  const officialUrl = "https://igaci.al.gov.br/concursos/edital-01-2026.pdf";
+  const articleHtml = '<html><body><article><p>Veja o concurso anunciado.</p><a href="' + officialUrl + '">Clique para acessar o edital oficial</a></article></body></html>';
+  const references = extractOfficialReferenceLinks(articleHtml, articleUrl);
+  assert.equal(references.length, 1);
+  assert.equal(references[0].url, officialUrl);
+  assert.equal(isTrustedSecondaryNewsHost("www.concursosnobrasil.com.br"), true);
+  assert.equal(isTrustedSecondaryNewsHost("news.example.org"), false);
+});
+
+test("triagem de notícia editorial só abre a publicação depois de localizar um link oficial único", async () => {
+  const articleUrl = "https://www.concursosnobrasil.com.br/noticias/concurso-igaci-2026/";
+  const officialUrl = "https://igaci.al.gov.br/concursos/edital-01-2026.pdf";
+  const officialHtml = "<html><head><title>Edital 01/2026</title></head><body><h1>Concurso público</h1><p>Prefeitura Municipal de Igaci. 20 vagas para cargos efetivos. Edital 01/2026.</p></body></html>";
+  const requested = [];
+  const prepared = await prepareDiscoveryDocument({
+    ...discovery,
+    discovery_type: "web_search_lead",
+    source_url: "https://www.concursosnobrasil.com.br/feed/",
+    candidate_url: articleUrl,
+    title: "[Edital/publicação] Concursos no Brasil: Prefeitura de Igaci publica edital de concurso",
+    context: "Pista encontrada em feed editorial independente; ainda não é confirmação de concurso."
+  }, async url => {
+    requested.push(url);
+    if (url === articleUrl) {
+      return new Response(articleHtml, { status: 200, headers: { "content-type": "text/html; charset=utf-8" } });
+    }
+    if (url === officialUrl) {
+      return new Response(officialHtml, { status: 200, headers: { "content-type": "text/html; charset=utf-8" } });
+    }
+    throw new Error("URL inesperada: " + url);
+  }, { fallbackRequest: async () => { throw new Error("fallback inesperado"); } });
+
+  assert.deepEqual(requested, [articleUrl, officialUrl]);
+  assert.equal(prepared.stage, "ready");
+  assert.equal(prepared.candidateUrl, officialUrl);
+  assert.match(prepared.document.text, /Prefeitura Municipal de Igaci/);
+});
+
+test("página editorial com vários editais oficiais possíveis continua pendente", async () => {
+  const articleUrl = "https://www.concursosnobrasil.com.br/noticias/concursos-abertos/";
+  const html = '<a href="https://igaci.al.gov.br/concursos/edital-01-2026.pdf">Edital de Igaci</a>'
+    + '<a href="https://arapiraca.al.gov.br/concursos/edital-02-2026.pdf">Edital de Arapiraca</a>';
+  const prepared = await prepareDiscoveryDocument({
+    ...discovery,
+    discovery_type: "web_search_lead",
+    candidate_url: articleUrl,
+    context: "Pista editorial."
+  }, async () => new Response(html, { status: 200, headers: { "content-type": "text/html" } }));
+  assert.equal(prepared.stage, "review");
+  assert.match(prepared.reason, /mais de um link oficial possível/);
+});
+
+test("bloqueia redirecionamento de artigo editorial para domínio que não esteja autorizado", async () => {
+  const articleUrl = "https://www.concursosnobrasil.com.br/noticias/concurso/";
+  const requested = [];
+  const prepared = await prepareDiscoveryDocument({
+    ...discovery,
+    discovery_type: "web_search_lead",
+    candidate_url: articleUrl,
+    context: "Pista editorial."
+  }, async (url) => {
+    requested.push(url);
+    return new Response(null, { status: 302, headers: { location: "https://example.net/redirect" } });
+  });
+  assert.equal(prepared.stage, "review");
+  assert.deepEqual(requested, [articleUrl]);
+  assert.match(prepared.reason, /veículo secundário previamente autorizado/);
+});
+
+test("recusa respostas de notícia de formato inesperado e controla limite de redirects", async () => {
+  const articleUrl = "https://concursos.estrategia.com/noticias/concurso/";
+  const response = await fetchSecondaryNewsArticle(articleUrl, async () => new Response("PDF", {
+    status: 200,
+    headers: { "content-type": "application/pdf" }
+  }));
+  assert.equal(response.officialUrl, null);
 });
