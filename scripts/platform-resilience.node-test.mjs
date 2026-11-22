@@ -93,8 +93,8 @@ test("assinatura de distribuição usa apenas a chave permanente recebida pelo a
   assert.match(androidGradle, /ANDROID_RELEASE_KEY_ALIAS/);
   assert.match(androidGradle, /ANDROID_RELEASE_KEY_PASSWORD/);
   assert.match(androidGradle, /signingConfig signingConfigs\.getByName\('release'\)/);
-  assert.match(androidGradle, /versionCode 9/);
-  assert.ok(androidGradle.includes("versionName '1.2.6'"));
+  assert.match(androidGradle, /versionCode 10/);
+  assert.ok(androidGradle.includes("versionName '1.2.7'"));
   assert.doesNotMatch(androidGradle, /storePassword\s*['"][^'"]+['"]/);
 });
 
@@ -116,12 +116,32 @@ test("GitHub Actions nunca publica APK de depuração como atualização públic
     "      - name: Validate Firebase Android configuration" + lineBreak +
     "        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'"
   ));
-  const publishStepStart = androidWorkflow.indexOf("      - name: Publish permanently signed GitHub Release");
-  assert.notEqual(publishStepStart, -1);
-  const publishCondition = androidWorkflow.slice(publishStepStart).split(String.fromCharCode(10))[1] ?? "";
-  assert.ok(publishCondition.includes("steps.signing.outputs.ready == 'true'"));
+  assert.ok(androidWorkflow.includes("permissions:" + lineBreak + "  contents: read"));
+  assert.ok(androidWorkflow.includes("publish-release:"));
+  assert.ok(androidWorkflow.includes("permissions:" + lineBreak + "      contents: write"));
+  assert.ok(!androidWorkflow.includes('      - "android/**"'));
+  assert.ok(androidWorkflow.includes("Verify signed APK and AAB before publishing"));
+  assert.ok(androidWorkflow.includes("-name apksigner"));
+  assert.ok(androidWorkflow.includes("jarsigner -verify"));
+  assert.ok(androidWorkflow.includes("needs.android-build.outputs.release_ready == 'true'"));
+  assert.ok(androidWorkflow.includes("uses: softprops/action-gh-release@v3"));
+  assert.ok(androidWorkflow.includes("sha256sum --check SHA256SUMS.txt"));
+  assert.ok(androidWorkflow.includes("actions/download-artifact@v8"));
 });
 
+
+test("falha temporária ao consultar atualização não bloqueia novas tentativas", () => {
+  const maybeCheckBlock = android.slice(
+    android.indexOf("    private fun maybeCheckForUpdates()"),
+    android.indexOf("    private fun checkForUpdates(manual: Boolean)")
+  );
+  assert.ok(!maybeCheckBlock.includes("putLong(LAST_UPDATE_CHECK_KEY"));
+  const successStart = android.indexOf("result.onSuccess { release ->");
+  const failureStart = android.indexOf("}.onFailure", successStart);
+  const successBlock = android.slice(successStart, failureStart);
+  assert.ok(successBlock.includes("if (!manual)"));
+  assert.ok(successBlock.includes("putLong(LAST_UPDATE_CHECK_KEY, System.currentTimeMillis())"));
+});
 
 test("atualizador nativo consulta apenas releases oficiais e evita downgrade", () => {
   assert.ok(appUpdate.includes("https://api.github.com/repos/dagamavasco170-lang/editalradar/releases/latest"));

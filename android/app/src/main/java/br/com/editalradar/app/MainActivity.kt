@@ -175,7 +175,6 @@ class MainActivity : Activity() {
         val now = System.currentTimeMillis()
         if (now - lastCheck < AUTO_UPDATE_CHECK_INTERVAL_MS) return
 
-        preferences.edit().putLong(LAST_UPDATE_CHECK_KEY, now).apply()
         checkForUpdates(manual = false)
     }
 
@@ -195,6 +194,12 @@ class MainActivity : Activity() {
             updateButton.isEnabled = true
 
             result.onSuccess { release ->
+                if (!manual) {
+                    getSharedPreferences(UPDATE_PREFERENCES, Context.MODE_PRIVATE)
+                        .edit()
+                        .putLong(LAST_UPDATE_CHECK_KEY, System.currentTimeMillis())
+                        .apply()
+                }
                 availableUpdate = release
                 updateButton.text = if (release != null) "Atualizar" else "Atualizações"
                 updateButton.contentDescription = if (release != null) {

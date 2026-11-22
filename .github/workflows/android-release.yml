@@ -4,38 +4,57 @@ on:
   push:
     branches: [main]
     paths:
-      - "android/**"
+      - "android/app/src/**"
+      - "android/app/build.gradle"
+      - "android/build.gradle"
+      - "android/settings.gradle"
+      - "android/gradle.properties"
+      - "android/gradle/**"
+      - "android/gradlew"
+      - "android/gradlew.bat"
       - ".github/workflows/android-release.yml"
-      - "scripts/platform-resilience.node-test.mjs"
   pull_request:
     branches: [main]
     paths:
-      - "android/**"
+      - "android/app/src/**"
+      - "android/app/build.gradle"
+      - "android/build.gradle"
+      - "android/settings.gradle"
+      - "android/gradle.properties"
+      - "android/gradle/**"
+      - "android/gradlew"
+      - "android/gradlew.bat"
       - ".github/workflows/android-release.yml"
       - "scripts/platform-resilience.node-test.mjs"
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: editalradar-android-release-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  android-release:
+  android-build:
     name: Build Android app
+    permissions:
+      contents: read
+    outputs:
+      release_ready: ${{ steps.signing.outputs.ready }}
+      version_name: ${{ steps.version.outputs.name }}
+      version_code: ${{ steps.version.outputs.code }}
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Test Android security and offline safeguards
         run: node --test scripts/platform-resilience.node-test.mjs
 
       - name: Set up Java 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: "17"
@@ -163,6 +182,26 @@ jobs:
           done
           exit 1
 
+      - name: Verify signed APK and AAB before publishing
+        if: steps.signing.outputs.ready == 'true'
+        shell: bash
+        run: |
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          if [ -z "$SDK_ROOT" ] || [ ! -d "$SDK_ROOT/build-tools" ]; then
+            echo "::error::Android SDK Build Tools não encontrados para validar a assinatura."
+            exit 1
+          fi
+
+          APKSIGNER="$(find "$SDK_ROOT/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          if [ -z "$APKSIGNER" ] || [ ! -x "$APKSIGNER" ]; then
+            echo "::error::Ferramenta de validação da assinatura APK não encontrada."
+            exit 1
+          fi
+
+          "$APKSIGNER" verify --verbose --print-certs android/app/build/outputs/apk/release/app-release.apk
+          jarsigner -verify -verbose -certs android/app/build/outputs/bundle/release/app-release.aab >/dev/null
+          echo "Assinaturas do APK e do AAB verificadas."
+
       - name: Build verification APK when signing is not configured
         if: steps.signing.outputs.ready != 'true'
         working-directory: android
@@ -194,17 +233,6 @@ jobs:
           test -s "release-assets/EditalRadar-Android-v${APP_VERSION}.apk"
           test -s "release-assets/EditalRadar-Android-v${APP_VERSION}.aab"
           (cd release-assets && sha256sum *.apk *.aab > SHA256SUMS.txt)
-          cat > android-release-notes.md <<EOF
-          # EditalRadar Android v${APP_VERSION}
-
-          - Versão ${VERSION_CODE}.
-          - APK e AAB assinados com a chave permanente do EditalRadar.
-          - Esta assinatura é mantida nas próximas versões para permitir atualizações diretas.
-          - Verificação de novas versões pelo próprio aplicativo.
-          - Download com conferência SHA-256 e validação da assinatura antes de instalar.
-          - Instalação encaminhada pelo instalador seguro do Android, com confirmação do usuário.
-          - Melhorias de estabilidade, segurança e experiência de uso.
-          EOF
 
       - name: Prepare verification artifact without publishing a release
         if: steps.signing.outputs.ready != 'true'
@@ -219,19 +247,68 @@ jobs:
           echo "Build de verificação. Não instalar sobre versões existentes nem distribuir como atualização." > release-assets/README.txt
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: EditalRadar-Android-v${{ steps.version.outputs.name }}
           path: release-assets/*
           if-no-files-found: error
           retention-days: 90
 
-      - name: Publish permanently signed GitHub Release
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && steps.signing.outputs.ready == 'true'
-        uses: softprops/action-gh-release@v2
+      - name: Explain how to enable signed releases
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && steps.signing.outputs.ready != 'true'
+        run: echo "::notice::O build foi validado, mas a publicação está aguardando a configuração da chave permanente. Consulte ANDROID_SIGNING.md."
+
+  publish-release:
+    name: Publish signed Android release
+    needs: android-build
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && needs.android-build.outputs.release_ready == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Download signed release assets
+        uses: actions/download-artifact@v8
         with:
-          tag_name: android-v${{ steps.version.outputs.name }}
-          name: EditalRadar Android v${{ steps.version.outputs.name }}
+          name: EditalRadar-Android-v${{ needs.android-build.outputs.version_name }}
+          path: release-assets
+
+      - name: Validate published files and checksums
+        env:
+          APP_VERSION: ${{ needs.android-build.outputs.version_name }}
+          VERSION_CODE: ${{ needs.android-build.outputs.version_code }}
+        shell: bash
+        run: |
+          test -n "$APP_VERSION"
+          test -n "$VERSION_CODE"
+          test -s "release-assets/EditalRadar-Android-v${APP_VERSION}.apk"
+          test -s "release-assets/EditalRadar-Android-v${APP_VERSION}.aab"
+          test -s "release-assets/SHA256SUMS.txt"
+          (cd release-assets && sha256sum --check SHA256SUMS.txt)
+
+      - name: Prepare release notes
+        env:
+          APP_VERSION: ${{ needs.android-build.outputs.version_name }}
+          VERSION_CODE: ${{ needs.android-build.outputs.version_code }}
+        shell: bash
+        run: |
+          cat > android-release-notes.md <<EOF
+          # EditalRadar Android v${APP_VERSION}
+
+          - Versão ${VERSION_CODE}.
+          - APK e AAB assinados com a chave permanente do EditalRadar.
+          - Esta assinatura é mantida nas próximas versões para permitir atualizações diretas.
+          - Verificação automática de novas versões, com nova tentativa após falhas temporárias.
+          - Download com conferência SHA-256 e validação da assinatura antes de instalar.
+          - Instalação encaminhada pelo instalador seguro do Android, com confirmação do usuário.
+          - Melhorias de estabilidade, segurança e experiência de uso.
+          EOF
+
+      - name: Publish permanently signed GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: android-v${{ needs.android-build.outputs.version_name }}
+          name: EditalRadar Android v${{ needs.android-build.outputs.version_name }}
           target_commitish: ${{ github.sha }}
           body_path: android-release-notes.md
           files: release-assets/*
@@ -240,7 +317,3 @@ jobs:
           make_latest: true
           draft: false
           prerelease: false
-
-      - name: Explain how to enable signed releases
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && steps.signing.outputs.ready != 'true'
-        run: echo "::notice::O build foi validado, mas a publicação está aguardando a configuração da chave permanente. Consulte ANDROID_SIGNING.md."
