@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 
 const SUPABASE_URL = String(process.env.SUPABASE_URL || "").replace(/\/$/, "");
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
-const DAILY_TOPIC_LIMIT = 3;
+const DAILY_TOPIC_LIMIT = 8;
 const MAX_SOURCE_BYTES = 5 * 1024 * 1024;
 
 if (!SUPABASE_URL || !SERVICE_KEY) {
@@ -211,6 +211,7 @@ async function main() {
   const runParams = new URLSearchParams({
     select: "id",
     started_at: `gte.${utcStart.toISOString()}`,
+    trigger_mode: "eq.scheduled",
     status: "neq.failed",
     limit: String(DAILY_TOPIC_LIMIT)
   });
@@ -229,34 +230,33 @@ async function main() {
     const cadence = Math.max(1, Math.min(30, Number(topic.cadence_days) || 1));
     return !Number.isFinite(last) || now - last >= cadence * 86400000;
   });
-  const due = [];
+  // Tenta até quatro fontes adicionais para substituir páginas indisponíveis,
+  // sem desperdiçar as vagas diárias com links que não fornecem material legível.
+  const candidateQueue = [];
   const selectedHosts = new Set();
   for (const topic of dueCandidates) {
     const host = (() => { try { return new URL(topic.source_url).hostname.toLowerCase(); } catch { return ""; } })();
     if (!host || selectedHosts.has(host)) continue;
-    due.push(topic);
+    candidateQueue.push(topic);
     selectedHosts.add(host);
-    if (due.length >= remaining) break;
   }
-  if (due.length < remaining) {
-    for (const topic of dueCandidates) {
-      if (due.includes(topic)) continue;
-      due.push(topic);
-      if (due.length >= remaining) break;
-    }
+  for (const topic of dueCandidates) {
+    if (!candidateQueue.includes(topic)) candidateQueue.push(topic);
   }
+  const sourceCandidates = candidateQueue.slice(0, Math.min(candidateQueue.length, remaining + 4));
 
-  if (!due.length) {
+  if (!sourceCandidates.length) {
     console.log("Nenhum assunto está vencido neste ciclo. O catálogo continuará sendo ampliado automaticamente.");
     return;
   }
 
-  console.log(`Etapa 2/4: baixando materiais abertos e licenciados para ${due.length} assunto(s).`);
+  console.log(`Etapa 2/4: verificando até ${sourceCandidates.length} fontes para preencher ${remaining} vaga(s) de geração.`);
   const excerptByUrl = new Map();
   const headingRows = [];
   const sourceExcerpts = {};
   const processableIds = [];
-  for (const topic of due) {
+  for (const topic of sourceCandidates) {
+    if (processableIds.length >= remaining) break;
     try {
       let source = excerptByUrl.get(topic.source_url);
       if (!source) {

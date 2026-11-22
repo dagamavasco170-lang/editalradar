@@ -142,7 +142,7 @@ export default function StudyQuestionAdmin({authClient,userId}){
     <div><strong>{topics.length}</strong><span>temas configurados</span></div><div><strong>{topics.filter(item=>item.active).length}</strong><span>agendamentos ativos</span></div>
     <div><strong>{pending.length}</strong><span>rascunhos em exceção</span></div><div><strong>{runs[0]?.auto_approved_count||0}</strong><span>publicadas na última execução</span></div>
    </div>
-   <div className="question-ai-how"><strong>Revisão em duas etapas</strong><p>Gemini Flash-Lite elabora a questão e um segundo passe revisa a resposta, os distratores, a justificativa e a aderência à fonte. Há validação automática de evidência literal e duplicidade. Somente questões com nota mínima de 90/100 e todos os critérios atendidos são publicadas.</p></div>
+   <div className="question-ai-how"><strong>Elaboração, reposição e revisão independente</strong><p>Gemini Flash-Lite elabora as questões, valida a evidência literal e a duplicidade, e executa uma rodada de reposição quando parte do lote é inválida. Um segundo passe revisa resposta, distratores, justificativa e aderência à fonte. Apenas questões com nota mínima de 90/100 e todos os critérios são publicadas automaticamente; casos limítrofes ficam na fila administrativa sem serem publicados.</p></div>
    <form className="question-ai-form" onSubmit={saveTopic}>
     <div><strong>Configurar tema recorrente</strong><small>Informe uma fonte privada com licença aberta ou permissão de reutilização. O sistema registra a licença e a atribuição junto de cada questão.</small></div>
     <div className="study-admin-grid">
@@ -173,7 +173,7 @@ export default function StudyQuestionAdmin({authClient,userId}){
    </div>}
    {runs.length>0&&<div className="question-ai-runs"><strong>Execuções recentes</strong>{runs.slice(0,5).map(run=><div key={run.id}><span>{run.started_at?new Date(run.started_at).toLocaleString("pt-BR"):"—"} · {run.status}</span><small>{run.generated_count} elaboradas · {run.auto_approved_count} publicadas · {run.manual_review_count} em exceção · {run.rejected_count} reprovadas</small></div>)}</div>}
    {automationMessage&&<p className={"auth-message "+automationKind} role="status">{automationMessage}</p>}
-   <p className="study-disclaimer">Usa exclusivamente Gemini 3.1 Flash-Lite, sem fallback para outro provedor. A conta Google determina a cota e a faixa de cobrança. Limite local de segurança: 3 execuções por dia, até 3 questões por execução. Para manter o uso sem cobrança, utilize a cota gratuita e deixe o faturamento do projeto Google desativado. Configure GEMINI_API_KEY em Supabase → Edge Functions → Secrets.</p>
+   <p className="study-disclaimer">Usa exclusivamente Gemini 3.1 Flash-Lite, sem fallback para outro provedor. A conta Google determina a cota e a faixa de cobrança. Limite local de segurança: até 8 execuções automáticas por dia (24 questões solicitadas) e 3 execuções manuais por dia (9 questões solicitadas). Quando o lote inicial tiver itens inválidos ou duplicados, é feita uma única rodada de reposição. A publicação automática continua exigindo nota mínima de 90/100 e todos os critérios atendidos. Para evitar cobranças inesperadas, acompanhe a cota e o faturamento da sua conta Google. Configure GEMINI_API_KEY em Supabase → Edge Functions → Secrets.</p>
   </section>
 
   <section className="panel admin-panel study-question-admin" aria-label="Cadastro de questões reais licenciadas">

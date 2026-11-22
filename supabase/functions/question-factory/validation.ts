@@ -102,3 +102,66 @@ export function similarityScore(left: unknown, right: unknown): number {
 export function isDuplicateQuestion(prompt: string, existingPrompts: string[], threshold = 0.82): boolean {
   return existingPrompts.some((existing) => similarityScore(prompt, existing) >= threshold);
 }
+
+
+export type GeneratedReviewStatus = "auto_approved" | "manual_review" | "rejected";
+
+export function filterQuestionCandidates(
+  candidates: unknown,
+  sourceExcerpt: string,
+  existingPrompts: string[] = []
+): { validCandidates: GeneratedQuestion[]; issues: string[] } {
+  const validCandidates: GeneratedQuestion[] = [];
+  const issues: string[] = [];
+  const knownPrompts = [...existingPrompts];
+  const rows = Array.isArray(candidates) ? candidates : [];
+
+  for (let index = 0; index < rows.length; index += 1) {
+    const candidate = rows[index] as GeneratedQuestion;
+    const result = validateQuestion(candidate, sourceExcerpt);
+    if (!result.valid) {
+      issues.push(`Questão ${index + 1}: ${result.issues.join(" ")}`);
+      continue;
+    }
+
+    if (isDuplicateQuestion(candidate.prompt, knownPrompts)) {
+      issues.push(`Questão ${index + 1}: enunciado repetido ou muito semelhante ao banco.`);
+      continue;
+    }
+
+    if (isDuplicateQuestion(candidate.prompt, validCandidates.map((item) => item.prompt), 0.78)) {
+      issues.push(`Questão ${index + 1}: duplicada dentro do lote gerado.`);
+      continue;
+    }
+
+    validCandidates.push(candidate);
+    knownPrompts.push(candidate.prompt);
+  }
+
+  return { validCandidates, issues };
+}
+
+export function classifyGeneratedReview(input: {
+  approved: boolean;
+  score: number;
+  factualSupport: boolean;
+  singleCorrectAnswer: boolean;
+  explanationConsistent: boolean;
+  issues: string[];
+}): GeneratedReviewStatus {
+  const objectiveChecksPassed = input.factualSupport
+    && input.singleCorrectAnswer
+    && input.explanationConsistent;
+
+  if (input.approved && input.score >= 90 && objectiveChecksPassed && input.issues.length === 0) {
+    return "auto_approved";
+  }
+
+  // Borderline questions remain unpublished and go to the administrator queue.
+  // This preserves the automatic publication threshold while avoiding silent loss.
+  if (input.score >= 80 && objectiveChecksPassed && input.issues.length <= 2) {
+    return "manual_review";
+  }
+
+  return "rejected";
+}

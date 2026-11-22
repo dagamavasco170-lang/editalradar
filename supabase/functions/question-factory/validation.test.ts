@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isDuplicateQuestion, isTrustedPrivateStudySourceUrl, similarityScore, validateQuestion } from "./validation.ts";
+import { classifyGeneratedReview, filterQuestionCandidates, isDuplicateQuestion, isTrustedPrivateStudySourceUrl, similarityScore, validateQuestion } from "./validation.ts";
 
 const source = "A administração pública direta e indireta de qualquer dos Poderes da União, dos Estados, do Distrito Federal e dos Municípios obedecerá aos princípios de legalidade, impessoalidade, moralidade, publicidade e eficiência.";
 const question = {
@@ -71,4 +71,30 @@ describe("Validação automática de questões", () => {
   it("não marca perguntas de assuntos diferentes como duplicadas", () => {
     expect(isDuplicateQuestion("Como calcular juros simples em um capital inicial?", ["Quais princípios orientam a administração pública?"])).toBe(false);
   });
+
+  it("tenta repor apenas questões inválidas ou duplicadas sem enfraquecer a validação", () => {
+    const duplicate = { ...question };
+    const invalid = { ...question, prompt: "Considerando o trecho, assinale a alternativa adequada sobre os princípios administrativos?", evidence_excerpt: "trecho que não existe no material de referência" };
+    const filtered = filterQuestionCandidates([question, duplicate, invalid], source, []);
+    expect(filtered.validCandidates).toHaveLength(1);
+    expect(filtered.issues).toHaveLength(2);
+    expect(filtered.issues.join(" ")).toMatch(/repetido|duplicada/);
+    expect(filtered.issues.join(" ")).toContain("evidência indicada não aparece literalmente");
+  });
+
+  it("envia questões limítrofes para revisão administrativa sem publicá-las automaticamente", () => {
+    expect(classifyGeneratedReview({
+      approved: true, score: 96, factualSupport: true, singleCorrectAnswer: true,
+      explanationConsistent: true, issues: []
+    })).toBe("auto_approved");
+    expect(classifyGeneratedReview({
+      approved: false, score: 86, factualSupport: true, singleCorrectAnswer: true,
+      explanationConsistent: true, issues: ["Distrator precisa de avaliação"]
+    })).toBe("manual_review");
+    expect(classifyGeneratedReview({
+      approved: true, score: 98, factualSupport: false, singleCorrectAnswer: true,
+      explanationConsistent: true, issues: []
+    })).toBe("rejected");
+  });
+
 });

@@ -70,6 +70,7 @@ test("identifica claramente um registro preliminar que não possui edital confir
 
 test("oferece acesso ao banco de provas original do PCI Concursos", async ({ page }) => {
   await page.goto("./");
+  await page.getByRole("button", { name: /Área de estudos/ }).click();
   const pciCatalog = page.getByRole("link", { name: "Consultar acervo de provas do PCI Concursos" });
   await expect(pciCatalog).toBeVisible();
   await expect(pciCatalog).toHaveAttribute("href", "https://www.pciconcursos.com.br/provas/");
