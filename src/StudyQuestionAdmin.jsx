@@ -53,7 +53,7 @@ export default function StudyQuestionAdmin({authClient,userId}){
  const saveTopic=async event=>{
   event.preventDefault();setAutomationMessage("");
   if(!authClient||!userId){setAutomationMessage("Entre com uma conta administrativa.");setAutomationKind("error");return;}
-  if(!isTrustedPrivateStudySourceUrl(topicForm.source_url)){setAutomationMessage("Use Wikilivros, Wikipédia, Wikiversidade, Wikcionário, Politize ou Escolha Livre, conforme os direitos de reutilização cadastrados.");setAutomationKind("error");return;}
+  if(!isTrustedPrivateStudySourceUrl(topicForm.source_url)){setAutomationMessage("Use Wikilivros, Wikipédia, Wikiversidade, Wikcionário ou Politize, conforme os direitos de reutilização cadastrados.");setAutomationKind("error");return;}
   if(topicForm.source_excerpt.trim().length>0&&topicForm.source_excerpt.trim().length<200){setAutomationMessage("O trecho manual precisa ter pelo menos 200 caracteres. Deixe-o vazio para tentar a extração automática da página.");setAutomationKind("error");return;}
   if(topicForm.source_excerpt.trim().length>12000){setAutomationMessage("O trecho manual não pode ultrapassar 12.000 caracteres.");setAutomationKind("error");return;}
   setBusyId("save-topic");
