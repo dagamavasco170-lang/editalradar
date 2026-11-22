@@ -547,7 +547,7 @@ function amountAsNumber(value) {
 function extractReadAsCorrections(text) {
   const source = String(text || "");
   const corrections = [];
-  const expression = /\bonde\s+se\s+lê\b([\s\S]{0,180}?)\bleia-se\b([\s\S]{0,180}?)(?=[.\n]|$)/gi;
+  const expression = /onde\s+se\s+l[eê]\s*[:\-]?([\s\S]{0,180}?)\bleia-se\b([\s\S]{0,180}?)(?=[.\n]|$)/gi;
   for (const match of source.matchAll(expression)) {
     corrections.push({
       oldText: String(match[1] || "").trim(),

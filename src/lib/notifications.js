@@ -71,11 +71,11 @@ export function detectCatalogNotifications({
     if (!previous) {
       if (isPreliminary(item)) continue;
       notifications.push({
-        id: \`new-\${item.id}\`,
+        id: "new-" + item.id,
         type: "new",
         itemId: item.id,
         title: "Novo concurso no catálogo",
-        message: \`\${item.cargo} — \${item.orgao}\`,
+        message: item.cargo + " — " + item.orgao,
         createdAt: new Date().toISOString(),
         read: false
       });
@@ -96,7 +96,7 @@ export function detectCatalogNotifications({
       const after = nextValue == null ? "" : String(nextValue);
       if (before === after || reportedFields.has(field)) return;
       reportedFields.add(field);
-      changes.push(\`\${label}: \${formatValue(before)} → \${formatValue(after)}\`);
+      changes.push(label + ": " + formatValue(before) + " → " + formatValue(after));
     };
 
     addChange("status", "Situação", previous.status, item.status);
@@ -127,24 +127,24 @@ export function detectCatalogNotifications({
 
     if (hasNewRetification) {
       for (const entry of item.lastHistoryChanges) {
-        if (!entry?.field || reportedFields.has(entry.field)) continue;
+        if (!entry || !entry.field || reportedFields.has(entry.field)) continue;
         const label = entry.label || entry.field;
         const before = entry.oldValue ?? "";
         const after = entry.newValue ?? "";
         reportedFields.add(entry.field);
-        changes.push(\`\${label}: \${formatValue(before)} → \${formatValue(after)}\`);
+        changes.push(label + ": " + formatValue(before) + " → " + formatValue(after));
       }
     }
 
     if (changes.length) {
       notifications.push({
         id: hasNewRetification
-          ? \`retification-\${item.id}-\${encodeURIComponent(item.lastHistoryAt || String(item.historyCount)).slice(0, 80)}\`
-          : \`favorite-\${item.id}-\${encodeURIComponent(changes.join("|")).slice(0, 100)}\`,
+          ? "retification-" + item.id + "-" + encodeURIComponent(item.lastHistoryAt || String(item.historyCount)).slice(0, 80)
+          : "favorite-" + item.id + "-" + encodeURIComponent(changes.join("|")).slice(0, 100),
         type: hasNewRetification ? "retification" : "favorite-update",
         itemId: item.id,
         title: hasNewRetification ? "Retificação oficial no seu favorito" : "Concurso favorito atualizado",
-        message: \`\${item.cargo}: \${changes.join(" · ")}\`,
+        message: item.cargo + ": " + changes.join(" · "),
         createdAt: new Date().toISOString(),
         read: false
       });
