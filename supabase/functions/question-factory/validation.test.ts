@@ -29,12 +29,17 @@ describe("Validação automática de questões", () => {
   it("reprova evidência que não consta literalmente do texto", () => {
     expect(validateQuestion({ ...question, evidence_excerpt: "princípio da supremacia absoluta" }, source).valid).toBe(false);
   });
-  it("reconhece domínios oficiais e bancas e rejeita imitações", () => {
-    expect(isTrustedOfficialUrl("https://www.gov.br/planalto")).toBe(true);
-    expect(isTrustedOfficialUrl("https://www.cebraspe.org.br/concursos")).toBe(true);
-    expect(isTrustedOfficialUrl("https://gov.br.falso.example.com/edital")).toBe(false);
-    expect(isTrustedOfficialUrl("http://www.gov.br/")).toBe(false);
-    expect(isTrustedOfficialUrl("https://usuario:senha@gov.br/")).toBe(false);
+  it("aceita apenas editoras e plataformas privadas selecionadas", () => {
+    expect(isTrustedOfficialUrl("https://brasilescola.uol.com.br/gramatica")).toBe(true);
+    expect(isTrustedOfficialUrl("https://pt.khanacademy.org/math")).toBe(true);
+    expect(isTrustedOfficialUrl("https://www.politize.com.br/trilhas/politicas-publicas/")).toBe(true);
+    expect(isTrustedOfficialUrl("https://blog.grancursosonline.com.br/informatica-para-concursos-conceitos-basicos-para-prova/")).toBe(true);
+    expect(isTrustedOfficialUrl("https://www.gov.br/concursos")).toBe(false);
+    expect(isTrustedOfficialUrl("https://www2.camara.leg.br/atividade-legislativa")).toBe(false);
+    expect(isTrustedOfficialUrl("https://educa.ibge.gov.br/")).toBe(false);
+    expect(isTrustedOfficialUrl("https://brasilescola.uol.com.br.falso.example.com/")).toBe(false);
+    expect(isTrustedOfficialUrl("http://brasilescola.uol.com.br/")).toBe(false);
+    expect(isTrustedOfficialUrl("https://usuario:senha@todamateria.com.br/")).toBe(false);
   });
   it("detecta enunciados praticamente duplicados", () => {
     const original = "Segundo o texto de referência, quais princípios devem orientar a administração pública?";
