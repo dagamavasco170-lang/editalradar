@@ -27,7 +27,10 @@ export function parseHttpsUrl(value) {
 export function isTrustedOfficialHostname(hostname) {
   const host = String(hostname || "").toLowerCase().replace(/\.$/, "");
   if (!host || host.includes("..")) return false;
+  // Never accept the Planalto domain or any of its subdomains as an exam source.
+  if (host === "planalto.gov.br" || host.endsWith(".planalto.gov.br")) return false;
   return OFFICIAL_SUFFIXES.some(suffix => host.endsWith(suffix))
+    || host === "un.org" || host.endsWith(".un.org")
     || APPROVED_PROVIDERS.some(domain => host === domain || host.endsWith("." + domain));
 }
 
