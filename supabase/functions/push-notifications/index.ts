@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import {
+  canScheduleFcmRetryBeforeExpiry,
   classifyFcmFailure,
   getFcmRetryDelayMs,
 } from "./policy.js";
@@ -117,7 +118,7 @@ async function sendFcmMessage(
           message: {
             token,
             data: message,
-            android: { priority: "HIGH", ttl: "3600s" },
+            android: { priority: "HIGH", ttl: `${PUSH_TTL_SECONDS}s` },
           },
         }),
       },
@@ -168,8 +169,14 @@ async function queueRetries(
   }
 
   const batches = new Map<number, Array<Record<string, unknown>>>();
+  let expired = 0;
   for (const job of jobs) {
-    const delaySeconds = Math.ceil(getFcmRetryDelayMs(job.failure, 1) / 1000);
+    const delayMs = getFcmRetryDelayMs(job.failure, 1);
+    if (!canScheduleFcmRetryBeforeExpiry(expiresAt, delayMs)) {
+      expired += 1;
+      continue;
+    }
+    const delaySeconds = Math.ceil(delayMs / 1000);
     const batch = batches.get(delaySeconds) || [];
     batch.push({
       token: job.token,
@@ -197,7 +204,7 @@ async function queueRetries(
       queued += chunk.length;
     }
   }
-  return { queued, failed: jobs.length - queued, expired: 0 };
+  return { queued, failed: jobs.length - queued - expired, expired };
 }
 
 Deno.serve(async (req: Request) => {
