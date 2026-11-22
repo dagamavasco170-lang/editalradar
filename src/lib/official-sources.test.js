@@ -9,15 +9,14 @@ import {
 } from "./official-sources.js";
 
 describe("fontes de estudo privadas e fontes de prova", () => {
-  it("aceita fontes privadas selecionadas para elaboração automática", () => {
+  it("aceita fontes privadas abertas ou com permissão de reutilização", () => {
     for (const url of [
-      "https://brasilescola.uol.com.br/gramatica",
-      "https://www.mundoeducacao.uol.com.br/matematica",
-      "https://www.todamateria.com.br/materias/",
+      "https://pt.wikibooks.org/wiki/Portugu%C3%AAs",
+      "https://pt.wikipedia.org/wiki/Matem%C3%A1tica",
+      "https://pt.wikiversity.org/wiki/Faculdade:Matem%C3%A1tica",
+      "https://pt.wiktionary.org/wiki/gram%C3%A1tica",
       "https://www.politize.com.br/trilhas/politicas-publicas/",
-      "https://blog.grancursosonline.com.br/informatica-para-concursos-conceitos-basicos-para-prova/",
-      "https://www.somatematica.com.br/",
-      "https://www.guiadoestudante.abril.com.br/atualidades/"
+      "https://escolhalivre.org.br/en/about/"
     ]) expect(isTrustedPrivateStudySourceUrl(url), url).toBe(true);
   });
 
@@ -57,7 +56,7 @@ describe("fontes de estudo privadas e fontes de prova", () => {
 
   it("mostra rótulos diferentes para as duas finalidades", () => {
     expect(officialSourceLabel("https://www.gov.br/concursos")).toBe("Fonte oficial");
-    expect(privateStudySourceLabel("https://brasilescola.uol.com.br/gramatica")).toBe("Fonte privada de estudo selecionada");
+    expect(privateStudySourceLabel("https://pt.wikibooks.org/wiki/Portugu%C3%AAs")).toBe("Fonte privada de estudo selecionada");
     expect(privateStudySourceLabel("https://www.gov.br/concursos")).toBe("Fonte privada externa não selecionada");
   });
 });
