@@ -888,6 +888,8 @@ test("localiza exatamente um link de edital oficial dentro de artigo secundário
   assert.equal(references.length, 1);
   assert.equal(references[0].url, officialUrl);
   assert.equal(isTrustedSecondaryNewsHost("www.concursosnobrasil.com.br"), true);
+  assert.equal(isTrustedSecondaryNewsHost("g1.globo.com"), true);
+  assert.equal(isTrustedSecondaryNewsHost("evil-g1.globo.com.attacker.test"), false);
   assert.equal(isTrustedSecondaryNewsHost("news.example.org"), false);
 });
 
@@ -958,4 +960,15 @@ test("recusa respostas de notícia de formato inesperado", async () => {
     status: 200,
     headers: { "content-type": "application/pdf" }
   })), /não retornou HTML/);
+});
+
+
+test("aceita artigo do G1 como pista, mas extrai apenas links HTTPS oficiais autorizados", async () => {
+  const articleUrl = "https://g1.globo.com/espirito-santo/noticia/2026/11/22/idaf-lanca-edital.ghtml";
+  const officialUrl = "https://idaf.es.gov.br/concursos/edital-01-2026";
+  const html = '<article><p>O edital do concurso foi publicado.</p><a href="' + officialUrl + '">Confira o edital oficial</a></article>';
+  const references = extractOfficialReferenceLinks(html, articleUrl);
+  assert.equal(references.length, 1);
+  assert.equal(references[0].url, officialUrl);
+  assert.equal(isTrustedSecondaryNewsHost("g1.globo.com"), true);
 });
