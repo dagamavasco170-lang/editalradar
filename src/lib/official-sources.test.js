@@ -58,6 +58,6 @@ describe("fontes de estudo privadas e fontes de prova", () => {
   it("mostra rótulos diferentes para as duas finalidades", () => {
     expect(officialSourceLabel("https://www.gov.br/concursos")).toBe("Fonte oficial");
     expect(privateStudySourceLabel("https://brasilescola.uol.com.br/gramatica")).toBe("Fonte privada de estudo selecionada");
-    expect(privateStudySourceLabel("https://www.gov.br/concursos")).toBe("Fonte externa não selecionada");
+    expect(privateStudySourceLabel("https://www.gov.br/concursos")).toBe("Fonte privada externa não selecionada");
   });
 });
