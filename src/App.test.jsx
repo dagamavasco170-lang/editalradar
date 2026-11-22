@@ -22,9 +22,26 @@ describe("EditalRadar", () => {
     }));
 
     expect(screen.getByRole("button", { name: "Notificações ativadas" })).toBeDisabled();
-    expect(screen.getByText(/cadastro do push será concluído automaticamente/)).toBeInTheDocument();
+    expect(screen.getByText(/Notificações ativadas! Avisaremos quando houver novidades/)).toBeInTheDocument();
     expect(JSON.parse(localStorage.getItem("er-browser-notifications"))).toBe(true);
     delete window.EditalRadarNative;
+  });
+
+  it("não exibe detalhes técnicos na central de notificações para usuários comuns", () => {
+    localStorage.clear();
+    render(<App authClient={null} authConfigured={false} />);
+    fireEvent.click(screen.getByRole("button", { name: /Ver notificações/ }));
+    const panel = within(screen.getByRole("region", { name: "Notificações do EditalRadar" }));
+    expect(panel.queryByText(/Firebase|Cloud Messaging|Supabase|SQL Editor|FCM|token|sincronização|cache/i)).not.toBeInTheDocument();
+    expect(panel.queryByRole("button", { name: /Testar recebimento push|Testar em segundo plano/i })).not.toBeInTheDocument();
+  });
+
+  it("não mostra instruções técnicas de configuração no acesso à conta", () => {
+    localStorage.clear();
+    render(<App authClient={null} authConfigured={false} />);
+    fireEvent.click(screen.getByRole("button", { name: /Entrar \/ cadastrar/ }));
+    expect(screen.getByText(/O acesso à conta está temporariamente indisponível/)).toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent(/Supabase|SQL Editor|VITE_SUPABASE|GitHub Actions/);
   });
 
   it("detecta um novo concurso e abre seus detalhes pela central de notificações", async () => {

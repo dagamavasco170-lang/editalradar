@@ -82,7 +82,7 @@ class MainActivity : Activity() {
         }
 
         statusText = TextView(this).apply {
-            text = "EditalRadar • verificando conexão"
+            text = "Preparando seu EditalRadar…"
             textSize = 13f
             setTextColor(Color.WHITE)
             setBackgroundColor(Color.rgb(24, 105, 87))
@@ -197,7 +197,7 @@ class MainActivity : Activity() {
                         statusText.text = "Não foi possível abrir o link externo."
                     }
                 } else {
-                    statusText.text = "Link bloqueado por segurança. Use links HTTPS."
+                    statusText.text = "Este link não pode ser aberto dentro do EditalRadar."
                 }
                 return true
             }
@@ -210,11 +210,11 @@ class MainActivity : Activity() {
                 super.onReceivedError(view, request, error)
                 if (request?.isForMainFrame == true) {
                     if (!isInternetAvailable()) {
-                        statusText.text = "Sem internet • tentando abrir dados salvos. Toque para tentar novamente."
+                        statusText.text = "Sem conexão. Algumas informações já carregadas ainda podem estar disponíveis. Toque para tentar novamente."
                         statusText.setBackgroundColor(Color.rgb(154, 91, 29))
                         webView.settings.cacheMode = WebSettings.LOAD_CACHE_ELSE_NETWORK
                     } else {
-                        statusText.text = "Não foi possível carregar esta página • toque para tentar novamente"
+                        statusText.text = "Não foi possível abrir esta página agora. Toque para tentar novamente."
                         statusText.setBackgroundColor(Color.rgb(154, 91, 29))
                     }
                 }
@@ -230,7 +230,7 @@ class MainActivity : Activity() {
                     errorResponse != null &&
                     errorResponse.statusCode >= 500
                 ) {
-                    statusText.text = "Servidor temporariamente indisponível • toque para tentar novamente"
+                    statusText.text = "Não foi possível atualizar agora. Toque para tentar novamente."
                     statusText.setBackgroundColor(Color.rgb(154, 91, 29))
                 }
             }
@@ -242,7 +242,7 @@ class MainActivity : Activity() {
             ) {
                 // Nunca permite ignorar certificado inválido ou conexão TLS adulterada.
                 handler?.cancel()
-                statusText.text = "Conexão segura inválida. O acesso foi bloqueado."
+                statusText.text = "Não foi possível estabelecer uma conexão segura. Tente novamente mais tarde."
                 statusText.setBackgroundColor(Color.rgb(154, 65, 45))
             }
         }
@@ -505,7 +505,7 @@ class MainActivity : Activity() {
         statusText.text = if (online) {
             if (connectionRestored) "Conexão restabelecida • atualizando…" else "EditalRadar • conectado"
         } else {
-            "Sem internet • conteúdo em cache quando disponível • toque para tentar novamente"
+            "Sem conexão. Algumas informações já carregadas ainda podem estar disponíveis. Toque para tentar novamente."
         }
         statusText.setBackgroundColor(
             if (online) Color.rgb(24, 105, 87) else Color.rgb(154, 91, 29)

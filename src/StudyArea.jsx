@@ -258,7 +258,7 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
   try{
    let correct=false,explanation="";
    if(question.databaseId){
-    if(!activeUserId)throw new Error("Entre na sua conta para corrigir questões armazenadas no banco de provas.");
+    if(!activeUserId)throw new Error("Entre na sua conta para corrigir esta questão.");
 
     const {data,error}=await authClient.rpc("check_study_question_answer",{
      p_question_id:question.databaseId,p_selected_answer:answer
@@ -274,7 +274,7 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
     attempts:[...current.attempts,{id:"attempt-"+Date.now()+"-"+question.id,questionId:question.id,answer,correct,at:new Date().toISOString(),source:question.origin==="licensed"?"prova-real":question.origin==="generated"?"autoral-gerada":"autoral"}].slice(-500)
    }));
    setAnswerFeedback({correct,explanation});setChecked(true);
-  }catch(error){setAnswerFeedback({error:error?.message||"Não foi possível corrigir esta questão."});}
+  }catch(error){setAnswerFeedback({error:"Não foi possível corrigir esta questão. Tente novamente."});}
   finally{setChecking(false);}
  };
  const next=()=>{
@@ -319,13 +319,13 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
      <button type="button" className="primary-btn" onClick={()=>{setTimerNotice("");setTimerRunning(value=>!value);}}>{timerRunning?"Pausar sessão":"Iniciar foco"}</button>
      <button type="button" className="detail-btn" onClick={resetTimer}>Reiniciar</button>
     </div>
-    <div className="focus-timer-summary"><strong>{focusSessions}</strong><span>sessões concluídas nesta conta e neste dispositivo</span></div>
+    <div className="focus-timer-summary"><strong>{focusSessions}</strong><span>sessões de foco concluídas</span></div>
     {timerNotice&&<p className="focus-timer-notice" role="status">{timerNotice}</p>}
    </div>
   </section>
   <div className="study-grid">
    <div className="panel progress-panel"><div className="panel-head"><div><div className="eyebrow">VISÃO GERAL</div><h2>Seu progresso diário</h2></div><span className="soft-pill">Hoje</span></div><div className="progress-number">{progress}%</div><div className="progress-track"><div style={{width:progress+"%"}}/></div><p className="muted">{tasks.filter(Boolean).length} de {tasks.length} atividades concluídas</p><div className="task-list">{["Revisar português","Resolver 10 questões","Estudar direito constitucional","Fazer uma revisão rápida"].map((task,i)=><label className="task" key={task}><input type="checkbox" checked={Boolean(tasks[i])} onChange={()=>onToggleTask(i)}/><span className={tasks[i]?"task-done":""}>{task}</span><small>{[25,30,40,15][i]} min</small></label>)}</div></div>
-   <div className="panel study-plan-panel"><div className="panel-head"><div><div className="eyebrow">PLANEJAMENTO SEMANAL</div><h2>Monte sua rotina</h2></div><span className="soft-pill">{plan.hours} h/semana</span></div><label className="study-field">Carga horária semanal<select aria-label="Carga horária semanal" value={plan.hours} onChange={e=>update({hours:Number(e.target.value)})}>{[5,8,10,15,20].map(h=><option key={h} value={h}>{h} horas</option>)}</select></label><div className="study-days"><span>Dias disponíveis</span><div>{days.map(day=><label key={day}><input type="checkbox" checked={plan.days.includes(day)} onChange={()=>toggleDay(day)}/>{day}</label>)}</div></div><div className="study-session-list">{sessions.map(s=><label className="study-session" key={s.id}><input type="checkbox" checked={plan.done.includes(s.id)} onChange={()=>update({done:plan.done.includes(s.id)?plan.done.filter(x=>x!==s.id):[...plan.done,s.id]})}/><span><strong>{s.day} · {s.subject}</strong><small>{s.minutes} minutos · teoria, revisão e questões</small></span><small>{plan.done.includes(s.id)?"Concluído":"Pendente"}</small></label>)}</div><p className="study-disclaimer">Plano salvo neste dispositivo e separado por conta. A distribuição é sugestiva e não substitui o edital.</p></div>
+   <div className="panel study-plan-panel"><div className="panel-head"><div><div className="eyebrow">PLANEJAMENTO SEMANAL</div><h2>Monte sua rotina</h2></div><span className="soft-pill">{plan.hours} h/semana</span></div><label className="study-field">Carga horária semanal<select aria-label="Carga horária semanal" value={plan.hours} onChange={e=>update({hours:Number(e.target.value)})}>{[5,8,10,15,20].map(h=><option key={h} value={h}>{h} horas</option>)}</select></label><div className="study-days"><span>Dias disponíveis</span><div>{days.map(day=><label key={day}><input type="checkbox" checked={plan.days.includes(day)} onChange={()=>toggleDay(day)}/>{day}</label>)}</div></div><div className="study-session-list">{sessions.map(s=><label className="study-session" key={s.id}><input type="checkbox" checked={plan.done.includes(s.id)} onChange={()=>update({done:plan.done.includes(s.id)?plan.done.filter(x=>x!==s.id):[...plan.done,s.id]})}/><span><strong>{s.day} · {s.subject}</strong><small>{s.minutes} minutos · teoria, revisão e questões</small></span><small>{plan.done.includes(s.id)?"Concluído":"Pendente"}</small></label>)}</div><p className="study-disclaimer">A distribuição das atividades é uma sugestão e não substitui o edital.</p></div>
   </div>
 
   <React.Suspense fallback={<section className="panel simulator-panel"><p className="muted">Carregando simulados…</p></section>}>
@@ -337,7 +337,7 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
 
   <section className="panel study-question-bank" aria-label="Banco de questões">
    <div className="panel-head">
-    <div><div className="eyebrow">PRÁTICA CONTÍNUA</div><h2>Banco de questões</h2><p className="question-bank-subtitle">{allQuestions.length} questões disponíveis · {questionBank.length} na base inicial · {licensedQuestions.length} adicionais no banco · {new Set(allQuestions.map(item=>item.discipline)).size} disciplinas.</p></div>
+    <div><div className="eyebrow">PRÁTICA CONTÍNUA</div><h2>Banco de questões</h2><p className="question-bank-subtitle">{allQuestions.length} questões disponíveis · {new Set(allQuestions.map(item=>item.discipline)).size} disciplinas para praticar.</p></div>
     <span className="soft-pill">{totalCorrect}/{totalAttempts} acertos · {accuracy}%</span>
    </div>
    <div className="question-bank-stats" aria-label="Estatísticas do banco de questões">
@@ -352,7 +352,7 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
     <label className="question-filter-field">Dificuldade<select aria-label="Filtrar questões por dificuldade" value={difficulty} onChange={e=>setQuestionFilter(setDifficulty,e.target.value)}><option>Todas</option>{["Fácil","Intermediária","Avançada"].map(x=><option key={x}>{x}</option>)}</select></label>
     <label className="question-filter-field">Origem<select aria-label="Filtrar questões por origem" value={originFilter} onChange={e=>setQuestionFilter(setOriginFilter,e.target.value)}><option>Todas</option><option>EditalRadar</option><option>Provas reais autorizadas</option></select></label>
    </div>
-   <div className="question-sync-status" role="status">Progresso: {questionSyncStatus==="syncing"?"sincronizando…":questionSyncStatus==="synced"?"sincronizado na conta":questionSyncStatus==="loading"?"carregando conta":"salvo neste dispositivo"}</div>
+   <div className="question-sync-status" role="status">Progresso: {questionSyncStatus==="syncing"?"Salvando progresso…":questionSyncStatus==="synced"?"Progresso salvo":questionSyncStatus==="loading"?"Carregando seu progresso…":"Progresso salvo neste aparelho"}</div>
    <div className="question-collections" role="group" aria-label="Coleções de questões">
     <button type="button" className={collection==="all"?"active":""} aria-pressed={collection==="all"} onClick={()=>selectCollection("all")}>Todas <span>{collectionCounts.all}</span></button>
     <button type="button" className={collection==="unanswered"?"active":""} aria-pressed={collection==="unanswered"} onClick={()=>selectCollection("unanswered")}>Não respondidas <span>{collectionCounts.unanswered}</span></button>

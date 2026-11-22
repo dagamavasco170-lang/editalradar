@@ -63,6 +63,12 @@ test("PWA usa cache local em erros temporários do servidor", () => {
   assert.match(serviceWorker, /exactPage \|\| appShell \|\| response/);
 });
 
+test("Android apresenta mensagens claras sem expor detalhes internos", () => {
+  assert.ok(android.includes("Sem conexão. Algumas informações já carregadas ainda podem estar disponíveis"));
+  assert.ok(android.includes("Não foi possível estabelecer uma conexão segura"));
+  assert.doesNotMatch(android, /conteúdo em cache|Servidor temporariamente indisponível|Use links HTTPS/);
+});
+
 test("site mantém recursos de acessibilidade e safe areas móveis", () => {
   assert.match(styles, /\.skip-link/);
   assert.match(styles, /:focus-visible/);

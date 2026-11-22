@@ -36,12 +36,12 @@ export default function SimulatorPanel({questionBank,history=[],onComplete,userI
           const selected=run.answers[question.id]||"";
           if(question.databaseId){
             if(!selected)return {questionId:question.id,discipline:question.discipline,topic:question.topic,selected,answer:null,correct:false,explanation:"Questão não respondida."};
-            if(!authClient?.rpc)throw new Error("Conecte-se à sua conta para corrigir questões adicionais do banco.");
+            if(!authClient?.rpc)throw new Error("Entre na sua conta para corrigir esta questão.");
             const {data,error}=await authClient.rpc("check_study_question_answer",{
               p_question_id:question.databaseId,p_selected_answer:selected
             });
             if(error)throw error;
-            if(!data||typeof data.correct!=="boolean")throw new Error("Não foi possível validar uma das respostas no banco. Verifique sua conexão e tente novamente.");
+            if(!data||typeof data.correct!=="boolean")throw new Error("Não foi possível corrigir uma das respostas. Confira sua conexão e tente novamente.");
             return {questionId:question.id,discipline:question.discipline,topic:question.topic,selected,answer:null,correct:data.correct,explanation:data.explanation||""};
           }
           return {questionId:question.id,discipline:question.discipline,topic:question.topic,selected,answer:question.answer,correct:Boolean(selected)&&selected===question.answer,explanation:question.explanation||""};
@@ -60,7 +60,7 @@ export default function SimulatorPanel({questionBank,history=[],onComplete,userI
       setReviewOpen(false);
       onComplete?.(summary);
     }catch(error){
-      setFinishError(error?.message||"Não foi possível corrigir o simulado. Tente novamente.");
+      setFinishError("Não foi possível corrigir o simulado. Confira sua conexão e tente novamente.");
     }finally{
       finishLock.current=false;
       setFinishing(false);
@@ -107,7 +107,7 @@ export default function SimulatorPanel({questionBank,history=[],onComplete,userI
       </div>
       <label className="simulator-time-field">Tempo de prova<select value={minutes} onChange={e=>setMinutes(Number(e.target.value))}>{[size,size*1.5,size*2,size*2.5,size*3].map(value=><option key={value} value={value}>{value} minutos</option>)}</select></label>
       <div className="simulator-setup-footer"><p>O simulado mistura questões autorais, incluindo as novas questões revisadas do banco, embaralha a ordem e não mostra o gabarito durante a prova.</p><button type="button" className="primary-btn" onClick={start} disabled={questionBank.length<size}>Iniciar simulado</button></div>
-      <small className="study-disclaimer">Questões de provas reais ficam separadas no catálogo oficial. Questões armazenadas no banco são corrigidas sem expor o gabarito ao navegador.</small>
+      <small className="study-disclaimer">As respostas corretas só são exibidas depois que você finalizar o simulado.</small>
     </div>}
     {run&&!run.finished&&current&&<div className="simulator-running">
       <div className="simulator-livebar"><div><small>PROGRESSO</small><strong>{answered} de {run.questions.length} respondidas</strong></div><div className="simulator-clock" role="timer" aria-label={"Tempo restante "+clock(remaining)}><strong>{clock(remaining)}</strong><small>restantes</small></div></div>
@@ -126,7 +126,7 @@ export default function SimulatorPanel({questionBank,history=[],onComplete,userI
       <div className="simulator-result-hero"><div><div className="eyebrow">SIMULADO CONCLUÍDO</div><h3>{result.correct} de {result.total} acertos</h3><p>{result.finishReason==="time"?"Tempo encerrado automaticamente.":"Prova finalizada."} · {clock(result.durationSeconds)} de duração</p></div><div className="simulator-score"><strong>{result.percentage}%</strong><span>aproveitamento</span></div></div>
       <div className="simulator-discipline-results">{result.byDiscipline.map(item=><div key={item.discipline}><div><strong>{item.discipline}</strong><span>{item.correct}/{item.total} · {item.percentage}%</span></div><div className="progress-track"><div style={{width:item.percentage+"%"}}/></div></div>)}</div>
       <div className="simulator-result-actions"><button type="button" className="primary-btn" onClick={()=>setReviewOpen(value=>!value)}>{reviewOpen?"Ocultar correção":"Revisar questões e comentários"}</button><button type="button" className="detail-btn" onClick={reset}>Novo simulado</button></div>
-      {reviewOpen&&<div className="simulator-review">{result.review.map((item,index)=><article key={item.questionId} className="simulator-review-item"><div><strong>Questão {index+1} · {item.discipline}</strong><span className={item.correct?"review-correct":"review-wrong"}>{item.correct?"Acertou":item.selected?"Errou":"Não respondida"}</span></div><p>{item.topic}</p><small>Sua resposta: {item.selected?item.selected.toUpperCase():"Em branco"} · {item.answer?"Gabarito: "+item.answer.toUpperCase():item.selected?"Gabarito protegido no banco":"Sem resposta selecionada"}</small><p>{item.explanation}</p></article>)}</div>}
+      {reviewOpen&&<div className="simulator-review">{result.review.map((item,index)=><article key={item.questionId} className="simulator-review-item"><div><strong>Questão {index+1} · {item.discipline}</strong><span className={item.correct?"review-correct":"review-wrong"}>{item.correct?"Acertou":item.selected?"Errou":"Não respondida"}</span></div><p>{item.topic}</p><small>Sua resposta: {item.selected?item.selected.toUpperCase():"Em branco"} · {item.answer?"Gabarito: "+item.answer.toUpperCase():item.selected?"Gabarito não exibido":"Sem resposta selecionada"}</small><p>{item.explanation}</p></article>)}</div>}
     </div>}
     {history.length>0&&<div className="simulator-history"><strong>Histórico de simulados</strong><div>{[...history].reverse().slice(0,4).map(item=><article key={item.id}><span>{item.total} questões</span><strong>{item.percentage}%</strong><small>{item.completedAt?new Date(item.completedAt).toLocaleDateString("pt-BR"):"Data não informada"} · {item.correct}/{item.total} acertos</small></article>)}</div></div>}
   </section>;
