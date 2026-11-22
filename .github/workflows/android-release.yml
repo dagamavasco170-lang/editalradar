@@ -53,13 +53,16 @@ jobs:
           echo "code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
           echo "Android version: $VERSION_NAME ($VERSION_CODE)"
 
-      - name: Configure Firebase for Android (optional until FCM is connected)
+      - name: Validate Firebase Android configuration
         env:
           GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
         shell: bash
         run: |
           if [ -n "$GOOGLE_SERVICES_JSON_BASE64" ]; then
             printf '%s' "$GOOGLE_SERVICES_JSON_BASE64" | base64 --decode > android/app/google-services.json
+          fi
+
+          if [ -f android/app/google-services.json ]; then
             python3 - <<'PY'
           import json
           from pathlib import Path
@@ -73,7 +76,7 @@ jobs:
           print("Configuração Firebase Android validada.")
           PY
           else
-            echo "::warning::GOOGLE_SERVICES_JSON_BASE64 não configurado; o APK será compilado sem registrar dispositivos no FCM."
+            echo "::warning::google-services.json ausente; o APK será compilado sem inicializar Firebase Cloud Messaging."
           fi
 
       - name: Build installable APK and test AAB (automatic retry for repository rate limits)
@@ -115,7 +118,7 @@ jobs:
           - Inclui cache offline do conteúdo previamente carregado, indicador de conexão, canal de notificações nativas e callback de autenticação Google por esquema de aplicativo.
 
           Para login Google, adicione a URL editalradar://auth-callback às Redirect URLs em Supabase Authentication.
-          A versão inclui o receptor FCM e uma função de envio protegida. O push remoto em segundo plano será ativado quando GOOGLE_SERVICES_JSON_BASE64 (GitHub Actions) e FCM_SERVICE_ACCOUNT_JSON (Supabase Edge Functions Secrets) forem configurados.
+          A versão inclui o receptor FCM e uma função de envio protegida. O envio remoto será ativado quando FCM_SERVICE_ACCOUNT_JSON for cadastrado nos secrets das Supabase Edge Functions.
           EOF
 
       - name: Upload build artifacts
