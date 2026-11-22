@@ -463,7 +463,7 @@ test("consulta a busca pública com HTTPS, bloqueio de redirecionamentos e trata
   });
   assert.equal(requested.length, 2);
   assert.ok(requested.every(item => item.url.startsWith("https://news.google.com/rss/search?")));
-  assert.ok(requested.every(item => item.options.redirect === "error"));
+  assert.ok(requested.every(item => item.options.redirect === "manual"));
   assert.equal(result.feedsChecked, 2);
   assert.equal(result.leadCount, 1);
   assert.equal(result.errors.length, 1);
@@ -540,7 +540,7 @@ test("busca feed editorial independente e transforma itens em pistas externas", 
   });
   assert.equal(requested.length, 1);
   assert.equal(requested[0].url, feed.feedUrl);
-  assert.equal(requested[0].options.redirect, "error");
+  assert.equal(requested[0].options.redirect, "manual");
   assert.equal(result.feedsChecked, 1);
   assert.equal(result.secondaryFeedsChecked, 1);
   assert.equal(result.leadCount, 1);
