@@ -1,7 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import {
-  canRetryFcmFailure,
   classifyFcmFailure,
   getFcmRetryDelayMs,
 } from "./policy.js";
@@ -22,8 +21,6 @@ const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_PUBL
 const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 const serviceAccountValue = Deno.env.get("FCM_SERVICE_ACCOUNT_JSON") || "";
 const encoder = new TextEncoder();
-const MAX_BACKGROUND_RETRIES = 50;
-const MAX_RETRY_WAIT_MS = 110_000;
 
 function base64Url(value: string | Uint8Array): string {
   const bytes = typeof value === "string" ? encoder.encode(value) : value;
@@ -157,60 +154,23 @@ async function disableInvalidTokens(adminDb: any, tokens: string[]): Promise<num
   return uniqueTokens.length;
 }
 
-const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-async function retryOneDelivery(
-  token: string,
-  firstFailure: FcmFailure,
-  message: { title: string; body: string; url: string },
-  projectId: string,
-  accessToken: string,
-  adminDb: any,
-) {
-  let failure = firstFailure;
-  let retriesMade = 0;
-  while (canRetryFcmFailure(failure, retriesMade)) {
-    const retryNumber = retriesMade + 1;
-    const delayMs = getFcmRetryDelayMs(failure, retryNumber);
-    // Do not keep an Edge Function worker alive beyond a safe runtime window.
-    if (delayMs > MAX_RETRY_WAIT_MS) {
-      return { outcome: "deferred", code: failure.code };
-    }
-    await wait(delayMs);
-    retriesMade += 1;
-    const result = await sendFcmMessage(token, message, projectId, accessToken);
-    if (result.ok) return { outcome: "sent" };
-    failure = result;
-    if (failure.permanentTokenError) {
-      const disabled = await disableInvalidTokens(adminDb, [token]);
-      return { outcome: disabled ? "disabled" : "disable_failed", code: failure.code };
-    }
+async function queueRetry(adminDb: any, token: string, notification: { title: string; body: string; url: string }, failure: FcmFailure) {
+  const delaySeconds = Math.ceil(getFcmRetryDelayMs(failure, 1) / 1000);
+  const { data, error } = await adminDb.rpc("enqueue_push_delivery", {
+    p_message: {
+      token,
+      ...notification,
+      attempt: 1,
+      last_error_code: failure.code,
+      retry_after: failure.retryAfter || null,
+    },
+    p_delay_seconds: delaySeconds,
+  });
+  if (error || !data) {
+    console.error("[push-notifications] Não foi possível persistir a retentativa:", error?.message || "id ausente");
+    return false;
   }
-  return { outcome: "failed", code: failure.code };
-}
-
-async function retryTransientDeliveries(
-  jobs: Array<{ token: string; failure: FcmFailure }>,
-  message: { title: string; body: string; url: string },
-  projectId: string,
-  accessToken: string,
-  adminDb: any,
-) {
-  const retryJobs = jobs.slice(0, MAX_BACKGROUND_RETRIES);
-  const results = await Promise.all(retryJobs.map((job) =>
-    retryOneDelivery(job.token, job.failure, message, projectId, accessToken, adminDb)
-  ));
-  const summary = results.reduce((counts: Record<string, number>, result) => {
-    counts[result.outcome] = (counts[result.outcome] || 0) + 1;
-    return counts;
-  }, {});
-  console.info("[push-notifications] Retentativas FCM concluídas:", summary);
-  if (jobs.length > retryJobs.length) {
-    console.warn("[push-notifications] Limite de retentativas em segundo plano atingido:", {
-      scheduled: retryJobs.length,
-      skipped: jobs.length - retryJobs.length,
-    });
-  }
+  return true;
 }
 
 Deno.serve(async (req: Request) => {
@@ -310,13 +270,15 @@ Deno.serve(async (req: Request) => {
 
     // Gives the user time to leave the app and lock the screen before delivery.
     if (isBackgroundTest) {
-      await wait(15_000);
+      await new Promise((resolve) => setTimeout(resolve, 15_000));
     }
 
     const notification = { title, body: messageBody, url: destination };
     let sent = 0;
     let failed = 0;
     let disabledInvalid = 0;
+    let retryScheduled = 0;
+    let retryEnqueueFailed = 0;
     const invalidTokens: string[] = [];
     const retryJobs: Array<{ token: string; failure: FcmFailure }> = [];
     const failureCodes = new Map<string, number>();
@@ -341,18 +303,9 @@ Deno.serve(async (req: Request) => {
     }
 
     disabledInvalid = await disableInvalidTokens(adminDb, invalidTokens);
-    let retryScheduled = 0;
-    let retrySkipped = 0;
-    if (retryJobs.length) {
-      const scheduledJobs = retryJobs.slice(0, MAX_BACKGROUND_RETRIES);
-      retryScheduled = scheduledJobs.length;
-      retrySkipped = retryJobs.length - scheduledJobs.length;
-      // Retrying in the background keeps the API response quick and respects
-      // FCM Retry-After / exponential backoff without blocking the user.
-      EdgeRuntime.waitUntil(
-        retryTransientDeliveries(scheduledJobs, notification, serviceAccount.project_id, accessToken, adminDb)
-          .catch((error) => console.error("[push-notifications] Falha na rotina de retentativa:", error?.message || error)),
-      );
+    for (const job of retryJobs) {
+      if (await queueRetry(adminDb, job.token, notification, job.failure)) retryScheduled += 1;
+      else retryEnqueueFailed += 1;
     }
 
     const errorCodes = [...failureCodes.entries()]
@@ -362,7 +315,7 @@ Deno.serve(async (req: Request) => {
       return json({
         ok: false,
         error: retryScheduled
-          ? "O Firebase apresentou uma falha temporária. Uma nova tentativa automática foi programada."
+          ? "O Firebase apresentou uma falha temporária. A retentativa foi salva na fila e será processada automaticamente."
           : "O Firebase recusou o envio do teste. Verifique a credencial da conta de serviço e o projeto Firebase.",
         total: tokens.length,
         sent,
@@ -370,7 +323,7 @@ Deno.serve(async (req: Request) => {
         error_codes: errorCodes,
         disabled_invalid: disabledInvalid,
         retry_scheduled: retryScheduled,
-        retry_skipped: retrySkipped,
+        retry_enqueue_failed: retryEnqueueFailed,
       });
     }
     return json({
@@ -381,7 +334,7 @@ Deno.serve(async (req: Request) => {
       ...(isSelfTest ? { error_codes: errorCodes } : {}),
       disabled_invalid: disabledInvalid,
       retry_scheduled: retryScheduled,
-      retry_skipped: retrySkipped,
+      retry_enqueue_failed: retryEnqueueFailed,
     });
   } catch (error) {
     return json({ error: String(error?.message || error).slice(0, 300) }, 502);
