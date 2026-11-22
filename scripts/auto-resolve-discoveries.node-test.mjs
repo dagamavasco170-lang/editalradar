@@ -73,6 +73,26 @@ test("extrai lista de cargos da seção Cargo/Área/Especialidade no padrão FCC
 });
 
 
+
+test("descarta título claramente administrativo sem descartar caso ambíguo de concurso", () => {
+  const administrative = classifyDiscovery(
+    { ...discovery, discovery_type: "new_link", title: "Consultar editais e ADEs" },
+    {
+      title: "Consultar editais e ADEs",
+      heading: "Editais e atos declaratórios executivos",
+      text: "Consulte editais e atos declaratórios executivos da Receita Federal."
+    },
+    "https://www.gov.br/pt-br/servicos/consultar-editais-e-atos-declaratorios-executivos-da-receita-federal"
+  );
+  assert.equal(administrative.decision, "dismiss");
+  const ambiguous = classifyDiscovery(
+    { ...discovery, discovery_type: "new_link", title: "Edital para concurso — detalhes a publicar" },
+    { title: "Edital para concurso", heading: "Edital para concurso", text: "O órgão divulgará informações em breve." },
+    "https://www.gov.br/concursos/novo-certame"
+  );
+  assert.equal(ambiguous.decision, "review");
+});
+
 test("descarta editais históricos sem sinal oficial de vigência", () => {
   const result = assessNoticeFreshness({
     candidateUrl:"https://conhecimento.fgv.br/concursos/tjmsjuiz23",
