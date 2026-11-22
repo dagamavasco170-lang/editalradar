@@ -10,6 +10,12 @@ function parseRetryAfterMs(value, now = Date.now()) {
   return Number.isFinite(timestamp) ? Math.max(0, timestamp - now) : null;
 }
 
+export function canScheduleFcmRetryBeforeExpiry(expiresAt, delayMs, now = Date.now()) {
+  const expiry = Date.parse(String(expiresAt || ""));
+  const delay = Math.max(0, Number(delayMs) || 0);
+  return Number.isFinite(expiry) && expiry - now > delay;
+}
+
 export function classifyFcmFailure(httpStatus, payload = {}) {
   const details = Array.isArray(payload?.error?.details) ? payload.error.details : [];
   const fcmDetail = details.find((item) => item?.["@type"] === FCM_ERROR_TYPE);
