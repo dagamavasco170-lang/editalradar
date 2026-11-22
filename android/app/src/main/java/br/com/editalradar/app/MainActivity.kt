@@ -104,11 +104,11 @@ class MainActivity : Activity() {
             contentDescription = "Conteúdo do EditalRadar"
         }
         root.setOnApplyWindowInsetsListener { view, insets ->
+            // O teclado usa SOFT_INPUT_ADJUST_RESIZE; não somar IME ao padding de barras.
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 val safeInsets = insets.getInsets(
                     WindowInsets.Type.systemBars() or
-                        WindowInsets.Type.displayCutout() or
-                        WindowInsets.Type.ime()
+                        WindowInsets.Type.displayCutout()
                 )
                 view.setPadding(safeInsets.left, safeInsets.top, safeInsets.right, safeInsets.bottom)
             } else {
