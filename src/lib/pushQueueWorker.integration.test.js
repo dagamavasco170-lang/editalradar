@@ -179,8 +179,10 @@ describe("integração simulada do worker de notificações", () => {
     const sendMessage = vi.fn();
     const enqueuedAt = new Date(NOW - 3_600_001).toISOString();
 
+    const legacyJob = job({ enqueuedAt });
+    delete legacyJob.message.expires_at;
     const result = await processPushDeliveryJob(options(db, sendMessage, {
-      job: job({ enqueuedAt, message: { expires_at: undefined } })
+      job: legacyJob
     }));
 
     expect(result).toEqual({ outcome: "expired" });
