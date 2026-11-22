@@ -20,6 +20,101 @@ const OCR_PAGE_TIMEOUT_MS = 6000;
 const DEFAULT_OFFICIAL_RETRY_COOLDOWN_MS = 6 * 60 * 60 * 1000;
 const DEFAULT_EXTERNAL_RETRY_COOLDOWN_MS = 6 * 60 * 60 * 1000;
 const PENDING_DISCOVERY_TYPES = new Set(["new_link", "page_change", "web_search_lead"]);
+const SECONDARY_NEWS_HOSTS = [
+  "concursosnobrasil.com.br",
+  "concursos.estrategia.com",
+  "estrategiaconcursos.com.br"
+];
+
+export function isTrustedSecondaryNewsHost(hostname) {
+  const host = String(hostname || "").toLowerCase().replace(/\.$/, "");
+  return SECONDARY_NEWS_HOSTS.some(domain => host === domain || host.endsWith("." + domain));
+}
+
+function validateSecondaryNewsUrl(value) {
+  let url;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error("Endereço da notícia secundária inválido.");
+  }
+  if (url.protocol !== "https:" || !isTrustedSecondaryNewsHost(url.hostname)
+    || url.username || url.password || (url.port && url.port !== "443")) {
+    throw new Error("A notícia não pertence a um veículo secundário previamente autorizado.");
+  }
+  return url;
+}
+
+export function extractOfficialReferenceLinks(html, articleUrl) {
+  const found = new Map();
+  const anchors = String(html || "").matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a\s*>/gi);
+  for (const match of anchors) {
+    const hrefMatch = match[1].match(/\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i);
+    if (!hrefMatch) continue;
+    const href = decodeEntities(hrefMatch[1] ?? hrefMatch[2] ?? hrefMatch[3] ?? "");
+    const label = decodeEntities(match[2]).replace(/\s+/g, " ").trim();
+    if (!href) continue;
+    try {
+      const url = validateTrustedOfficialUrl(new URL(href, articleUrl).href);
+      url.hash = "";
+      const signal = label + " " + url.pathname + " " + url.search;
+      if (!/\b(edital|concursos?|processos?[-_ ]seletivos?|sele[cç][aã]o|inscri[cç][oõ]es|retifica[cç][aã]o|errata|aditivo|certame)\b/i.test(signal)) continue;
+      const normalized = url.toString();
+      if (normalized === articleUrl) continue;
+      if (!found.has(normalized)) {
+        found.set(normalized, { url: normalized, label: label.slice(0, 180) });
+      }
+    } catch {
+      // Links externos, HTTP ou não autorizados nunca viram candidatos oficiais.
+    }
+  }
+  return [...found.values()];
+}
+
+export async function fetchSecondaryNewsArticle(articleUrl, request = fetch, options = {}) {
+  const startUrl = validateSecondaryNewsUrl(articleUrl).href;
+  const timeoutMs = Math.max(1000, Number(options.timeoutMs) || TIMEOUT_MS);
+  const maxRedirects = Math.max(0, Math.min(5, Number(options.maxRedirects ?? 4)));
+  let currentUrl = startUrl;
+
+  for (let redirectCount = 0; redirectCount <= maxRedirects; redirectCount += 1) {
+    const response = await request(currentUrl, {
+      method: "GET",
+      redirect: "manual",
+      signal: AbortSignal.timeout(timeoutMs),
+      headers: {
+        "User-Agent": "Mozilla/5.0 (compatible; EditalRadar-SecondaryDiscovery/1.0; +https://github.com/dagamavasco170-lang/editalradar)",
+        Accept: "text/html,application/xhtml+xml;q=0.9"
+      }
+    });
+    if ([301, 302, 303, 307, 308].includes(response.status)) {
+      if (redirectCount === maxRedirects) throw new Error("A notícia excedeu o limite de redirecionamentos seguros.");
+      const location = response.headers?.get?.("location");
+      if (!location) throw new Error("Redirecionamento da notícia sem destino informado.");
+      const target = new URL(location, currentUrl);
+      if (isTrustedOfficialHost(target.hostname)) {
+        return { officialUrl: validateTrustedOfficialUrl(target.href).href, html: "", redirected: true };
+      }
+      currentUrl = validateSecondaryNewsUrl(target.href).href;
+      continue;
+    }
+    if (!response.ok) throw new Error("O veículo secundário respondeu HTTP " + response.status + ".");
+    const finalUrl = response.url || currentUrl;
+    if (!isTrustedSecondaryNewsHost(new URL(finalUrl).hostname)) {
+      throw new Error("A notícia terminou fora do veículo secundário autorizado.");
+    }
+    const contentType = response.headers?.get?.("content-type") || "";
+    if (!/(text\/html|application\/xhtml\+xml)/i.test(contentType)) {
+      throw new Error("A página da notícia não retornou HTML.");
+    }
+    const length = Number(response.headers?.get?.("content-length") || 0);
+    if (length > MAX_BYTES) throw new Error("A página da notícia excede o limite de 4 MB.");
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    if (bytes.byteLength > MAX_BYTES) throw new Error("A página da notícia excede o limite de 4 MB.");
+    return { officialUrl: null, html: new TextDecoder("utf-8").decode(bytes), finalUrl };
+  }
+  throw new Error("Não foi possível abrir a notícia secundária.");
+}
 
 const STATE_NAMES = {
   ac: "Acre", al: "Alagoas", ap: "Amapá", am: "Amazonas", ba: "Bahia",
@@ -1071,34 +1166,70 @@ export async function prepareDiscoveryDocument(item, request = fetch, options = 
   let candidate;
   let candidateValue = item?.candidate_url;
   if (item?.discovery_type === "web_search_lead") {
-    // Resolve o link do Google Notícias e só aceita o publisher HTTPS declarado no feed.
-    // Nunca usa o agregador ou o veículo jornalístico como prova do edital.
+    // Google Notícias continua exigindo um publisher oficial declarado.
+    // Feeds editoriais independentes só podem encaminhar para um único link oficial
+    // encontrado no artigo e depois validado pelo mesmo pipeline de edital.
     const declaredSource = extractDeclaredPublisherUrl(item?.context);
-    if (!declaredSource) {
-      return {
-        stage: "review",
-        reason: "A pista da busca ainda não aponta para uma fonte oficial autorizada. O agregador de notícias não é prova de edital; a descoberta continua na fila."
-      };
-    }
+    let secondaryCandidate = null;
     try {
-      const resolvedArticle = await resolveGoogleNewsArticleUrl(
-        item?.candidate_url,
-        declaredSource.href,
-        request,
-        { timeoutMs: options.timeoutMs ?? TIMEOUT_MS, maxRedirects: options.newsRedirectMaxHops ?? 5 }
-      );
-      if (!resolvedArticle) {
+      const initial = new URL(candidateValue);
+      if (isTrustedOfficialHost(initial.hostname)) {
+        candidateValue = validateTrustedOfficialUrl(initial.href).href;
+      } else if (declaredSource) {
+        const resolvedArticle = await resolveGoogleNewsArticleUrl(
+          item?.candidate_url,
+          declaredSource.href,
+          request,
+          { timeoutMs: options.timeoutMs ?? TIMEOUT_MS, maxRedirects: options.newsRedirectMaxHops ?? 5 }
+        );
+        if (!resolvedArticle) {
+          return {
+            stage: "review",
+            reason: "O link do Google Notícias não revelou um endereço verificável da publicação no domínio oficial indicado. A pista permanece pendente, sem cadastro automático."
+          };
+        }
+        candidateValue = resolvedArticle;
+      } else if (isTrustedSecondaryNewsHost(initial.hostname)) {
+        secondaryCandidate = initial.href;
+      } else {
         return {
           stage: "review",
-          reason: "O link do Google Notícias não revelou um endereço verificável da publicação no domínio oficial indicado. A pista permanece pendente, sem cadastro automático."
+          reason: "A pista não aponta para um domínio oficial nem para um veículo editorial auxiliar autorizado. Continua pendente, sem cadastro automático."
         };
       }
-      candidateValue = resolvedArticle;
     } catch (error) {
       return {
         stage: "review",
-        reason: "Não foi possível resolver com segurança o link da notícia: " + summarizeFetchError(error)
+        reason: "Não foi possível validar a origem da notícia: " + summarizeFetchError(error)
       };
+    }
+
+    if (secondaryCandidate) {
+      try {
+        const article = await fetchSecondaryNewsArticle(secondaryCandidate, request, {
+          timeoutMs: options.timeoutMs ?? TIMEOUT_MS,
+          maxRedirects: options.secondaryNewsRedirectMaxHops ?? 4
+        });
+        if (article.officialUrl) {
+          candidateValue = article.officialUrl;
+        } else {
+          const references = extractOfficialReferenceLinks(article.html, article.finalUrl || secondaryCandidate);
+          if (references.length !== 1) {
+            return {
+              stage: "review",
+              reason: references.length === 0
+                ? "A notícia secundária não revelou link direto para um edital ou comunicado em domínio oficial autorizado. A pista permanece pendente."
+                : "A notícia contém mais de um link oficial possível. A triagem não escolhe entre editais ambíguos e mantém a pista para revisão."
+            };
+          }
+          candidateValue = references[0].url;
+        }
+      } catch (error) {
+        return {
+          stage: "review",
+          reason: "Não foi possível examinar a notícia secundária com segurança: " + summarizeFetchError(error)
+        };
+      }
     }
   }
 

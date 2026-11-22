@@ -439,7 +439,30 @@ export const INTERNET_SEARCH_QUERIES = [
   { label: "Inscrições abertas e prazos", query: '("inscrições abertas" OR "prazo de inscrição" OR "período de inscrição") concurso edital vagas' }
 ];
 
+export const SECONDARY_NEWS_FEEDS = [
+  {
+    id: "concursos-no-brasil",
+    label: "Concursos no Brasil",
+    feedUrl: "https://www.concursosnobrasil.com.br/feed/"
+  },
+  {
+    id: "estrategia-concursos",
+    label: "Estratégia Concursos",
+    feedUrl: "https://concursos.estrategia.com/portal/feed/"
+  }
+];
+
 const GOOGLE_NEWS_RSS_ENDPOINT = "https://news.google.com/rss/search";
+const SECONDARY_NEWS_HOSTS = [
+  "concursosnobrasil.com.br",
+  "concursos.estrategia.com",
+  "estrategiaconcursos.com.br"
+];
+
+export function isTrustedSecondaryNewsHost(hostname) {
+  const host = String(hostname || "").toLowerCase().replace(/\.$/, "");
+  return SECONDARY_NEWS_HOSTS.some(domain => host === domain || host.endsWith("." + domain));
+}
 const WEB_SEARCH_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
 const WEB_SEARCH_MAX_FEED_BYTES = 2 * 1024 * 1024;
 
@@ -589,6 +612,73 @@ export function parseGoogleNewsRss(xml, options = {}) {
   return leads;
 }
 
+export function parseSecondaryNewsRss(xml, options = {}) {
+  const now = options.now instanceof Date ? options.now : new Date(options.now || Date.now());
+  const maxAgeMs = Math.max(60_000, Number(options.maxAgeMs) || WEB_SEARCH_MAX_AGE_MS);
+  const maxResults = Math.max(1, Math.min(30, Number(options.maxResults) || 8));
+  const feedUrl = String(options.feedUrl || "");
+  const feedLabel = String(options.feedLabel || "Fonte editorial").slice(0, 100);
+  const items = String(xml || "").matchAll(/<item(?:\s[^>]*)?>([\s\S]*?)<\/item\s*>/gi);
+  const leads = [];
+  const seen = new Set();
+
+  for (const match of items) {
+    if (leads.length >= maxResults) break;
+    const item = match[1];
+    const title = readXmlTag(item, "title");
+    const link = readXmlTag(item, "link");
+    const description = readXmlTag(item, "description") || readXmlTag(item, "content:encoded");
+    const publishedRaw = readXmlTag(item, "pubDate");
+    if (!title || !link || !/(concurso|concursos|edital|processo seletivo|certame|seleção pública|selecao publica|vagas|banca organizadora)/i.test(title + " " + description.slice(0, 700))) continue;
+
+    let candidate;
+    try {
+      candidate = new URL(link);
+      if (candidate.protocol !== "https:" || candidate.username || candidate.password || !isTrustedSecondaryNewsHost(candidate.hostname)) continue;
+      candidate.hash = "";
+    } catch {
+      continue;
+    }
+
+    const publishedTimestamp = Date.parse(publishedRaw);
+    if (Number.isFinite(publishedTimestamp) && (
+      publishedTimestamp < now.getTime() - maxAgeMs
+      || publishedTimestamp > now.getTime() + 48 * 60 * 60 * 1000
+    )) continue;
+
+    const category = classifyContestLead(title, description);
+    const normalizedTitle = normalizeNewsLeadIdentity(title);
+    const stableIdentity = (normalizedTitle.length >= 35 ? normalizedTitle : candidate.toString())
+      + "|publisher:" + candidate.hostname.toLowerCase();
+    const digest = createHash("sha256").update(stableIdentity).digest("hex");
+    const discoveryKey = "secondary-feed-title:" + digest;
+    if (seen.has(discoveryKey)) continue;
+    seen.add(discoveryKey);
+
+    const dateLabel = Number.isFinite(publishedTimestamp)
+      ? new Date(publishedTimestamp).toLocaleString("pt-BR", { timeZone: "America/Maceio" })
+      : "data não informada pelo feed";
+    const contextParts = [
+      "Pista encontrada em feed editorial independente; ainda não é confirmação de concurso.",
+      "Veículo: " + feedLabel + ".",
+      "Classificação automática: " + category.label + ".",
+      "Publicação: " + dateLabel + ".",
+      description ? "Resumo: " + description.slice(0, 650) : "",
+      "O robô tentará localizar o edital em um domínio oficial autorizado. A notícia e o veículo secundário nunca serão usados como prova para cadastro automático."
+    ].filter(Boolean);
+
+    leads.push({
+      source_url: feedUrl,
+      candidate_url: candidate.toString(),
+      discovery_key: discoveryKey,
+      title: "[" + category.label + "] " + feedLabel + ": " + title.slice(0, 180),
+      context: contextParts.join(" "),
+      discovery_type: "web_search_lead"
+    });
+  }
+  return leads;
+}
+
 export async function fetchNewsFeedWithRetry(feedUrl, options = {}) {
   const request = options.fetchImpl || fetch;
   const attempts = Math.max(1, Math.min(4, Number(options.attempts) || 3));
@@ -597,8 +687,14 @@ export async function fetchNewsFeedWithRetry(feedUrl, options = {}) {
   const wait = options.sleepImpl || (milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds)));
   const nowMs = Number.isFinite(Number(options.nowMs)) ? Number(options.nowMs) : Date.now();
   const parsedUrl = new URL(feedUrl);
-  if (parsedUrl.protocol !== "https:" || parsedUrl.hostname !== "news.google.com" || parsedUrl.username || parsedUrl.password) {
-    throw new Error("Feed de notícias bloqueado: somente HTTPS de news.google.com é permitido.");
+  const googleFeedAllowed = parsedUrl.hostname === "news.google.com"
+    && parsedUrl.pathname === "/rss/search"
+    && parsedUrl.searchParams.has("q");
+  const secondaryFeedAllowed = SECONDARY_NEWS_FEEDS.some(feed => feed.feedUrl === parsedUrl.href);
+  if (parsedUrl.protocol !== "https:" || parsedUrl.username || parsedUrl.password
+    || (parsedUrl.port && parsedUrl.port !== "443")
+    || (!googleFeedAllowed && !secondaryFeedAllowed)) {
+    throw new Error("Feed de notícias bloqueado: somente feeds HTTPS previamente autorizados são permitidos.");
   }
 
   let lastError = null;
@@ -618,7 +714,7 @@ export async function fetchNewsFeedWithRetry(feedUrl, options = {}) {
         return response;
       }
 
-      lastError = new Error("Google Notícias respondeu HTTP " + response.status + ".");
+      lastError = new Error("O provedor de notícias respondeu HTTP " + response.status + ".");
       const retryAfter = retryAfterMilliseconds(response.headers, nowMs);
       await wait(retryAfter ?? retryDelayMs * (2 ** (attempt - 1)));
     } catch (error) {
@@ -634,10 +730,12 @@ export async function fetchNewsFeedWithRetry(feedUrl, options = {}) {
 export async function searchInternetForContestLeads(options = {}) {
   const request = options.fetchImpl || fetch;
   const queries = Array.isArray(options.queries) ? options.queries : INTERNET_SEARCH_QUERIES;
+  const secondaryFeeds = Array.isArray(options.secondaryFeeds) ? options.secondaryFeeds : SECONDARY_NEWS_FEEDS;
   const concurrency = Math.max(1, Math.min(4, Number(options.concurrency) || 3));
   const now = options.now instanceof Date ? options.now : new Date(options.now || Date.now());
   const maxResultsPerQuery = Math.max(1, Math.min(20, Number(options.maxResultsPerQuery) || 8));
-  const checked = await mapWithConcurrency(queries, concurrency, async entry => {
+
+  const googleChecked = await mapWithConcurrency(queries, concurrency, async entry => {
     const feedUrl = buildGoogleNewsRssUrl(entry.query);
     try {
       const response = await fetchNewsFeedWithRetry(feedUrl, {
@@ -655,12 +753,41 @@ export async function searchInternetForContestLeads(options = {}) {
       if (new TextEncoder().encode(xml).byteLength > WEB_SEARCH_MAX_FEED_BYTES) throw new Error("O feed excede o limite de 2 MB.");
       if (!/<(?:rss|feed)\b/i.test(xml)) throw new Error("A resposta não contém um feed RSS/XML válido.");
       const discoveries = parseGoogleNewsRss(xml, { now, queryLabel: entry.label, feedUrl, maxResults: maxResultsPerQuery });
-      return { label: entry.label, feedUrl, discoveries, error: null };
+      return { label: entry.label, feedUrl, discoveries, error: null, provider: "Google Notícias" };
     } catch (error) {
-      return { label: entry.label, feedUrl, discoveries: [], error: String(error?.message || error).slice(0, 260) };
+      return { label: entry.label, feedUrl, discoveries: [], error: String(error?.message || error).slice(0, 260), provider: "Google Notícias" };
     }
   });
 
+  const secondaryChecked = await mapWithConcurrency(secondaryFeeds, Math.min(concurrency, 2), async feed => {
+    try {
+      const response = await fetchNewsFeedWithRetry(feed.feedUrl, {
+        fetchImpl: request,
+        attempts: options.attempts,
+        timeoutMs: options.timeoutMs,
+        retryDelayMs: options.retryDelayMs,
+        sleepImpl: options.sleepImpl,
+        nowMs: options.nowMs
+      });
+      if (!response.ok) throw new Error(feed.label + " respondeu HTTP " + response.status + ".");
+      const contentLength = Number(response.headers?.get?.("content-length") || 0);
+      if (contentLength > WEB_SEARCH_MAX_FEED_BYTES) throw new Error("O feed excede o limite de 2 MB.");
+      const xml = await response.text();
+      if (new TextEncoder().encode(xml).byteLength > WEB_SEARCH_MAX_FEED_BYTES) throw new Error("O feed excede o limite de 2 MB.");
+      if (!/<(?:rss|feed)\b/i.test(xml)) throw new Error("A resposta não contém um feed RSS/XML válido.");
+      const discoveries = parseSecondaryNewsRss(xml, {
+        now,
+        feedLabel: feed.label,
+        feedUrl: feed.feedUrl,
+        maxResults: maxResultsPerQuery
+      });
+      return { label: feed.label, feedUrl: feed.feedUrl, discoveries, error: null, provider: feed.label };
+    } catch (error) {
+      return { label: feed.label, feedUrl: feed.feedUrl, discoveries: [], error: String(error?.message || error).slice(0, 260), provider: feed.label };
+    }
+  });
+
+  const checked = [...googleChecked, ...secondaryChecked];
   const unique = new Map();
   for (const result of checked) {
     for (const item of result.discoveries) {
@@ -675,8 +802,10 @@ export async function searchInternetForContestLeads(options = {}) {
 
   const discoveries = [...unique.values()];
   return {
-    provider: "Google Notícias RSS",
+    provider: "Google Notícias RSS + feeds editoriais independentes",
     feedsChecked: checked.length,
+    googleFeedsChecked: googleChecked.length,
+    secondaryFeedsChecked: secondaryChecked.length,
     leadCount: discoveries.length,
     errors: checked.filter(item => item.error).map(item => ({ label: item.label, error: item.error })),
     discoveries
@@ -761,6 +890,8 @@ async function runMonitor() {
     internetSearch: {
       provider: internetSearch.provider,
       feedsChecked: internetSearch.feedsChecked,
+      googleFeedsChecked: internetSearch.googleFeedsChecked,
+      secondaryFeedsChecked: internetSearch.secondaryFeedsChecked,
       foundCount: internetSearch.leadCount,
       leadCount: unseenWebSearch.discoveries.length,
       errors: internetSearch.errors
@@ -794,7 +925,7 @@ async function runMonitor() {
     "Fontes acompanhadas: " + report.monitoredCount,
     "Concorrência: " + report.concurrency + " · tentativas por fonte: 3",
     "Consultas recuperadas pelo transporte alternativo: " + report.fallbackCount,
-    "Buscas automáticas na internet: " + internetSearch.feedsChecked + " consultas · " + internetSearch.leadCount + " resultados atuais · " + unseenWebSearch.discoveries.length + " pistas novas.",
+    "Buscas automáticas na internet: " + internetSearch.feedsChecked + " feeds/consultas (" + internetSearch.googleFeedsChecked + " do Google Notícias e " + internetSearch.secondaryFeedsChecked + " editoriais) · " + internetSearch.leadCount + " resultados atuais · " + unseenWebSearch.discoveries.length + " pistas novas.",
     "Falhas de consulta na internet: " + internetSearch.errors.length,
     ...(firstRun ? ["Esta foi a primeira leitura; os resultados formam a linha de base."] : []),
     ""
