@@ -114,6 +114,9 @@ const DEFAULT_AUTONOMOUS_TOPICS = [
   { discipline: "Tecnologia Educacional", topic: "Desenvolvimento de cursos digitais e recursos educacionais abertos", source_url: "https://wikieducator.org/Digital_skills_for_collaborative_OER_development" },
   { discipline: "Literatura Brasileira", topic: "Naturalismo brasileiro: análise social e construção narrativa em O Cortiço", source_url: "https://pt.wikisource.org/wiki/O_Corti%C3%A7o/I" },
   { discipline: "Literatura Brasileira", topic: "Realismo brasileiro: narrador, memória e ambiguidade em Dom Casmurro", source_url: "https://pt.wikisource.org/wiki/Dom_Casmurro/CXXI" },
+  { discipline: "Estatística", topic: "Leitura e interpretação de gráficos, tendências e séries temporais", source_url: "https://www.gapminder.org/teaching/materials/" },
+  { discipline: "Demografia", topic: "Indicadores demográficos, fecundidade, expectativa de vida e população", source_url: "https://www.gapminder.org/teaching/materials/" },
+  { discipline: "Geografia Humana", topic: "Desenvolvimento global, renda e comparação entre regiões", source_url: "https://www.gapminder.org/teaching/materials/" },
 
   { discipline: "Informática", topic: "HTML, estrutura semântica e acessibilidade na web", source_url: "https://developer.mozilla.org/pt-BR/docs/Web/HTML" },
   { discipline: "Informática", topic: "CSS, seletores, cascata e layout responsivo", source_url: "https://developer.mozilla.org/pt-BR/docs/Web/CSS" },
@@ -172,7 +175,7 @@ function sourceLicenseMetadata(sourceUrl: string): SourceLicense | null {
   let url: URL;
   try { url = new URL(sourceUrl); } catch { return null; }
   const host = url.hostname.toLowerCase();
-  const path = url.pathname.toLowerCase();
+  const path = decodeURIComponent(url.pathname).toLowerCase();
   if (host === "pt.wikibooks.org") return { source_license: "CC BY-SA 4.0", source_attribution: "Colaboradores do Wikilivros; histórico: " + sourceUrl + "?action=history", content_license: "CC BY-SA 4.0" };
   if (host === "pt.wikipedia.org" || host === "pt.wiktionary.org") return { source_license: "CC BY-SA 4.0 / GFDL (conforme a página)", source_attribution: "Colaboradores da Wikimedia; histórico: " + sourceUrl + "?action=history", content_license: "CC BY-SA 4.0" };
   if (host === "pt.wikiversity.org") return { source_license: "CC BY-SA 3.0 / GFDL (conforme a página)", source_attribution: "Colaboradores da Wikiversidade; histórico: " + sourceUrl + "?action=history", content_license: "CC BY-SA 3.0" };
@@ -186,7 +189,8 @@ function sourceLicenseMetadata(sourceUrl: string): SourceLicense | null {
   if (host === "docs.aws.amazon.com") return { source_license: "CC BY-SA 4.0 (documentação AWS; exemplos de código excluídos)", source_attribution: "Amazon Web Services — " + sourceUrl + " (documentação sob CC BY-SA 4.0; blocos de código não utilizados)", content_license: "CC BY-SA 4.0" };
   if (host === "docs.docker.com") return { source_license: "Apache License 2.0 (documentação Docker)", source_attribution: "Docker, Inc. — " + sourceUrl + " (Apache-2.0)", content_license: "Apache-2.0" };
   if (host === "wikieducator.org") return { source_license: "CC BY-SA 4.0 (padrão WikiEducator; respeitar licenças CC BY/CC0 específicas indicadas na página)", source_attribution: "WikiEducator contributors — " + sourceUrl + " (verificar o rodapé e histórico da página; atribuição e compartilhamento pela mesma licença)", content_license: "CC BY-SA 4.0; página pode especificar CC BY 4.0 ou CC0" };
-  if (host === "pt.wikisource.org" && (path.startsWith("/wiki/o_corti%C3%A7o/") || path.startsWith("/wiki/dom_casmurro/"))) return { source_license: "Obra original em domínio público no Brasil; transcrição Wikisource CC BY-SA 4.0", source_attribution: "Aluísio Azevedo, O Cortiço / Machado de Assis, Dom Casmurro — transcrição e histórico: " + sourceUrl + " (CC BY-SA 4.0)", content_license: "Domínio público no Brasil para a obra original; CC BY-SA 4.0 para a transcrição Wikisource" };
+  if (host === "www.gapminder.org" && path === "/teaching/materials/") return { source_license: "CC BY 4.0 (material didático Gapminder)", source_attribution: "Based on free material from GAPMINDER.ORG, CC-BY LICENSE — " + sourceUrl, content_license: "CC BY 4.0" };
+  if (host === "pt.wikisource.org" && (path.startsWith("/wiki/o_cortiço/") || path.startsWith("/wiki/dom_casmurro/"))) return { source_license: "Obra original em domínio público no Brasil; transcrição Wikisource CC BY-SA 4.0", source_attribution: "Aluísio Azevedo, O Cortiço / Machado de Assis, Dom Casmurro — transcrição e histórico: " + sourceUrl + " (CC BY-SA 4.0)", content_license: "Domínio público no Brasil para a obra original; CC BY-SA 4.0 para a transcrição Wikisource" };
   return null;
 }
 

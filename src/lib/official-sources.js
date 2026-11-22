@@ -12,7 +12,7 @@ const PRIVATE_STUDY_SOURCE_DOMAINS = [
   "pt.wikiversity.org",
   "pt.wiktionary.org",
   "developer.mozilla.org", "docs.python.org", "www.postgresql.org", "doc.rust-lang.org",
-  "docs.github.com", "kubernetes.io", "docs.aws.amazon.com", "docs.docker.com", "wikieducator.org", "pt.wikisource.org"
+  "docs.github.com", "kubernetes.io", "docs.aws.amazon.com", "docs.docker.com", "wikieducator.org", "pt.wikisource.org", "www.gapminder.org"
 ];
 
 export function parseHttpsUrl(value) {
@@ -57,6 +57,7 @@ export function isTrustedPrivateStudySourceUrl(value) {
   if (host === "kubernetes.io" && !path.startsWith("/docs/")) return false;
   if (host === "developer.mozilla.org" && !path.includes("/docs/")) return false;
   if (host === "pt.wikisource.org" && !(path.startsWith("/wiki/o_cortiço/") || path.startsWith("/wiki/dom_casmurro/"))) return false;
+  if (host === "www.gapminder.org" && path !== "/teaching/materials/") return false;
   return true;
 }
 

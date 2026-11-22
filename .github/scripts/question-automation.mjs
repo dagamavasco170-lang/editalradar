@@ -95,13 +95,14 @@ function isTrustedHost(value) {
       "www.politize.com.br", "politize.com.br",
       "pt.wikibooks.org", "pt.wikipedia.org", "pt.wikiversity.org", "pt.wiktionary.org",
       "developer.mozilla.org", "docs.python.org", "www.postgresql.org", "doc.rust-lang.org",
-      "docs.github.com", "kubernetes.io", "docs.aws.amazon.com", "docs.docker.com", "wikieducator.org"
+      "docs.github.com", "kubernetes.io", "docs.aws.amazon.com", "docs.docker.com", "wikieducator.org", "www.gapminder.org"
     ];
     if (!approvedHosts.includes(host)) return false;
     if (host === "www.postgresql.org" && !path.startsWith("/docs/")) return false;
     if (host === "kubernetes.io" && !path.startsWith("/docs/")) return false;
     if (host === "developer.mozilla.org" && !path.includes("/docs/")) return false;
     if (host === "pt.wikisource.org" && !(path.startsWith("/wiki/o_cortiço/") || path.startsWith("/wiki/dom_casmurro/"))) return false;
+    if (host === "www.gapminder.org" && path !== "/teaching/materials/") return false;
     return true;
   } catch { return false; }
 }
