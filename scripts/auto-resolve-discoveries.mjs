@@ -2,12 +2,12 @@ import { pathToFileURL } from "node:url";
 import { appendFile, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { execFile, execFileSync } from "node:child_process";
 import { promisify } from "node:util";
-
-const execFileAsync = promisify(execFile);
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { concursos } from "../src/data/concursos.js";
 import { isTrustedOfficialHost, resolveTrustedOfficialUrl, validateTrustedOfficialUrl } from "./monitor-sources.mjs";
+
+const execFileAsync = promisify(execFile);
 
 const MAX_BYTES = 4 * 1024 * 1024;
 const TIMEOUT_MS = 12000;
@@ -971,9 +971,8 @@ export function buildPendingDiscoveriesUrl(baseUrl, now = new Date(), cooldownMs
   const retryBefore = new Date(now.getTime() - cooldownMs).toISOString();
   url.searchParams.set("select", "id,source_url,candidate_url,title,context,discovery_type,status");
   url.searchParams.set("status", "eq.pending");
-  // Only direct newly discovered links from already trusted official sources are auto-triaged.
-  // Internet search results (web_search_lead) are secondary-source leads and always require human verification.
-  // Page-wide changes and baseline pages also stay visible for human review.
+  // Only trusted official sources are auto-triaged. Secondary search leads and
+  // first-run baselines remain outside auto-publication until an official page/link is found.
   // Also inspect changed official landing pages: they may now contain a direct edital
   // even when the page itself (rather than a link) changed. Search-engine leads and
   // first-run baselines stay excluded to avoid promoting unverified secondary sources.
@@ -1086,8 +1085,13 @@ export async function requestJson(request, url, key, options = {}) {
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     let response;
     try {
+      const {
+        retryAttempts: _retryAttempts,
+        retryDelayMs: _retryDelayMs,
+        ...requestOptions
+      } = options;
       response = await request(url, {
-        ...options,
+        ...requestOptions,
         headers: headersFor(key, options.headers || {})
       });
     } catch (error) {
