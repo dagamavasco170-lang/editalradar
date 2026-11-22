@@ -56,6 +56,7 @@ export default function PushHealthPanel({ authClient }) {
   const queue = health?.queue || {};
   const scheduler = health?.scheduler || {};
   const worker = health?.worker_http || {};
+  const workerResult = worker?.result_counts || {};
   const devices = health?.devices || {};
   const failures = health?.failures || {};
   const recentErrors = Array.isArray(health?.recent_errors) ? health.recent_errors : [];
@@ -71,7 +72,10 @@ export default function PushHealthPanel({ authClient }) {
     && Number.isFinite(workerAge)
     && workerAge <= 180;
   const staleQueue = Number(queue.oldest_message_age_seconds) > 600;
-  const warning = Number(failures.last_24h) > 0 || staleQueue;
+  const warning = Number(failures.last_24h) > 0
+    || staleQueue
+    || Number(workerResult.dead_letter) > 0
+    || Number(workerResult.pending_redelivery) > 0;
   const healthy = schedulerOk && workerOk && !warning;
   const status = !schedulerOk || !workerOk ? "error" : warning ? "warning" : "success";
   const statusText = status === "success" ? "Operação normal" : status === "warning" ? "Atenção necessária" : "Verificar serviço";
@@ -136,6 +140,31 @@ export default function PushHealthPanel({ authClient }) {
             </article>
           </div>
 
+          {workerResult.available === true && (
+            <div className="push-health-batch" aria-label="Resultado do último lote processado">
+              <div className="push-health-batch-heading">
+                <strong>Resultado do último lote</strong>
+                <small>{formatDate(worker.created_at)} · dados agregados do worker</small>
+              </div>
+              <div className="push-health-batch-grid">
+                {[
+                  ["Processadas", workerResult.processed],
+                  ["Enviadas", workerResult.sent],
+                  ["Reagendadas", workerResult.rescheduled],
+                  ["Vencidas", Number(workerResult.expired) + Number(workerResult.expired_before_retry)],
+                  ["Tokens desativados", workerResult.disabled_invalid],
+                  ["Falhas definitivas", workerResult.dead_letter],
+                  ["Aguardando recuperação", workerResult.pending_redelivery],
+                  ["Mensagens inválidas", workerResult.invalid_message]
+                ].map(([label, value]) => (
+                  <div key={label}>
+                    <strong>{number(value)}</strong>
+                    <span>{label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="push-health-footer">
             <span>Fila mais antiga: {ageLabel(queue.oldest_message_age_seconds)}</span>
             <span>Última falha terminal: {formatDate(failures.latest_at)}</span>
