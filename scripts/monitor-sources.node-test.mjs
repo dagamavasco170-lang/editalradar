@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { concursos } from "../src/data/concursos.js";
-import { collectSourceUrls, compareSource, fingerprintContent, normalizeHtml, extractOpportunityLinks, buildDiscoveriesForSource, fetchOfficialSource, fetchNewsFeedWithRetry, isTrustedOfficialHost, pruneSourceState, buildGoogleNewsRssUrl, parseGoogleNewsRss, searchInternetForContestLeads, filterUnseenWebSearchDiscoveries, INTERNET_SEARCH_QUERIES, classifyContestLead, SECONDARY_NEWS_FEEDS, parseSecondaryNewsRss, isActionableSecondaryNewsLead, fetchNewsFeedWithCurl } from "./monitor-sources.mjs";
+import { collectSourceUrls, compareSource, fingerprintContent, normalizeHtml, extractOpportunityLinks, buildDiscoveriesForSource, fetchOfficialSource, fetchNewsFeedWithRetry, isTrustedOfficialHost, pruneSourceState, buildGoogleNewsRssUrl, parseGoogleNewsRss, searchInternetForContestLeads, filterUnseenWebSearchDiscoveries, INTERNET_SEARCH_QUERIES, classifyContestLead, SECONDARY_NEWS_FEEDS, parseSecondaryNewsRss, isActionableSecondaryNewsLead, fetchNewsFeedWithCurl, isSameTrustedSecondaryFeedPublisher, resolveTrustedSecondaryFeedRedirect } from "./monitor-sources.mjs";
 
 test("coleta somente URLs HTTPS únicas", () => {
   const urls = collectSourceUrls([
@@ -463,7 +463,7 @@ test("consulta a busca pública com HTTPS, bloqueio de redirecionamentos e trata
   });
   assert.equal(requested.length, 2);
   assert.ok(requested.every(item => item.url.startsWith("https://news.google.com/rss/search?")));
-  assert.ok(requested.every(item => item.options.redirect === "error"));
+  assert.ok(requested.every(item => item.options.redirect === "manual"));
   assert.equal(result.feedsChecked, 2);
   assert.equal(result.leadCount, 1);
   assert.equal(result.errors.length, 1);
@@ -540,7 +540,7 @@ test("busca feed editorial independente e transforma itens em pistas externas", 
   });
   assert.equal(requested.length, 1);
   assert.equal(requested[0].url, feed.feedUrl);
-  assert.equal(requested[0].options.redirect, "error");
+  assert.equal(requested[0].options.redirect, "manual");
   assert.equal(result.feedsChecked, 1);
   assert.equal(result.secondaryFeedsChecked, 1);
   assert.equal(result.leadCount, 1);
@@ -664,4 +664,81 @@ test("pausa novas consultas ao Google Notícias depois de um HTTP 503 e continua
   assert.equal(result.googleSkippedAfter503, 4);
   assert.equal(result.secondaryFeedsChecked, 1);
   assert.equal(result.errors.length, 5);
+});
+
+
+test("segue redirecionamento HTTPS entre domínio raiz e www do mesmo veículo editorial", async () => {
+  const start = "https://concursosnobrasil.com.br/feed/";
+  const destination = "https://www.concursosnobrasil.com.br/feed/";
+  const calls = [];
+  const response = await fetchNewsFeedWithRetry(start, {
+    attempts: 1,
+    fetchImpl: async (url, options) => {
+      calls.push({ url, redirect: options.redirect });
+      if (url === start) {
+        return new Response(null, {
+          status: 301,
+          headers: { location: destination }
+        });
+      }
+      if (url === destination) {
+        return new Response("<rss><channel></channel></rss>", {
+          status: 200,
+          headers: { "content-type": "application/rss+xml" }
+        });
+      }
+      throw new Error("URL inesperada: " + url);
+    }
+  });
+  assert.deepEqual(calls, [
+    { url: start, redirect: "manual" },
+    { url: destination, redirect: "manual" }
+  ]);
+  assert.equal(response.status, 200);
+});
+
+test("permite redirecionamentos apenas entre hosts da mesma família editorial", () => {
+  assert.equal(isSameTrustedSecondaryFeedPublisher(
+    "concursosnobrasil.com.br",
+    "www.concursosnobrasil.com.br"
+  ), true);
+  assert.equal(isSameTrustedSecondaryFeedPublisher(
+    "concursos.estrategia.com",
+    "www.estrategiaconcursos.com.br"
+  ), true);
+  assert.equal(isSameTrustedSecondaryFeedPublisher(
+    "g1.globo.com",
+    "concursosnobrasil.com.br"
+  ), false);
+  assert.equal(isSameTrustedSecondaryFeedPublisher(
+    "g1.globo.com",
+    "attacker.example"
+  ), false);
+});
+
+test("bloqueia redirecionamento de feed para outro veículo autorizado ou destino HTTP", async () => {
+  const start = "https://concursosnobrasil.com.br/feed/";
+  for (const target of [
+    "https://g1.globo.com/rss/feed.xml",
+    "http://www.concursosnobrasil.com.br/feed/"
+  ]) {
+    await assert.rejects(() => fetchNewsFeedWithRetry(start, {
+      attempts: 1,
+      fetchImpl: async () => new Response(null, {
+        status: 301,
+        headers: { location: target }
+      })
+    }), /Redirecionamento do feed bloqueado/);
+  }
+});
+
+test("impede que o feed Google Notícias redirecione para fora do endpoint fixo", async () => {
+  const feedUrl = buildGoogleNewsRssUrl("concurso público");
+  await assert.rejects(() => fetchNewsFeedWithRetry(feedUrl, {
+    attempts: 1,
+    fetchImpl: async () => new Response(null, {
+      status: 302,
+      headers: { location: "https://attacker.example/feed.xml" }
+    })
+  }), /Redirecionamento do Google Notícias recusado/);
 });
