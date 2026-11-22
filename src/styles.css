@@ -2184,3 +2184,16 @@ button,.detail-btn,.primary-btn{line-height:1.35}
 .push-health-batch-grid strong{font:800 15px Manrope,sans-serif;color:#24485a}
 .push-health-batch-grid span{font-size:8px;color:#7c8d92;line-height:1.35;overflow-wrap:anywhere}
 @media(max-width:560px){.push-health-batch-heading{align-items:flex-start;flex-direction:column}.push-health-batch-heading small{text-align:left}.push-health-batch-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+
+/* Histórico persistente e agregado das notificações push. */
+.push-health-history{margin-top:12px;padding:12px;border:1px solid #e3ece8;border-radius:9px;background:#f7fbf9}
+.push-health-history-heading{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:9px}
+.push-health-history-heading strong{font-size:10px;color:#315866}
+.push-health-history-heading small{font-size:8px;color:#83949a;text-align:right}
+.push-health-history-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
+.push-health-history-grid>div{display:grid;gap:3px;min-width:0;padding:8px;border:1px solid #e6efeb;border-radius:7px;background:#fff}
+.push-health-history-grid strong{font:800 15px Manrope,sans-serif;color:#225246}
+.push-health-history-grid span{font-size:8px;color:#768b8d;line-height:1.35;overflow-wrap:anywhere}
+.push-health-history-empty{margin:11px 0 0;color:#83949a;font-size:9px;line-height:1.5}
+@media(max-width:560px){.push-health-history-heading{align-items:flex-start;flex-direction:column}.push-health-history-heading small{text-align:left}.push-health-history-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
