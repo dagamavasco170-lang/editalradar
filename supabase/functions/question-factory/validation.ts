@@ -33,7 +33,8 @@ export function isTrustedPrivateStudySourceUrl(value: unknown): boolean {
       "pt.wikibooks.org",
       "pt.wikipedia.org",
       "pt.wikiversity.org",
-      "pt.wiktionary.org",    ];
+      "pt.wiktionary.org"
+    ];
     return approvedDomains.some((domain) => host === domain || host.endsWith("." + domain));
   } catch {
     return false;
