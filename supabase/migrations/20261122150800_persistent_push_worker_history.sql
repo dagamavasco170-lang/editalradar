@@ -101,6 +101,7 @@ declare
   v_devices jsonb;
   v_failures jsonb;
   v_recent_errors jsonb;
+  v_worker_history jsonb;
 begin
   if auth.uid() is null
     or coalesce(auth.jwt() -> 'app_metadata' ->> 'role', '') <> 'admin'
