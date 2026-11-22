@@ -23,6 +23,61 @@ const model = "gemini-3.1-flash-lite";
 const MAX_DAILY_RUNS = 3;
 const MAX_QUESTIONS_PER_RUN = 3;
 
+// A primeira execução agenda um catálogo-base de assuntos sem exigir cadastro manual.
+// Todas as fontes são textos legislativos oficiais hospedados no Planalto.
+const DEFAULT_AUTONOMOUS_TOPICS = [
+  {
+    discipline: "Direito Constitucional",
+    topic: "Fundamentos e princípios fundamentais da República",
+    source_url: "https://www.planalto.gov.br/ccivil_03/constituicao/constituicao.htm"
+  },
+  {
+    discipline: "Direito Constitucional",
+    topic: "Direitos e garantias fundamentais",
+    source_url: "https://www.planalto.gov.br/ccivil_03/constituicao/constituicao.htm"
+  },
+  {
+    discipline: "Direito Constitucional",
+    topic: "Organização político-administrativa do Estado",
+    source_url: "https://www.planalto.gov.br/ccivil_03/constituicao/constituicao.htm"
+  },
+  {
+    discipline: "Direito Administrativo",
+    topic: "Regime jurídico dos servidores públicos federais",
+    source_url: "https://www.planalto.gov.br/ccivil_03/leis/l8112cons.htm"
+  },
+  {
+    discipline: "Direito Administrativo",
+    topic: "Processo administrativo federal",
+    source_url: "https://www.planalto.gov.br/ccivil_03/leis/l9784.htm"
+  },
+  {
+    discipline: "Direito Administrativo",
+    topic: "Licitações e contratos administrativos",
+    source_url: "https://www.planalto.gov.br/ccivil_03/_ato2019-2022/2021/lei/l14133.htm"
+  },
+  {
+    discipline: "Direito Administrativo",
+    topic: "Acesso à informação e transparência pública",
+    source_url: "https://www.planalto.gov.br/ccivil_03/_ato2011-2014/2011/lei/l12527.htm"
+  },
+  {
+    discipline: "Legislação Educacional",
+    topic: "Diretrizes e bases da educação nacional",
+    source_url: "https://www.planalto.gov.br/ccivil_03/leis/l9394compilado.htm"
+  },
+  {
+    discipline: "Legislação Especial",
+    topic: "Estatuto da Criança e do Adolescente",
+    source_url: "https://www.planalto.gov.br/ccivil_03/leis/l8069compilado.htm"
+  },
+  {
+    discipline: "Legislação Especial",
+    topic: "Lei Geral de Proteção de Dados Pessoais",
+    source_url: "https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/l13709compilado.htm"
+  }
+];
+
 const adminDb = createClient(supabaseUrl, serviceKey, {
   auth: { persistSession: false, autoRefreshToken: false }
 });
@@ -246,6 +301,44 @@ function isDue(topic: any, now: Date) {
   if (!Number.isFinite(last)) return true;
   const cadence = Math.max(1, Math.min(30, Number(topic.cadence_days) || 1));
   return now.getTime() - last >= cadence * 24 * 60 * 60 * 1000;
+}
+
+async function ensureAutonomousTopics(): Promise<{ seeded: boolean; topics: number }> {
+  const { data: existing, error: existingError } = await adminDb
+    .from("study_question_automation_topics")
+    .select("id")
+    .limit(1);
+  if (existingError) throw new Error("Não foi possível verificar o catálogo automático: " + existingError.message);
+  if ((existing || []).length > 0) {
+    const { count, error } = await adminDb
+      .from("study_question_automation_topics")
+      .select("id", { count: "exact", head: true })
+      .eq("active", true);
+    if (error) throw new Error("Não foi possível contar os temas ativos: " + error.message);
+    return { seeded: false, topics: count || 0 };
+  }
+
+  const now = new Date().toISOString();
+  const rows = DEFAULT_AUTONOMOUS_TOPICS.map((item) => ({
+    ...item,
+    difficulty: "Intermediária",
+    source_excerpt: null,
+    questions_per_run: MAX_QUESTIONS_PER_RUN,
+    cadence_days: 1,
+    active: true,
+    created_by: null,
+    created_at: now,
+    updated_at: now
+  }));
+  const { data, error } = await adminDb
+    .from("study_question_automation_topics")
+    .upsert(rows, {
+      onConflict: "discipline,topic,source_url",
+      ignoreDuplicates: true
+    })
+    .select("id");
+  if (error) throw new Error("Não foi possível criar o catálogo inicial de temas: " + error.message);
+  return { seeded: true, topics: (data || []).length };
 }
 
 async function dailyRunBudgetAvailable(): Promise<{ allowed: boolean; count: number }> {
@@ -498,6 +591,15 @@ Deno.serve(async (req: Request) => {
     return json({ error: "Limite gratuito diário atingido: no máximo " + MAX_DAILY_RUNS + " execuções por dia. Aguarde a próxima janela UTC.", free_tier_only: true, daily_limit: MAX_DAILY_RUNS }, 429);
   }
 
+  let autonomousCatalog: { seeded: boolean; topics: number } | null = null;
+  if (mode === "scheduled") {
+    try {
+      autonomousCatalog = await ensureAutonomousTopics();
+    } catch (error) {
+      return json({ error: String(error?.message || error), ok: false }, 500);
+    }
+  }
+
   if (!geminiKey) {
     const message = "GEMINI_API_KEY ainda não está configurada em Supabase → Edge Functions → Secrets.";
     return mode === "scheduled"
@@ -538,6 +640,8 @@ Deno.serve(async (req: Request) => {
   }
   return json({
     ok: true,
+    catalog_seeded: autonomousCatalog?.seeded || false,
+    topics_available: autonomousCatalog?.topics || (topics || []).length,
     processed: due.length,
     skipped: due.length === 0,
     results
