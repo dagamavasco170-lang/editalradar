@@ -24,8 +24,10 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+      - name: Install Gradle 8.10.2
+        uses: gradle/gradle-build-action@v3
+        with:
+          gradle-version: 8.10.2
       - name: Build APK
         working-directory: android
         run: gradle assembleDebug --no-daemon
