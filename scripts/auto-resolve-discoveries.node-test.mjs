@@ -670,7 +670,7 @@ test("consulta fontes oficiais e pistas externas a cada 6 horas", () => {
   assert.equal(officialUrl.searchParams.get("limit"), "300");
 
   assert.equal(externalUrl.searchParams.get("discovery_type"), "in.(web_search_lead)");
-  assert.match(externalUrl.searchParams.get("or"), /reviewed_at\\.lt\\.2026-11-21T12:00:00/);
+  assert.match(externalUrl.searchParams.get("or"), /reviewed_at\.lt\.2026-11-21T12:00:00/);
   assert.equal(externalUrl.searchParams.get("limit"), "300");
   assert.equal(officialUrl.searchParams.get("order"), "reviewed_at.asc.nullsfirst,detected_at.asc");
   assert.equal(externalUrl.searchParams.get("order"), "reviewed_at.asc.nullsfirst,detected_at.asc");
