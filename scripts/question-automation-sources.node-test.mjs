@@ -22,7 +22,7 @@ test("rejeita HTTP, credenciais na URL, domínios públicos governamentais e Pla
 test("valida cada destino de redirecionamento antes do próximo download", () => {
   assert.equal(
     resolveTrustedRedirect("https://pt.wikisource.org/wiki/O_Cortiço/I", "/wiki/O_Cortiço/II"),
-    "https://pt.wikisource.org/wiki/O_Cortiço/II"
+    "https://pt.wikisource.org/wiki/O_Corti%C3%A7o/II"
   );
   assert.throws(
     () => resolveTrustedRedirect("https://pt.wikipedia.org/wiki/Matemática", "http://127.0.0.1:8080/"),
