@@ -23,69 +23,99 @@ const model = "gemini-3.1-flash-lite";
 const MAX_DAILY_RUNS = 3;
 const MAX_QUESTIONS_PER_RUN = 3;
 
-// A primeira execução agenda um catálogo-base de assuntos sem exigir cadastro manual.
-// Fontes oficiais diversificadas: portais legislativos, ministérios e institutos públicos.
+// Catálogo autônomo amplo, baseado em editoras, plataformas e organizações privadas de educação.
 const DEFAULT_AUTONOMOUS_TOPICS = [
-  { discipline: "Língua Portuguesa", topic: "Redação oficial e comunicações administrativas", source_url: "https://www.gov.br/hubrasil/pt-br/comunicacao/legislacao-e-normas-de-comunicacao" },
-  { discipline: "Língua Portuguesa", topic: "Elaboração e padronização de atos normativos", source_url: "https://www.gov.br/hubrasil/pt-br/comunicacao/legislacao-e-normas-de-comunicacao" },
-  { discipline: "Matemática", topic: "Leitura, interpretação e análise de dados estatísticos", source_url: "https://educa.ibge.gov.br/jovens/conheca-o-brasil/22005-censo-2022-o-retrato-atualizado-do-brasil.html" },
-  { discipline: "Matemática", topic: "Indicadores sociais, econômicos e demográficos", source_url: "https://educa.ibge.gov.br/jovens/conheca-o-brasil/populacao/" },
-  { discipline: "Estatística", topic: "Estatística descritiva e interpretação de indicadores", source_url: "https://educa.ibge.gov.br/jovens/conheca-o-brasil/22005-censo-2022-o-retrato-atualizado-do-brasil.html" },
-  { discipline: "Geografia", topic: "Geografia do Brasil e organização territorial", source_url: "https://educa.ibge.gov.br/jovens/conheca-o-brasil/territorio/19639-nosso-territorio.html" },
-  { discipline: "Geografia", topic: "População, demografia e indicadores regionais", source_url: "https://educa.ibge.gov.br/jovens/conheca-o-brasil/populacao/" },
-  { discipline: "Economia", topic: "PIB, inflação e principais indicadores econômicos", source_url: "https://www.ibge.gov.br/explica/economia" },
-  { discipline: "Economia", topic: "Produto Interno Bruto e atividade econômica", source_url: "https://www.ibge.gov.br/explica/pib" },
-  { discipline: "História", topic: "História institucional e evolução da educação brasileira", source_url: "https://www.gov.br/inep/pt-br/acesso-a-informacao/institucional/historia" },
-  { discipline: "Raciocínio Lógico", topic: "Raciocínio lógico e interpretação de informações", source_url: "https://educa.ibge.gov.br/criancas/brasil/2849-seu-estado-e-sua-cidade/19640-vamos-conhecer-o-brasil.html" },
-  { discipline: "Informática", topic: "Segurança da informação e cidadania digital", source_url: "https://www.gov.br/gsi/pt-br/assuntos/seguranca-da-informacao-e-cibernetica/cibereducacao" },
-  { discipline: "Informática", topic: "Privacidade, proteção de dados e uso seguro da internet", source_url: "https://www.gov.br/gsi/pt-br/assuntos/seguranca-da-informacao-e-cibernetica/cibereducacao" },
-  { discipline: "Direito Constitucional", topic: "Fundamentos e princípios fundamentais da República", source_url: "https://www2.camara.leg.br/atividade-legislativa/legislacao/constituicao1988/arquivos/ConstituicaoTextoAtualizado_EC%20141.html" },
-  { discipline: "Direito Constitucional", topic: "Direitos e garantias fundamentais", source_url: "https://www2.camara.leg.br/atividade-legislativa/legislacao/constituicao1988/arquivos/ConstituicaoTextoAtualizado_EC%20141.html" },
-  { discipline: "Direito Constitucional", topic: "Organização político-administrativa do Estado", source_url: "https://www2.camara.leg.br/atividade-legislativa/legislacao/constituicao1988/arquivos/ConstituicaoTextoAtualizado_EC%20141.html" },
-  { discipline: "Direito Constitucional", topic: "Administração pública na Constituição Federal", source_url: "https://www2.camara.leg.br/atividade-legislativa/legislacao/constituicao1988/arquivos/ConstituicaoTextoAtualizado_EC%20141.html" },
-  { discipline: "Direito Administrativo", topic: "Regime jurídico dos servidores públicos federais", source_url: "https://www2.camara.leg.br/legin/fed/lei/1990/lei-8112-11-dezembro-1990-322161-normaatualizada-pl.html" },
-  { discipline: "Direito Administrativo", topic: "Processo administrativo federal", source_url: "https://www2.camara.leg.br/legin/fed/lei/1999/lei-9784-29-janeiro-1999-322239-normaatualizada-pl.html" },
-  { discipline: "Direito Administrativo", topic: "Licitações e contratos administrativos", source_url: "https://www2.camara.leg.br/legin/fed/lei/2021/lei-14133-1-abril-2021-791222-normaatualizada-pl.html" },
-  { discipline: "Direito Administrativo", topic: "Acesso à informação e transparência pública", source_url: "https://www2.camara.leg.br/legin/fed/lei/2011/lei-12527-18-novembro-2011-611802-normaatualizada-pl.html" },
-  { discipline: "Direito Administrativo", topic: "Proteção de dados pessoais no setor público", source_url: "https://www2.camara.leg.br/legin/fed/lei/2018/lei-13709-14-agosto-2018-787077-normaatualizada-pl.html" },
-  { discipline: "Direito Administrativo", topic: "Ética e conduta do servidor público federal", source_url: "https://www2.camara.leg.br/legin/fed/decret/1994/decreto-1171-22-junho-1994-449441-publicacaooriginal-1-pe.html" },
-  { discipline: "Direito Civil", topic: "Parte geral e pessoas no Código Civil", source_url: "https://www2.camara.leg.br/legin/fed/lei/2002/lei-10406-10-janeiro-2002-432893-normaatualizada-pl.html" },
-  { discipline: "Direito Civil", topic: "Obrigações e contratos", source_url: "https://www2.camara.leg.br/legin/fed/lei/2002/lei-10406-10-janeiro-2002-432893-normaatualizada-pl.html" },
-  { discipline: "Direito do Consumidor", topic: "Direitos básicos e proteção do consumidor", source_url: "https://www2.camara.leg.br/legin/fed/lei/1990/lei-8078-11-setembro-1990-365086-normaatualizada-pl.html" },
-  { discipline: "Direito Penal", topic: "Princípios e aplicação da lei penal", source_url: "https://www2.camara.leg.br/legin/fed/declei/1940-1949/decreto-lei-2848-7-dezembro-1940-412868-norma-pe.html" },
-  { discipline: "Direito Penal", topic: "Crimes contra a administração pública", source_url: "https://www2.camara.leg.br/legin/fed/declei/1940-1949/decreto-lei-2848-7-dezembro-1940-412868-norma-pe.html" },
-  { discipline: "Processo Penal", topic: "Inquérito policial e ação penal", source_url: "https://www2.camara.leg.br/legin/fed/declei/1940-1949/decreto-lei-3689-3-outubro-1941-322206-norma-pe.html" },
-  { discipline: "Direito do Trabalho", topic: "Direitos individuais e contrato de trabalho", source_url: "https://www2.camara.leg.br/legin/fed/declei/1940-1949/decreto-lei-5452-1-maio-1943-415500-norma-pe.html" },
-  { discipline: "Direito Previdenciário", topic: "Custeio da seguridade social", source_url: "https://www2.camara.leg.br/legin/fed/lei/1991/lei-8212-24-julho-1991-363647-norma-pl.html" },
-  { discipline: "Direito Previdenciário", topic: "Planos de benefícios da Previdência Social", source_url: "https://www2.camara.leg.br/legin/fed/lei/1991/lei-8213-24-julho-1991-363650-normaatualizada-pl.html" },
-  { discipline: "Direito Tributário", topic: "Sistema tributário e Código Tributário Nacional", source_url: "https://www2.camara.leg.br/legin/fed/lei/1960-1969/lei-5172-25-outubro-1966-358971-normaatualizada-pl.html" },
-  { discipline: "Direito Financeiro", topic: "Normas gerais de direito financeiro e orçamento público", source_url: "https://www2.camara.leg.br/legin/fed/lei/1960-1969/lei-4320-17-marco-1964-376590-norma-pl.html" },
-  { discipline: "Orçamento Público", topic: "Responsabilidade fiscal e gestão orçamentária", source_url: "https://www.gov.br/tesouronacional/pt-br/contabilidade-e-custos/manuais/manual-de-demonstrativos-fiscais-mdf" },
-  { discipline: "Contabilidade Pública", topic: "Procedimentos de contabilidade aplicada ao setor público", source_url: "https://www.gov.br/tesouronacional/pt-br/contabilidade-e-custos/manuais/manual-de-contabilidade-aplicada-ao-setor-publico-mcasp-1" },
-  { discipline: "Contabilidade Pública", topic: "Demonstrações contábeis e patrimônio público", source_url: "https://www.gov.br/tesouronacional/pt-br/contabilidade-e-custos/manuais/manual-de-contabilidade-aplicada-ao-setor-publico-mcasp-1" },
-  { discipline: "Administração Pública", topic: "Governança e políticas de gestão pública", source_url: "https://www.gov.br/cgu/pt-br/assuntos/integridade-publica" },
-  { discipline: "Administração Pública", topic: "Organização e funcionamento da administração pública", source_url: "https://www2.camara.leg.br/atividade-legislativa/legislacao/constituicao1988/arquivos/ConstituicaoTextoAtualizado_EC%20141.html" },
-  { discipline: "Legislação Educacional", topic: "Diretrizes e bases da educação nacional", source_url: "https://www2.camara.leg.br/legin/fed/lei/1996/lei-9394-20-dezembro-1996-362578-normaatualizada-pl.html" },
-  { discipline: "Legislação Educacional", topic: "Plano Nacional de Educação", source_url: "https://www2.camara.leg.br/legin/fed/lei/2014/lei-13005-25-junho-2014-778970-norma-pl.html" },
-  { discipline: "Legislação Educacional", topic: "Financiamento da educação básica e Fundeb", source_url: "https://www2.camara.leg.br/legin/fed/lei/2020/lei-14113-25-dezembro-2020-790952-normaatualizada-pl.html" },
-  { discipline: "Legislação Especial", topic: "Estatuto da Criança e do Adolescente", source_url: "https://www2.camara.leg.br/legin/fed/lei/1990/lei-8069-13-julho-1990-372211-normaatualizada-pl.html" },
-  { discipline: "Legislação Especial", topic: "Estatuto da Pessoa Idosa", source_url: "https://www2.camara.leg.br/legin/fed/lei/2003/lei-10741-1-outubro-2003-497511-normaatualizada-pl.html" },
-  { discipline: "Legislação Especial", topic: "Estatuto da Pessoa com Deficiência", source_url: "https://www2.camara.leg.br/legin/fed/lei/2015/lei-13146-6-julho-2015-781174-normaatualizada-pl.html" },
-  { discipline: "Legislação Especial", topic: "Lei Maria da Penha e proteção contra violência doméstica", source_url: "https://www2.camara.leg.br/legin/fed/lei/2006/lei-11340-7-agosto-2006-545133-normaatualizada-pl.html" },
-  { discipline: "Legislação Especial", topic: "Lei Geral de Proteção de Dados Pessoais", source_url: "https://www2.camara.leg.br/legin/fed/lei/2018/lei-13709-14-agosto-2018-787077-normaatualizada-pl.html" },
-  { discipline: "Saúde Pública", topic: "Organização e princípios do Sistema Único de Saúde", source_url: "https://www.gov.br/saude/pt-br/acesso-a-informacao/institucional/sus" },
-  { discipline: "Saúde Pública", topic: "Participação social e financiamento do SUS", source_url: "https://www.gov.br/saude/pt-br/acesso-a-informacao/participacao-social/conferencias/legislacao/legislacao" },
-  { discipline: "Saúde Pública", topic: "Vigilância epidemiológica e notificação de doenças", source_url: "https://www2.camara.leg.br/legin/fed/lei/1970-1979/lei-6259-30-outubro-1975-357094-norma-pl.html" },
-  { discipline: "Serviço Social", topic: "Lei Orgânica da Assistência Social", source_url: "https://www2.camara.leg.br/legin/fed/lei/1993/lei-8742-7-dezembro-1993-363163-norma-pl.html" },
-  { discipline: "Meio Ambiente", topic: "Política Nacional do Meio Ambiente", source_url: "https://www2.camara.leg.br/legin/fed/lei/1980-1987/lei-6938-31-agosto-1981-366135-normaatualizada-pl.html" },
-  { discipline: "Meio Ambiente", topic: "Crimes ambientais e responsabilidade ambiental", source_url: "https://www2.camara.leg.br/legin/fed/lei/1998/lei-9605-12-fevereiro-1998-365397-normaatualizada-pl.html" },
-  { discipline: "Meio Ambiente", topic: "Código Florestal e proteção da vegetação nativa", source_url: "https://www2.camara.leg.br/legin/fed/lei/2012/lei-12651-25-maio-2012-613076-normaatualizada-pl.html" },
-  { discipline: "Trânsito", topic: "Código de Trânsito Brasileiro", source_url: "https://www2.camara.leg.br/legin/fed/lei/1997/lei-9503-23-setembro-1997-372348-normaatualizada-pl.html" },
-  { discipline: "Segurança Pública", topic: "Sistema Único de Segurança Pública", source_url: "https://www2.camara.leg.br/legin/fed/lei/2018/lei-13675-11-junho-2018-786843-normaatualizada-pl.html" },
-  { discipline: "Arquivologia", topic: "Política nacional de arquivos públicos e privados", source_url: "https://www2.camara.leg.br/legin/fed/lei/1991/lei-8159-8-janeiro-1991-322180-norma-pl.html" },
-  { discipline: "Políticas Públicas", topic: "Acesso à informação, transparência e controle social", source_url: "https://www2.camara.leg.br/legin/fed/lei/2011/lei-12527-18-novembro-2011-611802-normaatualizada-pl.html" },
-  { discipline: "Direitos Humanos", topic: "Convenção sobre os Direitos das Pessoas com Deficiência", source_url: "https://www.un.org/development/desa/disabilities/convention-on-the-rights-of-persons-with-disabilities.html" },
-  { discipline: "Licitações", topic: "Contratação pública, planejamento e modalidades licitatórias", source_url: "https://www2.camara.leg.br/legin/fed/lei/2021/lei-14133-1-abril-2021-791222-normaatualizada-pl.html" }
+  { discipline: "Língua Portuguesa", topic: "Gramática normativa: classes de palavras, flexões e estrutura da língua", source_url: "https://brasilescola.uol.com.br/gramatica" },
+  { discipline: "Língua Portuguesa", topic: "Sintaxe: termos da oração, período simples e composto", source_url: "https://www.todamateria.com.br/gramatica/" },
+  { discipline: "Língua Portuguesa", topic: "Ortografia, acentuação, pontuação e emprego dos porquês", source_url: "https://www.soportugues.com.br/" },
+  { discipline: "Língua Portuguesa", topic: "Concordância verbal e nominal, regência e crase", source_url: "https://brasilescola.uol.com.br/gramatica" },
+  { discipline: "Língua Portuguesa", topic: "Interpretação, compreensão e tipologia textual", source_url: "https://www.todoestudo.com.br/portugues" },
+  { discipline: "Redação Oficial", topic: "Comunicação escrita, clareza, concisão e adequação textual", source_url: "https://jrconcursos.com.br/materiais-gratuitos-para-concursos-publicos/materiais-por-disciplinas/" },
+  { discipline: "Literatura", topic: "Literatura brasileira: escolas literárias, autores e obras", source_url: "https://www.todamateria.com.br/literatura/" },
+  { discipline: "Literatura", topic: "Gêneros literários, figuras de linguagem e interpretação", source_url: "https://brasilescola.uol.com.br/literatura" },
+  { discipline: "Matemática", topic: "Aritmética, números, operações, frações e razão", source_url: "https://www.somatematica.com.br/" },
+  { discipline: "Matemática", topic: "Álgebra, equações, expressões e sistemas lineares", source_url: "https://pt.khanacademy.org/math" },
+  { discipline: "Matemática", topic: "Geometria plana e espacial: perímetros, áreas e volumes", source_url: "https://www.todamateria.com.br/matematica/" },
+  { discipline: "Matemática", topic: "Porcentagem, regra de três, proporções e escalas", source_url: "https://www.todoestudo.com.br/matematica" },
+  { discipline: "Matemática Financeira", topic: "Juros simples, juros compostos, taxas e descontos", source_url: "https://brasilescola.uol.com.br/matematica/matematica-financeira.htm" },
+  { discipline: "Matemática Financeira", topic: "Capital, montante, equivalência de taxas e séries de pagamentos", source_url: "https://www.somatematica.com.br/" },
+  { discipline: "Raciocínio Lógico", topic: "Proposições, conectivos, tabelas-verdade e equivalências", source_url: "https://jrconcursos.com.br/materiais-gratuitos-para-concursos-publicos/materiais-por-disciplinas/" },
+  { discipline: "Raciocínio Lógico", topic: "Argumentação lógica, inferências, diagramas e sequências", source_url: "https://pt.khanacademy.org/math" },
+  { discipline: "Estatística", topic: "Estatística descritiva, média, mediana, moda e dispersão", source_url: "https://brasilescola.uol.com.br/matematica/estatistica-1.htm" },
+  { discipline: "Estatística", topic: "Probabilidade, análise combinatória e distribuições", source_url: "https://brasilescola.uol.com.br/matematica/probabilidade.htm" },
+  { discipline: "Estatística", topic: "Gráficos, tabelas, amostragem e interpretação de dados", source_url: "https://www.somatematica.com.br/" },
+  { discipline: "Geografia", topic: "Geografia física: clima, relevo, hidrografia e vegetação", source_url: "https://brasilescola.uol.com.br/geografia" },
+  { discipline: "Geografia", topic: "Geografia humana: população, urbanização e migrações", source_url: "https://www.todamateria.com.br/geografia/" },
+  { discipline: "Geografia", topic: "Globalização, geopolítica, economia e relações internacionais", source_url: "https://www.mundoeducacao.uol.com.br/geografia" },
+  { discipline: "Geografia", topic: "Cartografia, escalas, coordenadas e fusos horários", source_url: "https://www.todoestudo.com.br/geografia" },
+  { discipline: "História", topic: "História do Brasil: Colônia, Império e República", source_url: "https://brasilescola.uol.com.br/historia" },
+  { discipline: "História", topic: "História geral: Antiguidade, Idade Média, Moderna e Contemporânea", source_url: "https://www.todamateria.com.br/historia/" },
+  { discipline: "História", topic: "História política, social e econômica do Brasil", source_url: "https://cpdoc.fgv.br/" },
+  { discipline: "História", topic: "Revoluções, guerras mundiais e formação do mundo contemporâneo", source_url: "https://www.mundoeducacao.uol.com.br/historia" },
+  { discipline: "Atualidades", topic: "Cidadania, democracia, instituições políticas e participação social", source_url: "https://www.politize.com.br/trilhas/" },
+  { discipline: "Atualidades", topic: "Políticas públicas: ciclo, atores, avaliação e participação", source_url: "https://www.politize.com.br/trilhas/politicas-publicas/" },
+  { discipline: "Atualidades", topic: "Direitos civis, políticos e sociais na sociedade contemporânea", source_url: "https://www.politize.com.br/search/direitos" },
+  { discipline: "Filosofia", topic: "Ética, moral, conhecimento e filosofia política", source_url: "https://www.todamateria.com.br/filosofia/" },
+  { discipline: "Filosofia", topic: "Filosofia antiga, moderna e contemporânea", source_url: "https://brasilescola.uol.com.br/filosofia" },
+  { discipline: "Sociologia", topic: "Cultura, sociedade, instituições e desigualdade social", source_url: "https://www.mundoeducacao.uol.com.br/sociologia" },
+  { discipline: "Sociologia", topic: "Cidadania, movimentos sociais e relações de trabalho", source_url: "https://www.todoestudo.com.br/sociologia" },
+  { discipline: "Biologia", topic: "Citologia, genética, evolução e ecologia", source_url: "https://brasilescola.uol.com.br/biologia" },
+  { discipline: "Biologia", topic: "Fisiologia humana, saúde, reprodução e sistemas do corpo", source_url: "https://www.todamateria.com.br/biologia/" },
+  { discipline: "Biologia", topic: "Ecossistemas, biodiversidade, cadeias e ciclos biogeoquímicos", source_url: "https://www.mundoeducacao.uol.com.br/biologia" },
+  { discipline: "Física", topic: "Mecânica, cinemática, dinâmica, trabalho e energia", source_url: "https://brasilescola.uol.com.br/fisica" },
+  { discipline: "Física", topic: "Eletricidade, magnetismo, ondas, óptica e termologia", source_url: "https://www.todamateria.com.br/fisica/" },
+  { discipline: "Química", topic: "Estrutura atômica, tabela periódica e ligações químicas", source_url: "https://www.manualdaquimica.com/" },
+  { discipline: "Química", topic: "Estequiometria, soluções, reações e funções inorgânicas", source_url: "https://brasilescola.uol.com.br/quimica" },
+  { discipline: "Química", topic: "Química orgânica, propriedades e reações de compostos", source_url: "https://www.mundoeducacao.uol.com.br/quimica" },
+  { discipline: "Meio Ambiente", topic: "Ecologia, sustentabilidade, conservação e impactos ambientais", source_url: "https://brasilescola.uol.com.br/geografia" },
+  { discipline: "Meio Ambiente", topic: "Mudanças climáticas, energia, recursos naturais e poluição", source_url: "https://www.politize.com.br/conteudo/" },
+  { discipline: "Informática", topic: "Sistemas operacionais, arquivos, aplicativos e pacote Office", source_url: "https://blog.grancursosonline.com.br/informatica-para-concursos-conceitos-basicos-para-prova/" },
+  { discipline: "Informática", topic: "Internet, redes, navegadores, correio eletrônico e nuvem", source_url: "https://www.tecmundo.com.br/" },
+  { discipline: "Informática", topic: "Segurança da informação, ameaças, backup e proteção de dados", source_url: "https://www.olhardigital.com.br/" },
+  { discipline: "Tecnologia da Informação", topic: "Redes, banco de dados, SQL, engenharia de software e programação", source_url: "https://blog.grancursosonline.com.br/concursos-ti-em-2027/" },
+  { discipline: "Tecnologia da Informação", topic: "Computação em nuvem, inteligência artificial e governança de TI", source_url: "https://www.tecmundo.com.br/" },
+  { discipline: "Administração Geral", topic: "Planejamento, organização, direção, controle e processos", source_url: "https://www.todamateria.com.br/administracao/" },
+  { discipline: "Administração Geral", topic: "Teorias administrativas, eficiência, eficácia e efetividade", source_url: "https://www.tecconcursos.com.br/materias/administracao-geral-e-publica" },
+  { discipline: "Administração Pública", topic: "Gestão pública, governança, gestão de pessoas e resultados", source_url: "https://jrconcursos.com.br/materiais-gratuitos-para-concursos-publicos/materiais-por-disciplinas/" },
+  { discipline: "Administração Pública", topic: "Políticas públicas, planejamento e participação cidadã", source_url: "https://www.politize.com.br/trilhas/politicas-publicas/" },
+  { discipline: "Direito Administrativo", topic: "Princípios administrativos, atos, poderes e organização administrativa", source_url: "https://blog.grancursosonline.com.br/direito-administrativo-como-estudar/" },
+  { discipline: "Direito Administrativo", topic: "Licitações, contratos, agentes públicos e responsabilização", source_url: "https://jrconcursos.com.br/area-de-direito-e-legislacao-materiais-gratuitos/" },
+  { discipline: "Direito Constitucional", topic: "Direitos fundamentais, organização do Estado e separação de poderes", source_url: "https://jrconcursos.com.br/area-de-direito-e-legislacao-materiais-gratuitos/" },
+  { discipline: "Direito Constitucional", topic: "Constitucionalismo, democracia, cidadania e direitos sociais", source_url: "https://www.politize.com.br/search/direitos" },
+  { discipline: "Direito Civil", topic: "Pessoas, bens, fatos jurídicos, obrigações e contratos", source_url: "https://www.direitonet.com.br/" },
+  { discipline: "Direito do Consumidor", topic: "Relações de consumo, responsabilidade e proteção contratual", source_url: "https://www.jusbrasil.com.br/artigos/" },
+  { discipline: "Direito Penal", topic: "Teoria do crime, aplicação da lei penal e princípios", source_url: "https://jrconcursos.com.br/area-de-direito-e-legislacao-materiais-gratuitos/" },
+  { discipline: "Direito Penal", topic: "Crimes contra a pessoa, patrimônio e administração pública", source_url: "https://www.direitonet.com.br/" },
+  { discipline: "Processo Penal", topic: "Investigação, ação penal, provas e procedimentos", source_url: "https://www.jusbrasil.com.br/artigos/" },
+  { discipline: "Direito do Trabalho", topic: "Relações de trabalho, contrato, jornada e direitos trabalhistas", source_url: "https://www.jusbrasil.com.br/artigos/" },
+  { discipline: "Direitos Humanos", topic: "Direitos humanos, dignidade, igualdade e não discriminação", source_url: "https://www.politize.com.br/search/direitos" },
+  { discipline: "Direito Previdenciário", topic: "Seguridade social, benefícios e custeio previdenciário", source_url: "https://jrconcursos.com.br/area-de-direito-e-legislacao-materiais-gratuitos/" },
+  { discipline: "Direito Tributário", topic: "Tributos, obrigação tributária, crédito e espécies tributárias", source_url: "https://www.direitonet.com.br/" },
+  { discipline: "Contabilidade Geral", topic: "Patrimônio, contas, escrituração e demonstrações contábeis", source_url: "https://www.contabeis.com.br/" },
+  { discipline: "Contabilidade Geral", topic: "Princípios, competência, caixa, lançamentos e balancetes", source_url: "https://www.tecconcursos.com.br/materias/contabilidade-geral" },
+  { discipline: "Contabilidade Pública", topic: "Orçamento, patrimônio, receitas, despesas e demonstrações públicas", source_url: "https://blog.grancursosonline.com.br/concursos-contabilidade/" },
+  { discipline: "Finanças Públicas", topic: "Receita, despesa, orçamento, dívida e responsabilidade fiscal", source_url: "https://jrconcursos.com.br/materiais-gratuitos-para-concursos-publicos/materiais-por-disciplinas/" },
+  { discipline: "Economia", topic: "Microeconomia, macroeconomia, inflação, PIB e mercado", source_url: "https://brasilescola.uol.com.br/economia" },
+  { discipline: "Economia", topic: "Economia brasileira, desenvolvimento, emprego e indicadores", source_url: "https://www.politize.com.br/conteudo/" },
+  { discipline: "Educação", topic: "Teorias da aprendizagem, desenvolvimento e práticas pedagógicas", source_url: "https://novaescola.org.br/" },
+  { discipline: "Educação", topic: "Didática, currículo, avaliação e planejamento educacional", source_url: "https://www.todoestudo.com.br/educacao" },
+  { discipline: "Legislação Educacional", topic: "Políticas educacionais, gestão escolar e direito à educação", source_url: "https://jrconcursos.com.br/materiais-gratuitos-para-concursos-publicos/materiais-por-disciplinas/" },
+  { discipline: "Pedagogia", topic: "Alfabetização, letramento, inclusão e avaliação da aprendizagem", source_url: "https://novaescola.org.br/" },
+  { discipline: "Saúde Pública", topic: "Saúde coletiva, prevenção, promoção e determinantes sociais", source_url: "https://drauziovarella.uol.com.br/" },
+  { discipline: "Saúde Pública", topic: "Epidemiologia, doenças transmissíveis e vigilância em saúde", source_url: "https://www.minhavida.com.br/" },
+  { discipline: "Serviço Social", topic: "Proteção social, vulnerabilidade e políticas sociais", source_url: "https://www.politize.com.br/trilhas/politicas-publicas/" },
+  { discipline: "Serviço Social", topic: "Direitos sociais, cidadania e assistência social", source_url: "https://www.todoestudo.com.br/sociologia" },
+  { discipline: "Arquivologia", topic: "Gestão documental, arquivos, classificação e preservação", source_url: "https://jrconcursos.com.br/materiais-gratuitos-para-concursos-publicos/materiais-por-disciplinas/" },
+  { discipline: "Gestão de Pessoas", topic: "Recrutamento, seleção, treinamento, desempenho e liderança", source_url: "https://blog.grancursosonline.com.br/" },
+  { discipline: "Gestão de Projetos", topic: "Escopo, cronograma, riscos, custos e metodologias ágeis", source_url: "https://www.tecmundo.com.br/" },
+  { discipline: "Segurança da Informação", topic: "Confidencialidade, integridade, disponibilidade e controles de segurança", source_url: "https://blog.grancursosonline.com.br/concursos-ti-em-2027/" },
+  { discipline: "Ética e Cidadania", topic: "Ética, integridade, responsabilidade e dilemas na vida pública", source_url: "https://www.politize.com.br/" },
+  { discipline: "Comunicação e Redação", topic: "Comunicação organizacional, linguagem clara e produção textual", source_url: "https://www.todoestudo.com.br/portugues" },
+  { discipline: "Inglês", topic: "Leitura, interpretação, vocabulário e estruturas gramaticais", source_url: "https://pt.khanacademy.org/humanities" },
+  { discipline: "Espanhol", topic: "Leitura, interpretação, vocabulário e estruturas gramaticais", source_url: "https://www.todamateria.com.br/espanhol/" },
+  { discipline: "Artes e Cultura", topic: "Movimentos artísticos, patrimônio, cultura e linguagem visual", source_url: "https://www.todamateria.com.br/artes/" },
+  { discipline: "Educação Física", topic: "Corpo humano, atividade física, esportes e saúde", source_url: "https://www.todamateria.com.br/educacao-fisica/" },
+  { discipline: "Atualidades e Geopolítica", topic: "Conflitos internacionais, globalização e relações entre países", source_url: "https://www.politize.com.br/conteudo/" }
 ];
 
 const adminDb = createClient(supabaseUrl, serviceKey, {
@@ -289,7 +319,7 @@ async function fetchOfficialSourceExcerpt(sourceUrl: string): Promise<string> {
     currentUrl = nextUrl.href;
   }
 
-  if (!response) throw new Error("Não foi possível abrir a fonte oficial.");
+  if (!response) throw new Error("Não foi possível abrir a fonte de referência.");
   if (!response.ok) throw new Error("A fonte oficial respondeu HTTP " + response.status + ".");
   const contentLength = Number(response.headers.get("content-length") || 0);
   if (contentLength > 5 * 1024 * 1024) throw new Error("A página oficial excede o limite de 5 MB.");
@@ -356,7 +386,7 @@ async function dailyRunBudgetAvailable(): Promise<{ allowed: boolean; count: num
 
 async function runTopic(topic: any, triggerMode: "manual" | "scheduled", userId: string | null, suppliedExcerpt?: string) {
   if (!isTrustedOfficialUrl(topic.source_url)) {
-    return { topicId: topic.id, status: "skipped", reason: "A fonte não pertence a um domínio oficial permitido." };
+    return { topicId: topic.id, status: "skipped", reason: "A fonte não pertence à lista de sites privados de estudo permitidos." };
   }
   const configuredExcerpt = String(topic.source_excerpt || "").trim();
   if (configuredExcerpt && (configuredExcerpt.length < 200 || configuredExcerpt.length > 12000)) {
@@ -365,7 +395,7 @@ async function runTopic(topic: any, triggerMode: "manual" | "scheduled", userId:
   const workflowExcerpt = String(suppliedExcerpt || "").trim();
   const excerpt = configuredExcerpt || workflowExcerpt || await fetchOfficialSourceExcerpt(topic.source_url);
   if (excerpt.length < 200 || excerpt.length > 12000) {
-    return { topicId: topic.id, status: "skipped", reason: "A fonte oficial não forneceu texto suficiente (200 a 12.000 caracteres)." };
+    return { topicId: topic.id, status: "skipped", reason: "A fonte de estudo não forneceu texto suficiente (200 a 12.000 caracteres)." };
   }
   const requested = Math.max(1, Math.min(MAX_QUESTIONS_PER_RUN, Number(topic.questions_per_run) || 3));
   const runInsert = await adminDb.from("study_question_automation_runs").insert({
