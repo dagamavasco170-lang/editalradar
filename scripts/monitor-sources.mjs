@@ -724,7 +724,7 @@ export async function fetchNewsFeedWithCurl(feedUrl, options = {}) {
       "--header", "Accept-Language: pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
       "--dump-header", headersPath,
       "--output", bodyPath,
-      "--write-out", "%{http_code}\\n%{url_effective}\\n%{content_type}",
+      "--write-out", "%{http_code}\n%{url_effective}\n%{content_type}",
       parsedUrl.href
     ], {
       encoding: "utf8",
@@ -732,7 +732,7 @@ export async function fetchNewsFeedWithCurl(feedUrl, options = {}) {
       maxBuffer: 64 * 1024
     });
 
-    const metadataLines = metadata.trim().split("\\n");
+    const metadataLines = metadata.trim().split("\n");
     const status = Number(metadataLines[0]);
     const finalUrl = metadataLines[1] || parsedUrl.href;
     const contentType = metadataLines[2] || "";
@@ -746,7 +746,7 @@ export async function fetchNewsFeedWithCurl(feedUrl, options = {}) {
     const rawHeaders = await readFile(headersPath, "utf8");
     const responseHeaders = {};
     let currentHeaders = {};
-    for (const line of rawHeaders.split(/\\r?\\n/)) {
+    for (const line of rawHeaders.split(/\r?\n/)) {
       if (line.startsWith("HTTP/")) {
         if (Object.keys(currentHeaders).length) Object.assign(responseHeaders, currentHeaders);
         currentHeaders = {};
