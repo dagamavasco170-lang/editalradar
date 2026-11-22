@@ -2019,6 +2019,8 @@ button,.detail-btn,.primary-btn{line-height:1.35}
 .official-exam-actions a{color:#187753;font-size:9px;font-weight:800;text-decoration:none}
 .official-exam-actions a:hover{text-decoration:underline}
 .official-exam-actions .official-source-secondary{color:#788ca1}
+.pci-source-link{display:inline-flex;align-items:center;gap:5px;margin-top:8px;color:#187753;font-size:10px;font-weight:800;text-decoration:none}
+.pci-source-link:hover{text-decoration:underline}
 .study-question-admin-form{display:grid;gap:13px}
 .study-admin-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 .study-admin-grid label,.study-question-admin-form>label{display:grid;gap:6px;min-width:0;color:#55718a;font-size:10px;font-weight:800}

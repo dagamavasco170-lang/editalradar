@@ -424,6 +424,9 @@ async function mapWithConcurrency(items, limit, worker) {
 
 
 export const INTERNET_SEARCH_QUERIES = [
+  { label: "PCI Concursos — concursos abertos", query: 'site:pciconcursos.com.br/concursos/ ("concurso" OR "processo seletivo" OR edital) vagas inscrições' },
+  { label: "PCI Concursos — últimas atualizações", query: 'site:pciconcursos.com.br/ultimas/ (concurso OR edital OR processo seletivo OR retificação)' },
+  { label: "PCI Concursos — notícias de concursos", query: 'site:pciconcursos.com.br/noticias/ (concurso OR edital OR vagas OR inscrições)' },
   { label: "Concursos em órgãos federais", query: '("concurso público" OR "processo seletivo") (edital OR vagas OR inscrições) site:gov.br' },
   { label: "Concursos e seleções em Alagoas", query: '("concurso público" OR "processo seletivo") (edital OR vagas OR inscrições) (Alagoas OR Maceió OR Arapiraca)' },
   { label: "Poderes e órgãos de Justiça", query: '("concurso público" OR edital) (vagas OR inscrições OR retificação) (site:jus.br OR site:leg.br OR site:mp.br)' },

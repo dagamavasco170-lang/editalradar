@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { concursos } from "../src/data/concursos.js";
-import { collectSourceUrls, compareSource, fingerprintContent, normalizeHtml, extractOpportunityLinks, buildDiscoveriesForSource, fetchOfficialSource, isTrustedOfficialHost, pruneSourceState, buildGoogleNewsRssUrl, parseGoogleNewsRss, searchInternetForContestLeads, filterUnseenWebSearchDiscoveries } from "./monitor-sources.mjs";
+import { collectSourceUrls, compareSource, fingerprintContent, normalizeHtml, extractOpportunityLinks, buildDiscoveriesForSource, fetchOfficialSource, isTrustedOfficialHost, pruneSourceState, buildGoogleNewsRssUrl, parseGoogleNewsRss, searchInternetForContestLeads, filterUnseenWebSearchDiscoveries, INTERNET_SEARCH_QUERIES } from "./monitor-sources.mjs";
 
 test("coleta somente URLs HTTPS únicas", () => {
   const urls = collectSourceUrls([
@@ -141,6 +141,15 @@ test("bloqueia downgrade para HTTP e remove fontes antigas da linha de base", as
   }, ["https://orgao.gov.br/atual"]);
   assert.deepEqual(result.removed, ["https://orgao.gov.br/antiga"]);
   assert.deepEqual(Object.keys(result.sources), ["https://orgao.gov.br/atual"]);
+});
+
+test("busca PCI Concursos entra no monitoramento como fonte externa de descoberta", () => {
+  const queries = INTERNET_SEARCH_QUERIES.filter(item => item.query.includes("site:pciconcursos.com.br"));
+  assert.equal(queries.length, 3);
+  assert.ok(queries.some(item => item.label.includes("concursos abertos")));
+  assert.ok(queries.some(item => item.label.includes("últimas atualizações")));
+  assert.ok(queries.some(item => item.label.includes("notícias")));
+  assert.ok(queries.every(item => item.query.includes("pciconcursos.com.br")));
 });
 
 test("catálogo atual possui fontes HTTPS deduplicadas", () => {
