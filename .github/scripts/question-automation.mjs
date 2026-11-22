@@ -88,7 +88,7 @@ function isTrustedHost(value) {
     const url = new URL(value);
     if (url.protocol !== "https:" || url.username || url.password) return false;
     const host = url.hostname.toLowerCase().replace(/\.$/, "");
-    const path = url.pathname.toLowerCase();
+    const path = decodeURIComponent(url.pathname).toLowerCase();
     if (/(^|\.)(gov|gov\.br|jus\.br|leg\.br|mp\.br|mil\.br|def\.br)$/.test(host)) return false;
     if (host === "planalto.gov.br" || host.endsWith(".planalto.gov.br")) return false;
     const approvedHosts = [
@@ -101,7 +101,7 @@ function isTrustedHost(value) {
     if (host === "www.postgresql.org" && !path.startsWith("/docs/")) return false;
     if (host === "kubernetes.io" && !path.startsWith("/docs/")) return false;
     if (host === "developer.mozilla.org" && !path.includes("/docs/")) return false;
-    if (host === "pt.wikisource.org" && !(path.startsWith("/wiki/o_corti%C3%A7o/") || path.startsWith("/wiki/dom_casmurro/"))) return false;
+    if (host === "pt.wikisource.org" && !(path.startsWith("/wiki/o_cortiço/") || path.startsWith("/wiki/dom_casmurro/"))) return false;
     return true;
   } catch { return false; }
 }

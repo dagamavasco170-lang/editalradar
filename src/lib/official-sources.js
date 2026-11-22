@@ -52,11 +52,11 @@ export function isTrustedPrivateStudySourceUrl(value) {
   const url = parseHttpsUrl(value);
   if (!url || !isTrustedPrivateStudySourceHostname(url.hostname)) return false;
   const host = url.hostname.toLowerCase();
-  const path = url.pathname.toLowerCase();
+  const path = decodeURIComponent(url.pathname).toLowerCase();
   if ((host === "www.postgresql.org" || host === "postgresql.org") && !path.startsWith("/docs/")) return false;
   if (host === "kubernetes.io" && !path.startsWith("/docs/")) return false;
   if (host === "developer.mozilla.org" && !path.includes("/docs/")) return false;
-  if (host === "pt.wikisource.org" && !(path.startsWith("/wiki/o_corti%C3%A7o/") || path.startsWith("/wiki/dom_casmurro/"))) return false;
+  if (host === "pt.wikisource.org" && !(path.startsWith("/wiki/o_cortiço/") || path.startsWith("/wiki/dom_casmurro/"))) return false;
   return true;
 }
 
