@@ -642,9 +642,10 @@ Deno.serve(async (req: Request) => {
   const now = new Date();
   const { data: topics, error } = await adminDb.from("study_question_automation_topics")
     .select("*").eq("active", true)
+    .order("last_run_at", { ascending: true, nullsFirst: true })
     .order("created_at", { ascending: true })
     .order("id", { ascending: true })
-    .limit(100);
+    .limit(1000);
   if (error) return json({ error: error.message }, 500);
   // Process any due topics, not just the oldest active row. The same daily
   // budget limits the number of topic runs, even when GitHub invokes this once.
