@@ -2139,3 +2139,36 @@ button,.detail-btn,.primary-btn{line-height:1.35}
 .pci-catalog-notice>a{flex:none;display:inline-flex;align-items:center;justify-content:center;padding:9px 12px;border-radius:8px;background:#1d705d;color:#fff;font-size:10px;font-weight:800;text-decoration:none}
 .pci-catalog-notice>a:hover{background:#185b4d}
 @media(max-width:560px){.pci-catalog-notice{align-items:stretch;flex-direction:column}.pci-catalog-notice>a{width:100%;box-sizing:border-box}}
+
+
+/* Monitoramento operacional das notificações push — visível apenas na Administração. */
+.push-health-panel{margin-top:16px}
+.push-health-heading{margin-bottom:15px}
+.push-health-overview{display:flex;align-items:center;gap:10px;padding:12px 14px;border:1px solid #dce8e3;border-radius:10px;background:#f7fbf8}
+.push-health-overview>div{display:grid;gap:3px;min-width:0;flex:1}
+.push-health-overview strong{font-size:12px;color:#294d40}
+.push-health-overview small{font-size:10px;color:#71827c;line-height:1.45}
+.push-health-overview.push-health-warning{border-color:#eadfca;background:#fcfaf3}
+.push-health-overview.push-health-warning strong{color:#896b2e}
+.push-health-overview.push-health-error{border-color:#efd9d8;background:#fdf7f6}
+.push-health-overview.push-health-error strong{color:#a34d48}
+.push-health-indicator{width:9px;height:9px;flex:0 0 9px;border-radius:50%;background:#3b9a70;box-shadow:0 0 0 4px #e2f2e9}
+.push-health-warning .push-health-indicator{background:#c08a35;box-shadow:0 0 0 4px #f6eddc}
+.push-health-error .push-health-indicator{background:#c35b55;box-shadow:0 0 0 4px #f7e6e4}
+.push-health-updated{color:#84918d;font-size:9px;white-space:nowrap}
+.push-health-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-top:12px}
+.push-health-card{display:grid;gap:5px;min-width:0;padding:12px;border:1px solid #e5ece9;border-radius:9px;background:#fff}
+.push-health-card small{font-size:9px;font-weight:800;color:#82918d}
+.push-health-card strong{font:800 18px Manrope,sans-serif;color:#24485a;overflow-wrap:anywhere}
+.push-health-card span{font-size:9px;line-height:1.45;color:#75858b;overflow-wrap:anywhere}
+.push-health-footer{display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px 16px;margin-top:11px;color:#7a898e;font-size:9px}
+.push-health-errors{margin-top:14px;padding-top:12px;border-top:1px solid #e8eeeb}
+.push-health-errors>strong{font-size:10px;color:#385667}
+.push-health-errors ul{display:grid;gap:6px;margin:8px 0 0;padding:0;list-style:none}
+.push-health-errors li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:3px 12px;padding:8px 10px;border:1px solid #eee5df;border-radius:8px;background:#fffaf7}
+.push-health-errors li span{font-size:10px;color:#795d4a;overflow-wrap:anywhere}
+.push-health-errors li b{font-size:10px;color:#8d4e3d}
+.push-health-errors li small{grid-column:1/-1;color:#9a8b82;font-size:8px}
+.push-health-privacy{margin:12px 0 0;color:#8a979b;font-size:9px;line-height:1.5}
+@media(max-width:760px){.push-health-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.push-health-updated{width:100%;margin-left:19px}}
+@media(max-width:420px){.push-health-grid{grid-template-columns:1fr}.push-health-card{padding:10px}.push-health-heading{align-items:flex-start}.push-health-heading>.detail-btn{white-space:nowrap}}
