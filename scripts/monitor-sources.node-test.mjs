@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { concursos } from "../src/data/concursos.js";
-import { collectSourceUrls, compareSource, fingerprintContent, normalizeHtml, extractOpportunityLinks, buildDiscoveriesForSource, fetchOfficialSource, isTrustedOfficialHost, pruneSourceState, buildGoogleNewsRssUrl, parseGoogleNewsRss, searchInternetForContestLeads, filterUnseenWebSearchDiscoveries, INTERNET_SEARCH_QUERIES, classifyContestLead } from "./monitor-sources.mjs";
+import { collectSourceUrls, compareSource, fingerprintContent, normalizeHtml, extractOpportunityLinks, buildDiscoveriesForSource, fetchOfficialSource, fetchNewsFeedWithRetry, isTrustedOfficialHost, pruneSourceState, buildGoogleNewsRssUrl, parseGoogleNewsRss, searchInternetForContestLeads, filterUnseenWebSearchDiscoveries, INTERNET_SEARCH_QUERIES, classifyContestLead } from "./monitor-sources.mjs";
 
 test("coleta somente URLs HTTPS únicas", () => {
   const urls = collectSourceUrls([
@@ -362,6 +362,77 @@ test("extrai pistas de concursos do RSS e descarta links inseguros, notícias an
   assert.match(leads[0].context, /Classificação automática: Inscrições\/prazo/);
 });
 
+test("repete falha temporária do feed de notícias e respeita Retry-After", async () => {
+  const waits = [];
+  let calls = 0;
+  const feedUrl = buildGoogleNewsRssUrl("concurso público");
+  const response = await fetchNewsFeedWithRetry(feedUrl, {
+    attempts: 3,
+    retryDelayMs: 10,
+    nowMs: Date.parse("2026-11-22T12:00:00Z"),
+    sleepImpl: async milliseconds => waits.push(milliseconds),
+    fetchImpl: async url => {
+      calls += 1;
+      if (calls === 1) {
+        return new Response("temporariamente indisponível", {
+          status: 503,
+          headers: { "Retry-After": "2" }
+        });
+      }
+      return new Response("<rss><channel></channel></rss>", { status: 200 });
+    }
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal(calls, 2);
+  assert.deepEqual(waits, [2000]);
+});
+
+test("repete erro de rede e HTTP 429, mas não repete erros definitivos", async () => {
+  const waits = [];
+  let calls = 0;
+  const feedUrl = buildGoogleNewsRssUrl("edital concurso");
+  const response = await fetchNewsFeedWithRetry(feedUrl, {
+    attempts: 3,
+    retryDelayMs: 25,
+    sleepImpl: async milliseconds => waits.push(milliseconds),
+    fetchImpl: async () => {
+      calls += 1;
+      if (calls === 1) throw new Error("ECONNRESET");
+      if (calls === 2) return new Response("rate limited", {
+        status: 429,
+        headers: { "Retry-After": "3" }
+      });
+      return new Response("<rss/>", { status: 200 });
+    }
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal(calls, 3);
+  assert.deepEqual(waits, [25, 3000]);
+
+  calls = 0;
+  const notFound = await fetchNewsFeedWithRetry(feedUrl, {
+    attempts: 4,
+    retryDelayMs: 10,
+    sleepImpl: async () => {},
+    fetchImpl: async () => {
+      calls += 1;
+      return new Response("not found", { status: 404 });
+    }
+  });
+  assert.equal(notFound.status, 404);
+  assert.equal(calls, 1);
+});
+
+test("bloqueia feeds fora do endpoint HTTPS autorizado", async () => {
+  let calls = 0;
+  await assert.rejects(() => fetchNewsFeedWithRetry("https://example.org/rss", {
+    fetchImpl: async () => { calls += 1; return new Response("<rss/>"); }
+  }), /somente HTTPS de news.google.com/);
+  assert.equal(calls, 0);
+});
+
 test("consulta a busca pública com HTTPS, bloqueio de redirecionamentos e tratamento independente de falhas", async () => {
   const requested = [];
   const result = await searchInternetForContestLeads({
@@ -370,6 +441,7 @@ test("consulta a busca pública com HTTPS, bloqueio de redirecionamentos e trata
       { label: "Busca estadual", query: "concurso Alagoas edital" }
     ],
     now: new Date("2026-11-21T19:00:00-03:00"),
+    attempts: 1,
     fetchImpl: async (url, options) => {
       requested.push({ url, options });
       if (url.includes("Alagoas")) throw new Error("Falha simulada");
