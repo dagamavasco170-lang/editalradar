@@ -44,7 +44,7 @@ function validatePublisherUrl(value, declaredHost) {
     throw new Error("O link resolvido não pertence a uma fonte oficial HTTPS autorizada.");
   }
   if (!isSameDeclaredPublisherHost(url.hostname, declaredHost)) {
-    throw new Error("O link da notícia não corresponde ao domínio oficial informado pelo Google Notícias.");
+    throw new Error("O link da notícia não corresponde ao domínio oficial indicado pela fonte (publisher declarado no Google Notícias).");
   }
   return url.href;
 }
