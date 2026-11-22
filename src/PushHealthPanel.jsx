@@ -194,7 +194,8 @@ export default function PushHealthPanel({ authClient }) {
           ) : (
             <p className="push-health-history-empty">O histórico persistente será preenchido após a próxima execução do worker.</p>
           )}
-          {batchAnchor}
+          <div className="push-health-footer">
+            <span>Fila mais antiga: {ageLabel(queue.oldest_message_age_seconds)}</span>
             <span>Última falha terminal: {formatDate(failures.latest_at)}</span>
           </div>
 
