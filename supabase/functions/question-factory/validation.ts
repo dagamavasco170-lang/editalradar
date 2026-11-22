@@ -34,8 +34,10 @@ export function isTrustedOfficialUrl(value: unknown): boolean {
       "quadrix.org.br", "fundacaolasalle.org.br", "fgv.br", "concursosfcc.com.br",
       "vunesp.com.br", "institutoaocp.org.br"
     ];
+    const trustedInternational = ["un.org"];
     return publicSuffixes.some((suffix) => host.endsWith(suffix))
-      || boards.some((domain) => host === domain || host.endsWith("." + domain));
+      || boards.some((domain) => host === domain || host.endsWith("." + domain))
+      || trustedInternational.some((domain) => host === domain || host.endsWith("." + domain));
   } catch {
     return false;
   }
