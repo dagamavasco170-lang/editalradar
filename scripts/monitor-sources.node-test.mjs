@@ -359,7 +359,7 @@ test("extrai pistas de concursos do RSS e descarta links inseguros, notícias an
   assert.match(leads[0].context, /Portal de Notícias/);
   assert.match(leads[0].context, /Confirme o edital/);
   assert.match(leads[0].discovery_key, /^web-search-title:[a-f0-9]{64}$/);
-  assert.match(leads[0].context, /Classificação automática: Edital\/publicação/);
+  assert.match(leads[0].context, /Classificação automática: Inscrições\/prazo/);
 });
 
 test("consulta a busca pública com HTTPS, bloqueio de redirecionamentos e tratamento independente de falhas", async () => {
