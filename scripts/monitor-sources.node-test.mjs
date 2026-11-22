@@ -668,8 +668,8 @@ test("pausa novas consultas ao Google Notícias depois de um HTTP 503 e continua
 
 
 test("segue redirecionamento HTTPS entre domínio raiz e www do mesmo veículo editorial", async () => {
-  const start = "https://concursosnobrasil.com.br/feed/";
-  const destination = "https://www.concursosnobrasil.com.br/feed/";
+  const start = "https://www.concursosnobrasil.com.br/feed/";
+  const destination = "https://concursosnobrasil.com.br/feed/";
   const calls = [];
   const response = await fetchNewsFeedWithRetry(start, {
     attempts: 1,
@@ -717,7 +717,7 @@ test("permite redirecionamentos apenas entre hosts da mesma família editorial",
 });
 
 test("bloqueia redirecionamento de feed para outro veículo autorizado ou destino HTTP", async () => {
-  const start = "https://concursosnobrasil.com.br/feed/";
+  const start = "https://www.concursosnobrasil.com.br/feed/";
   for (const target of [
     "https://g1.globo.com/rss/feed.xml",
     "http://www.concursosnobrasil.com.br/feed/"
