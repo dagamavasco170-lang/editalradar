@@ -470,7 +470,7 @@ describe("Autenticação EditalRadar", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Salvar perfil" }));
 
-    expect(await screen.findByText("Falha ao salvar perfil")).toBeInTheDocument();
+    expect(await screen.findByText("Não foi possível atualizar seu perfil. Tente novamente mais tarde.")).toBeInTheDocument();
     expect(screen.getByRole("dialog", { name: "Editar perfil" })).toBeInTheDocument();
   });
 
