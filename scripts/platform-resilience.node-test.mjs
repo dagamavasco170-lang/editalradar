@@ -65,7 +65,9 @@ test("falha de um recurso opcional não impede a atualização do service worker
   assert.match(serviceWorker, /requiredShellUrls/);
   assert.match(serviceWorker, /optionalShellUrls/);
   assert.match(serviceWorker, /Promise\.allSettled\(optionalShellUrls/);
-  assert.match(serviceWorker, /Promise\.allSettled\(\[\.\.\.new Set\(assetPaths\)\]/);
+  assert.match(serviceWorker, /await Promise\\.allSettled\\(optionalShellUrls\\.map/);
+  assert.match(serviceWorker, /await cache\\.addAll\\(\\[\\.\\.\\.new Set\\(assetPaths\\)\\]\\)/);
+  assert.match(serviceWorker, /Keep the current worker/);
 });
 
 test("falha de cache não transforma uma resposta online válida em erro de navegação", () => {
