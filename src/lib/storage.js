@@ -1,16 +1,18 @@
-export function safeGetItem(key, storage = globalThis.localStorage) {
+export function safeGetItem(key, storage) {
   try {
-    if (!storage || typeof storage.getItem !== "function") return null;
-    return storage.getItem(String(key));
+    const target = storage === undefined ? globalThis.localStorage : storage;
+    if (!target || typeof target.getItem !== "function") return null;
+    return target.getItem(String(key));
   } catch {
     return null;
   }
 }
 
-export function safeSetItem(key, value, storage = globalThis.localStorage) {
+export function safeSetItem(key, value, storage) {
   try {
-    if (!storage || typeof storage.setItem !== "function") return false;
-    storage.setItem(String(key), String(value));
+    const target = storage === undefined ? globalThis.localStorage : storage;
+    if (!target || typeof target.setItem !== "function") return false;
+    target.setItem(String(key), String(value));
     return true;
   } catch {
     // Local persistence is best-effort. The app must remain usable when
