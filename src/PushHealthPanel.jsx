@@ -126,7 +126,7 @@ export default function PushHealthPanel({ authClient }) {
             </article>
             <article className="push-health-card">
               <small>Dispositivos push</small>
-              <strong>{number(devices.enabled)} ativos</strong>
+              <strong>{number(devices.enabled)} {Number(devices.enabled) === 1 ? "ativo" : "ativos"}</strong>
               <span>{number(devices.total)} registrados · {number(devices.disabled)} desativados</span>
             </article>
             <article className="push-health-card">
