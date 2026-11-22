@@ -141,7 +141,7 @@ internal class AppUpdateManager(context: Context) {
         val notes = body
             .lineSequence()
             .filterNot { it.startsWith("# ") || it.trim().startsWith("- Versão ") }
-            .joinToString("\\n")
+            .joinToString("\n")
             .trim()
             .take(1_800)
 
