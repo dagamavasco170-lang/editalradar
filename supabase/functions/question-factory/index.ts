@@ -65,7 +65,7 @@ const DEFAULT_AUTONOMOUS_TOPICS = [
   { discipline: "Administração Pública", topic: "Organização e funcionamento da administração pública", source_url: "https://www.planalto.gov.br/ccivil_03/constituicao/constituicao.htm" },
   { discipline: "Legislação Educacional", topic: "Diretrizes e bases da educação nacional", source_url: "https://www.planalto.gov.br/ccivil_03/leis/l9394compilado.htm" },
   { discipline: "Legislação Educacional", topic: "Plano Nacional de Educação", source_url: "https://www.planalto.gov.br/ccivil_03/_ato2011-2014/2014/lei/l13005.htm" },
-  { discipline: "Legislação Educacional", topic: "Financiamento da educação básica e Fundeb", source_url: "https://www.planalto.gov.br/ccivil_03/leis/lcp/lcp14.htm" },
+  { discipline: "Legislação Educacional", topic: "Financiamento da educação básica e Fundeb", source_url: "https://www.planalto.gov.br/ccivil_03/_ato2019-2022/2020/lei/l14113.htm" },
   { discipline: "Legislação Especial", topic: "Estatuto da Criança e do Adolescente", source_url: "https://www.planalto.gov.br/ccivil_03/leis/l8069compilado.htm" },
   { discipline: "Legislação Especial", topic: "Estatuto da Pessoa Idosa", source_url: "https://www.planalto.gov.br/ccivil_03/leis/2003/l10.741.htm" },
   { discipline: "Legislação Especial", topic: "Estatuto da Pessoa com Deficiência", source_url: "https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2015/lei/l13146.htm" },
@@ -639,12 +639,20 @@ Deno.serve(async (req: Request) => {
 
   const now = new Date();
   const { data: topics, error } = await adminDb.from("study_question_automation_topics")
-    .select("*").eq("active", true).order("created_at", { ascending: true }).limit(100);
+    .select("*").eq("active", true)
+    .order("created_at", { ascending: true })
+    .order("id", { ascending: true })
+    .limit(100);
   if (error) return json({ error: error.message }, 500);
   // Process any due topics, not just the oldest active row. The same daily
   // budget limits the number of topic runs, even when GitHub invokes this once.
   const remainingDailyRuns = Math.max(0, MAX_DAILY_RUNS - dailyBudget.count);
-  const due = (topics || []).filter((topic: any) => isDue(topic, now)).slice(0, remainingDailyRuns);
+  const requestedTopicIds = Array.isArray(body?.topicIds)
+    ? new Set(body.topicIds.filter((value: unknown) => typeof value === "string"))
+    : null;
+  const due = (topics || [])
+    .filter((topic: any) => isDue(topic, now) && (!requestedTopicIds || requestedTopicIds.has(topic.id)))
+    .slice(0, remainingDailyRuns);
   const sourceExcerpts = body?.sourceExcerpts && typeof body.sourceExcerpts === "object" ? body.sourceExcerpts : {};
   const results = [];
   for (const topic of due) {
