@@ -51,14 +51,13 @@ jobs:
         shell: bash
         run: |
           VERSION_INFO="$(python3 - <<'PY'
-          import re
           from pathlib import Path
-          source = Path("android/app/build.gradle").read_text()
-          name = re.search(r"^\\s*versionName\\s+'([^']+)'", source, re.MULTILINE)
-          code = re.search(r"^\\s*versionCode\\s+(\\d+)", source, re.MULTILINE)
-          if not name or not code:
+          lines = Path("android/app/build.gradle").read_text().splitlines()
+          name_line = next((line.strip() for line in lines if line.strip().startswith("versionName ")), "")
+          code_line = next((line.strip() for line in lines if line.strip().startswith("versionCode ")), "")
+          if not name_line or not code_line:
               raise SystemExit("Não foi possível ler a versão Android.")
-          print(f"{name.group(1)}|{code.group(1)}")
+          print(f"{name_line.split(chr(39), 2)[1]}|{code_line.split()[1]}")
           PY
           )"
           VERSION_NAME="${VERSION_INFO%%|*}"
