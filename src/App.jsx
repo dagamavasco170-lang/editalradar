@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { isSupabaseConfigured, supabase } from "./lib/supabaseClient";
+import { safeGetItem, safeSetItem } from "./lib/storage.js";
 import { concursos, sourceUrl, sourceUpdated, fetchedAt } from "./data/concursos";
 import { detectCatalogNotifications, dismissNotificationById, dismissNotificationHistory, getVisibleNotifications, mergeNotificationHistory } from "./lib/notifications";
 import { applyCatalogOverrides } from "./lib/catalog";
@@ -23,9 +24,10 @@ export const scoreRecommendation = (item, profile = {}) => {
  return Math.round((areaMatches?40:0)+(levelMatches?25:0)+(stateMatches?20:0)+(cityMatches?5:0)+(active?10:0));
 };
 const readStore = (key, fallback) => {
+  const value = safeGetItem(key);
+  if (!value) return fallback;
   try {
-    const value = localStorage.getItem(key);
-    return value ? JSON.parse(value) : fallback;
+    return JSON.parse(value);
   } catch {
     return fallback;
   }
@@ -36,7 +38,7 @@ const readUserDataStore = (userId, key, fallback) =>
   readStore(userId ? accountStorageKey(userId, key) : `er-${key}`, fallback);
 const persistUserDataStore = (userId, key, value) => {
   const storageKey = userId ? accountStorageKey(userId, key) : `er-${key}`;
-  localStorage.setItem(storageKey, JSON.stringify(value));
+  return safeSetItem(storageKey, JSON.stringify(value));
 };
 
 const isMissingNotificationsColumn = (error) =>
@@ -323,7 +325,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   const persistComparison = (next) => {
     const normalized = next.slice(0, 3);
     setComparisonIds(normalized);
-    try { localStorage.setItem(comparisonStorageKey, JSON.stringify(normalized)); } catch { /* comparação continua nesta sessão */ }
+    try { safeSetItem(comparisonStorageKey, JSON.stringify(normalized)); } catch { /* comparação continua nesta sessão */ }
   };
   const toggleComparison = (item) => {
     const exists = comparisonItems.some((entry) => String(entry.id) === String(item.id));
@@ -368,7 +370,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
       const enabled = event?.detail?.granted === true;
       setNotificationPermission(enabled ? "granted" : "denied");
       setBrowserNotificationsEnabled(enabled);
-      localStorage.setItem("er-browser-notifications", JSON.stringify(enabled));
+      safeSetItem("er-browser-notifications", JSON.stringify(enabled));
       setNotificationMessage(enabled
         ? "Notificações ativadas! Avisaremos quando houver novidades."
         : "Os avisos não foram ativados. Você pode continuar acompanhando as novidades por aqui.");
@@ -416,7 +418,10 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
           setCatalogSyncMessage("");
         }
       } catch (error) {
-        if (!cancelled) setCatalogSyncMessage(error?.message || "Não foi possível carregar as alterações do catálogo. A lista base continua disponível.");
+        if (!cancelled) {
+          console.warn("Falha ao sincronizar o catálogo:", error);
+          setCatalogSyncMessage("Não foi possível atualizar algumas oportunidades agora. A lista disponível continua funcionando.");
+        }
       }
     };
     void loadCatalogOverrides();
@@ -447,7 +452,8 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
         }
       } catch (error) {
         if (!cancelled) {
-          setDiscoverySyncMessage(error?.message || "Não foi possível carregar a fila. Confira se a migração de descobertas foi executada.");
+          console.warn("Falha ao carregar a fila de oportunidades:", error);
+          setDiscoverySyncMessage("Não foi possível atualizar a fila agora. Tente novamente mais tarde.");
         }
       } finally {
         if (!cancelled) setDiscoveryLoading(false);
@@ -470,9 +476,16 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
       setAuthUser(data.session?.user || null);
       setAuthReady(true);
       if (error) {
+        console.warn("Falha ao recuperar a sessão:", error);
         setAuthMessage("Não foi possível recuperar sua sessão. Entre novamente.");
         setAuthMessageType("error");
       }
+    }).catch((error) => {
+      if (!mounted) return;
+      console.warn("Falha inesperada ao recuperar a sessão:", error);
+      setAuthReady(true);
+      setAuthMessage("Não foi possível recuperar sua sessão. Entre novamente.");
+      setAuthMessageType("error");
     });
 
     const { data: { subscription } } = authClient.auth.onAuthStateChange((event, session) => {
@@ -528,7 +541,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
       setNotificationPermission(enabled ? "granted" : "denied");
       setBrowserNotificationsEnabled(enabled);
       try {
-        localStorage.setItem("er-browser-notifications", JSON.stringify(enabled));
+        safeSetItem("er-browser-notifications", JSON.stringify(enabled));
       } catch {
         // A permissão continua válida mesmo se o armazenamento local estiver indisponível.
       }
@@ -667,7 +680,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
         persistUserDataStore(userId, "favorites", resolved.favorites);
         persistUserDataStore(userId, "alerts", resolved.alerts);
         persistUserDataStore(userId, "tasks", resolved.tasks);
-        localStorage.setItem("er-notifications:" + userId, JSON.stringify(resolved.notifications));
+        safeSetItem("er-notifications:" + userId, JSON.stringify(resolved.notifications));
 
         // Create the initial row, migrate any local notification history, or
         // persist actions made while the cloud snapshot was loading.
@@ -709,7 +722,8 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
         if (cancelled) return;
         if (resolved) pendingChangesRef.current = { ...resolved, ...pendingChangesRef.current };
         setSyncStatus("error");
-        setAuthMessage(error?.message || "Sua conta foi conectada, mas não foi possível atualizar seus dados agora. Tente novamente mais tarde.");
+        console.warn("Falha ao sincronizar os dados da conta:", error);
+        setAuthMessage("Sua conta foi conectada, mas não foi possível atualizar seus dados agora. Tente novamente mais tarde.");
         setAuthMessageType("error");
       }
     };
@@ -740,7 +754,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
       previousSnapshot,
       favoriteIds: favorites
     });
-    localStorage.setItem(catalogSnapshotStorageKey, JSON.stringify(detected.snapshot));
+    safeSetItem(catalogSnapshotStorageKey, JSON.stringify(detected.snapshot));
     if (detected.notifications.length === 0) return;
 
     const existing = readStore(notificationStorageKey, []);
@@ -765,7 +779,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
       ...dismissedHistory
     ];
     setNotifications(next);
-    localStorage.setItem(notificationStorageKey, JSON.stringify(next));
+    safeSetItem(notificationStorageKey, JSON.stringify(next));
     void syncUserData({ notifications: next });
 
     if (browserNotificationsEnabled && notificationPermission === "granted"
@@ -865,11 +879,11 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
 
   const updateSortMode = (value) => {
     setSortMode(value);
-    try { localStorage.setItem("er-catalog-sort", JSON.stringify(value)); } catch { /* preferência temporária */ }
+    try { safeSetItem("er-catalog-sort", JSON.stringify(value)); } catch { /* preferência temporária */ }
   };
   const updateCatalogView = (value) => {
     setCatalogView(value);
-    try { localStorage.setItem("er-catalog-view", JSON.stringify(value)); } catch { /* preferência temporária */ }
+    try { safeSetItem("er-catalog-view", JSON.stringify(value)); } catch { /* preferência temporária */ }
   };
   const exportFavoriteContests = () => {
     const favoriteItems = catalog.filter((item) => favorites.includes(item.id));
@@ -935,7 +949,8 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     } catch (error) {
       pendingWritesRef.current = Math.max(0, pendingWritesRef.current - 1);
       setSyncStatus("error");
-      setAuthMessage(error?.message || "Não foi possível salvar suas alterações na conta agora. Elas continuam disponíveis neste aparelho.");
+      console.warn("Falha ao salvar os dados da conta:", error);
+      setAuthMessage("Não foi possível sincronizar suas alterações agora. Elas continuam disponíveis neste aparelho.");
       setAuthMessageType("error");
     }
   };
@@ -1158,7 +1173,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
         if (enabled) {
           setNotificationPermission("granted");
           setBrowserNotificationsEnabled(true);
-          localStorage.setItem("er-browser-notifications", JSON.stringify(true));
+          safeSetItem("er-browser-notifications", JSON.stringify(true));
           setNotificationMessage("Notificações ativadas! Avisaremos quando houver novidades.");
           nativeBridge.showNotification?.(
             "EditalRadar",
@@ -1188,7 +1203,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
       setNotificationPermission(permission);
       const enabled = permission === "granted";
       setBrowserNotificationsEnabled(enabled);
-      localStorage.setItem("er-browser-notifications", JSON.stringify(enabled));
+      safeSetItem("er-browser-notifications", JSON.stringify(enabled));
       setNotificationMessage(enabled
         ? "Avisos ativados! Você receberá novidades neste dispositivo."
         : "Os avisos não foram ativados. Você continuará vendo as novidades por aqui.");
@@ -1243,14 +1258,14 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   const markAllNotificationsRead = () => {
     const next = notifications.map((item) => ({ ...item, read: true }));
     setNotifications(next);
-    localStorage.setItem(notificationStorageKey, JSON.stringify(next));
+    safeSetItem(notificationStorageKey, JSON.stringify(next));
     void syncUserData({ notifications: next });
   };
 
   const openNotification = (notification) => {
     const next = notifications.map((item) => item.id === notification.id ? { ...item, read: true } : item);
     setNotifications(next);
-    localStorage.setItem(notificationStorageKey, JSON.stringify(next));
+    safeSetItem(notificationStorageKey, JSON.stringify(next));
     void syncUserData({ notifications: next });
     const contest = catalog.find((item) => String(item.id) === String(notification.itemId));
     if (contest) openContestDetails(contest);
@@ -1259,7 +1274,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   const dismissSingleNotification = (notificationId) => {
     const next = dismissNotificationById(notifications, notificationId);
     setNotifications(next);
-    localStorage.setItem(notificationStorageKey, JSON.stringify(next));
+    safeSetItem(notificationStorageKey, JSON.stringify(next));
     void syncUserData({ notifications: next });
   };
 
@@ -1274,7 +1289,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     // Keep compact ID tombstones so the same catalog event is never announced again.
     const dismissed = dismissNotificationHistory(notifications);
     setNotifications(dismissed);
-    localStorage.setItem(notificationStorageKey, JSON.stringify(dismissed));
+    safeSetItem(notificationStorageKey, JSON.stringify(dismissed));
     void syncUserData({ notifications: dismissed });
   };
 
@@ -1347,7 +1362,8 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
       setAdminMessage("Oportunidade descartada. O registro foi mantido no histórico.");
       setAdminMessageType("success");
     } catch (error) {
-      setAdminMessage(error?.message || "Não foi possível descartar esta descoberta.");
+      console.warn("Falha ao descartar a oportunidade:", error);
+      setAdminMessage("Não foi possível concluir esta ação agora.");
       setAdminMessageType("error");
     } finally {
       setAdminBusy(false);
@@ -1445,7 +1461,8 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
         }).catch((pushError) => console.warn("Falha ao enviar aviso push:", pushError));
       }
     } catch(error) {
-      setAdminMessage(error?.message || "Não foi possível salvar. Confira a migração e sua permissão.");
+      console.warn("Falha ao salvar a oportunidade:", error);
+      setAdminMessage("Não foi possível salvar esta oportunidade agora. Tente novamente.");
       setAdminMessageType("error");
     } finally {
       setAdminBusy(false);
@@ -1466,7 +1483,8 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
       setAdminMessage("Concurso removido do catálogo.");
       setAdminMessageType("success");
     } catch(error) {
-      setAdminMessage(error?.message || "Não foi possível remover este concurso.");
+      console.warn("Falha ao remover a oportunidade:", error);
+      setAdminMessage("Não foi possível remover esta oportunidade agora.");
       setAdminMessageType("error");
     } finally {
       setAdminBusy(false);
