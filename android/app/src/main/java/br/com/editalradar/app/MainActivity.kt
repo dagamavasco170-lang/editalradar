@@ -239,8 +239,8 @@ class MainActivity : Activity() {
             .build()
 
         val notificationId = tag.hashCode()
-        getSystemService(Context.NOTIFICATION_SERVICE, NotificationManager::class.java)
-            .notify(notificationId, notification)
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.notify(notificationId, notification)
     }
 
     private fun handleAuthIntent(source: Intent?): Boolean {
