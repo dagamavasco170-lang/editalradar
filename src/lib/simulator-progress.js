@@ -65,7 +65,7 @@ export function loadActiveSimulation(userId, questionBank = [], storage, now = D
     const rawAnswers = source.answers && typeof source.answers === "object" && !Array.isArray(source.answers) ? source.answers : {};
     const answers = {};
     for (const [questionId, selected] of Object.entries(rawAnswers)) {
-      const question = questionsById.get(String(questionId));
+      const question = questions.find(item => String(item.id) === String(questionId));
       const validOptions = question?.options.map(option => Array.isArray(option) ? String(option[1]) : "").filter(Boolean) || [];
       if (ids.includes(String(questionId)) && validOptions.includes(String(selected))) answers[String(questionId)] = String(selected);
     }

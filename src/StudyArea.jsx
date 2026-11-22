@@ -221,10 +221,12 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
    const answerValue=summary.answers[questionId]||"";
    return {id:summary.id+":"+questionId,questionId,answer:answerValue,correct:Boolean(answerValue&&review?.correct),at:summary.completedAt,source:question?.origin==="generated"?"autoral-gerada":"simulado",simulationId:summary.id};
   });
+  const savedSummary={...summary};
+  delete savedSummary.review;
   updateQuestionProgress(current=>({
    ...current,
    attempts:[...current.attempts,...attempts].slice(-500),
-   simulations:[...current.simulations,summary].slice(-100)
+   simulations:[...current.simulations,savedSummary].slice(-100)
   }));
  };
  const resetQuestionSelection=()=>{
