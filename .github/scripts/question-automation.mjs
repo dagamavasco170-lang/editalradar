@@ -209,6 +209,7 @@ async function main() {
   const runParams = new URLSearchParams({
     select: "id",
     started_at: `gte.${utcStart.toISOString()}`,
+    status: "neq.failed",
     limit: String(DAILY_TOPIC_LIMIT)
   });
   const todaysRuns = await supabaseRest(`study_question_automation_runs?${runParams.toString()}`);

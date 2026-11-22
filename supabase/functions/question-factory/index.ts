@@ -433,7 +433,7 @@ async function dailyRunBudgetAvailable(): Promise<{ allowed: boolean; count: num
   const now = new Date();
   const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())).toISOString();
   const { data, error } = await adminDb.from("study_question_automation_runs")
-    .select("id").gte("started_at", start).limit(MAX_DAILY_RUNS);
+    .select("id").gte("started_at", start).neq("status", "failed").limit(MAX_DAILY_RUNS);
   if (error) throw new Error("Não foi possível verificar o limite diário da automação: " + error.message);
   const count = (data || []).length;
   return { allowed: count < MAX_DAILY_RUNS, count };
