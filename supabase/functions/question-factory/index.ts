@@ -124,7 +124,7 @@ async function callStructuredModel(schemaName: string, schema: unknown, systemPr
   return JSON.parse(content);
 }
 
-function generationPrompts(topic: any, count: number) {
+function generationPrompts(topic: any, count: number, sourceExcerpt: string) {
   const system = [
     "Você é elaborador de questões originais para concursos públicos brasileiros.",
     "Escreva em português brasileiro claro, preciso e sem reproduzir questões de provas existentes.",
@@ -144,13 +144,13 @@ function generationPrompts(topic: any, count: number) {
     "Quantidade solicitada: " + count,
     "Fonte oficial: " + topic.source_url,
     "MATERIAL DE REFERÊNCIA (única base factual):",
-    String(topic.source_excerpt).slice(0, 12000),
+    String(sourceExcerpt || "").slice(0, 12000),
     "Gere questões distintas, cobrando aspectos diferentes do material."
   ].join("\n\n");
   return { system, user };
 }
 
-function reviewPrompts(topic: any, questions: GeneratedQuestion[]) {
+function reviewPrompts(topic: any, questions: GeneratedQuestion[], sourceExcerpt: string) {
   const system = [
     "Você é um revisor independente e rigoroso de questões para concursos públicos.",
     "Revise cada questão sem presumir que o elaborador esteja correto.",
@@ -167,7 +167,7 @@ function reviewPrompts(topic: any, questions: GeneratedQuestion[]) {
     tema: topic.topic,
     dificuldade: topic.difficulty,
     fonte_url: topic.source_url,
-    material_de_referencia: topic.source_excerpt,
+    material_de_referencia: sourceExcerpt,
     questoes: questions.map((question, index) => ({ index, ...question }))
   });
   return { system, user };
@@ -288,7 +288,7 @@ async function runTopic(topic: any, triggerMode: "manual" | "scheduled", userId:
     if (existingError) throw existingError;
     const existingPrompts = (existingRows || []).map((row: any) => row.prompt).filter(Boolean);
 
-    const prompts = generationPrompts(topic, requested);
+    const prompts = generationPrompts(topic, requested, excerpt);
     const generated = await callStructuredModel(
       "editalradar_generated_questions",
       questionSchema,
@@ -335,7 +335,7 @@ async function runTopic(topic: any, triggerMode: "manual" | "scheduled", userId:
       return { topicId: topic.id, runId, requested, generated: 0, approved: 0, manualReview: 0, rejected: requested, issues: rejectedIssues };
     }
 
-    const review = reviewPrompts(topic, validCandidates);
+    const review = reviewPrompts(topic, validCandidates, excerpt);
     const reviewed = await callStructuredModel(
       "editalradar_independent_question_review",
       reviewSchema,
