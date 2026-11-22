@@ -13,7 +13,6 @@ on:
       - "android/gradlew"
       - "android/gradlew.bat"
       - ".github/workflows/android-release.yml"
-      - "scripts/platform-resilience.node-test.mjs"
   pull_request:
     branches: [main]
     paths:
