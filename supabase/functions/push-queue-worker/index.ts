@@ -1,14 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import {
-  classifyWorkerFcmFailure,
-  getWorkerRetryDelaySeconds,
-  currentPushDeliveryAttempt,
-  hasPushRetryBudget,
-  canScheduleBeforePushExpiry,
-  remainingPushTtlSeconds,
-  resolvePushExpiryMs,
-} from "./policy.js";
+import { classifyWorkerFcmFailure } from "./policy.js";
+import { processPushDeliveryJob } from "./delivery.js";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
 const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
@@ -113,99 +106,6 @@ async function sendFcmMessage(
   }
 }
 
-function parseJob(message: unknown, enqueuedAt: unknown) {
-  if (!message || typeof message !== "object" || Array.isArray(message)) return null;
-  const value = message as Record<string, unknown>;
-  const token = String(value.token || "").trim();
-  const title = String(value.title || "").trim().slice(0, 90);
-  const body = String(value.body || "").trim().slice(0, 350);
-  const url = String(value.url || "/").trim().slice(0, 512);
-  const hasExplicitExpiry = Object.prototype.hasOwnProperty.call(value, "expires_at");
-  const expiresAtMs = resolvePushExpiryMs(hasExplicitExpiry ? value.expires_at : undefined, enqueuedAt);
-  if (
-    token.length < 32 || token.length > 4096 || !title || !body
-    || !url.startsWith("/") || url.startsWith("//") || expiresAtMs === null
-  ) return null;
-  return {
-    token,
-    notification: { title, body, url },
-    attempt: Math.max(1, Number(value.attempt) || 1),
-    expiresAt: new Date(expiresAtMs).toISOString(),
-  };
-}
-
-async function archiveMessage(adminDb: any, msgId: number) {
-  const { data, error } = await adminDb.rpc("ack_push_delivery_retry", { p_msg_id: msgId });
-  if (error || data !== true) throw new Error("Não foi possível confirmar a mensagem da fila.");
-}
-
-async function processJob(adminDb: any, job: any, accessToken: string, projectId: string) {
-  const parsed = parseJob(job.message, job.enqueued_at);
-  if (!parsed) {
-    const { error } = await adminDb.rpc("ack_push_delivery_retry", { p_msg_id: job.msg_id });
-    if (error) throw new Error("Não foi possível descartar uma mensagem inválida da fila.");
-    return { outcome: "invalid_message" };
-  }
-
-  const ttlSeconds = remainingPushTtlSeconds(parsed.expiresAt);
-  if (ttlSeconds <= 0) {
-    await archiveMessage(adminDb, job.msg_id);
-    return { outcome: "expired" };
-  }
-
-  const currentAttempt = currentPushDeliveryAttempt(parsed.attempt, Number(job.read_ct));
-  const result = await sendFcmMessage(parsed.token, parsed.notification, projectId, accessToken, ttlSeconds);
-  if (result.ok) {
-    await archiveMessage(adminDb, job.msg_id);
-    return { outcome: "sent" };
-  }
-
-  if (result.permanentTokenError) {
-    const { error } = await adminDb.from("push_devices")
-      .update({ enabled: false, updated_at: new Date().toISOString() })
-      .eq("token", parsed.token);
-    if (error) throw new Error("O token inválido foi identificado, mas não foi possível desativá-lo.");
-    await archiveMessage(adminDb, job.msg_id);
-    return { outcome: "disabled_invalid" };
-  }
-
-  if (remainingPushTtlSeconds(parsed.expiresAt) <= 0) {
-    await archiveMessage(adminDb, job.msg_id);
-    return { outcome: "expired" };
-  }
-
-  if (result.retryable && hasPushRetryBudget(currentAttempt, MAX_TOTAL_ATTEMPTS)) {
-    const delaySeconds = getWorkerRetryDelaySeconds(result, currentAttempt);
-    if (!canScheduleBeforePushExpiry(parsed.expiresAt, delaySeconds)) {
-      await archiveMessage(adminDb, job.msg_id);
-      return { outcome: "expired_before_retry" };
-    }
-    const { error } = await adminDb.rpc("reschedule_push_delivery_retry", {
-      p_old_msg_id: job.msg_id,
-      p_message: {
-        token: parsed.token,
-        ...parsed.notification,
-        attempt: currentAttempt,
-        last_error_code: result.code,
-        retry_after: result.retryAfter || null,
-        expires_at: parsed.expiresAt,
-      },
-      p_delay_seconds: delaySeconds,
-    });
-    if (error) throw new Error("Não foi possível reagendar a retentativa persistente.");
-    return { outcome: "rescheduled", error_code: result.code, attempts: currentAttempt };
-  }
-
-  const { error } = await adminDb.rpc("fail_push_delivery_retry", {
-    p_msg_id: job.msg_id,
-    p_token: parsed.token,
-    p_error_code: result.code,
-    p_attempt_count: currentAttempt,
-  });
-  if (error) throw new Error("Não foi possível registrar a falha definitiva da notificação.");
-  return { outcome: "dead_letter", error_code: result.code, attempts: currentAttempt };
-}
-
 Deno.serve(async (req: Request) => {
   if (req.method !== "POST") return json({ error: "Método não permitido." }, 405);
   if (!supabaseUrl || !serviceKey || !serviceAccountValue) {
@@ -243,7 +143,13 @@ Deno.serve(async (req: Request) => {
     const accessToken = await createGoogleAccessToken(serviceAccount);
     const results = await Promise.all(jobs.map(async (job: any) => {
       try {
-        return await processJob(adminDb, job, accessToken, serviceAccount.project_id);
+        return await processPushDeliveryJob({
+          adminDb,
+          job,
+          accessToken,
+          projectId: serviceAccount.project_id,
+          sendMessage: sendFcmMessage,
+        });
       } catch (error) {
         console.error("[push-queue-worker] Falha ao processar mensagem:", error?.message || error);
         // Leave this message unacknowledged. PGMQ makes it visible again when
