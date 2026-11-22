@@ -7,6 +7,8 @@ import { isTrustedOfficialUrl, officialSourceLabel, parseHttpsUrl } from "./lib/
 import { getUpcomingMilestones } from "./lib/dashboard";
 import { parseBrazilianNumber } from "./lib/brazilian-numbers.js";
 import { buildCsv } from "./lib/csv-export.js";
+import { buildContestChangeHistory, formatContestHistoryDate } from "./lib/admin-history.js";
+import { classifyDiscoveryKind, discoveryKindLabel, discoveryStatusLabel, filterDiscoveries, countDiscoveriesByStatus } from "./lib/discovery-filters.js";
 const StudyArea = React.lazy(() => import("./StudyArea.jsx"));
 const StudyQuestionAdmin = React.lazy(() => import("./StudyQuestionAdmin.jsx"));
 
@@ -227,6 +229,10 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   const [discoveryItems, setDiscoveryItems] = useState([]);
   const [discoveryLoading, setDiscoveryLoading] = useState(false);
   const [discoverySyncMessage, setDiscoverySyncMessage] = useState("");
+  const [discoveryQuery, setDiscoveryQuery] = useState("");
+  const [discoveryKind, setDiscoveryKind] = useState("all");
+  const [discoveryStatus, setDiscoveryStatus] = useState("pending");
+  const [discoveryPeriod, setDiscoveryPeriod] = useState("all");
   const [discoveryDraftId, setDiscoveryDraftId] = useState(null);
   const [adminDraft, setAdminDraft] = useState(null);
   const [adminEditingId, setAdminEditingId] = useState(null);
@@ -396,9 +402,9 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
       try {
         const { data, error } = await authClient
           .from("contest_discoveries")
-          .select("id, source_url, candidate_url, title, context, discovery_type, detected_at, status")
-          .eq("status", "pending")
-          .order("detected_at", { ascending: false });
+          .select("id, source_url, candidate_url, title, context, discovery_type, detected_at, status, reviewed_at, reviewed_by, published_catalog_id")
+          .order("detected_at", { ascending: false })
+          .limit(300);
         if (error) throw error;
         if (!cancelled) {
           setDiscoveryItems(Array.isArray(data) ? data : []);
@@ -1150,8 +1156,10 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
         reviewed_by: authUser?.id || null
       }).eq("id", item.id);
       if (error) throw error;
-      setDiscoveryItems(current => current.filter(row => String(row.id) !== String(item.id)));
-      setAdminMessage("Oportunidade descartada da fila.");
+      setDiscoveryItems(current => current.map(row => String(row.id) === String(item.id)
+        ? { ...row, status: "dismissed", reviewed_at: new Date().toISOString(), reviewed_by: authUser?.id || null }
+        : row));
+      setAdminMessage("Oportunidade descartada. O registro foi mantido no histórico.");
       setAdminMessageType("success");
     } catch (error) {
       setAdminMessage(error?.message || "Não foi possível descartar esta descoberta.");
@@ -1184,6 +1192,9 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
       setAdminMessageType("error");
       return;
     }
+    const previousContest = adminEditingId !== null
+      ? catalog.find(item => String(item.id) === String(adminEditingId))
+      : null;
     const data = {
       cargo, orgao,
       sigla: String(adminDraft.sigla || "").trim().slice(0,12) || orgao.slice(0,6).toUpperCase(),
@@ -1197,6 +1208,12 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
       vinculo: String(adminDraft.vinculo || "").trim(),
       historicoAtualizacoes: Array.isArray(adminDraft.historicoAtualizacoes) ? adminDraft.historicoAtualizacoes : []
     };
+    if (previousContest) {
+      data.historicoAtualizacoes = buildContestChangeHistory(previousContest, data, {
+        at: new Date().toISOString(),
+        actor: authUser?.email || "Administrador"
+      });
+    }
     setAdminBusy(true);
     setAdminMessage("");
     try {
@@ -1219,7 +1236,9 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
         if (reviewError) {
           successMessage = "Concurso salvo, mas não foi possível concluir a revisão na fila: " + reviewError.message;
         } else {
-          setDiscoveryItems(current => current.filter(row => String(row.id) !== String(discoveryDraftId)));
+          setDiscoveryItems(current => current.map(row => String(row.id) === String(discoveryDraftId)
+            ? { ...row, status: "published", reviewed_at: new Date().toISOString(), reviewed_by: authUser?.id || null, published_catalog_id: Number(saved.id) }
+            : row));
         }
         setDiscoveryDraftId(null);
       }
@@ -1266,6 +1285,13 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   const preliminaryCount = catalog.filter(isPreliminary).length;
   const verifiedRecords = catalog.filter((item) => item && !isPreliminary(item));
   const totalVagas = verifiedRecords.reduce((sum, item) => sum + (Number(item.vagas) || 0), 0);
+  const discoveryCounts = useMemo(() => countDiscoveriesByStatus(discoveryItems), [discoveryItems]);
+  const filteredDiscoveryItems = useMemo(() => filterDiscoveries(discoveryItems, {
+    query: discoveryQuery,
+    kind: discoveryKind,
+    status: discoveryStatus,
+    period: discoveryPeriod
+  }), [discoveryItems, discoveryQuery, discoveryKind, discoveryStatus, discoveryPeriod]);
 
   return (
     <div className="app-shell" data-page={page}>
@@ -1538,7 +1564,26 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
               <div className="admin-list">
                 {catalog.map(item => <article className="admin-row" key={item.id}>
                   <div className="admin-row-copy"><strong>{item.cargo}</strong><span>{item.orgao} · {item.estado || "Brasil"} · {item.status}</span>
-                    {Array.isArray(item.historicoAtualizacoes) && item.historicoAtualizacoes.length > 0 && <small>Histórico de {item.historicoAtualizacoes.length} atualização(ões). Última: {item.historicoAtualizacoes[item.historicoAtualizacoes.length - 1].at ? new Date(item.historicoAtualizacoes[item.historicoAtualizacoes.length - 1].at).toLocaleString("pt-BR") : "data não informada"}.</small>}
+                    {Array.isArray(item.historicoAtualizacoes) && item.historicoAtualizacoes.length > 0 && (
+                      <details className="admin-history-details">
+                        <summary>Ver histórico de {item.historicoAtualizacoes.length} atualização(ões)</summary>
+                        <ol>
+                          {[...item.historicoAtualizacoes].slice(-10).reverse().map((entry, index) => (
+                            <li key={entry.id || entry.at || index}>
+                              <strong>{formatContestHistoryDate(entry.at)} · {entry.actor || "Administrador"}</strong>
+                              <span>{entry.summary || (Array.isArray(entry.changes) ? entry.changes.length + " campo(s) alterado(s)" : "Atualização registrada")}</span>
+                              {Array.isArray(entry.changes) && entry.changes.length > 0 && (
+                                <ul>{entry.changes.map((change, changeIndex) => (
+                                  <li key={change.field || changeIndex}>
+                                    <b>{change.label || change.field || "Campo"}:</b> {change.from || "Não informado"} <span aria-hidden="true">→</span> {change.to || "Não informado"}
+                                  </li>
+                                ))}</ul>
+                              )}
+                            </li>
+                          ))}
+                        </ol>
+                      </details>
+                    )}
                   </div>
                   <div className="admin-row-actions">
                     <button className="detail-btn" type="button" onClick={() => openAdminEditor(item)} disabled={adminBusy}>Editar</button>
@@ -1549,29 +1594,91 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
             </div>
             <div className="panel admin-panel discovery-panel">
               <div className="admin-panel-heading">
-                <div><strong>Fila de revisão de oportunidades</strong><small>{discoveryItems.length} descoberta(s) aguardando análise</small></div>
-                <span className="discovery-status-pill">Revisão manual</span>
+                <div><strong>Oportunidades detectadas e histórico</strong><small>{discoveryCounts.pending} pendente(s) · {discoveryCounts.published} publicada(s) · {discoveryCounts.dismissed} descartada(s) · últimos {discoveryItems.length} registros carregados</small></div>
+                <span className="discovery-status-pill">Monitoramento automático</span>
               </div>
-              <p className="muted discovery-help">O monitor verifica fontes oficiais e pesquisa a internet automaticamente a cada 6 horas. Notícias e resultados de busca entram como pistas secundárias; só links oficiais podem passar pela triagem automática, e toda pista externa exige confirmação antes de virar concurso no catálogo.</p>
-              {discoverySyncMessage && <p className="auth-message info" role="status">Fila indisponível. Execute a migração <strong>202611220003_contest_discoveries.sql</strong> no Supabase e configure os secrets do GitHub Actions. Detalhe: {discoverySyncMessage}</p>}
-              {discoveryLoading ? <p className="muted">Carregando descobertas...</p> : discoveryItems.length === 0 ? (
-                <div className="discovery-empty">Nenhuma oportunidade pendente no momento.</div>
+              <p className="muted discovery-help">O monitor verifica fontes e pesquisa a internet automaticamente a cada 6 horas. Use os filtros para localizar pistas, retificações e decisões anteriores. Notícias externas nunca são publicadas como concurso sem confirmação no site oficial do órgão ou da banca.</p>
+              {discoverySyncMessage && <p className="auth-message info" role="status">Histórico indisponível. Execute a migração <strong>202611220003_contest_discoveries.sql</strong> no Supabase e configure os secrets do GitHub Actions. Detalhe: {discoverySyncMessage}</p>}
+              <div className="discovery-summary" aria-label="Resumo da fila de oportunidades">
+                <div><strong>{discoveryCounts.pending}</strong><span>Pendentes</span></div>
+                <div><strong>{discoveryCounts.published}</strong><span>Publicadas</span></div>
+                <div><strong>{discoveryCounts.dismissed}</strong><span>Descartadas</span></div>
+                <div><strong>{discoveryCounts.total}</strong><span>No histórico carregado</span></div>
+              </div>
+              <div className="discovery-toolbar">
+                <label>Pesquisar oportunidade
+                  <input value={discoveryQuery} onChange={event => setDiscoveryQuery(event.target.value)} placeholder="Título, órgão, link ou texto..." />
+                </label>
+                <label>Tipo de oportunidade
+                  <select value={discoveryKind} onChange={event => setDiscoveryKind(event.target.value)}>
+                    <option value="all">Todos os tipos</option>
+                    <option value="official">Links de fontes oficiais</option>
+                    <option value="secondary">Notícias e pistas externas</option>
+                    <option value="retification">Retificações e erratas</option>
+                    <option value="result">Resultados e convocações</option>
+                    <option value="pre_notice">Pré-edital e autorizações</option>
+                  </select>
+                </label>
+                <label>Situação da revisão
+                  <select value={discoveryStatus} onChange={event => setDiscoveryStatus(event.target.value)}>
+                    <option value="pending">Aguardando revisão</option>
+                    <option value="published">Publicadas no catálogo</option>
+                    <option value="dismissed">Descartadas</option>
+                    <option value="all">Todas as situações</option>
+                  </select>
+                </label>
+                <label>Período
+                  <select value={discoveryPeriod} onChange={event => setDiscoveryPeriod(event.target.value)}>
+                    <option value="all">Todo o período</option>
+                    <option value="24h">Últimas 24 horas</option>
+                    <option value="7d">Últimos 7 dias</option>
+                    <option value="30d">Últimos 30 dias</option>
+                  </select>
+                </label>
+              </div>
+              {discoveryLoading ? <p className="muted">Carregando oportunidades e histórico...</p> : discoveryItems.length === 0 ? (
+                <div className="discovery-empty">Nenhuma oportunidade registrada ainda.</div>
+              ) : filteredDiscoveryItems.length === 0 ? (
+                <div className="discovery-empty">Nenhum registro corresponde aos filtros selecionados. Experimente ampliar a pesquisa ou o período.</div>
               ) : (
-                <div className="admin-list discovery-list">
-                  {discoveryItems.map(item => <article className="admin-row discovery-row" key={item.id}>
-                    <div className="admin-row-copy">
-                      <strong>{item.title}</strong>
-                      <span>{item.discovery_type === "web_search_lead" ? "Pista da busca automática na internet · fonte secundária" : item.discovery_type === "new_link" ? "Novo link identificado em fonte oficial" : item.discovery_type === "source_baseline" ? "Fonte para verificação inicial" : "Página oficial alterada"} · {item.detected_at ? new Date(item.detected_at).toLocaleString("pt-BR") : "Data não informada"}</span>
-                      <small>{item.context}</small>
-                      <a href={item.candidate_url} target="_blank" rel="noopener noreferrer">{item.discovery_type === "web_search_lead" ? "Abrir notícia ou resultado da busca ↗" : "Abrir publicação ou página identificada ↗"}</a>
-                    </div>
-                    <div className="admin-row-actions">
-                      {item.discovery_type === "web_search_lead"
-                        ? <span className="discovery-web-review-note">Confirme o edital no site do órgão ou da banca antes de cadastrar.</span>
-                        : <button className="detail-btn" type="button" onClick={() => openDiscoveryDraft(item)} disabled={adminBusy}>Revisar e cadastrar</button>}
-                      <button className="alert-remove" type="button" onClick={() => dismissDiscovery(item)} disabled={adminBusy}>Descartar</button>
-                    </div>
-                  </article>)}
+                <div className="admin-list discovery-list" aria-live="polite">
+                  {filteredDiscoveryItems.map(item => {
+                    const kind = classifyDiscoveryKind(item);
+                    const linkedContest = item.published_catalog_id == null
+                      ? null
+                      : catalog.find(contest => String(contest.id) === String(item.published_catalog_id));
+                    return (
+                      <article className="admin-row discovery-row" key={item.id}>
+                        <div className="admin-row-copy">
+                          <strong>{item.title}</strong>
+                          <div className="discovery-row-tags">
+                            <span className={`discovery-chip discovery-chip-${kind}`}>{discoveryKindLabel(kind)}</span>
+                            <span className={`discovery-chip discovery-status-${item.status || "unknown"}`}>{discoveryStatusLabel(item.status)}</span>
+                            <small>{item.detected_at ? new Date(item.detected_at).toLocaleString("pt-BR") : "Data não informada"}</small>
+                            {item.reviewed_at && <small>Revisada em {new Date(item.reviewed_at).toLocaleString("pt-BR")}</small>}
+                          </div>
+                          <small>{item.context}</small>
+                          <a href={item.candidate_url} target="_blank" rel="noopener noreferrer">{item.discovery_type === "web_search_lead" ? "Abrir notícia ou resultado da busca ↗" : "Abrir publicação ou página identificada ↗"}</a>
+                        </div>
+                        <div className="admin-row-actions">
+                          {item.status === "pending" ? (
+                            <>
+                              {item.discovery_type === "web_search_lead"
+                                ? <span className="discovery-web-review-note">Confirme o edital no site do órgão ou da banca antes de cadastrar.</span>
+                                : <button className="detail-btn" type="button" onClick={() => openDiscoveryDraft(item)} disabled={adminBusy}>Revisar e cadastrar</button>}
+                              <button className="alert-remove" type="button" onClick={() => dismissDiscovery(item)} disabled={adminBusy}>Descartar</button>
+                            </>
+                          ) : item.status === "published" ? (
+                            linkedContest
+                              ? <button className="detail-btn" type="button" onClick={() => openAdminEditor(linkedContest)} disabled={adminBusy}>Editar concurso publicado</button>
+                              : <span className="discovery-history-note">Registrada como publicada</span>
+                          ) : (
+                            <span className="discovery-history-note">Mantida no histórico</span>
+                          )}
+                        </div>
+                      </article>
+                    );
+                  })}
                 </div>
               )}
               {adminMessage && <p className={`auth-message ${adminMessageType}`} role="status">{adminMessage}</p>}

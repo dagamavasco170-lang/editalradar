@@ -2091,3 +2091,36 @@ button,.detail-btn,.primary-btn{line-height:1.35}
 .question-ai-runs>div span{font-size:10px;color:#526874}
 .question-ai-runs>div small{font-size:10px}
 @media(max-width:700px){.question-ai-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.question-ai-topic{align-items:flex-start;flex-direction:column}.question-ai-topic-actions{width:100%}.question-ai-topic-actions button{flex:1}.question-ai-form{padding:12px}.question-ai-form-footer{align-items:flex-start;flex-direction:column}.question-ai-form-footer button{width:100%}}
+
+
+/* Controles da fila de descobertas e trilha de auditoria do catálogo. */
+.discovery-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:14px 0}
+.discovery-summary>div{display:grid;gap:4px;min-width:0;padding:11px;border:1px solid #e6ecea;border-radius:9px;background:#fbfdfc}
+.discovery-summary strong{font:800 19px Manrope,sans-serif;color:#23495a}
+.discovery-summary span{font-size:9px;color:#7b8c94;line-height:1.35}
+.discovery-toolbar{display:grid;grid-template-columns:minmax(180px,1.4fr) repeat(3,minmax(140px,1fr));gap:9px;margin:12px 0 14px}
+.discovery-toolbar label{display:grid;gap:5px;min-width:0;color:#627985;font-size:9px;font-weight:800}
+.discovery-toolbar input,.discovery-toolbar select{width:100%;min-width:0;height:37px;padding:0 9px;border:1px solid #dce6e5;border-radius:8px;background:#fff;color:#29495b;font:500 10px 'DM Sans',sans-serif}
+.discovery-row-tags{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.discovery-row-tags small{font-size:8px;color:#89979d}
+.discovery-chip{display:inline-flex;align-items:center;padding:4px 7px;border:1px solid #e2e9e7;border-radius:999px;background:#f7faf8;color:#59716d;font-size:8px;font-weight:800;line-height:1.25}
+.discovery-chip-secondary{border-color:#e8e3cf;background:#fbfaf3;color:#88733d}
+.discovery-chip-retification{border-color:#eddfcc;background:#fcf8f1;color:#936b38}
+.discovery-chip-result{border-color:#dce5ef;background:#f4f8fc;color:#54728e}
+.discovery-chip-pre_notice{border-color:#e7e0ef;background:#f9f6fc;color:#78618f}
+.discovery-status-pending{border-color:#eadfca;background:#fcfaf3;color:#8a713c}
+.discovery-status-published{border-color:#d7e9df;background:#f2faf5;color:#39785d}
+.discovery-status-dismissed{border-color:#e7e7e7;background:#f7f7f7;color:#7d8589}
+.discovery-history-note{max-width:190px;color:#7e8d93;font-size:9px;line-height:1.45}
+.admin-history-details{margin-top:3px;color:#70838b;font-size:9px}
+.admin-history-details summary{width:fit-content;cursor:pointer;color:#27735e;font-size:9px;font-weight:800}
+.admin-history-details ol{display:grid;gap:9px;margin:9px 0 3px;padding-left:18px}
+.admin-history-details ol>li{padding-left:2px}
+.admin-history-details ol>li>strong,.admin-history-details ol>li>span{display:block;margin-bottom:3px}
+.admin-history-details ol>li>strong{color:#456574;font-size:9px}
+.admin-history-details ol>li>span{color:#7d8c92;font-size:8px}
+.admin-history-details ul{display:grid;gap:3px;margin:5px 0;padding-left:15px;color:#74858b;font-size:8px;line-height:1.45}
+.admin-history-details ul b{color:#466775}
+.discovery-row .admin-row-actions{max-width:250px}
+@media(max-width:900px){.discovery-toolbar{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.discovery-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.discovery-toolbar{grid-template-columns:1fr}.discovery-row .admin-row-actions{max-width:none}}
