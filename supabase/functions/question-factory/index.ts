@@ -1,6 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { isDuplicateQuestion, isTrustedOfficialUrl, validateQuestion, type GeneratedQuestion } from "./validation.ts";
+import { isDuplicateQuestion, isTrustedPrivateStudySourceUrl, validateQuestion, type GeneratedQuestion } from "./validation.ts";
 import { extractReadableSourceText } from "./source-utils.ts";
 
 const corsHeaders = {
@@ -288,14 +288,14 @@ async function authenticate(req: Request, mode: string) {
   return { userId: data.user.id, scheduled: false };
 }
 
-async function fetchOfficialSourceExcerpt(sourceUrl: string): Promise<string> {
+async function fetchPrivateStudySourceExcerpt(sourceUrl: string): Promise<string> {
   let currentUrl = sourceUrl;
   let response: Response | null = null;
   const redirectStatuses = new Set([301, 302, 303, 307, 308]);
 
   for (let attempt = 0; attempt < 5; attempt += 1) {
     if (!isTrustedOfficialUrl(currentUrl)) {
-      throw new Error("O redirecionamento saiu dos domínios oficiais permitidos. Cole manualmente o trecho oficial.");
+      throw new Error("O redirecionamento saiu dos sites privados de estudo permitidos. Cole manualmente o trecho oficial.");
     }
     response = await fetch(currentUrl, {
       method: "GET",
@@ -310,7 +310,7 @@ async function fetchOfficialSourceExcerpt(sourceUrl: string): Promise<string> {
     if (!redirectStatuses.has(response.status)) break;
     const location = response.headers.get("location");
     if (!location || attempt === 4) {
-      throw new Error("A página oficial redirecionou muitas vezes ou não informou o destino.");
+      throw new Error("A página de estudo redirecionou muitas vezes ou não informou o destino.");
     }
     const nextUrl = new URL(location, currentUrl);
     if (nextUrl.protocol !== "https:" || nextUrl.username || nextUrl.password || !isTrustedOfficialUrl(nextUrl.href)) {
@@ -320,7 +320,7 @@ async function fetchOfficialSourceExcerpt(sourceUrl: string): Promise<string> {
   }
 
   if (!response) throw new Error("Não foi possível abrir a fonte de referência.");
-  if (!response.ok) throw new Error("A fonte oficial respondeu HTTP " + response.status + ".");
+  if (!response.ok) throw new Error("A fonte de estudo respondeu HTTP " + response.status + ".");
   const contentLength = Number(response.headers.get("content-length") || 0);
   if (contentLength > 5 * 1024 * 1024) throw new Error("A página oficial excede o limite de 5 MB.");
   const bytes = new Uint8Array(await response.arrayBuffer());
