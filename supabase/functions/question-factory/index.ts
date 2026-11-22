@@ -109,7 +109,6 @@ const DEFAULT_AUTONOMOUS_TOPICS = [
   { discipline: "Língua Espanhola", topic: "Vocabulário, gramática e leitura em língua espanhola", source_url: wikiUrl("Língua espanhola") },
   { discipline: "Artes e Cultura", topic: "História da arte, movimentos e linguagens artísticas", source_url: wikiUrl("História da arte") },
   { discipline: "Educação Física", topic: "Atividade física, fisiologia do exercício e esporte", source_url: wikiUrl("Educação física") },
-  { discipline: "Educação Aberta", topic: "Recursos educacionais abertos e licenças livres", source_url: "https://escolhalivre.org.br/en/about/" }
 ];
 
 const adminDb = createClient(supabaseUrl, serviceKey, {
@@ -147,13 +146,6 @@ function sourceLicenseMetadata(sourceUrl: string): SourceLicense | null {
       source_license: "Reprodução gratuita permitida mediante crédito (Politize!)",
       source_attribution: "Politize! — " + sourceUrl + " (crédito e link da fonte)",
       content_license: "Conteúdo autoral EditalRadar; fonte Politize! creditada"
-    };
-  }
-  if (host === "escolhalivre.org.br" || host.endsWith(".escolhalivre.org.br")) {
-    return {
-      source_license: "CC BY-SA IGO 3.0",
-      source_attribution: "Escolha Livre — " + sourceUrl + " (CC BY-SA IGO 3.0)",
-      content_license: "CC BY-SA IGO 3.0"
     };
   }
   return null;
