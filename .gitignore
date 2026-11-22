@@ -10,3 +10,9 @@ test-results
 
 # Firebase Android configuration (injected from CI secret)
 android/app/google-services.json
+
+# Never commit Android release-signing private keys
+*.jks
+*.keystore
+*.p12
+*.pfx
