@@ -589,6 +589,48 @@ export function parseGoogleNewsRss(xml, options = {}) {
   return leads;
 }
 
+export async function fetchNewsFeedWithRetry(feedUrl, options = {}) {
+  const request = options.fetchImpl || fetch;
+  const attempts = Math.max(1, Math.min(4, Number(options.attempts) || 3));
+  const timeoutMs = Math.max(3000, Math.min(30000, Number(options.timeoutMs) || 12000));
+  const retryDelayMs = Math.max(0, Math.min(5000, Number(options.retryDelayMs ?? 500)));
+  const wait = options.sleepImpl || (milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds)));
+  const nowMs = Number.isFinite(Number(options.nowMs)) ? Number(options.nowMs) : Date.now();
+  const parsedUrl = new URL(feedUrl);
+  if (parsedUrl.protocol !== "https:" || parsedUrl.hostname !== "news.google.com" || parsedUrl.username || parsedUrl.password) {
+    throw new Error("Feed de notícias bloqueado: somente HTTPS de news.google.com é permitido.");
+  }
+
+  let lastError = null;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      const response = await request(parsedUrl.href, {
+        method: "GET",
+        redirect: "error",
+        signal: AbortSignal.timeout(timeoutMs),
+        headers: {
+          "User-Agent": "Mozilla/5.0 (compatible; EditalRadar-WebDiscovery/1.0; +https://github.com/dagamavasco170-lang/editalradar)",
+          Accept: "application/rss+xml, application/xml, text/xml;q=0.9"
+        }
+      });
+
+      if (!RETRYABLE_SOURCE_STATUSES.has(response.status) || attempt === attempts) {
+        return response;
+      }
+
+      lastError = new Error("Google Notícias respondeu HTTP " + response.status + ".");
+      const retryAfter = retryAfterMilliseconds(response.headers, nowMs);
+      await wait(retryAfter ?? retryDelayMs * (2 ** (attempt - 1)));
+    } catch (error) {
+      lastError = error;
+      if (attempt === attempts) throw lastError;
+      await wait(retryDelayMs * (2 ** (attempt - 1)));
+    }
+  }
+
+  throw lastError || new Error("Falha ao consultar o feed de notícias.");
+}
+
 export async function searchInternetForContestLeads(options = {}) {
   const request = options.fetchImpl || fetch;
   const queries = Array.isArray(options.queries) ? options.queries : INTERNET_SEARCH_QUERIES;
@@ -598,14 +640,13 @@ export async function searchInternetForContestLeads(options = {}) {
   const checked = await mapWithConcurrency(queries, concurrency, async entry => {
     const feedUrl = buildGoogleNewsRssUrl(entry.query);
     try {
-      const response = await request(feedUrl, {
-        method: "GET",
-        redirect: "error",
-        signal: AbortSignal.timeout(Math.max(3000, Number(options.timeoutMs) || 12000)),
-        headers: {
-          "User-Agent": "Mozilla/5.0 (compatible; EditalRadar-WebDiscovery/1.0; +https://github.com/dagamavasco170-lang/editalradar)",
-          Accept: "application/rss+xml, application/xml, text/xml;q=0.9"
-        }
+      const response = await fetchNewsFeedWithRetry(feedUrl, {
+        fetchImpl: request,
+        attempts: options.attempts,
+        timeoutMs: options.timeoutMs,
+        retryDelayMs: options.retryDelayMs,
+        sleepImpl: options.sleepImpl,
+        nowMs: options.nowMs
       });
       if (!response.ok) throw new Error("Google Notícias respondeu HTTP " + response.status + ".");
       const contentLength = Number(response.headers?.get?.("content-length") || 0);
