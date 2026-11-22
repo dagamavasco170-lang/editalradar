@@ -5,6 +5,7 @@ import { promisify } from "node:util";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { concursos } from "../src/data/concursos.js";
+import { sortDiscoveriesByPriority } from "../src/lib/discovery-filters.js";
 import { isTrustedOfficialHost, resolveTrustedOfficialUrl, validateTrustedOfficialUrl } from "./monitor-sources.mjs";
 
 const execFileAsync = promisify(execFile);
@@ -13,6 +14,9 @@ const MAX_BYTES = 4 * 1024 * 1024;
 const TIMEOUT_MS = 12000;
 const OCR_MAX_PAGES = 3;
 const OCR_PAGE_TIMEOUT_MS = 6000;
+
+const GOOGLE_NEWS_HOST = "news.google.com";
+const GOOGLE_REDIRECT_HOSTS = new Set(["news.google.com", "google.com", "www.google.com"]);
 
 const STATE_NAMES = {
   ac: "Acre", al: "Alagoas", ap: "Amapá", am: "Amazonas", ba: "Bahia",
@@ -331,7 +335,7 @@ export function classifyDiscovery(discovery, document, responseUrl = discovery?.
     .test([discovery?.title, document?.title, document?.heading].filter(Boolean).join(" "));
   const selectionEvidence = hasPublicSelection || (hasExplicitRetification && hasNotice);
   if (!selectionEvidence || !hasNotice || !hasPositionEvidence) {
-    const unrelatedTitle = /\b(transação tributária|notificações? e intimações|processo administrativo de responsabilização|licitação|ouvidoria|transparência|consulta fiscal)\b/i.test(title || discovery?.title || "");
+    const unrelatedTitle = /\b(transação tributária|atos? declaratórios? executivos?|notificações? e intimações|processo administrativo de responsabilização|licitação|ouvidoria|transparência|consulta fiscal|leilão|procurações?|pregão|contratos? administrativos?)\b/i.test(title || discovery?.title || "");
     if (discovery?.discovery_type === "new_link" && unrelatedTitle && !hasPublicSelection) {
       return { decision: "dismiss", reason: "O conteúdo identificado trata de assunto administrativo sem evidência de concurso ou processo seletivo público." };
     }
@@ -981,28 +985,132 @@ export function buildPendingDiscoveriesUrl(baseUrl, now = new Date(), cooldownMs
   return url.toString();
 }
 
+
+export function extractDeclaredPublisherUrl(context = "") {
+  const match = String(context || "").match(/Endereço informado para a fonte:\s*(https:\/\/[^\s<>"]+)/i);
+  if (!match) return null;
+  try {
+    const url = new URL(match[1].replace(/[),.;]+$/, ""));
+    if (url.protocol !== "https:" || url.username || url.password || !isTrustedOfficialHost(url.hostname)) return null;
+    return url;
+  } catch {
+    return null;
+  }
+}
+
+function isSameDeclaredPublisherHost(candidateHost, declaredHost) {
+  const normalize = value => String(value || "").toLowerCase().replace(/\.$/, "").replace(/^www\./, "");
+  const candidate = normalize(candidateHost);
+  const declared = normalize(declaredHost);
+  return candidate === declared || candidate.endsWith("." + declared);
+}
+
+export async function resolveGoogleNewsArticleUrl(candidateUrl, declaredSourceUrl, request = fetch, options = {}) {
+  let newsUrl;
+  let declaredSource;
+  try {
+    newsUrl = new URL(candidateUrl);
+    declaredSource = validateTrustedOfficialUrl(declaredSourceUrl);
+  } catch {
+    return null;
+  }
+  if (newsUrl.protocol !== "https:" || newsUrl.hostname.toLowerCase() !== GOOGLE_NEWS_HOST
+    || !newsUrl.pathname.startsWith("/rss/articles/") || newsUrl.username || newsUrl.password) {
+    return null;
+  }
+
+  const timeoutMs = Math.max(1000, Number(options.timeoutMs) || TIMEOUT_MS);
+  const maxRedirects = Math.max(1, Math.min(8, Number(options.maxRedirects) || 5));
+  let currentUrl = newsUrl;
+  for (let redirectCount = 0; redirectCount < maxRedirects; redirectCount += 1) {
+    const response = await request(currentUrl.href, {
+      redirect: "manual",
+      signal: AbortSignal.timeout(timeoutMs),
+      headers: {
+        "User-Agent": "EditalRadar-NewsLeadResolver/1.0 (+https://github.com/dagamavasco170-lang/editalradar)",
+        Accept: "text/html,application/xhtml+xml,*/*;q=0.8"
+      }
+    });
+    if (![301, 302, 303, 307, 308].includes(response.status)) return null;
+    const location = response.headers?.get?.("location");
+    if (!location) return null;
+
+    let next;
+    try {
+      next = new URL(location, currentUrl);
+    } catch {
+      throw new Error("O Google Notícias devolveu um redirecionamento inválido.");
+    }
+    if (next.protocol !== "https:" || next.username || next.password) {
+      throw new Error("Redirecionamento inseguro ao resolver a notícia.");
+    }
+
+    if (GOOGLE_REDIRECT_HOSTS.has(next.hostname.toLowerCase())) {
+      for (const parameter of ["url", "q", "adurl", "continue", "uddg"]) {
+        const value = next.searchParams.get(parameter);
+        if (!value) continue;
+        try {
+          const target = new URL(value);
+          if (target.protocol === "https:" && !target.username && !target.password
+            && isTrustedOfficialHost(target.hostname)
+            && isSameDeclaredPublisherHost(target.hostname, declaredSource.hostname)) {
+            return validateTrustedOfficialUrl(target.href).href;
+          }
+        } catch {
+          // Parâmetro de redirecionamento malformado é ignorado; só se segue Google HTTPS.
+        }
+      }
+      currentUrl = next;
+      continue;
+    }
+
+    if (!isTrustedOfficialHost(next.hostname)
+      || !isSameDeclaredPublisherHost(next.hostname, declaredSource.hostname)) {
+      throw new Error("O redirecionamento da notícia não corresponde ao domínio oficial indicado pela fonte.");
+    }
+    return validateTrustedOfficialUrl(next.href).href;
+  }
+  return null;
+}
+
+export function prioritizePendingDiscoveries(items = [], now = Date.now()) {
+  return sortDiscoveriesByPriority(
+    (Array.isArray(items) ? items : []).filter(item => item?.status === "pending"),
+    now
+  );
+}
+
 export async function prepareDiscoveryDocument(item, request = fetch, options = {}) {
   let candidate;
   let candidateValue = item?.candidate_url;
   if (item?.discovery_type === "web_search_lead") {
-    // A search-engine lead is only a pointer. Use its declared publisher URL if
-    // and only if that exact HTTPS host is in the trusted official-source allowlist.
-    const sourceMatch = String(item?.context || "").match(/Endereço informado para a fonte:\s*(https:\/\/[^\s<>"]+)/i);
-    const declaredSource = sourceMatch?.[1] || "";
-    try {
-      const source = new URL(declaredSource);
-      if (source.protocol !== "https:" || source.username || source.password
-        || !isTrustedOfficialHost(source.hostname)) {
-        return {
-          stage: "review",
-          reason: "A pista da busca ainda não aponta para uma fonte oficial autorizada. O sistema não usa o agregador de notícias como prova; aguardará uma referência oficial."
-        };
-      }
-      candidateValue = source.toString();
-    } catch {
+    // A notícia é resolvida manualmente até o domínio oficial informado no RSS.
+    // Nunca se usa o domínio do Google nem a página inicial do veículo como prova.
+    const declaredSource = extractDeclaredPublisherUrl(item?.context);
+    if (!declaredSource) {
       return {
         stage: "review",
-        reason: "A pista externa não forneceu um endereço HTTPS oficial verificável. Ela continua na fila, sem publicação automática."
+        reason: "A pista da busca ainda não aponta para uma fonte oficial autorizada. O agregador de notícias não é prova de edital; a descoberta continua na fila."
+      };
+    }
+    try {
+      const resolvedArticle = await resolveGoogleNewsArticleUrl(
+        item?.candidate_url,
+        declaredSource.href,
+        request,
+        { timeoutMs: options.timeoutMs ?? TIMEOUT_MS, maxRedirects: options.newsRedirectMaxHops ?? 5 }
+      );
+      if (!resolvedArticle) {
+        return {
+          stage: "review",
+          reason: "O link do Google Notícias não revelou um redirecionamento verificável para a publicação no domínio oficial indicado. A pista permanece pendente, sem cadastro automático."
+        };
+      }
+      candidateValue = resolvedArticle;
+    } catch (error) {
+      return {
+        stage: "review",
+        reason: "Não foi possível resolver com segurança o link da notícia: " + summarizeFetchError(error)
       };
     }
   }
@@ -1190,7 +1298,14 @@ export async function autoResolvePending(options = {}) {
 
   const request = options.fetchImpl || fetch;
   const pending = await requestJson(request, buildPendingDiscoveriesUrl(baseUrl), key);
-  const discoveries = Array.isArray(pending) ? pending : [];
+  const discoveries = prioritizePendingDiscoveries(Array.isArray(pending) ? pending : []);
+  const queuePriorities = discoveries.reduce((counts, item) => {
+    const score = sortDiscoveriesByPriority([item])[0] ? item : null;
+    const level = score ? (score.discovery_type === "web_search_lead" ? "pistas_externas" : "fontes_monitoradas") : "outras";
+    counts[level] = (counts[level] || 0) + 1;
+    return counts;
+  }, {});
+  console.log("Fila ordenada por evidência e envelhecimento: " + JSON.stringify(queuePriorities) + ".");
   if (!discoveries.length) {
     let pendingTotal = null;
     let errors = 0;
