@@ -6,11 +6,13 @@ on:
     paths:
       - "android/**"
       - ".github/workflows/android-release.yml"
+      - "scripts/platform-resilience.node-test.mjs"
   pull_request:
     branches: [main]
     paths:
       - "android/**"
       - ".github/workflows/android-release.yml"
+      - "scripts/platform-resilience.node-test.mjs"
   workflow_dispatch:
 
 permissions:
@@ -22,7 +24,7 @@ concurrency:
 
 jobs:
   android-release:
-    name: Build APK/AAB and publish GitHub Release
+    name: Build Android app
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
@@ -48,8 +50,8 @@ jobs:
         id: version
         shell: bash
         run: |
-          VERSION_NAME="$(sed -n "s/^[[:space:]]*versionName '\([^']*\)'.*/\1/p" android/app/build.gradle | head -n 1)"
-          VERSION_CODE="$(sed -n 's/^[[:space:]]*versionCode[[:space:]]*\([0-9][0-9]*\).*/\1/p' android/app/build.gradle | head -n 1)"
+          VERSION_NAME="$(sed -n "s/^[[:space:]]*versionName '\\([^']*\\)'.*/\\1/p" android/app/build.gradle | head -n 1)"
+          VERSION_CODE="$(sed -n 's/^[[:space:]]*versionCode[[:space:]]*\\([0-9][0-9]*\\).*/\\1/p' android/app/build.gradle | head -n 1)"
           test -n "$VERSION_NAME"
           test -n "$VERSION_CODE"
           echo "name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
@@ -82,13 +84,81 @@ jobs:
             echo "::warning::google-services.json ausente; o APK será compilado sem inicializar Firebase Cloud Messaging."
           fi
 
-      - name: Build installable APK and test AAB (automatic retry for repository rate limits)
+      - name: Configure permanent Android signing key
+        id: signing
+        env:
+          ANDROID_RELEASE_KEYSTORE_BASE64: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}
+          ANDROID_RELEASE_STORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_STORE_PASSWORD }}
+          ANDROID_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}
+          ANDROID_RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEY_PASSWORD }}
+        shell: bash
+        run: |
+          set +x
+          configured=0
+          for value in \
+            "$ANDROID_RELEASE_KEYSTORE_BASE64" \
+            "$ANDROID_RELEASE_STORE_PASSWORD" \
+            "$ANDROID_RELEASE_KEY_ALIAS" \
+            "$ANDROID_RELEASE_KEY_PASSWORD"; do
+            if [ -n "$value" ]; then
+              configured=$((configured + 1))
+            fi
+          done
+
+          if [ "$configured" -eq 0 ]; then
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Chave permanente ainda não configurada. Será feito apenas um build de verificação; nenhuma versão pública será publicada."
+            exit 0
+          fi
+
+          if [ "$configured" -ne 4 ]; then
+            echo "::error::A configuração da assinatura está incompleta. Cadastre os quatro segredos exigidos em conjunto."
+            exit 1
+          fi
+
+          KEYSTORE_PATH="$RUNNER_TEMP/editalradar-release.jks"
+          printf '%s' "$ANDROID_RELEASE_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_PATH"
+          test -s "$KEYSTORE_PATH"
+          keytool -list -keystore "$KEYSTORE_PATH" \
+            -storetype JKS \
+            -storepass "$ANDROID_RELEASE_STORE_PASSWORD" \
+            -alias "$ANDROID_RELEASE_KEY_ALIAS" >/dev/null
+
+          {
+            echo "ANDROID_RELEASE_KEYSTORE_FILE=$KEYSTORE_PATH"
+            echo "ANDROID_RELEASE_STORE_PASSWORD=$ANDROID_RELEASE_STORE_PASSWORD"
+            echo "ANDROID_RELEASE_KEY_ALIAS=$ANDROID_RELEASE_KEY_ALIAS"
+            echo "ANDROID_RELEASE_KEY_PASSWORD=$ANDROID_RELEASE_KEY_PASSWORD"
+          } >> "$GITHUB_ENV"
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+          echo "Assinatura permanente validada."
+
+      - name: Build permanently signed APK and AAB
+        if: steps.signing.outputs.ready == 'true'
         working-directory: android
         timeout-minutes: 25
         shell: bash
         run: |
           for attempt in 1 2 3; do
-            echo "Build Android attempt $attempt/3"
+            echo "Signed Android build attempt $attempt/3"
+            if gradle assembleRelease bundleRelease --no-daemon --max-workers=2; then
+              exit 0
+            fi
+            if [ "$attempt" -lt 3 ]; then
+              echo "Build failed; waiting before automatic retry."
+              sleep $((attempt * 20))
+            fi
+          done
+          exit 1
+
+      - name: Build verification APK when signing is not configured
+        if: steps.signing.outputs.ready != 'true'
+        working-directory: android
+        timeout-minutes: 25
+        shell: bash
+        run: |
+          for attempt in 1 2 3; do
+            echo "Android verification build attempt $attempt/3"
             if gradle assembleDebug bundleDebug --no-daemon --max-workers=2; then
               exit 0
             fi
@@ -99,27 +169,39 @@ jobs:
           done
           exit 1
 
-      - name: Prepare release assets and checksums
+      - name: Prepare signed release assets
+        if: steps.signing.outputs.ready == 'true'
         env:
           APP_VERSION: ${{ steps.version.outputs.name }}
           VERSION_CODE: ${{ steps.version.outputs.code }}
         shell: bash
         run: |
           mkdir -p release-assets
-          cp android/app/build/outputs/apk/debug/app-debug.apk "release-assets/EditalRadar-Android-v${APP_VERSION}.apk"
-          cp android/app/build/outputs/bundle/debug/app-debug.aab "release-assets/EditalRadar-Android-v${APP_VERSION}-debug.aab"
+          cp android/app/build/outputs/apk/release/app-release.apk "release-assets/EditalRadar-Android-v${APP_VERSION}.apk"
+          cp android/app/build/outputs/bundle/release/app-release.aab "release-assets/EditalRadar-Android-v${APP_VERSION}.aab"
           test -s "release-assets/EditalRadar-Android-v${APP_VERSION}.apk"
-          test -s "release-assets/EditalRadar-Android-v${APP_VERSION}-debug.aab"
+          test -s "release-assets/EditalRadar-Android-v${APP_VERSION}.aab"
           (cd release-assets && sha256sum *.apk *.aab > SHA256SUMS.txt)
           cat > android-release-notes.md <<EOF
           # EditalRadar Android v${APP_VERSION}
 
-          - Versão ${VERSION_CODE} para aparelhos com Android 7.0 ou superior.
-          - APK disponível para instalação manual e AAB para testes internos.
-          - Mensagens mais simples sobre avisos e conexão.
-          - Melhorias na estabilidade e no retorno automático após a conexão ser restabelecida.
-          - Experiência de uso aprimorada ao acompanhar concursos e estudar pelo aplicativo.
+          - Versão ${VERSION_CODE}.
+          - APK e AAB assinados com a chave permanente do EditalRadar.
+          - Esta assinatura é mantida nas próximas versões para permitir atualizações diretas.
+          - Melhorias de estabilidade, segurança e experiência de uso.
           EOF
+
+      - name: Prepare verification artifact without publishing a release
+        if: steps.signing.outputs.ready != 'true'
+        env:
+          APP_VERSION: ${{ steps.version.outputs.name }}
+        shell: bash
+        run: |
+          mkdir -p release-assets
+          cp android/app/build/outputs/apk/debug/app-debug.apk "release-assets/EditalRadar-Android-v${APP_VERSION}-verification-only.apk"
+          cp android/app/build/outputs/bundle/debug/app-debug.aab "release-assets/EditalRadar-Android-v${APP_VERSION}-verification-only.aab"
+          (cd release-assets && sha256sum *.apk *.aab > SHA256SUMS.txt)
+          echo "Build de verificação. Não instalar sobre versões existentes nem distribuir como atualização." > release-assets/README.txt
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
@@ -129,8 +211,8 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
-      - name: Publish versioned GitHub Release
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+      - name: Publish permanently signed GitHub Release
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && steps.signing.outputs.ready == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: android-v${{ steps.version.outputs.name }}
@@ -143,3 +225,7 @@ jobs:
           make_latest: true
           draft: false
           prerelease: false
+
+      - name: Explain how to enable signed releases
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && steps.signing.outputs.ready != 'true'
+        run: echo "::notice::O build foi validado, mas a publicação está aguardando a configuração da chave permanente. Consulte ANDROID_SIGNING.md."
