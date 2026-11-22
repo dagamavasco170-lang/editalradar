@@ -241,7 +241,11 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   const [adminMessage, setAdminMessage] = useState("");
   const [adminMessageType, setAdminMessageType] = useState("info");
   const [notificationPermission, setNotificationPermission] = useState(() =>
-    typeof window !== "undefined" && "Notification" in window ? window.Notification.permission : "unsupported"
+    typeof window !== "undefined" && "Notification" in window
+      ? window.Notification.permission
+      : typeof window !== "undefined" && typeof window.EditalRadarNative?.requestNotificationPermission === "function"
+        ? "default"
+        : "unsupported"
   );
   const [browserNotificationsEnabled, setBrowserNotificationsEnabled] = useState(() =>
     readStore("er-browser-notifications", false) === true
@@ -356,6 +360,30 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
 
+    const handleNativeNotificationPermission = (event) => {
+      const enabled = event?.detail?.granted === true;
+      setNotificationPermission(enabled ? "granted" : "denied");
+      setBrowserNotificationsEnabled(enabled);
+      localStorage.setItem("er-browser-notifications", JSON.stringify(enabled));
+      setNotificationMessage(enabled
+        ? "Notificações nativas ativadas neste dispositivo."
+        : "A permissão de notificações não foi concedida. Os avisos internos continuam disponíveis.");
+      if (enabled) {
+        window.EditalRadarNative?.showNotification?.(
+          "EditalRadar",
+          "Notificações ativadas. Avisaremos quando o app detectar novidades.",
+          "editalradar-notifications-enabled"
+        );
+      }
+    };
+    const handleNativeOAuthError = (event) => {
+      setAuthMessage(event?.detail?.message || "Não foi possível concluir o acesso com Google.");
+      setAuthMessageType("error");
+      setAuthBusy(false);
+    };
+    window.addEventListener("editalradar:native-notification-permission", handleNativeNotificationPermission);
+    window.addEventListener("editalradar:oauth-error", handleNativeOAuthError);
+
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register(import.meta.env.BASE_URL + "sw.js").catch(() => {
         // O site continua funcionando normalmente mesmo se o navegador bloquear o service worker.
@@ -367,6 +395,8 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
       window.removeEventListener("appinstalled", handleAppInstalled);
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
+      window.removeEventListener("editalradar:native-notification-permission", handleNativeNotificationPermission);
+      window.removeEventListener("editalradar:oauth-error", handleNativeOAuthError);
     };
   }, []);
 
@@ -668,7 +698,12 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     localStorage.setItem(notificationStorageKey, JSON.stringify(next));
     void syncUserData({ notifications: next });
 
-    if (browserNotificationsEnabled && notificationPermission === "granted" && "Notification" in window) {
+    if (browserNotificationsEnabled && notificationPermission === "granted"
+      && typeof window.EditalRadarNative?.showNotification === "function") {
+      fresh.slice(0, 3).forEach((item) => {
+        window.EditalRadarNative.showNotification(item.title, item.message, item.id);
+      });
+    } else if (browserNotificationsEnabled && notificationPermission === "granted" && "Notification" in window) {
       fresh.slice(0, 3).forEach((item) => {
         const browserNotice = new window.Notification(item.title, {
           body: item.message,
@@ -970,9 +1005,15 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     setAuthBusy(true);
     setAuthMessage("");
     try {
+      const isAndroidNative = typeof window.EditalRadarNative?.isAndroidApp === "function"
+        && window.EditalRadarNative.isAndroidApp() === true;
       const { error } = await authClient.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo: window.location.origin + window.location.pathname }
+        options: {
+          redirectTo: isAndroidNative
+            ? "editalradar://auth-callback"
+            : window.location.origin + window.location.pathname
+        }
       });
       if (error) throw error;
     } catch (error) {
@@ -1027,6 +1068,28 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     saveFavorites(favorites.includes(id) ? favorites.filter((item) => item !== id) : [...favorites, id]);
   };
   const enableBrowserNotifications = async () => {
+    const nativeBridge = typeof window !== "undefined" ? window.EditalRadarNative : null;
+    if (typeof nativeBridge?.requestNotificationPermission === "function") {
+      try {
+        const enabled = nativeBridge.requestNotificationPermission() === true;
+        if (enabled) {
+          setNotificationPermission("granted");
+          setBrowserNotificationsEnabled(true);
+          localStorage.setItem("er-browser-notifications", JSON.stringify(true));
+          setNotificationMessage("Notificações nativas ativadas neste dispositivo.");
+          nativeBridge.showNotification?.(
+            "EditalRadar",
+            "Notificações ativadas. Avisaremos quando o app detectar novidades.",
+            "editalradar-notifications-enabled"
+          );
+        } else {
+          setNotificationMessage("Autorize as notificações na janela do Android. O aplicativo confirmará a ativação automaticamente.");
+        }
+      } catch {
+        setNotificationMessage("Não foi possível ativar as notificações do Android.");
+      }
+      return;
+    }
     if (typeof window === "undefined" || !("Notification" in window)) {
       setNotificationPermission("unsupported");
       setNotificationMessage("Este navegador não oferece notificações de desktop.");
