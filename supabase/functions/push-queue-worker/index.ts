@@ -9,7 +9,6 @@ const serviceAccountValue = Deno.env.get("FCM_SERVICE_ACCOUNT_JSON") || "";
 const encoder = new TextEncoder();
 const MAX_MESSAGES_PER_RUN = 20;
 const VISIBILITY_SECONDS = 180;
-const MAX_TOTAL_ATTEMPTS = 7;
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
   status,
