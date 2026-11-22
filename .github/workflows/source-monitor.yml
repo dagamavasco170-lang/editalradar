@@ -107,6 +107,7 @@ jobs:
           TRIAGE_PENDING: ${{ steps.resolve.outputs.pending_count }}
           TRIAGE_PENDING_TOTAL: ${{ steps.resolve.outputs.pending_total_count }}
           TRIAGE_ERRORS: ${{ steps.resolve.outputs.error_count }}
+          TRIAGE_BASELINES_DISMISSED: ${{ steps.resolve.outputs.baseline_dismissed_count }}
           WEB_SEARCH_COUNT: ${{ steps.monitor.outputs.web_search_count }}
           WEB_SEARCH_FAILED: ${{ steps.monitor.outputs.web_search_failed_count }}
         with:
@@ -144,7 +145,7 @@ jobs:
               "**Resultado do monitor:** " + String(process.env.MONITOR_OUTCOME || "não executado") + ".",
               "**Envio da fila:** " + String(process.env.PUBLISH_OUTCOME || "não necessário") + ".",
               "**Busca automática na internet:** " + String(process.env.WEB_SEARCH_COUNT || "0") + " pista(s) nova(s); falhas em " + String(process.env.WEB_SEARCH_FAILED || "0") + " consulta(s).",
-              "**Triagem automática:** " + String(process.env.TRIAGE_OUTCOME || "não executada") + ". Analisadas: " + String(process.env.TRIAGE_INSPECTED || "0") + "; publicadas: " + String(process.env.TRIAGE_PUBLISHED || "0") + "; atualizadas: " + String(process.env.TRIAGE_UPDATED || "0") + "; pendentes nesta execução: " + String(process.env.TRIAGE_PENDING || "0") + "; pendentes totais no banco: " + String(process.env.TRIAGE_PENDING_TOTAL || "não confirmado") + "; falhas: " + String(process.env.TRIAGE_ERRORS || "0") + ".",
+              "**Triagem automática:** " + String(process.env.TRIAGE_OUTCOME || "não executada") + ". Analisadas: " + String(process.env.TRIAGE_INSPECTED || "0") + "; publicadas: " + String(process.env.TRIAGE_PUBLISHED || "0") + "; atualizadas: " + String(process.env.TRIAGE_UPDATED || "0") + "; pendentes nesta execução: " + String(process.env.TRIAGE_PENDING || "0") + "; pendentes totais no banco: " + String(process.env.TRIAGE_PENDING_TOTAL || "não confirmado") + "; linhas de base encerradas: " + String(process.env.TRIAGE_BASELINES_DISMISSED || "0") + "; falhas: " + String(process.env.TRIAGE_ERRORS || "0") + ".",
               "",
               "A triagem tenta novamente falhas temporárias de rede e limita a publicação automática a fontes oficiais com evidências suficientes de edital, órgão, cargo e esfera. Casos incompletos e PDFs sem texto legível permanecem na fila para revisão.",
               "",
