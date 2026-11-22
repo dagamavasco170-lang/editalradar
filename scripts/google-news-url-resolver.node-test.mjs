@@ -19,7 +19,7 @@ function googleRpcResponse(url) {
     ["wrb.fr", "Fbv4je", inner, null, null, null, "generic"],
     ["di", 16]
   ];
-  return new Response(")]}'\\n\\n" + JSON.stringify(frames) + "\\n", {
+  return new Response(")]}'\n\n" + JSON.stringify(frames) + "\n", {
     status: 200,
     headers: { "content-type": "text/plain; charset=utf-8" }
   });
@@ -44,7 +44,7 @@ test("resolve o token atual do Google Notícias pelo RPC e valida o publisher of
   assert.equal(calls[0].init.redirect, "manual");
   assert.match(calls[0].init.headers.Cookie, /CONSENT=/);
   assert.equal(calls[1].init.method, "POST");
-  assert.match(calls[1].init.headers["Content-Type"], /application\\/x-www-form-urlencoded/i);
+  assert.match(calls[1].init.headers["Content-Type"], /application\/x-www-form-urlencoded/i);
   assert.equal(calls[1].init.headers.Origin, "https://news.google.com");
   assert.equal(calls[1].init.headers["X-Same-Domain"], "1");
 
