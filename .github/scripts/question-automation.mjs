@@ -101,6 +101,7 @@ function isTrustedHost(value) {
     if (host === "www.postgresql.org" && !path.startsWith("/docs/")) return false;
     if (host === "kubernetes.io" && !path.startsWith("/docs/")) return false;
     if (host === "developer.mozilla.org" && !path.includes("/docs/")) return false;
+    if (host === "pt.wikisource.org" && !(path.startsWith("/wiki/o_corti%C3%A7o/") || path.startsWith("/wiki/dom_casmurro/"))) return false;
     return true;
   } catch { return false; }
 }

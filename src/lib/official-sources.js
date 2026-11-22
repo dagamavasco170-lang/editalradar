@@ -12,7 +12,7 @@ const PRIVATE_STUDY_SOURCE_DOMAINS = [
   "pt.wikiversity.org",
   "pt.wiktionary.org",
   "developer.mozilla.org", "docs.python.org", "www.postgresql.org", "doc.rust-lang.org",
-  "docs.github.com", "kubernetes.io", "docs.aws.amazon.com", "docs.docker.com", "wikieducator.org"
+  "docs.github.com", "kubernetes.io", "docs.aws.amazon.com", "docs.docker.com", "wikieducator.org", "pt.wikisource.org"
 ];
 
 export function parseHttpsUrl(value) {
@@ -56,6 +56,7 @@ export function isTrustedPrivateStudySourceUrl(value) {
   if ((host === "www.postgresql.org" || host === "postgresql.org") && !path.startsWith("/docs/")) return false;
   if (host === "kubernetes.io" && !path.startsWith("/docs/")) return false;
   if (host === "developer.mozilla.org" && !path.includes("/docs/")) return false;
+  if (host === "pt.wikisource.org" && !(path.startsWith("/wiki/o_corti%C3%A7o/") || path.startsWith("/wiki/dom_casmurro/"))) return false;
   return true;
 }
 

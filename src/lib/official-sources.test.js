@@ -17,8 +17,11 @@ describe("fontes de estudo privadas e fontes de prova", () => {
       "https://pt.wiktionary.org/wiki/gram%C3%A1tica",
       "https://www.politize.com.br/trilhas/politicas-publicas/",
       "https://wikieducator.org/WikiEducator:About",
+      "https://pt.wikisource.org/wiki/O_Corti%C3%A7o/I",
+      "https://pt.wikisource.org/wiki/Dom_Casmurro/CXXI",
     ]) expect(isTrustedPrivateStudySourceUrl(url), url).toBe(true);
     expect(isTrustedPrivateStudySourceUrl("https://escolhalivre.org.br/en/about/")).toBe(false);
+    expect(isTrustedPrivateStudySourceUrl("https://pt.wikisource.org/wiki/Obra_aleatoria")).toBe(false);
   });
 
   it("não aceita órgãos públicos como fontes para a geração automática", () => {

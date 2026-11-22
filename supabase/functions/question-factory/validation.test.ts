@@ -44,6 +44,9 @@ describe("Validação automática de questões", () => {
     expect(isTrustedPrivateStudySourceUrl("https://docs.aws.amazon.com/IAM/latest/UserGuide/introduction.html")).toBe(true);
     expect(isTrustedPrivateStudySourceUrl("https://docs.docker.com/get-started/")).toBe(true);
     expect(isTrustedPrivateStudySourceUrl("https://wikieducator.org/WikiEducator:About")).toBe(true);
+    expect(isTrustedPrivateStudySourceUrl("https://pt.wikisource.org/wiki/O_Corti%C3%A7o/I")).toBe(true);
+    expect(isTrustedPrivateStudySourceUrl("https://pt.wikisource.org/wiki/Dom_Casmurro/CXXI")).toBe(true);
+    expect(isTrustedPrivateStudySourceUrl("https://pt.wikisource.org/wiki/Obra_aleatoria")).toBe(false);
     expect(isTrustedPrivateStudySourceUrl("https://escolhalivre.org.br/en/about/")).toBe(false);
     expect(isTrustedPrivateStudySourceUrl("https://www.gov.br/concursos")).toBe(false);
     expect(isTrustedPrivateStudySourceUrl("https://www2.camara.leg.br/atividade-legislativa")).toBe(false);
