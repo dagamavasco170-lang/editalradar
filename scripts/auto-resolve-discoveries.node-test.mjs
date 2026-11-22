@@ -574,7 +574,7 @@ test("a triagem não repete inserção de catálogo não idempotente após respo
   assert.equal(calls, 1);
 });
 
-test("triagem automática processa somente links diretos oficiais e nunca notícias da busca web", () => {
+test("triagem automática processa links oficiais e valida pistas externas pela fonte indicada", () => {
   const url = new URL(buildPendingDiscoveriesUrl(
     "https://example.supabase.co",
     new Date("2026-11-21T18:00:00.000Z")
