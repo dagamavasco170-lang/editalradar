@@ -107,7 +107,7 @@ test("recusa redirecionamento direto para outro órgão, mesmo que também use d
         headers: { location: "https://outro.gov.br/edital.pdf" }
       })
     ),
-    /não corresponde ao domínio oficial informado/
+    /não corresponde ao domínio oficial/
   );
 });
 
