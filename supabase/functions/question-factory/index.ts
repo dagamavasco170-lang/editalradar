@@ -266,6 +266,7 @@ function generationPrompts(topic: any, count: number, sourceExcerpt: string) {
     "A justificativa deve explicar por que o gabarito decorre da fonte e não pode contradizer o enunciado.",
     "evidence_excerpt deve ser uma citação literal contínua do material de referência, de 25 a 400 caracteres.",
     "Não invente número de artigo, prazo, percentual, requisito ou entendimento jurisprudencial.",
+    "Quando a fonte tiver licença CC BY-SA, o conteúdo derivado deve manter a mesma licença e citar a autoria da página de referência.",
     "Retorne apenas o JSON solicitado."
   ].join(" ");
 
@@ -331,8 +332,8 @@ async function fetchPrivateStudySourceExcerpt(sourceUrl: string): Promise<string
   const redirectStatuses = new Set([301, 302, 303, 307, 308]);
 
   for (let attempt = 0; attempt < 5; attempt += 1) {
-    if (!isTrustedOfficialUrl(currentUrl)) {
-      throw new Error("O redirecionamento saiu dos sites privados de estudo permitidos. Cole manualmente o trecho oficial.");
+    if (!isTrustedPrivateStudySourceUrl(currentUrl)) {
+      throw new Error("O redirecionamento saiu dos sites privados de estudo permitidos. Cole manualmente um trecho permitido pela licença da fonte.");
     }
     response = await fetch(currentUrl, {
       method: "GET",
@@ -350,8 +351,8 @@ async function fetchPrivateStudySourceExcerpt(sourceUrl: string): Promise<string
       throw new Error("A página de estudo redirecionou muitas vezes ou não informou o destino.");
     }
     const nextUrl = new URL(location, currentUrl);
-    if (nextUrl.protocol !== "https:" || nextUrl.username || nextUrl.password || !isTrustedOfficialUrl(nextUrl.href)) {
-      throw new Error("A página oficial tentou redirecionar para um domínio não permitido.");
+    if (nextUrl.protocol !== "https:" || nextUrl.username || nextUrl.password || !isTrustedPrivateStudySourceUrl(nextUrl.href)) {
+      throw new Error("A página de estudo tentou redirecionar para um domínio não permitido.");
     }
     currentUrl = nextUrl.href;
   }
@@ -359,7 +360,7 @@ async function fetchPrivateStudySourceExcerpt(sourceUrl: string): Promise<string
   if (!response) throw new Error("Não foi possível abrir a fonte de referência.");
   if (!response.ok) throw new Error("A fonte de estudo respondeu HTTP " + response.status + ".");
   const contentLength = Number(response.headers.get("content-length") || 0);
-  if (contentLength > 5 * 1024 * 1024) throw new Error("A página oficial excede o limite de 5 MB.");
+  if (contentLength > 5 * 1024 * 1024) throw new Error("A página de estudo excede o limite de 5 MB.");
   const bytes = new Uint8Array(await response.arrayBuffer());
   if (bytes.byteLength > 5 * 1024 * 1024) throw new Error("A página oficial excede o limite de 5 MB.");
 
