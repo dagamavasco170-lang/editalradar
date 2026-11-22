@@ -549,13 +549,22 @@ test("triagem automática processa somente links diretos oficiais e nunca notíc
   ));
 
   assert.equal(url.searchParams.get("status"), "eq.pending");
-  assert.equal(url.searchParams.get("discovery_type"), "eq.new_link");
-  assert.notEqual(url.searchParams.get("discovery_type"), "eq.web_search_lead");
+  assert.equal(url.searchParams.get("discovery_type"), "in.(new_link,page_change)");
+  assert.notEqual(url.searchParams.get("discovery_type"), "in.(new_link,page_change,web_search_lead)");
   assert.match(url.searchParams.get("or"), /reviewed_at\.is\.null/);
   assert.match(url.searchParams.get("or"), /reviewed_at\.lt\.2026-11-21T12:00:00/);
-  assert.equal(url.searchParams.get("limit"), "200");
+  assert.equal(url.searchParams.get("limit"), "300");
 });
 
+
+test("inclui páginas oficiais alteradas na triagem automática, mas mantém pistas externas e carga inicial fora da publicação automática", () => {
+  const url = new URL(buildPendingDiscoveriesUrl(
+    "https://example.supabase.co",
+    new Date("2026-11-21T18:00:00.000Z")
+  ));
+  assert.equal(url.searchParams.get("discovery_type"), "in.(new_link,page_change)");
+  assert.doesNotMatch(url.searchParams.get("discovery_type"), /web_search_lead|source_baseline/);
+});
 
 test("descarta páginas genéricas de categoria da banca sem consultar conteúdo como edital", async () => {
   let calls=0;
