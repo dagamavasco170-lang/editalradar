@@ -235,7 +235,7 @@ async function main() {
     limit: "1000"
   });
   const recentRuns = await supabaseRest(`study_question_automation_runs?${historyParams.toString()}`);
-  const fairDueCandidates = orderTopicsFairly(dueCandidates, recentRuns || [], new Date(now));
+  const fairDueCandidates = orderTopicsFairly(dueCandidates, recentRuns || [], new Date(now), topics || []);
   const disciplineCount = new Set(fairDueCandidates.map((topic) => topic.discipline)).size;
   console.log(`Equilíbrio de matérias: ${disciplineCount} disciplinas com assuntos vencidos; alternância aplicada.`);
 
