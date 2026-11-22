@@ -144,7 +144,7 @@ jobs:
               return "- **" + item.category + ":** [" + url + "](" + url + ") — " + message;
             }).join("\n");
             const body = [
-              "O monitor diário encontrou mudanças nas páginas vinculadas ao catálogo do EditalRadar.",
+              "O monitor automático encontrou mudanças nas páginas vinculadas ao catálogo do EditalRadar.",
               "",
               details,
               "",
