@@ -20,7 +20,17 @@ const healthSnapshot = {
     last_run_status: "succeeded",
     last_run_age_seconds: 20
   },
-  worker_http: { status_code: 200, created_at: snapshotNow, timed_out: false, error: null },
+  worker_http: {
+    status_code: 200,
+    created_at: snapshotNow,
+    timed_out: false,
+    error: null,
+    result_counts: {
+      available: true, processed: 4, sent: 1, rescheduled: 1, expired: 1,
+      expired_before_retry: 0, disabled_invalid: 0, invalid_message: 0,
+      dead_letter: 0, pending_redelivery: 0
+    }
+  },
   devices: { total: 1, enabled: 1, disabled: 0 },
   failures: { total: 0, last_24h: 0, latest_at: null },
   recent_errors: []
@@ -34,7 +44,25 @@ describe("PushHealthPanel", () => {
     expect(await screen.findByText("Operação normal")).toBeTruthy();
     expect(screen.getByText("HTTP 200")).toBeTruthy();
     expect(screen.getByText("1 ativo")).toBeTruthy();
+    expect(screen.getByText("Resultado do último lote")).toBeTruthy();
+    expect(screen.getByText("Aguardando recuperação")).toBeTruthy();
+    expect(screen.getByText("Falhas definitivas")).toBeTruthy();
     expect(authClient.rpc).toHaveBeenCalledWith("get_push_notification_health");
+  });
+
+  it("warns when the worker leaves a message pending redelivery", async () => {
+    const snapshot = {
+      ...healthSnapshot,
+      worker_http: {
+        ...healthSnapshot.worker_http,
+        result_counts: { ...healthSnapshot.worker_http.result_counts, pending_redelivery: 1 }
+      }
+    };
+    const authClient = { rpc: vi.fn().mockResolvedValue({ data: snapshot, error: null }) };
+    render(<PushHealthPanel authClient={authClient} />);
+
+    expect(await screen.findByText("Atenção necessária")).toBeTruthy();
+    expect(screen.getByText("Aguardando recuperação")).toBeTruthy();
   });
 
   it("allows an administrator to refresh the snapshot", async () => {
