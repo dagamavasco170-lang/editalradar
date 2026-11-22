@@ -103,6 +103,7 @@ jobs:
           TRIAGE_PUBLISHED: ${{ steps.resolve.outputs.published_count }}
           TRIAGE_UPDATED: ${{ steps.resolve.outputs.updated_count }}
           TRIAGE_PENDING: ${{ steps.resolve.outputs.pending_count }}
+          TRIAGE_PENDING_TOTAL: ${{ steps.resolve.outputs.pending_total_count }}
           TRIAGE_ERRORS: ${{ steps.resolve.outputs.error_count }}
           WEB_SEARCH_COUNT: ${{ steps.monitor.outputs.web_search_count }}
           WEB_SEARCH_FAILED: ${{ steps.monitor.outputs.web_search_failed_count }}
@@ -141,7 +142,7 @@ jobs:
               "**Resultado do monitor:** " + String(process.env.MONITOR_OUTCOME || "não executado") + ".",
               "**Envio da fila:** " + String(process.env.PUBLISH_OUTCOME || "não necessário") + ".",
               "**Busca automática na internet:** " + String(process.env.WEB_SEARCH_COUNT || "0") + " pista(s) nova(s); falhas em " + String(process.env.WEB_SEARCH_FAILED || "0") + " consulta(s).",
-              "**Triagem automática:** " + String(process.env.TRIAGE_OUTCOME || "não executada") + ". Analisadas: " + String(process.env.TRIAGE_INSPECTED || "0") + "; publicadas: " + String(process.env.TRIAGE_PUBLISHED || "0") + "; atualizadas: " + String(process.env.TRIAGE_UPDATED || "0") + "; pendentes: " + String(process.env.TRIAGE_PENDING || "0") + "; falhas: " + String(process.env.TRIAGE_ERRORS || "0") + ".",
+              "**Triagem automática:** " + String(process.env.TRIAGE_OUTCOME || "não executada") + ". Analisadas: " + String(process.env.TRIAGE_INSPECTED || "0") + "; publicadas: " + String(process.env.TRIAGE_PUBLISHED || "0") + "; atualizadas: " + String(process.env.TRIAGE_UPDATED || "0") + "; pendentes nesta execução: " + String(process.env.TRIAGE_PENDING || "0") + "; pendentes totais no banco: " + String(process.env.TRIAGE_PENDING_TOTAL || "não confirmado") + "; falhas: " + String(process.env.TRIAGE_ERRORS || "0") + ".",
               "",
               "A triagem tenta novamente falhas temporárias de rede e limita a publicação automática a fontes oficiais com evidências suficientes de edital, órgão, cargo e esfera. Casos incompletos e PDFs sem texto legível permanecem na fila para revisão.",
               "",
@@ -170,6 +171,32 @@ jobs:
               });
               core.info("Issue #" + created.data.number + " criada.");
             }
+
+      - name: Encerrar automaticamente alerta quando a triagem se recuperar
+        if: always() && steps.monitor.outcome == 'success' && steps.monitor.outputs.changed_count == '0' && steps.monitor.outputs.failed_count == '0' && steps.monitor.outputs.web_search_failed_count == '0' && steps.publish_discoveries.outcome != 'failure' && steps.resolve.outcome == 'success' && steps.resolve.outputs.pending_count == '0' && steps.resolve.outputs.pending_total_count == '0' && steps.resolve.outputs.error_count == '0'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const openIssues = await github.paginate(github.rest.issues.listForRepo, {
+              owner, repo, state: "open", per_page: 100
+            });
+            const existing = openIssues.find(issue =>
+              !issue.pull_request && issue.title.startsWith("[Monitor de fontes] Revisão necessária")
+            );
+            if (!existing) {
+              core.info("Nenhum alerta aberto para encerrar.");
+              return;
+            }
+            await github.rest.issues.createComment({
+              owner, repo, issue_number: existing.number,
+              body: "A triagem automática se recuperou: todas as fontes foram consultadas, não há novas alterações, pendências ou falhas técnicas. O alerta foi encerrado automaticamente. Execução: " + context.serverUrl + "/" + owner + "/" + repo + "/actions/runs/" + context.runId
+            });
+            await github.rest.issues.update({
+              owner, repo, issue_number: existing.number, state: "closed", state_reason: "completed"
+            });
+            core.info("Alerta #" + existing.number + " encerrado automaticamente após recuperação confirmada.");
 
       - name: Salvar relatório como artefato
         if: always()

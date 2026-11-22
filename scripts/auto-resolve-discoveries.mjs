@@ -1094,6 +1094,23 @@ function headersFor(key, extra = {}) {
   };
 }
 
+export async function countPendingDiscoveries(request, baseUrl, key) {
+  const url = new URL("/rest/v1/contest_discoveries", baseUrl);
+  url.searchParams.set("select", "id");
+  url.searchParams.set("status", "eq.pending");
+  const response = await request(url.toString(), {
+    method: "HEAD",
+    headers: headersFor(key, { Prefer: "count=exact", Range: "0-0" })
+  });
+  if (!response.ok) {
+    throw new Error("Não foi possível confirmar o total de pendências no Supabase (HTTP " + response.status + ").");
+  }
+  const contentRange = response.headers?.get?.("content-range") || "";
+  const match = contentRange.match(/\/(\d+)$/);
+  if (!match) throw new Error("O Supabase não informou a contagem exata de pendências.");
+  return Number(match[1]);
+}
+
 export async function requestJson(request, url, key, options = {}) {
   const method = String(options.method || "GET").toUpperCase();
   // Avoid replaying a non-idempotent catalog insert after an ambiguous timeout.
@@ -1174,7 +1191,20 @@ export async function autoResolvePending(options = {}) {
   const request = options.fetchImpl || fetch;
   const pending = await requestJson(request, buildPendingDiscoveriesUrl(baseUrl), key);
   const discoveries = Array.isArray(pending) ? pending : [];
-  if (!discoveries.length) return { inspected: 0, published: 0, dismissed: 0, pending: 0, errors: 0 };
+  if (!discoveries.length) {
+    let pendingTotal = null;
+    let errors = 0;
+    try {
+      pendingTotal = await countPendingDiscoveries(request, baseUrl, key);
+    } catch (error) {
+      errors = 1;
+      console.error("Não foi possível confirmar o total de pendências:", error.message);
+    }
+    return {
+      inspected: 0, published: 0, updated: 0, dismissed: 0,
+      pending: 0, errors, pendingTotal
+    };
+  }
 
   const existingRows = await requestJson(request, baseUrl + "/rest/v1/contest_catalog?select=id,data,deleted&limit=1000", key) || [];
   const result = { inspected: 0, published: 0, updated: 0, dismissed: 0, pending: 0, errors: 0, pendingReasons: {} };
@@ -1346,6 +1376,14 @@ export async function autoResolvePending(options = {}) {
     }
   }
   result.pending += result.errors;
+  try {
+    result.pendingTotal = await countPendingDiscoveries(request, baseUrl, key);
+  } catch (error) {
+    result.pendingTotal = null;
+    result.errors += 1;
+    result.pending += 1;
+    console.error("Não foi possível confirmar o total de pendências:", error.message);
+  }
   console.log("Motivos das pendências: " + JSON.stringify(result.pendingReasons));
   return result;
 }
@@ -1364,7 +1402,8 @@ async function main() {
     "- Publicadas: " + result.published,
     "- Atualizadas: " + (result.updated || 0),
     "- Descartadas: " + result.dismissed,
-    "- Aguardando revisão: " + result.pending,
+    "- Aguardando revisão nesta execução: " + result.pending,
+    "- Pendências totais no banco: " + (Number.isInteger(result.pendingTotal) ? result.pendingTotal : "não foi possível confirmar"),
     "- Falhas técnicas: " + result.errors,
     "",
     result.pendingReasons && Object.keys(result.pendingReasons).length
@@ -1379,6 +1418,7 @@ async function main() {
       "updated_count=" + (result.updated || 0),
       "dismissed_count=" + result.dismissed,
       "pending_count=" + result.pending,
+      "pending_total_count=" + (Number.isInteger(result.pendingTotal) ? result.pendingTotal : "unknown"),
       "error_count=" + result.errors,
       ""
     ].join("\n");
