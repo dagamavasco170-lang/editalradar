@@ -66,8 +66,9 @@ describe("fila durável de notificações push", () => {
 
   it("descarta mensagens vencidas e calcula o TTL restante em segundos", () => {
     const expiry = Date.parse("2026-11-22T11:00:00.000Z");
-    const now = Date.parse("2026-11-22T10:59:59.200Z");
+    const now = Date.parse("2026-11-22T10:59:58.500Z");
     expect(remainingPushTtlSeconds(expiry, now)).toBe(1);
+    expect(remainingPushTtlSeconds(expiry, expiry - 500)).toBe(0);
     expect(remainingPushTtlSeconds(expiry, expiry)).toBe(0);
     expect(remainingPushTtlSeconds(expiry, expiry + 1)).toBe(0);
   });
