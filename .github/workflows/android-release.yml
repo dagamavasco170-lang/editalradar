@@ -184,8 +184,13 @@ jobs:
 
       - name: Verify signed APK and AAB before publishing
         if: steps.signing.outputs.ready == 'true'
+        env:
+          APP_VERSION: ${{ steps.version.outputs.name }}
+          VERSION_CODE: ${{ steps.version.outputs.code }}
+          EXPECTED_ANDROID_SIGNER_SHA256: "6192a29e44539f63b525a9288f95fc98d6deb2f936cef50d624a228ca358595b"
         shell: bash
         run: |
+          set -euo pipefail
           SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
           if [ -z "$SDK_ROOT" ] || [ ! -d "$SDK_ROOT/build-tools" ]; then
             echo "::error::Android SDK Build Tools não encontrados para validar a assinatura."
@@ -193,14 +198,52 @@ jobs:
           fi
 
           APKSIGNER="$(find "$SDK_ROOT/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          AAPT="$(find "$SDK_ROOT/build-tools" -type f -name aapt | sort -V | tail -n 1)"
           if [ -z "$APKSIGNER" ] || [ ! -x "$APKSIGNER" ]; then
             echo "::error::Ferramenta de validação da assinatura APK não encontrada."
             exit 1
           fi
+          if [ -z "$AAPT" ] || [ ! -x "$AAPT" ]; then
+            echo "::error::Ferramenta AAPT não encontrada para validar o manifesto do APK."
+            exit 1
+          fi
 
-          "$APKSIGNER" verify --verbose --print-certs android/app/build/outputs/apk/release/app-release.apk
-          jarsigner -verify -verbose -certs android/app/build/outputs/bundle/release/app-release.aab >/dev/null
-          echo "Assinaturas do APK e do AAB verificadas."
+          APK_PATH="android/app/build/outputs/apk/release/app-release.apk"
+          AAB_PATH="android/app/build/outputs/bundle/release/app-release.aab"
+          APKSIGNER_OUTPUT="$("$APKSIGNER" verify --verbose --print-certs "$APK_PATH")"
+          printf '%s\\n' "$APKSIGNER_OUTPUT"
+          if ! grep -Fq "certificate SHA-256 digest: $EXPECTED_ANDROID_SIGNER_SHA256" <<< "$APKSIGNER_OUTPUT"; then
+            echo "::error::O APK não foi assinado com o certificado permanente esperado do EditalRadar."
+            exit 1
+          fi
+
+          BADGING="$("$AAPT" dump badging "$APK_PATH")"
+          export BADGING APP_VERSION VERSION_CODE
+          python3 - <<'PY'
+          import os
+          import re
+
+          badging = os.environ["BADGING"]
+          package = re.search(
+              r"^package: name='([^']+)' versionCode='([^']+)' versionName='([^']*)'",
+              badging,
+              re.MULTILINE,
+          )
+          expected = ("br.com.editalradar.app", os.environ["VERSION_CODE"], os.environ["APP_VERSION"])
+          if package is None or package.groups() != expected:
+              raise SystemExit("O APK não corresponde ao identificador ou à versão declarada no Gradle.")
+
+          min_sdk = re.search(r"^sdkVersion:'(\\d+)'$", badging, re.MULTILINE)
+          target_sdk = re.search(r"^targetSdkVersion:'(\\d+)'$", badging, re.MULTILINE)
+          if min_sdk is None or min_sdk.group(1) != "24":
+              raise SystemExit("O minSdk do APK diverge do mínimo suportado pelo projeto.")
+          if target_sdk is None or target_sdk.group(1) != "35":
+              raise SystemExit("O targetSdk do APK diverge da política de distribuição do projeto.")
+          print("Identidade do pacote, versão e SDK do APK validados.")
+          PY
+
+          jarsigner -verify -verbose -certs "$AAB_PATH" >/dev/null
+          echo "Assinaturas do APK e do AAB verificadas; certificado permanente confirmado."
 
       - name: Build verification APK when signing is not configured
         if: steps.signing.outputs.ready != 'true'
