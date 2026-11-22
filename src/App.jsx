@@ -988,7 +988,9 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
         setAuthMessageType("success");
       }
     } catch (error) {
-      setAuthMessage("Não foi possível concluir seu acesso. Confira os dados e tente novamente.");
+      const userInputError = error?.message === "As senhas não coincidem."
+        || error?.message === "Abra o link de recuperação enviado ao seu e-mail antes de definir uma nova senha.";
+      setAuthMessage(userInputError ? error.message : "Não foi possível concluir seu acesso. Confira os dados e tente novamente.");
       setAuthMessageType("error");
     } finally {
       setAuthBusy(false);

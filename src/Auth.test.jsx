@@ -103,7 +103,7 @@ describe("Autenticação EditalRadar", () => {
 
     await waitFor(() => expect(client.callback).toBeTypeOf("function"));
     client.callback("SIGNED_IN", {
-      user: { id: "user-push-test", email: "aluno@exemplo.com" }
+      user: { id: "user-push-test", email: "aluno@exemplo.com", app_metadata: { role: "admin" } }
     });
 
     await waitFor(() => expect(client.functions.invoke).toHaveBeenCalledWith("push-notifications", {
@@ -163,7 +163,7 @@ describe("Autenticação EditalRadar", () => {
       expect(JSON.parse(localStorage.getItem("er-account:user-cloud:alerts"))).toEqual([cloudAlert]);
       expect(JSON.parse(localStorage.getItem("er-account:user-cloud:tasks"))).toEqual([true, false, true, false]);
     });
-    expect(await screen.findByText("Dados sincronizados")).toBeInTheDocument();
+    expect(await screen.findByText("Tudo atualizado")).toBeInTheDocument();
     expect(client.database.upsert).not.toHaveBeenCalled();
   });
 
@@ -218,7 +218,7 @@ describe("Autenticação EditalRadar", () => {
     ).toEqual([cloudNotification]));
     fireEvent.click(screen.getByRole("button", { name: /Ver notificações/ }));
     expect(await screen.findByRole("button", { name: /Aviso sincronizado/ })).toBeInTheDocument();
-    expect(await screen.findByText("Dados sincronizados")).toBeInTheDocument();
+    expect(await screen.findByText("Tudo atualizado")).toBeInTheDocument();
   });
 
   it("sincroniza leitura das notificações com a conta", async () => {
@@ -240,7 +240,7 @@ describe("Autenticação EditalRadar", () => {
     render(<App authClient={client} authConfigured />);
     await waitFor(() => expect(client.callback).toBeTypeOf("function"));
     client.callback("SIGNED_IN", { user: { id: "user-notification-write", email: "aluno@exemplo.com" } });
-    await screen.findByText("Dados sincronizados");
+    await screen.findByText("Tudo atualizado");
     fireEvent.click(screen.getByRole("button", { name: /Ver notificações/ }));
     await screen.findByRole("button", { name: /Aviso para marcar/ });
     fireEvent.click(screen.getByRole("button", { name: /Marcar como lidas/ }));
@@ -272,8 +272,8 @@ describe("Autenticação EditalRadar", () => {
     await waitFor(() => expect(client.callback).toBeTypeOf("function"));
     client.callback("SIGNED_IN", { user: { id: "user-old-schema", email: "aluno@exemplo.com" } });
 
-    expect(await screen.findByText(/202611220001_user_notifications.sql/)).toBeInTheDocument();
-    expect(await screen.findByText("Dados sincronizados")).toBeInTheDocument();
+    expect(await screen.findByText(/Seu histórico de avisos pode não aparecer em outros dispositivos ainda/)).toBeInTheDocument();
+    expect(await screen.findByText("Tudo atualizado")).toBeInTheDocument();
   });
 
   it("envia favoritos, alertas e tarefas alterados para a nuvem", async () => {
@@ -284,7 +284,7 @@ describe("Autenticação EditalRadar", () => {
       user: { id: "user-sync", email: "aluno@exemplo.com" }
     });
 
-    await screen.findByText("Dados sincronizados");
+    await screen.findByText("Tudo atualizado");
     fireEvent.click(screen.getAllByLabelText("Salvar favorito")[0]);
     fireEvent.click(screen.getByRole("button", { name: /Salvar alerta/ }));
     fireEvent.click(screen.getByRole("button", { name: /Área de estudos/ }));
@@ -297,7 +297,7 @@ describe("Autenticação EditalRadar", () => {
       expect.objectContaining({ user_id: "user-sync", alerts: expect.any(Array) }),
       expect.objectContaining({ user_id: "user-sync", tasks: [true, false, false, false] })
     ]));
-    await waitFor(() => expect(screen.getByText("Dados sincronizados")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Tudo atualizado")).toBeInTheDocument());
   });
 
   it("renova os claims do Supabase e reconhece a permissão administrativa", async () => {
@@ -327,7 +327,7 @@ describe("Autenticação EditalRadar", () => {
     render(<App authClient={client} authConfigured />);
     await waitFor(() => expect(client.callback).toBeTypeOf("function"));
     client.callback("SIGNED_IN", { user: { id: "admin-user", email: "admin@example.com", app_metadata: { role: "admin" } } });
-    await screen.findByText("Dados sincronizados");
+    await screen.findByText("Tudo atualizado");
     fireEvent.click(screen.getByRole("button", { name: "Administração" }));
     fireEvent.click(screen.getByRole("button", { name: /Novo concurso/ }));
     fireEvent.change(screen.getByLabelText("Cargo"), { target: { value: "Analista de Controle" } });
@@ -361,7 +361,7 @@ describe("Autenticação EditalRadar", () => {
     client.callback("SIGNED_IN", {
       user: { id: "admin-queue", email: "admin@example.com", app_metadata: { role: "admin" } }
     });
-    await screen.findByText("Dados sincronizados");
+    await screen.findByText("Tudo atualizado");
     fireEvent.click(await screen.findByRole("button", { name: "Administração" }));
 
     expect(await screen.findByText("Edital 2027 - Analista")).toBeInTheDocument();
@@ -396,7 +396,7 @@ describe("Autenticação EditalRadar", () => {
     client.callback("SIGNED_IN", {
       user: { id: "admin-history", email: "admin@example.com", app_metadata: { role: "admin" } }
     });
-    await screen.findByText("Dados sincronizados");
+    await screen.findByText("Tudo atualizado");
     fireEvent.click(await screen.findByRole("button", { name: "Administração" }));
 
     expect(await screen.findByText("Edital 2026 - Analista")).toBeInTheDocument();
@@ -423,7 +423,7 @@ describe("Autenticação EditalRadar", () => {
       }
     });
 
-    await screen.findByText("Dados sincronizados");
+    await screen.findByText("Tudo atualizado");
     expect(screen.getByText("Nome Antigo")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Editar perfil" }));
 
@@ -463,7 +463,7 @@ describe("Autenticação EditalRadar", () => {
       user: { id: "user-profile-error", email: "aluno@exemplo.com", user_metadata: {} }
     });
 
-    await screen.findByText("Dados sincronizados");
+    await screen.findByText("Tudo atualizado");
     fireEvent.click(screen.getByRole("button", { name: "Editar perfil" }));
     fireEvent.change(await screen.findByLabelText("Nome de exibição"), {
       target: { value: "Nome de Teste" }
@@ -486,7 +486,7 @@ describe("Autenticação EditalRadar", () => {
     fireEvent.click(screen.getByRole("button", { name: /Entrar \/ cadastrar/ }));
     fireEvent.click(screen.getByRole("button", { name: "Continuar com Google" }));
 
-    expect(await screen.findByText("Unsupported provider: google")).toBeInTheDocument();
+    expect(await screen.findByText("Não foi possível iniciar seu acesso com Google. Tente novamente.")).toBeInTheDocument();
   });
 
   it("permite abrir o cadastro e envia a criação da conta ao Supabase", async () => {

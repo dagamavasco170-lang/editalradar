@@ -15,7 +15,7 @@ describe("EditalRadar", () => {
 
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: "Ativar notificações" }));
-    expect(screen.getByText(/Autorize as notificações na janela do Android/)).toBeInTheDocument();
+    expect(screen.getByText(/Permita os avisos quando o Android solicitar/)).toBeInTheDocument();
 
     fireEvent(window, new CustomEvent("editalradar:native-notification-permission", {
       detail: { granted: true }
@@ -236,7 +236,7 @@ describe("EditalRadar", () => {
     render(<App />);
 
     fireEvent(window, new Event("offline"));
-    expect(screen.getByRole("status")).toHaveTextContent(/Você está offline/);
+    expect(screen.getByRole("status")).toHaveTextContent(/Sem conexão no momento/);
 
     fireEvent(window, new Event("online"));
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
@@ -370,9 +370,8 @@ describe("EditalRadar", () => {
     fireEvent.click(screen.getByRole("button", { name: /Entrar \/ cadastrar/ }));
 
     expect(screen.getByRole("dialog", { name: /Entrar na sua conta/ })).toBeInTheDocument();
-    expect(screen.getByText(/falta conectar o projeto ao Supabase/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Abrir guia de configuração/ }))
-      .toHaveAttribute("href", "https://github.com/dagamavasco170-lang/editalradar/blob/main/SUPABASE_SETUP.md");
+    expect(screen.getByText(/O acesso à conta está temporariamente indisponível/)).toBeInTheDocument();
+    expect(screen.queryByText(/Supabase|SQL Editor|VITE_SUPABASE|GitHub Actions/)).not.toBeInTheDocument();
   });
 
   it("fecha o modal de autenticação pelo botão de fechar", () => {
