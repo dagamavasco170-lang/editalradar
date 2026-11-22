@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { concursos } from "../src/data/concursos.js";
-import { collectSourceUrls, compareSource, fingerprintContent, normalizeHtml, extractOpportunityLinks, buildDiscoveriesForSource, fetchOfficialSource, fetchNewsFeedWithRetry, isTrustedOfficialHost, pruneSourceState, buildGoogleNewsRssUrl, parseGoogleNewsRss, searchInternetForContestLeads, filterUnseenWebSearchDiscoveries, INTERNET_SEARCH_QUERIES, classifyContestLead } from "./monitor-sources.mjs";
+import { collectSourceUrls, compareSource, fingerprintContent, normalizeHtml, extractOpportunityLinks, buildDiscoveriesForSource, fetchOfficialSource, fetchNewsFeedWithRetry, isTrustedOfficialHost, pruneSourceState, buildGoogleNewsRssUrl, parseGoogleNewsRss, searchInternetForContestLeads, filterUnseenWebSearchDiscoveries, INTERNET_SEARCH_QUERIES, classifyContestLead, SECONDARY_NEWS_FEEDS, parseSecondaryNewsRss } from "./monitor-sources.mjs";
 
 test("coleta somente URLs HTTPS únicas", () => {
   const urls = collectSourceUrls([
@@ -429,7 +429,7 @@ test("bloqueia feeds fora do endpoint HTTPS autorizado", async () => {
   let calls = 0;
   await assert.rejects(() => fetchNewsFeedWithRetry("https://example.org/rss", {
     fetchImpl: async () => { calls += 1; return new Response("<rss/>"); }
-  }), /somente HTTPS de news.google.com/);
+  }), /somente feeds HTTPS previamente autorizados/);
   assert.equal(calls, 0);
 });
 
@@ -440,6 +440,7 @@ test("consulta a busca pública com HTTPS, bloqueio de redirecionamentos e trata
       { label: "Busca nacional", query: "concurso edital site:gov.br" },
       { label: "Busca estadual", query: "concurso Alagoas edital" }
     ],
+    secondaryFeeds: [],
     now: new Date("2026-11-21T19:00:00-03:00"),
     attempts: 1,
     fetchImpl: async (url, options) => {
@@ -481,4 +482,63 @@ test("não reenfileira notícias já vistas em execuções anteriores do monitor
   assert.deepEqual(result.keys, ["web-search:old-1", "web-search:old-2", "web-search:new-1"]);
   const nextRun = filterUnseenWebSearchDiscoveries(items, result.keys);
   assert.equal(nextRun.discoveries.length, 0);
+});
+
+
+test("mantém feeds editoriais auxiliares explícitos, HTTPS e independentes do Google Notícias", () => {
+  assert.equal(SECONDARY_NEWS_FEEDS.length, 2);
+  assert.ok(SECONDARY_NEWS_FEEDS.every(feed => feed.feedUrl.startsWith("https://")));
+  assert.ok(SECONDARY_NEWS_FEEDS.some(feed => feed.id === "concursos-no-brasil"));
+  assert.ok(SECONDARY_NEWS_FEEDS.some(feed => feed.id === "estrategia-concursos"));
+});
+
+test("extrai pistas recentes de RSS editorial sem tratar o artigo como prova oficial", () => {
+  const feedUrl = "https://www.concursosnobrasil.com.br/feed/";
+  const xml = [
+    "<rss><channel><item>",
+    "<title>Prefeitura de Igaci publica edital de concurso público com 20 vagas</title>",
+    "<link>https://www.concursosnobrasil.com.br/noticias/concurso-igaci-2026/</link>",
+    "<pubDate>Sun, 22 Nov 2026 12:00:00 GMT</pubDate>",
+    "<description>O edital de seleção pública será disponibilizado pela prefeitura.</description>",
+    "</item></channel></rss>"
+  ].join("");
+  const leads = parseSecondaryNewsRss(xml, {
+    now: new Date("2026-11-22T12:30:00Z"),
+    feedUrl,
+    feedLabel: "Concursos no Brasil"
+  });
+  assert.equal(leads.length, 1);
+  assert.equal(leads[0].discovery_type, "web_search_lead");
+  assert.equal(leads[0].source_url, feedUrl);
+  assert.match(leads[0].candidate_url, /concursosnobrasil\.com\.br/);
+  assert.match(leads[0].discovery_key, /^secondary-feed-title:[a-f0-9]{64}$/);
+  assert.match(leads[0].context, /não é confirmação/);
+  assert.doesNotMatch(leads[0].context, /Endereço informado para a fonte/);
+});
+
+test("busca feed editorial independente e transforma itens em pistas externas", async () => {
+  const feed = SECONDARY_NEWS_FEEDS[0];
+  const requested = [];
+  const result = await searchInternetForContestLeads({
+    queries: [],
+    secondaryFeeds: [feed],
+    now: new Date("2026-11-22T12:30:00Z"),
+    attempts: 1,
+    fetchImpl: async (url, options) => {
+      requested.push({ url, options });
+      return new Response([
+        "<rss><channel><item>",
+        "<title>Concurso público: prefeitura anuncia edital com vagas</title>",
+        "<link>https://www.concursosnobrasil.com.br/noticias/concurso-municipal/</link>",
+        "<pubDate>Sun, 22 Nov 2026 12:00:00 GMT</pubDate>",
+        "</item></channel></rss>"
+      ].join(""), { status: 200, headers: { "content-type": "application/rss+xml" } });
+    }
+  });
+  assert.equal(requested.length, 1);
+  assert.equal(requested[0].url, feed.feedUrl);
+  assert.equal(requested[0].options.redirect, "error");
+  assert.equal(result.feedsChecked, 1);
+  assert.equal(result.secondaryFeedsChecked, 1);
+  assert.equal(result.leadCount, 1);
 });
