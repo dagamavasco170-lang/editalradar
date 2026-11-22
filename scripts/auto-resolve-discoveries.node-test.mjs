@@ -894,6 +894,7 @@ test("localiza exatamente um link de edital oficial dentro de artigo secundário
 test("triagem de notícia editorial só abre a publicação depois de localizar um link oficial único", async () => {
   const articleUrl = "https://www.concursosnobrasil.com.br/noticias/concurso-igaci-2026/";
   const officialUrl = "https://igaci.al.gov.br/concursos/edital-01-2026.pdf";
+  const articleHtml = '<html><body><article><p>Veja o concurso anunciado.</p><a href="' + officialUrl + '">Clique para acessar o edital oficial</a></article></body></html>';
   const officialHtml = "<html><head><title>Edital 01/2026</title></head><body><h1>Concurso público</h1><p>Prefeitura Municipal de Igaci. 20 vagas para cargos efetivos. Edital 01/2026.</p></body></html>";
   const requested = [];
   const prepared = await prepareDiscoveryDocument({
