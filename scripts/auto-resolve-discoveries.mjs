@@ -971,12 +971,10 @@ export function buildPendingDiscoveriesUrl(baseUrl, now = new Date(), cooldownMs
   const retryBefore = new Date(now.getTime() - cooldownMs).toISOString();
   url.searchParams.set("select", "id,source_url,candidate_url,title,context,discovery_type,status");
   url.searchParams.set("status", "eq.pending");
-  // Only trusted official sources are auto-triaged. Secondary search leads and
-  // first-run baselines remain outside auto-publication until an official page/link is found.
-  // Also inspect changed official landing pages: they may now contain a direct edital
-  // even when the page itself (rather than a link) changed. Search-engine leads and
-  // first-run baselines stay excluded to avoid promoting unverified secondary sources.
-  url.searchParams.set("discovery_type", "in.(new_link,page_change)");
+  // Search leads are included only to check their declared publisher URL against the
+  // official-source allowlist below. The Google News URL itself is never proof.
+  // Initial baseline pages remain outside automatic publication.
+  url.searchParams.set("discovery_type", "in.(new_link,page_change,web_search_lead)");
   url.searchParams.set("or", "(reviewed_at.is.null,reviewed_at.lt." + retryBefore + ")");
   url.searchParams.set("order", "detected_at.asc");
   url.searchParams.set("limit", "300");
