@@ -121,7 +121,7 @@ test("GitHub Actions nunca publica APK de depuração como atualização públic
   assert.ok(androidWorkflow.includes("permissions:" + lineBreak + "      contents: write"));
   assert.ok(!androidWorkflow.includes('      - "android/**"'));
   assert.ok(androidWorkflow.includes("Verify signed APK and AAB before publishing"));
-  assert.ok(androidWorkflow.includes("apksigner\""));
+  assert.ok(androidWorkflow.includes("-name apksigner"));
   assert.ok(androidWorkflow.includes("jarsigner -verify"));
   assert.ok(androidWorkflow.includes("needs.android-build.outputs.release_ready == 'true'"));
   assert.ok(androidWorkflow.includes("uses: softprops/action-gh-release@v2"));
