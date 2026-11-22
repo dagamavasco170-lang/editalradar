@@ -91,6 +91,15 @@ test("GitHub Actions nunca publica APK de depuração como atualização públic
   assert.match(androidWorkflow, /gradle assembleRelease bundleRelease/);
   assert.match(androidWorkflow, /steps\.signing\.outputs\.ready == 'true'/);
   assert.match(androidWorkflow, /verification-only/);
+  const lineBreak = String.fromCharCode(10);
+  assert.ok(androidWorkflow.includes(
+    "      - name: Configure permanent Android signing key" + lineBreak +
+    "        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'"
+  ));
+  assert.ok(androidWorkflow.includes(
+    "      - name: Validate Firebase Android configuration" + lineBreak +
+    "        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'"
+  ));
   const publishStepStart = androidWorkflow.indexOf("      - name: Publish permanently signed GitHub Release");
   assert.notEqual(publishStepStart, -1);
   const publishCondition = androidWorkflow.slice(publishStepStart).split(String.fromCharCode(10))[1] ?? "";
