@@ -400,7 +400,7 @@ test("banco de questões filtra, salva, registra erros e mantém o caderno após
   await expect(bank.getByRole("heading", { name: "Banco de questões" })).toBeVisible();
   const summary = bank.locator(".question-bank-subtitle");
   await expect(summary).toContainText("questões disponíveis");
-  await expect(summary).toContainText("80 na base inicial");
+  await expect(summary).toContainText("disciplinas para praticar");
 
   await bank.getByPlaceholder("Tema, assunto ou enunciado...").fill("crase");
   await expect(bank.getByRole("heading", { name: /dirigiu-se a comissão/ })).toBeVisible();

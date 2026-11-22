@@ -15,16 +15,33 @@ describe("EditalRadar", () => {
 
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: "Ativar notificações" }));
-    expect(screen.getByText(/Autorize as notificações na janela do Android/)).toBeInTheDocument();
+    expect(screen.getByText(/Permita os avisos quando o Android solicitar/)).toBeInTheDocument();
 
     fireEvent(window, new CustomEvent("editalradar:native-notification-permission", {
       detail: { granted: true }
     }));
 
     expect(screen.getByRole("button", { name: "Notificações ativadas" })).toBeDisabled();
-    expect(screen.getByText(/cadastro do push será concluído automaticamente/)).toBeInTheDocument();
+    expect(screen.getByText(/Notificações ativadas! Avisaremos quando houver novidades/)).toBeInTheDocument();
     expect(JSON.parse(localStorage.getItem("er-browser-notifications"))).toBe(true);
     delete window.EditalRadarNative;
+  });
+
+  it("não exibe detalhes técnicos na central de notificações para usuários comuns", () => {
+    localStorage.clear();
+    render(<App authClient={null} authConfigured={false} />);
+    fireEvent.click(screen.getByRole("button", { name: /Ver notificações/ }));
+    const panel = within(screen.getByRole("region", { name: "Notificações do EditalRadar" }));
+    expect(panel.queryByText(/Firebase|Cloud Messaging|Supabase|SQL Editor|FCM|token|sincronização|cache/i)).not.toBeInTheDocument();
+    expect(panel.queryByRole("button", { name: /Testar recebimento push|Testar em segundo plano/i })).not.toBeInTheDocument();
+  });
+
+  it("não mostra instruções técnicas de configuração no acesso à conta", () => {
+    localStorage.clear();
+    render(<App authClient={null} authConfigured={false} />);
+    fireEvent.click(screen.getByRole("button", { name: /Entrar \/ cadastrar/ }));
+    expect(screen.getByText(/O acesso à conta está temporariamente indisponível/)).toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent(/Supabase|SQL Editor|VITE_SUPABASE|GitHub Actions/);
   });
 
   it("detecta um novo concurso e abre seus detalhes pela central de notificações", async () => {
@@ -219,7 +236,7 @@ describe("EditalRadar", () => {
     render(<App />);
 
     fireEvent(window, new Event("offline"));
-    expect(screen.getByRole("status")).toHaveTextContent(/Você está offline/);
+    expect(screen.getByRole("status")).toHaveTextContent(/Sem conexão no momento/);
 
     fireEvent(window, new Event("online"));
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
@@ -353,9 +370,8 @@ describe("EditalRadar", () => {
     fireEvent.click(screen.getByRole("button", { name: /Entrar \/ cadastrar/ }));
 
     expect(screen.getByRole("dialog", { name: /Entrar na sua conta/ })).toBeInTheDocument();
-    expect(screen.getByText(/falta conectar o projeto ao Supabase/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Abrir guia de configuração/ }))
-      .toHaveAttribute("href", "https://github.com/dagamavasco170-lang/editalradar/blob/main/SUPABASE_SETUP.md");
+    expect(screen.getByText(/O acesso à conta está temporariamente indisponível/)).toBeInTheDocument();
+    expect(screen.queryByText(/Supabase|SQL Editor|VITE_SUPABASE|GitHub Actions/)).not.toBeInTheDocument();
   });
 
   it("fecha o modal de autenticação pelo botão de fechar", () => {

@@ -370,8 +370,8 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
       setBrowserNotificationsEnabled(enabled);
       localStorage.setItem("er-browser-notifications", JSON.stringify(enabled));
       setNotificationMessage(enabled
-        ? "Notificações nativas ativadas neste dispositivo."
-        : "A permissão de notificações não foi concedida. Os avisos internos continuam disponíveis.");
+        ? "Notificações ativadas! Avisaremos quando houver novidades."
+        : "Os avisos não foram ativados. Você pode continuar acompanhando as novidades por aqui.");
       if (enabled) {
         window.EditalRadarNative?.showNotification?.(
           "EditalRadar",
@@ -381,7 +381,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
       }
     };
     const handleNativeOAuthError = (event) => {
-      setAuthMessage(event?.detail?.message || "Não foi possível concluir o acesso com Google.");
+      setAuthMessage("Não foi possível concluir seu acesso com Google.");
       setAuthMessageType("error");
       setAuthBusy(false);
     };
@@ -533,8 +533,8 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
         // A permissão continua válida mesmo se o armazenamento local estiver indisponível.
       }
       setNotificationMessage(enabled
-        ? "Notificações nativas ativadas neste dispositivo. O cadastro do push será concluído automaticamente."
-        : "A permissão não foi concedida. Autorize as notificações nas configurações do Android para receber avisos.");
+        ? "Notificações ativadas! Avisaremos quando houver novidades."
+        : "Os avisos estão desativados. Ative as notificações nas configurações do aparelho.");
     };
 
     window.addEventListener("editalradar:native-notification-permission", handleNativeNotificationPermission);
@@ -561,7 +561,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
         });
         if (error && !cancelled) {
           console.warn("Não foi possível registrar o token de notificações push:", error);
-          setNotificationMessage("O aparelho está autorizado, mas o cadastro do push ainda não foi concluído.");
+          setNotificationMessage("Não foi possível concluir a ativação dos avisos. Tente novamente mais tarde.");
         }
       } catch (error) {
         if (!cancelled) console.warn("Falha ao registrar dispositivo para push:", error);
@@ -569,7 +569,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     };
     const handleFcmStatus = (event) => {
       if (!cancelled && event?.detail?.configured === false) {
-        setNotificationMessage("O recebimento de avisos com o aplicativo fechado será ativado após configurar o Firebase.");
+        setNotificationMessage("Os avisos com o aplicativo fechado ainda não estão disponíveis neste aparelho.");
       }
     };
 
@@ -709,7 +709,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
         if (cancelled) return;
         if (resolved) pendingChangesRef.current = { ...resolved, ...pendingChangesRef.current };
         setSyncStatus("error");
-        setAuthMessage(error?.message || "Conta conectada, mas não foi possível sincronizar os dados. Confira a tabela e as políticas de acesso do Supabase.");
+        setAuthMessage(error?.message || "Sua conta foi conectada, mas não foi possível atualizar seus dados agora. Tente novamente mais tarde.");
         setAuthMessageType("error");
       }
     };
@@ -935,7 +935,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     } catch (error) {
       pendingWritesRef.current = Math.max(0, pendingWritesRef.current - 1);
       setSyncStatus("error");
-      setAuthMessage(error?.message || "Não foi possível sincronizar seus dados. Eles continuam salvos neste navegador.");
+      setAuthMessage(error?.message || "Não foi possível salvar suas alterações na conta agora. Elas continuam disponíveis neste aparelho.");
       setAuthMessageType("error");
     }
   };
@@ -988,7 +988,9 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
         setAuthMessageType("success");
       }
     } catch (error) {
-      setAuthMessage(error.message || "Não foi possível concluir a autenticação.");
+      const userInputError = error?.message === "As senhas não coincidem."
+        || error?.message === "Abra o link de recuperação enviado ao seu e-mail antes de definir uma nova senha.";
+      setAuthMessage(userInputError ? error.message : "Não foi possível concluir seu acesso. Confira os dados e tente novamente.");
       setAuthMessageType("error");
     } finally {
       setAuthBusy(false);
@@ -1046,7 +1048,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
       setProfileMessage("Perfil atualizado com sucesso.");
       setProfileMessageType("success");
     } catch (error) {
-      setProfileMessage(error.message || "Não foi possível atualizar seu perfil.");
+      setProfileMessage("Não foi possível atualizar seu perfil. Tente novamente mais tarde.");
       setProfileMessageType("error");
     } finally {
       setProfileBusy(false);
@@ -1087,7 +1089,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
       });
       if (error) throw error;
     } catch (error) {
-      setAuthMessage(error.message || "Não foi possível iniciar o acesso com Google.");
+      setAuthMessage("Não foi possível iniciar seu acesso com Google. Tente novamente.");
       setAuthMessageType("error");
     } finally {
       setAuthBusy(false);
@@ -1115,7 +1117,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     }
     setAuthUser(null);
     setShowAuth(false);
-    setAuthMessage("Você saiu da sua conta. Seus dados locais continuam neste navegador.");
+    setAuthMessage("Você saiu da sua conta. Ainda é possível consultar as informações já carregadas neste aparelho.");
     setAuthMessageType("success");
   };
 
@@ -1157,28 +1159,28 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
           setNotificationPermission("granted");
           setBrowserNotificationsEnabled(true);
           localStorage.setItem("er-browser-notifications", JSON.stringify(true));
-          setNotificationMessage("Notificações nativas ativadas neste dispositivo.");
+          setNotificationMessage("Notificações ativadas! Avisaremos quando houver novidades.");
           nativeBridge.showNotification?.(
             "EditalRadar",
             "Notificações ativadas. Avisaremos quando o app detectar novidades.",
             "editalradar-notifications-enabled"
           );
         } else {
-          setNotificationMessage("Autorize as notificações na janela do Android. O aplicativo confirmará a ativação automaticamente.");
+          setNotificationMessage("Permita os avisos quando o Android solicitar.");
         }
       } catch {
-        setNotificationMessage("Não foi possível ativar as notificações do Android.");
+        setNotificationMessage("Não foi possível ativar os avisos. Verifique as permissões do aparelho e tente novamente.");
       }
       return;
     }
     if (typeof window === "undefined" || !("Notification" in window)) {
       setNotificationPermission("unsupported");
-      setNotificationMessage("Este navegador não oferece notificações de desktop.");
+      setNotificationMessage("Os avisos automáticos não estão disponíveis neste navegador. Você continuará vendo as novidades por aqui.");
       return;
     }
     if (window.Notification.permission === "denied") {
       setNotificationPermission("denied");
-      setNotificationMessage("A permissão está bloqueada. Altere-a nas configurações do navegador para este site.");
+      setNotificationMessage("Os avisos estão bloqueados. Ative-os nas permissões deste site para receber novidades.");
       return;
     }
     try {
@@ -1188,8 +1190,8 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
       setBrowserNotificationsEnabled(enabled);
       localStorage.setItem("er-browser-notifications", JSON.stringify(enabled));
       setNotificationMessage(enabled
-        ? "Notificações do navegador ativadas neste dispositivo."
-        : "A permissão não foi concedida. Você continuará vendo os avisos dentro do EditalRadar.");
+        ? "Avisos ativados! Você receberá novidades neste dispositivo."
+        : "Os avisos não foram ativados. Você continuará vendo as novidades por aqui.");
       if (enabled) {
         new window.Notification("EditalRadar", {
           body: "Notificações ativadas. Avisaremos quando houver novidades no catálogo."
@@ -1219,7 +1221,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
           ? "Teste em segundo plano enviado. Confira a notificação com o aplicativo minimizado ou a tela bloqueada."
           : "Teste enviado ao seu aparelho. Confira a central de notificações do Android.");
       } else {
-        setNotificationMessage(data?.error || "O teste não foi enviado. Ative as notificações e confirme o cadastro do aparelho.");
+        setNotificationMessage(data?.error || "Não foi possível enviar o teste de avisos. Confira as permissões do aparelho e tente novamente.");
       }
     } catch (error) {
       let message = error?.message || "Não foi possível enviar o teste push.";
@@ -1436,9 +1438,9 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
         }).then(({ error: pushError, data: pushResult }) => {
           if (pushError) {
             console.warn("O concurso foi salvo, mas o push não foi enviado:", pushError);
-            setNotificationMessage("Concurso salvo. O envio de avisos push depende da configuração do Firebase.");
+            setNotificationMessage("Concurso salvo, mas os avisos não puderam ser enviados agora.");
           } else if (pushResult?.sent > 0) {
-            setNotificationMessage("Aviso push enviado para " + pushResult.sent + " dispositivo(s).");
+            setNotificationMessage("Aviso enviado para " + pushResult.sent + " dispositivo(s).");
           }
         }).catch((pushError) => console.warn("Falha ao enviar aviso push:", pushError));
       }
@@ -1510,7 +1512,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
         </nav>
         <div className="sidebar-bottom">
           <div className="help-card"><span className="help-icon">✦</span><strong>Seu futuro começa com planejamento.</strong><p>Organize sua preparação e acompanhe suas oportunidades.</p><button onClick={() => setPage("estudos")}>Ver meu plano →</button></div>
-          <div className="profile"><div className="avatar">{(authUser?.user_metadata?.full_name || authUser?.user_metadata?.name || authUser?.email || "C")[0]?.toUpperCase() || "C"}</div><div className="profile-copy" title={authUser?.email || "Modo visitante"}><strong>{authUser?.user_metadata?.full_name || authUser?.user_metadata?.name || authUser?.email || "Concurseiro"}</strong><small>{!authUser ? "Modo visitante" : syncStatus === "loading" || syncStatus === "syncing" ? "Sincronizando dados..." : syncStatus === "synced" ? "Dados sincronizados" : syncStatus === "error" ? "Falha na sincronização" : "Conta conectada"}</small></div><button className="dots profile-edit" type="button" onClick={openProfileEditor} aria-label={authUser ? "Editar perfil" : "Entrar para editar perfil"}>Editar</button></div>
+          <div className="profile"><div className="avatar">{(authUser?.user_metadata?.full_name || authUser?.user_metadata?.name || authUser?.email || "C")[0]?.toUpperCase() || "C"}</div><div className="profile-copy" title={authUser?.email || "Modo visitante"}><strong>{authUser?.user_metadata?.full_name || authUser?.user_metadata?.name || authUser?.email || "Concurseiro"}</strong><small>{!authUser ? "Modo visitante" : syncStatus === "loading" || syncStatus === "syncing" ? "Atualizando sua conta…" : syncStatus === "synced" ? "Tudo atualizado" : syncStatus === "error" ? "Não foi possível atualizar agora" : "Conta conectada"}</small></div><button className="dots profile-edit" type="button" onClick={openProfileEditor} aria-label={authUser ? "Editar perfil" : "Entrar para editar perfil"}>Editar</button></div>
         </div>
       </aside>
 
@@ -1519,7 +1521,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
           <div className="breadcrumb">Início <span>/</span> {page === "detalhes" ? "Detalhes do concurso" : page === "comparar" ? "Comparador de concursos" : page === "concursos" ? "Concursos" : page === "estudos" ? "Área de estudos" : page === "admin" ? "Administração" : "Meus favoritos"}</div>
           <div className="top-actions"><span className="date-chip">◷ &nbsp;Sua jornada começa hoje</span><button className="install-trigger" type="button" onClick={handleInstallApp} disabled={isAppInstalled}>{isAppInstalled ? "App instalado" : deferredInstallPrompt ? "Instalar app" : "Como instalar"}</button><button className="notification-bell" type="button" onClick={openNotifications} aria-label={`Ver notificações (${unreadNotificationCount} não lidas)`} title="Ver notificações">♧{unreadNotificationCount > 0 && <span>{unreadNotificationCount > 9 ? "9+" : unreadNotificationCount}</span>}</button>{authUser ? <button className="auth-trigger" onClick={handleSignOut} disabled={!authReady}>Sair da conta</button> : <button className="auth-trigger" onClick={() => { setShowAuth(true); setAuthMessage(""); }}>Entrar / cadastrar</button>}<div className="mini-avatar">{(authUser?.user_metadata?.full_name || authUser?.user_metadata?.name || authUser?.email || "C")[0]?.toUpperCase() || "C"}</div></div>
         </header>
-        {!isOnline && <div className="offline-status" role="status">Você está offline. O catálogo em cache e os dados locais continuam acessíveis; login e sincronização precisam de internet.</div>}
+        {!isOnline && <div className="offline-status" role="status">Sem conexão no momento. Você ainda pode consultar informações já carregadas; conecte-se à internet para atualizar o catálogo e acessar sua conta.</div>}
 
 
         {page === "detalhes" && selected ? (
@@ -2018,13 +2020,13 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                   <div className="eyebrow">AVISOS DO EDITALRADAR</div>
                   <h2>Notificações {unreadNotificationCount > 0 && <span className="notification-count">{unreadNotificationCount}</span>}</h2>
                   <p>Novos concursos, retificações oficiais e atualizações dos seus favoritos.</p>
-                  {authUser && !notificationCloudSyncAvailable && <p className="notification-sync-hint">Para sincronizar este histórico entre aparelhos, execute no SQL Editor do Supabase o arquivo <strong>supabase/migrations/202611220001_user_notifications.sql</strong> e depois atualize o aplicativo.</p>}
+                  {authUser && !notificationCloudSyncAvailable && <p className="notification-sync-hint">Seu histórico de avisos pode não aparecer em outros dispositivos ainda.</p>}
                 </div>
                 <div className="notification-actions">
                   <button className="detail-btn" type="button" onClick={enableBrowserNotifications} disabled={notificationPermission === "unsupported" || (notificationPermission === "granted" && browserNotificationsEnabled)}>
-                    {notificationPermission === "granted" && browserNotificationsEnabled ? "Notificações ativadas" : notificationPermission === "denied" ? "Permissão bloqueada" : "Ativar notificações"}
+                    {notificationPermission === "granted" && browserNotificationsEnabled ? "Notificações ativadas" : notificationPermission === "denied" ? "Avisos bloqueados" : "Ativar notificações"}
                   </button>
-                  {authUser && browserNotificationsEnabled && typeof window.EditalRadarNative?.requestFcmToken === "function" && (
+                  {isAdmin && authUser && browserNotificationsEnabled && typeof window.EditalRadarNative?.requestFcmToken === "function" && (
                     <>
                       <button className="detail-btn" type="button" onClick={() => sendPushSelfTest(false)} disabled={pushTestBusy}>
                         {pushTestBusy ? "Enviando teste..." : "Testar recebimento push"}
@@ -2077,13 +2079,12 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
               ) : <p className="alerts-empty">{activeNotifications.length === 0 ? "Nenhuma novidade por enquanto. Quando o catálogo receber novos concursos ou um favorito for atualizado, o aviso aparecerá aqui." : "Não há notificações não lidas. Você já conferiu todas as novidades."}</p>}
               <small className="alerts-note">
                 {notificationPermission === "granted" && browserNotificationsEnabled
-                  ? "Notificações de desktop ativadas neste navegador."
+                  ? "Os avisos estão ativos neste dispositivo."
                   : notificationPermission === "denied"
-                    ? "O navegador bloqueou os avisos de desktop; os avisos internos continuam disponíveis."
+                    ? "Os avisos estão bloqueados. Altere as permissões deste site ou aparelho para ativá-los."
                     : notificationPermission === "unsupported"
-                      ? "Seu navegador não oferece notificações de desktop."
-                      : "Ative os avisos do navegador para receber uma notificação quando o EditalRadar detectar novidades."}
-                {" "}Os avisos locais aparecem após a sincronização. No Android, os avisos com o aplicativo fechado dependem da configuração do Firebase Cloud Messaging.
+                      ? "Os avisos automáticos não estão disponíveis neste navegador."
+                      : "Ative os avisos para receber novidades sobre concursos e seus favoritos."}
               </small>
               {notificationMessage && <small className="notification-feedback" role="status">{notificationMessage}</small>}
             </section>
@@ -2179,7 +2180,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                   ))}
                 </div>
               ) : <p className="alerts-empty">Você ainda não salvou alertas. Ajuste os filtros acima e clique em “Salvar alerta”.</p>}
-              <small className="alerts-note">{!authUser ? "No modo visitante, os alertas ficam salvos neste navegador. Entre na sua conta para sincronizá-los entre aparelhos." : syncStatus === "synced" ? "Alertas sincronizados com sua conta. As correspondências são calculadas a partir do catálogo disponível." : syncStatus === "error" ? "Não foi possível confirmar a sincronização. Seus alertas continuam salvos neste navegador." : "Sincronizando seus alertas com a conta..."}</small>
+              <small className="alerts-note">{!authUser ? "Entre na sua conta para acessar seus alertas em outros dispositivos." : syncStatus === "synced" ? "Seus alertas estão atualizados. As oportunidades correspondentes são calculadas a partir do catálogo disponível." : syncStatus === "error" ? "Não foi possível atualizar seus alertas agora. Tente novamente mais tarde." : "Atualizando seus alertas…"}</small>
             </section>
             {comparisonItems.length > 0 && (
               <section className="compare-toolbar" aria-label="Concursos selecionados para comparação">
@@ -2292,13 +2293,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
             </form>
           ) : (
             <div className="auth-setup">
-              <p>O cadastro e a recuperação de senha estão preparados, mas falta conectar o projeto ao Supabase para ativar as contas.</p>
-              <ol>
-                <li>Crie um projeto gratuito no Supabase.</li>
-                <li>Execute o SQL de <code>supabase/migrations/202611210001_user_data.sql</code> no SQL Editor.</li>
-                <li>Adicione <code>VITE_SUPABASE_URL</code> e <code>VITE_SUPABASE_PUBLISHABLE_KEY</code> nas Actions Variables do GitHub.</li>
-              </ol>
-              <a href="https://github.com/dagamavasco170-lang/editalradar/blob/main/SUPABASE_SETUP.md" target="_blank" rel="noreferrer">Abrir guia de configuração ↗</a>
+              <p>O acesso à conta está temporariamente indisponível. Você pode continuar explorando o catálogo e tentar novamente mais tarde.</p>
             </div>
           )}
         </section>

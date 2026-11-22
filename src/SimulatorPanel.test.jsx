@@ -52,7 +52,7 @@ describe("simulados com questões adicionais do banco",()=>{
     fireEvent.click(screen.getByRole("button",{name:"B. Alternativa B"}));
     fireEvent.click(screen.getByRole("button",{name:"Finalizar e corrigir"}));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("Falha de conexão");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Não foi possível corrigir o simulado. Confira sua conexão e tente novamente.");
     expect(screen.getByRole("button",{name:"Tentar corrigir novamente"})).toBeInTheDocument();
   });
 });
