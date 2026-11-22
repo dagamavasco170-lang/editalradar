@@ -47,6 +47,29 @@ jobs:
           echo "code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
           echo "Android version: $VERSION_NAME ($VERSION_CODE)"
 
+      - name: Configure Firebase for Android (optional until FCM is connected)
+        env:
+          GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
+        shell: bash
+        run: |
+          if [ -n "$GOOGLE_SERVICES_JSON_BASE64" ]; then
+            printf '%s' "$GOOGLE_SERVICES_JSON_BASE64" | base64 --decode > android/app/google-services.json
+            python3 - <<'PY'
+          import json
+          from pathlib import Path
+          config = json.loads(Path("android/app/google-services.json").read_text())
+          package_names = {
+              item.get("client_info", {}).get("android_client_info", {}).get("package_name")
+              for item in config.get("client", [])
+          }
+          if "br.com.editalradar.app" not in package_names:
+              raise SystemExit("google-services.json não contém br.com.editalradar.app")
+          print("Configuração Firebase Android validada.")
+          PY
+          else
+            echo "::warning::GOOGLE_SERVICES_JSON_BASE64 não configurado; o APK será compilado sem registrar dispositivos no FCM."
+          fi
+
       - name: Build installable APK and test AAB
         working-directory: android
         run: gradle assembleDebug bundleDebug --no-daemon
