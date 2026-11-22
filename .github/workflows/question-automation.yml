@@ -28,6 +28,9 @@ jobs:
       - name: Baixar repositório
         uses: actions/checkout@v4
 
+      - name: Validar script de automação
+        run: node --check .github/scripts/question-automation.mjs
+
       - name: Executar descoberta, elaboração e revisão autônomas
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
