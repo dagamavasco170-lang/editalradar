@@ -93,8 +93,8 @@ test("assinatura de distribuição usa apenas a chave permanente recebida pelo a
   assert.match(androidGradle, /ANDROID_RELEASE_KEY_ALIAS/);
   assert.match(androidGradle, /ANDROID_RELEASE_KEY_PASSWORD/);
   assert.match(androidGradle, /signingConfig signingConfigs\.getByName\('release'\)/);
-  assert.match(androidGradle, /versionCode 9/);
-  assert.ok(androidGradle.includes("versionName '1.2.6'"));
+  assert.match(androidGradle, /versionCode 10/);
+  assert.ok(androidGradle.includes("versionName '1.2.7'"));
   assert.doesNotMatch(androidGradle, /storePassword\s*['"][^'"]+['"]/);
 });
 
@@ -116,12 +116,27 @@ test("GitHub Actions nunca publica APK de depuração como atualização públic
     "      - name: Validate Firebase Android configuration" + lineBreak +
     "        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'"
   ));
-  const publishStepStart = androidWorkflow.indexOf("      - name: Publish permanently signed GitHub Release");
-  assert.notEqual(publishStepStart, -1);
-  const publishCondition = androidWorkflow.slice(publishStepStart).split(String.fromCharCode(10))[1] ?? "";
-  assert.ok(publishCondition.includes("steps.signing.outputs.ready == 'true'"));
+  assert.match(androidWorkflow, /permissions:\\n  contents: read/);
+  assert.match(androidWorkflow, /publish-release:[\\s\\S]*?permissions:\\n      contents: write/);
+  assert.doesNotMatch(androidWorkflow, /android\\/\\*\\*/);
+  assert.match(androidWorkflow, /Verify signed APK and AAB before publishing/);
+  assert.match(androidWorkflow, /apksigner.*verify/);
+  assert.match(androidWorkflow, /jarsigner -verify/);
+  assert.match(androidWorkflow, /needs\\.android-build\\.outputs\\.release_ready == 'true'/);
+  assert.match(androidWorkflow, /uses: softprops\\/action-gh-release@v2/);
+  assert.match(androidWorkflow, /sha256sum --check SHA256SUMS\\.txt/);
+  assert.match(androidWorkflow, /actions\\/download-artifact@v4/);
 });
 
+
+test("falha temporária ao consultar atualização não bloqueia novas tentativas", () => {
+  const maybeCheckBlock = android.slice(
+    android.indexOf("    private fun maybeCheckForUpdates()"),
+    android.indexOf("    private fun checkForUpdates(manual: Boolean)")
+  );
+  assert.doesNotMatch(maybeCheckBlock, /putLong\\(LAST_UPDATE_CHECK_KEY/);
+  assert.match(android, /result\\.onSuccess \\{ release ->[\\s\\S]*?if \\(!manual\\) \\{[\\s\\S]*?putLong\\(LAST_UPDATE_CHECK_KEY, System\\.currentTimeMillis\\(\\)\\)/);
+});
 
 test("atualizador nativo consulta apenas releases oficiais e evita downgrade", () => {
   assert.ok(appUpdate.includes("https://api.github.com/repos/dagamavasco170-lang/editalradar/releases/latest"));
