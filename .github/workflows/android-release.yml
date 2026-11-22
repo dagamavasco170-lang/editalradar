@@ -35,10 +35,11 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Install Gradle 8.10.2
-        uses: gradle/gradle-build-action@v3
+      - name: Set up Gradle with dependency cache
+        uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: 8.10.2
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
 
       - name: Read Android version
         id: version
@@ -75,9 +76,22 @@ jobs:
             echo "::warning::GOOGLE_SERVICES_JSON_BASE64 não configurado; o APK será compilado sem registrar dispositivos no FCM."
           fi
 
-      - name: Build installable APK and test AAB
+      - name: Build installable APK and test AAB (automatic retry for repository rate limits)
         working-directory: android
-        run: gradle assembleDebug bundleDebug --no-daemon
+        timeout-minutes: 25
+        shell: bash
+        run: |
+          for attempt in 1 2 3; do
+            echo "Build Android attempt $attempt/3"
+            if gradle assembleDebug bundleDebug --no-daemon --max-workers=2; then
+              exit 0
+            fi
+            if [ "$attempt" -lt 3 ]; then
+              echo "Build failed; waiting before automatic retry."
+              sleep $((attempt * 20))
+            fi
+          done
+          exit 1
 
       - name: Prepare release assets and checksums
         env:
