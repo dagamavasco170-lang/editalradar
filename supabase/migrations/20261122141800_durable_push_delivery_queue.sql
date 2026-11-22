@@ -61,6 +61,47 @@ begin
 end;
 $$;
 
+create or replace function public.enqueue_push_deliveries(
+  p_messages jsonb[],
+  p_delay_seconds integer default 0
+)
+returns integer
+language plpgsql
+security definer
+set search_path = ''
+as $
+declare
+  v_message jsonb;
+  v_count integer;
+begin
+  if coalesce(cardinality(p_messages), 0) = 0 then
+    return 0;
+  end if;
+  if cardinality(p_messages) > 500 then
+    raise exception 'Push delivery batches are limited to 500 messages';
+  end if;
+
+  foreach v_message in array p_messages loop
+    if jsonb_typeof(v_message) <> 'object'
+       or coalesce(length(v_message->>'token'), 0) < 32
+       or coalesce(length(v_message->>'token'), 0) > 4096
+       or coalesce(length(v_message->>'title'), 0) = 0
+       or coalesce(length(v_message->>'body'), 0) = 0 then
+      raise exception 'Invalid push delivery payload in batch';
+    end if;
+  end loop;
+
+  select count(*)::integer into v_count
+  from pgmq.send_batch(
+    'push_delivery_retries',
+    p_messages,
+    greatest(0, least(coalesce(p_delay_seconds, 0), 86400))
+  );
+
+  return coalesce(v_count, 0);
+end;
+$;
+
 create or replace function public.read_push_delivery_retries(
   p_qty integer default 20,
   p_visibility_seconds integer default 180
@@ -183,6 +224,7 @@ as $$
 $$;
 
 revoke all on function public.enqueue_push_delivery(jsonb, integer) from public, anon, authenticated;
+revoke all on function public.enqueue_push_deliveries(jsonb[], integer) from public, anon, authenticated;
 revoke all on function public.read_push_delivery_retries(integer, integer) from public, anon, authenticated;
 revoke all on function public.ack_push_delivery_retry(bigint) from public, anon, authenticated;
 revoke all on function public.reschedule_push_delivery_retry(bigint, jsonb, integer) from public, anon, authenticated;
@@ -190,6 +232,7 @@ revoke all on function public.fail_push_delivery_retry(bigint, text, text, integ
 revoke all on function public.verify_push_queue_worker_token(text) from public, anon, authenticated;
 
 grant execute on function public.enqueue_push_delivery(jsonb, integer) to service_role;
+grant execute on function public.enqueue_push_deliveries(jsonb[], integer) to service_role;
 grant execute on function public.read_push_delivery_retries(integer, integer) to service_role;
 grant execute on function public.ack_push_delivery_retry(bigint) to service_role;
 grant execute on function public.reschedule_push_delivery_retry(bigint, jsonb, integer) to service_role;
