@@ -172,7 +172,7 @@ async function callStructuredModel(schemaName: string, schema: unknown, systemPr
       generationConfig: {
         temperature: 0.2,
         responseMimeType: "application/json",
-        responseSchema: schema,
+        responseJsonSchema: schema,
         maxOutputTokens: 8192
       }
     })
@@ -207,7 +207,7 @@ function generationPrompts(topic: any, count: number, sourceExcerpt: string) {
     "Tema: " + topic.topic,
     "Dificuldade desejada: " + topic.difficulty,
     "Quantidade solicitada: " + count,
-    "Fonte oficial: " + topic.source_url,
+    "Fonte de referência: " + topic.source_url,
     "MATERIAL DE REFERÊNCIA (única base factual):",
     String(sourceExcerpt || "").slice(0, 12000),
     "Gere questões distintas, cobrando aspectos diferentes do material."
