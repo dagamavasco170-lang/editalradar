@@ -116,9 +116,9 @@ test("GitHub Actions nunca publica APK de depuração como atualização públic
     "      - name: Validate Firebase Android configuration" + lineBreak +
     "        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'"
   ));
-  assert.ok(androidWorkflow.includes("permissions:\\n  contents: read"));
+  assert.ok(androidWorkflow.includes("permissions:" + lineBreak + "  contents: read"));
   assert.ok(androidWorkflow.includes("publish-release:"));
-  assert.ok(androidWorkflow.includes("permissions:\\n      contents: write"));
+  assert.ok(androidWorkflow.includes("permissions:" + lineBreak + "      contents: write"));
   assert.ok(!androidWorkflow.includes('      - "android/**"'));
   assert.ok(androidWorkflow.includes("Verify signed APK and AAB before publishing"));
   assert.ok(androidWorkflow.includes("apksigner\""));
