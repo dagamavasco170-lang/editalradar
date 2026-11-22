@@ -84,6 +84,8 @@ jobs:
           TRIAGE_ATTEMPTS: 4
           TRIAGE_TIMEOUT_MS: 12000
           TRIAGE_RETRY_DELAY_MS: 600
+          TRIAGE_OFFICIAL_COOLDOWN_HOURS: 6
+          TRIAGE_EXTERNAL_COOLDOWN_HOURS: 24
 
       - name: Salvar histórico da verificação
         uses: actions/cache/save@v4
