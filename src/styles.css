@@ -2200,3 +2200,57 @@ button,.detail-btn,.primary-btn{line-height:1.35}
 .push-health-history-grid span{font-size:8px;color:#768b8d;line-height:1.35;overflow-wrap:anywhere}
 .push-health-history-empty{margin:11px 0 0;color:#83949a;font-size:9px;line-height:1.5}
 @media(max-width:560px){.push-health-history-heading{align-items:flex-start;flex-direction:column}.push-health-history-heading small{text-align:left}.push-health-history-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+
+/* Melhorias complementares de acessibilidade e dispositivos com recortes de tela. */
+@media (max-width: 760px) {
+  .topbar {
+    padding-left: max(14px, env(safe-area-inset-left, 14px));
+    padding-right: max(14px, env(safe-area-inset-right, 14px));
+  }
+  .skip-link {
+    top: max(12px, env(safe-area-inset-top, 12px));
+    left: max(12px, env(safe-area-inset-left, 12px));
+  }
+}
+footer {
+  padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+}
+button:disabled,
+input:disabled,
+select:disabled,
+textarea:disabled {
+  cursor: not-allowed;
+}
+@media (pointer: coarse) {
+  .install-trigger,
+  .notification-bell,
+  .auth-trigger,
+  .detail-btn,
+  .modal-close,
+  .notification-dismiss,
+  .compare-card-btn,
+  .compare-remove,
+  .alert-remove {
+    min-height: 44px;
+  }
+}
+@media (forced-colors: active) {
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline: 2px solid CanvasText;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
