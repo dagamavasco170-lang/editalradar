@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 
 const readProjectFile = (path) => readFile(new URL(path, import.meta.url), "utf8");
 
-const [android, serviceWorker, styles, androidGradle, androidWorkflow, appUpdate, updateReceiver, androidManifest] = await Promise.all([
+const [android, serviceWorker, styles, androidGradle, androidWorkflow, appUpdate, updateReceiver, androidManifest, nativeBridge, app] = await Promise.all([
   readProjectFile("../android/app/src/main/java/br/com/editalradar/app/MainActivity.kt"),
   readProjectFile("../public/sw.js"),
   readProjectFile("../src/styles.css"),
@@ -12,7 +12,9 @@ const [android, serviceWorker, styles, androidGradle, androidWorkflow, appUpdate
   readProjectFile("../.github/workflows/android-release.yml"),
   readProjectFile("../android/app/src/main/java/br/com/editalradar/app/AppUpdateManager.kt"),
   readProjectFile("../android/app/src/main/java/br/com/editalradar/app/UpdateInstallReceiver.kt"),
-  readProjectFile("../android/app/src/main/AndroidManifest.xml")
+  readProjectFile("../android/app/src/main/AndroidManifest.xml"),
+  readProjectFile("../src/lib/android-bridge.js"),
+  readProjectFile("../src/App.jsx")
 ]);
 
 test("WebView mantém navegação interna restrita à origem e ao caminho do app", () => {
@@ -26,6 +28,11 @@ test("WebView mantém navegação interna restrita à origem e ao caminho do app
 test("WebView bloqueia frames externos, conteúdo misto e certificados inválidos", () => {
   assert.match(android, /if \(!request\.isForMainFrame\) return !isInternalAppUrl\(uri\)/);
   assert.match(android, /WebSettings\.MIXED_CONTENT_NEVER_ALLOW/);
+  assert.match(android, /WebViewFeature\.WEB_MESSAGE_LISTENER/);
+  assert.match(android, /WebViewCompat\.addWebMessageListener/);
+  assert.match(android, /setOf\("https:\/\/\$HOME_HOST"\)/);
+  assert.match(android, /!isMainFrame \|\| !isTrustedNativeBridgeOrigin\(sourceOrigin\)/);
+  assert.doesNotMatch(android, /addJavascriptInterface|JavascriptInterface/);
   assert.match(android, /setAcceptThirdPartyCookies\(webView, false\)/);
   assert.match(android, /handler\?\.cancel\(\)/);
   assert.match(android, /safeBrowsingEnabled = true/);
@@ -35,6 +42,19 @@ test("destinos vindos de notificações são validados antes de abrir no aplicat
   assert.match(android, /private fun resolvePushUrl\(value: String\): String/);
   assert.match(android, /if \(isInternalAppUrl\(uri\)\) uri\.toString\(\) else HOME_URL/);
   assert.match(android, /target\.startsWith\("\/\/"\) -> return HOME_URL/);
+});
+
+test("ponte Android limita ações ao WebMessageListener de origem confiável", () => {
+  assert.match(nativeBridge, /typeof window\[BRIDGE_NAME\]\?\.postMessage === "function"/);
+  assert.match(nativeBridge, /JSON\.stringify\(\{ \.\.\.payload, action \}\)/);
+  assert.match(android, /MAX_NATIVE_MESSAGE_CHARS = 2_048/);
+  assert.match(android, /"request_notification_permission"/);
+  assert.match(android, /"request_fcm_token"/);
+  assert.match(android, /"show_notification"/);
+  assert.match(android, /abandonSession\(sessionId\)/);
+  assert.ok(app.includes('sendNativeMessage("request_fcm_token")'));
+  assert.ok(app.includes('sendNativeMessage("request_notification_permission")'));
+  assert.doesNotMatch(app, /window\.EditalRadarNative/);
 });
 
 test("WebView respeita o ciclo de vida e recupera a página inicial", () => {
@@ -93,8 +113,9 @@ test("assinatura de distribuição usa apenas a chave permanente recebida pelo a
   assert.match(androidGradle, /ANDROID_RELEASE_KEY_ALIAS/);
   assert.match(androidGradle, /ANDROID_RELEASE_KEY_PASSWORD/);
   assert.match(androidGradle, /signingConfig signingConfigs\.getByName\('release'\)/);
-  assert.match(androidGradle, /versionCode 11/);
-  assert.ok(androidGradle.includes("versionName '1.2.8'"));
+  assert.match(androidGradle, /versionCode 12/);
+  assert.ok(androidGradle.includes("versionName '1.2.9'"));
+  assert.ok(androidGradle.includes("androidx.webkit:webkit:1.18.0"));
   assert.doesNotMatch(androidGradle, /storePassword\s*['"][^'"]+['"]/);
 });
 

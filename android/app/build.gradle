@@ -30,8 +30,8 @@ android {
         applicationId 'br.com.editalradar.app'
         minSdk 24
         targetSdk 35
-        versionCode 11
-        versionName '1.2.8'
+        versionCode 12
+        versionName '1.2.9'
     }
 
     signingConfigs {
@@ -63,6 +63,7 @@ android {
 }
 
 dependencies {
+    implementation 'androidx.webkit:webkit:1.18.0'
     implementation platform('com.google.firebase:firebase-bom:35.2.0')
     implementation 'com.google.firebase:firebase-messaging'
 }

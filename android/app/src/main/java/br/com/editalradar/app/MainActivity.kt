@@ -21,7 +21,6 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.webkit.CookieManager
-import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.SslErrorHandler
@@ -39,6 +38,11 @@ import android.widget.TextView
 import android.widget.Toast
 import java.io.File
 import java.io.FileInputStream
+import androidx.webkit.JavaScriptReplyProxy
+import androidx.webkit.WebMessageCompat
+import androidx.webkit.WebViewCompat
+import androidx.webkit.WebViewFeature
+import org.json.JSONObject
 import com.google.firebase.FirebaseApp
 import com.google.firebase.messaging.FirebaseMessaging
 
@@ -50,6 +54,7 @@ class MainActivity : Activity() {
         private const val NOTIFICATION_CHANNEL_ID = "editalradar_updates"
         private const val NOTIFICATION_PERMISSION_REQUEST = 8102
         private const val APP_UPDATE_PERMISSION_REQUEST = 8103
+        private const val MAX_NATIVE_MESSAGE_CHARS = 2_048
         private const val AUTO_UPDATE_CHECK_INTERVAL_MS = 6L * 60L * 60L * 1000L
         private const val UPDATE_PREFERENCES = "editalradar_app_updates"
         private const val LAST_UPDATE_CHECK_KEY = "last_update_check"
@@ -69,6 +74,7 @@ class MainActivity : Activity() {
     private var connectivityManager: ConnectivityManager? = null
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
     private var lastKnownOnlineState: Boolean? = null
+    private var notificationPermissionRequestPending = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -352,6 +358,7 @@ class MainActivity : Activity() {
             return
         }
 
+        var createdSessionId: Int? = null
         try {
             val parameters = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
                 setAppPackageName(packageName)
@@ -361,6 +368,7 @@ class MainActivity : Activity() {
             // ao confirmar a sessão. Não duplicar essa validação com metadados do arquivo.
             val installer = packageManager.packageInstaller
             val sessionId = installer.createSession(parameters)
+            createdSessionId = sessionId
 
             installer.openSession(sessionId).use { session ->
                 FileInputStream(apkFile).use { input ->
@@ -389,6 +397,9 @@ class MainActivity : Activity() {
 
             statusText.text = "Confirme a atualização na tela do Android."
         } catch (_: Exception) {
+            createdSessionId?.let { sessionId ->
+                runCatching { packageManager.packageInstaller.abandonSession(sessionId) }
+            }
             Toast.makeText(this, "Não foi possível iniciar a instalação. Tente novamente.", Toast.LENGTH_LONG).show()
         }
     }
@@ -446,7 +457,7 @@ class MainActivity : Activity() {
             }
         }
 
-        webView.addJavascriptInterface(NativeBridge(), "EditalRadarNative")
+        configureNativeBridge()
 
         webView.webChromeClient = object : WebChromeClient() {
             override fun onProgressChanged(view: WebView?, newProgress: Int) {
@@ -550,68 +561,120 @@ class MainActivity : Activity() {
         return path.split('/').none { it == "." || it == ".." }
     }
 
-    private inner class NativeBridge {
-        @JavascriptInterface
-        fun isAndroidApp(): Boolean = true
+    /**
+     * Exposes native capabilities only to the official HTTPS origin. The callback
+     * also rejects same-origin iframes because only the top-level app page may
+     * request permissions, notifications, or an FCM token.
+     */
+    private fun configureNativeBridge() {
+        if (!WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) return
 
-        @JavascriptInterface
-        fun requestNotificationPermission(): Boolean {
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return true
-            if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
-                return true
-            }
-            runOnUiThread {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-                    checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-                ) {
-                    requestPermissions(
-                        arrayOf(Manifest.permission.POST_NOTIFICATIONS),
-                        NOTIFICATION_PERMISSION_REQUEST
-                    )
+        try {
+            WebViewCompat.addWebMessageListener(
+                webView,
+                "EditalRadarNative",
+                setOf("https://$HOME_HOST"),
+                object : WebViewCompat.WebMessageListener {
+                    override fun onPostMessage(
+                        view: WebView,
+                        message: WebMessageCompat,
+                        sourceOrigin: Uri,
+                        isMainFrame: Boolean,
+                        replyProxy: JavaScriptReplyProxy
+                    ) {
+                        if (view !== webView || !isMainFrame || !isTrustedNativeBridgeOrigin(sourceOrigin)) return
+                        val payload = message.data
+                        if (payload.length > MAX_NATIVE_MESSAGE_CHARS) return
+                        handleNativeBridgeMessage(payload)
+                    }
                 }
-            }
-            return false
+            )
+        } catch (_: Exception) {
+            // Fail closed: never fall back to the legacy all-frames JavaScript interface.
+        }
+    }
+
+    private fun isTrustedNativeBridgeOrigin(uri: Uri): Boolean {
+        return uri.scheme.equals("https", ignoreCase = true) &&
+            uri.host?.equals(HOME_HOST, ignoreCase = true) == true &&
+            (uri.port == -1 || uri.port == 443) &&
+            uri.encodedUserInfo == null
+    }
+
+    private fun handleNativeBridgeMessage(rawMessage: String) {
+        val message = try {
+            JSONObject(rawMessage)
+        } catch (_: Exception) {
+            return
         }
 
-        @JavascriptInterface
-        fun showNotification(title: String?, message: String?, tag: String?) {
-            runOnUiThread {
-                postNativeNotification(
-                    title?.take(90)?.ifBlank { "EditalRadar" } ?: "EditalRadar",
-                    message?.take(350)?.ifBlank { "Há uma atualização no seu acompanhamento." }
-                        ?: "Há uma atualização no seu acompanhamento.",
-                    tag ?: System.currentTimeMillis().toString()
-                )
+        when (message.optString("action")) {
+            "request_notification_permission" -> requestNativeNotificationPermission()
+            "show_notification" -> {
+                val title = message.optString("title", "EditalRadar")
+                    .take(90).ifBlank { "EditalRadar" }
+                val body = message.optString("message", "Há uma atualização no seu acompanhamento.")
+                    .take(350).ifBlank { "Há uma atualização no seu acompanhamento." }
+                val tag = message.optString("tag").take(96)
+                    .ifBlank { System.currentTimeMillis().toString() }
+                postNativeNotification(title, body, tag)
             }
+            "request_fcm_token" -> requestFcmToken()
+        }
+    }
+
+    private fun requestNativeNotificationPermission() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+        ) {
+            dispatchNativeNotificationPermission(granted = true)
+            return
         }
 
-        @JavascriptInterface
-        fun requestFcmToken() {
-            runOnUiThread {
-                if (FirebaseApp.getApps(this@MainActivity).isEmpty()) {
-                    dispatchFcmStatus(configured = false)
-                    return@runOnUiThread
-                }
-                val cachedToken = getSharedPreferences("editalradar_push", Context.MODE_PRIVATE)
-                    .getString("fcm_token", null)
-                if (!cachedToken.isNullOrBlank()) dispatchFcmToken(cachedToken)
-                try {
-                    FirebaseMessaging.getInstance().token
-                        .addOnCompleteListener { task ->
-                            if (!task.isSuccessful) {
-                                dispatchFcmStatus(configured = true)
-                                return@addOnCompleteListener
-                            }
-                            val token = task.result ?: return@addOnCompleteListener
-                            getSharedPreferences("editalradar_push", Context.MODE_PRIVATE)
-                                .edit().putString("fcm_token", token).apply()
-                            dispatchFcmToken(token)
-                        }
-                } catch (_: Exception) {
-                    dispatchFcmStatus(configured = false)
-                }
-            }
+        if (notificationPermissionRequestPending) return
+        notificationPermissionRequestPending = true
+        try {
+            requestPermissions(
+                arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                NOTIFICATION_PERMISSION_REQUEST
+            )
+        } catch (_: Exception) {
+            notificationPermissionRequestPending = false
+            dispatchNativeNotificationPermission(granted = false)
         }
+    }
+
+    private fun requestFcmToken() {
+        if (FirebaseApp.getApps(this@MainActivity).isEmpty()) {
+            dispatchFcmStatus(configured = false)
+            return
+        }
+
+        val cachedToken = getSharedPreferences("editalradar_push", Context.MODE_PRIVATE)
+            .getString("fcm_token", null)
+        if (!cachedToken.isNullOrBlank()) dispatchFcmToken(cachedToken)
+
+        try {
+            FirebaseMessaging.getInstance().token
+                .addOnCompleteListener { task ->
+                    if (!task.isSuccessful) {
+                        dispatchFcmStatus(configured = true)
+                        return@addOnCompleteListener
+                    }
+                    val token = task.result ?: return@addOnCompleteListener
+                    getSharedPreferences("editalradar_push", Context.MODE_PRIVATE)
+                        .edit().putString("fcm_token", token).apply()
+                    dispatchFcmToken(token)
+                }
+        } catch (_: Exception) {
+            dispatchFcmStatus(configured = false)
+        }
+    }
+
+    private fun dispatchNativeNotificationPermission(granted: Boolean) {
+        val script = "window.dispatchEvent(new CustomEvent('editalradar:native-notification-permission'," +
+            " {detail:{granted:$granted}}));"
+        if (::webView.isInitialized) webView.post { webView.evaluateJavascript(script, null) }
     }
 
     private fun configureNotifications() {
@@ -852,10 +915,9 @@ class MainActivity : Activity() {
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == NOTIFICATION_PERMISSION_REQUEST) {
+            notificationPermissionRequestPending = false
             val granted = grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED
-            val js = "window.dispatchEvent(new CustomEvent('editalradar:native-notification-permission'," +
-                " {detail:{granted:$granted}}));"
-            if (::webView.isInitialized) webView.post { webView.evaluateJavascript(js, null) }
+            dispatchNativeNotificationPermission(granted)
         }
     }
 
@@ -871,7 +933,6 @@ class MainActivity : Activity() {
         unregisterNetworkMonitor()
         if (::webView.isInitialized) {
             webView.stopLoading()
-            webView.removeJavascriptInterface("EditalRadarNative")
             webView.destroy()
         }
         super.onDestroy()
