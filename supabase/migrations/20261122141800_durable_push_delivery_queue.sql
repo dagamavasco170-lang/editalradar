@@ -260,6 +260,16 @@ begin
       'Supabase project URL used by the scheduled EditalRadar push queue worker'
     );
   end if;
+
+  if not exists (
+    select 1 from vault.secrets where name = 'push_queue_publishable_key'
+  ) then
+    perform vault.create_secret(
+      'sb_publishable_CWcMwaWoJrDbIP0uP1nitA_9xxrB8Rz',
+      'push_queue_publishable_key',
+      'Public Supabase API key used as the gateway apikey header for the scheduled worker'
+    );
+  end if;
 end
 $$;
 
@@ -289,6 +299,12 @@ begin
         ) || '/functions/v1/push-queue-worker',
         headers := jsonb_build_object(
           'Content-Type', 'application/json',
+          'apikey', (
+            select decrypted_secret
+            from vault.decrypted_secrets
+            where name = 'push_queue_publishable_key'
+            limit 1
+          ),
           'Authorization', 'Bearer ' || (
             select decrypted_secret
             from vault.decrypted_secrets
