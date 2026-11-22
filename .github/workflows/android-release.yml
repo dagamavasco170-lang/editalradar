@@ -6,6 +6,11 @@ on:
     paths:
       - "android/**"
       - ".github/workflows/android-release.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "android/**"
+      - ".github/workflows/android-release.yml"
   workflow_dispatch:
 
 permissions:
@@ -108,6 +113,7 @@ jobs:
           retention-days: 90
 
       - name: Publish versioned GitHub Release
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: android-v${{ steps.version.outputs.name }}
