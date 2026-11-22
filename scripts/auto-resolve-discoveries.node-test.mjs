@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { appendContext, buildPendingDiscoveriesUrl, buildNonActionablePendingDiscoveriesUrl, dismissNonActionablePendingDiscoveries, buildRetificationUpdate, classifyDiscovery, extractDocumentText, extractRoleNamesFromText, extractVacancyDetails, fetchCandidateWithRetry, findMatchingContestForRetification, inferOrganization, mapWithConcurrency, normalizeContestIdentity, prepareDiscoveryDocument, countPendingDiscoveries, requestJson, summarizeFetchError, assessNoticeFreshness, extractDeclaredPublisherUrl, resolveGoogleNewsArticleUrl, prioritizePendingDiscoveries, isClearlyUnrelatedAdministrativeDiscovery } from "./auto-resolve-discoveries.mjs";
+import { appendContext, buildPendingDiscoveriesUrl, buildNonActionablePendingDiscoveriesUrl, dismissNonActionablePendingDiscoveries, buildRetificationUpdate, classifyDiscovery, extractDocumentText, extractRoleNamesFromText, extractVacancyDetails, fetchCandidateWithRetry, findMatchingContestForRetification, inferOrganization, mapWithConcurrency, normalizeContestIdentity, prepareDiscoveryDocument, countPendingDiscoveries, requestJson, summarizeFetchError, assessNoticeFreshness, extractDeclaredPublisherUrl, resolveGoogleNewsArticleUrl, prioritizePendingDiscoveries, selectDiscoveriesForTriage, isClearlyUnrelatedAdministrativeDiscovery } from "./auto-resolve-discoveries.mjs";
 
 const discovery = {
   id: 1,
@@ -654,13 +654,13 @@ test("a triagem não repete inserção de catálogo não idempotente após respo
   assert.equal(calls, 1);
 });
 
-test("consulta fontes oficiais a cada 6 horas e pistas externas a cada 24 horas", () => {
+test("consulta fontes oficiais e pistas externas a cada 6 horas", () => {
   const now = new Date("2026-11-21T18:00:00.000Z");
   const officialUrl = new URL(buildPendingDiscoveriesUrl(
     "https://example.supabase.co", now, 6 * 60 * 60 * 1000, ["new_link", "page_change"]
   ));
   const externalUrl = new URL(buildPendingDiscoveriesUrl(
-    "https://example.supabase.co", now, 24 * 60 * 60 * 1000, ["web_search_lead"]
+    "https://example.supabase.co", now, 6 * 60 * 60 * 1000, ["web_search_lead"]
   ));
 
   assert.equal(officialUrl.searchParams.get("status"), "eq.pending");
@@ -670,8 +670,10 @@ test("consulta fontes oficiais a cada 6 horas e pistas externas a cada 24 horas"
   assert.equal(officialUrl.searchParams.get("limit"), "300");
 
   assert.equal(externalUrl.searchParams.get("discovery_type"), "in.(web_search_lead)");
-  assert.match(externalUrl.searchParams.get("or"), /reviewed_at\.lt\.2026-11-20T18:00:00/);
+  assert.match(externalUrl.searchParams.get("or"), /reviewed_at\.lt\.2026-11-21T12:00:00/);
   assert.equal(externalUrl.searchParams.get("limit"), "300");
+  assert.equal(officialUrl.searchParams.get("order"), "reviewed_at.asc.nullsfirst,detected_at.asc");
+  assert.equal(externalUrl.searchParams.get("order"), "reviewed_at.asc.nullsfirst,detected_at.asc");
 });
 
 
@@ -785,6 +787,41 @@ test("extrai somente publisher HTTPS presente na lista de fontes oficiais", () =
   assert.equal(extractDeclaredPublisherUrl("Endereço informado para a fonte: https://igaci.al.gov.br")?.hostname, "igaci.al.gov.br");
   assert.equal(extractDeclaredPublisherUrl("Endereço informado para a fonte: http://igaci.al.gov.br"), null);
   assert.equal(extractDeclaredPublisherUrl("Endereço informado para a fonte: https://blog.example.com"), null);
+});
+
+test("prioriza itens nunca analisados e evita que tentativas antigas monopolizem a fila", () => {
+  const now = Date.parse("2026-11-22T12:00:00.000Z");
+  const rows = [
+    { id: 1, status: "pending", discovery_type: "new_link", title: "Edital 01/2026 — concurso público", candidate_url: "https://banca.org.br/concursos/edital-01-2026.pdf", detected_at: "2026-11-20T09:00:00.000Z", reviewed_at: "2026-11-22T06:00:00.000Z" },
+    { id: 2, status: "pending", discovery_type: "web_search_lead", title: "Notícia sobre edital de seleção", candidate_url: "https://news.google.com/rss/articles/a", detected_at: "2026-11-22T11:00:00.000Z" },
+    { id: 3, status: "pending", discovery_type: "new_link", title: "Edital 02/2026 — concurso público", candidate_url: "https://banca.org.br/concursos/edital-02-2026.pdf", detected_at: "2026-11-22T10:00:00.000Z" }
+  ];
+  assert.deepEqual(prioritizePendingDiscoveries(rows, now).map(item => item.id), [3, 2, 1]);
+});
+
+test("limita cada rodada e informa quantas oportunidades ficam para a próxima execução", () => {
+  const official = Array.from({ length: 4 }, (_, index) => ({
+    id: index + 1,
+    status: "pending",
+    discovery_type: "new_link",
+    title: "Edital " + (index + 1) + "/2026 — concurso público",
+    candidate_url: "https://banca.org.br/concursos/edital-" + (index + 1) + "-2026.pdf",
+    detected_at: "2026-11-22T10:00:00.000Z",
+    reviewed_at: null
+  }));
+  const external = [{
+    id: 5,
+    status: "pending",
+    discovery_type: "web_search_lead",
+    title: "Notícia sobre edital",
+    detected_at: "2026-11-22T11:00:00.000Z"
+  }];
+  const selection = selectDiscoveriesForTriage(official, external, 3, Date.parse("2026-11-22T12:00:00.000Z"));
+  assert.equal(selection.eligible.length, 5);
+  assert.equal(selection.discoveries.length, 3);
+  assert.equal(selection.limit, 3);
+  assert.equal(selection.deferred, 2);
+  assert.ok(selection.discoveries.every(item => item.reviewed_at == null));
 });
 
 test("prioriza links específicos de edital e mantém pistas externas abaixo de fontes monitoradas", () => {

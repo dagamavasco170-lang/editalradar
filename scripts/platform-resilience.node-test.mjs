@@ -54,11 +54,24 @@ test("Android tenta novamente automaticamente quando a conectividade validada re
 });
 
 test("PWA limita a espera de navegação e volta ao cache em redes instáveis", () => {
-  assert.match(serviceWorker, /editalradar-app-v4/);
+  assert.match(serviceWorker, /editalradar-app-v5/);
   assert.match(serviceWorker, /new AbortController\(\)/);
   assert.match(serviceWorker, /controller\.abort\(\), 4500/);
   assert.match(serviceWorker, /self\.clearTimeout\(timeoutId\)/);
   assert.match(serviceWorker, /exactPage \|\| appShell \|\| Response\.error\(\)/);
+});
+
+test("falha de um recurso opcional não impede a atualização do service worker", () => {
+  assert.ok(serviceWorker.includes("requiredShellUrls"));
+  assert.ok(serviceWorker.includes("optionalShellUrls"));
+  assert.ok(serviceWorker.includes("Promise.allSettled(optionalShellUrls.map"));
+  assert.ok(serviceWorker.includes("await cache.addAll([...new Set(assetPaths)])"));
+  assert.ok(serviceWorker.includes("Keep the current worker"));
+});
+
+test("falha de cache não transforma uma resposta online válida em erro de navegação", () => {
+  assert.match(serviceWorker, /cache\.put\(request, response\.clone\(\)\)\.catch\(\(\) => \{\}\)/);
+  assert.match(serviceWorker, /caches\.open\(CACHE_NAME\)\.then\(async \(cache\) =>/);
 });
 
 test("PWA usa cache local em erros temporários do servidor", () => {

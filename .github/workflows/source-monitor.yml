@@ -87,7 +87,8 @@ jobs:
           TRIAGE_TIMEOUT_MS: 12000
           TRIAGE_RETRY_DELAY_MS: 600
           TRIAGE_OFFICIAL_COOLDOWN_HOURS: 6
-          TRIAGE_EXTERNAL_COOLDOWN_HOURS: 24
+          TRIAGE_EXTERNAL_COOLDOWN_HOURS: 6
+          TRIAGE_MAX_ITEMS: 40
 
       - name: Salvar histórico da verificação
         uses: actions/cache/save@v4
@@ -103,6 +104,9 @@ jobs:
           MONITOR_OUTCOME: ${{ steps.monitor.outcome }}
           PUBLISH_OUTCOME: ${{ steps.publish_discoveries.outcome }}
           TRIAGE_OUTCOME: ${{ steps.resolve.outcome }}
+          TRIAGE_ELIGIBLE: ${{ steps.resolve.outputs.eligible_count }}
+          TRIAGE_DEFERRED: ${{ steps.resolve.outputs.deferred_count }}
+          TRIAGE_MAX_ITEMS: ${{ steps.resolve.outputs.max_items }}
           TRIAGE_INSPECTED: ${{ steps.resolve.outputs.inspected_count }}
           TRIAGE_PUBLISHED: ${{ steps.resolve.outputs.published_count }}
           TRIAGE_UPDATED: ${{ steps.resolve.outputs.updated_count }}
@@ -147,7 +151,7 @@ jobs:
               "**Resultado do monitor:** " + String(process.env.MONITOR_OUTCOME || "não executado") + ".",
               "**Envio da fila:** " + String(process.env.PUBLISH_OUTCOME || "não necessário") + ".",
               "**Busca automática na internet:** " + String(process.env.WEB_SEARCH_COUNT || "0") + " pista(s) nova(s); falhas em " + String(process.env.WEB_SEARCH_FAILED || "0") + " consulta(s).",
-              "**Triagem automática:** " + String(process.env.TRIAGE_OUTCOME || "não executada") + ". Analisadas: " + String(process.env.TRIAGE_INSPECTED || "0") + "; publicadas: " + String(process.env.TRIAGE_PUBLISHED || "0") + "; atualizadas: " + String(process.env.TRIAGE_UPDATED || "0") + "; pendentes nesta execução: " + String(process.env.TRIAGE_PENDING || "0") + "; pendentes totais no banco: " + String(process.env.TRIAGE_PENDING_TOTAL || "não confirmado") + "; linhas de base encerradas: " + String(process.env.TRIAGE_BASELINES_DISMISSED || "0") + "; falhas: " + String(process.env.TRIAGE_ERRORS || "0") + ".",
+              "**Triagem automática:** " + String(process.env.TRIAGE_OUTCOME || "não executada") + ". Elegíveis: " + String(process.env.TRIAGE_ELIGIBLE || "0") + "; processadas nesta rodada: " + String(process.env.TRIAGE_INSPECTED || "0") + "; reservadas para próximas rodadas: " + String(process.env.TRIAGE_DEFERRED || "0") + " (limite: " + String(process.env.TRIAGE_MAX_ITEMS || "40") + "); publicadas: " + String(process.env.TRIAGE_PUBLISHED || "0") + "; atualizadas: " + String(process.env.TRIAGE_UPDATED || "0") + "; pendentes nesta execução: " + String(process.env.TRIAGE_PENDING || "0") + "; pendentes totais no banco: " + String(process.env.TRIAGE_PENDING_TOTAL || "não confirmado") + "; linhas de base encerradas: " + String(process.env.TRIAGE_BASELINES_DISMISSED || "0") + "; falhas: " + String(process.env.TRIAGE_ERRORS || "0") + ".",
               "",
               "A triagem tenta novamente falhas temporárias de rede e limita a publicação automática a fontes oficiais com evidências suficientes de edital, órgão, cargo e esfera. Casos incompletos e PDFs sem texto legível permanecem na fila para revisão.",
               "",
