@@ -209,6 +209,9 @@ class MainActivity : Activity() {
                     dispatchFcmStatus(configured = false)
                     return@runOnUiThread
                 }
+                val cachedToken = getSharedPreferences("editalradar_push", Context.MODE_PRIVATE)
+                    .getString("fcm_token", null)
+                if (!cachedToken.isNullOrBlank()) dispatchFcmToken(cachedToken)
                 try {
                     FirebaseMessaging.getInstance().token
                         .addOnCompleteListener { task ->
