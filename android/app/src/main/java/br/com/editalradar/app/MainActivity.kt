@@ -181,7 +181,8 @@ class MainActivity : Activity() {
         val preferences = getSharedPreferences(UPDATE_PREFERENCES, Context.MODE_PRIVATE)
         val lastCheck = preferences.getLong(LAST_UPDATE_CHECK_KEY, 0L)
         val now = System.currentTimeMillis()
-        if (now - lastCheck < AUTO_UPDATE_CHECK_INTERVAL_MS) return
+        // A mudança manual do relógio não pode bloquear novas verificações.
+        if (lastCheck > 0L && now >= lastCheck && now - lastCheck < AUTO_UPDATE_CHECK_INTERVAL_MS) return
 
         checkForUpdates(manual = false)
     }
