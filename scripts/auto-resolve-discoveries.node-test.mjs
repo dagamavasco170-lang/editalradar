@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { appendContext, buildPendingDiscoveriesUrl, buildRetificationUpdate, classifyDiscovery, extractDocumentText, extractRoleNamesFromText, extractVacancyDetails, fetchCandidateWithRetry, findMatchingContestForRetification, inferOrganization, mapWithConcurrency, normalizeContestIdentity, prepareDiscoveryDocument, requestJson, summarizeFetchError , assessNoticeFreshness} from "./auto-resolve-discoveries.mjs";
+import { appendContext, buildPendingDiscoveriesUrl, buildRetificationUpdate, classifyDiscovery, extractDocumentText, extractRoleNamesFromText, extractVacancyDetails, fetchCandidateWithRetry, findMatchingContestForRetification, inferOrganization, mapWithConcurrency, normalizeContestIdentity, prepareDiscoveryDocument, countPendingDiscoveries, requestJson, summarizeFetchError , assessNoticeFreshness} from "./auto-resolve-discoveries.mjs";
 
 const discovery = {
   id: 1,
@@ -540,6 +540,24 @@ test("limita a concorrência e mantém a ordem dos resultados", async () => {
 
   assert.deepEqual(results, [10, 20, 30, 40, 50, 60]);
   assert.equal(peak, 3);
+});
+
+test("conta todas as pendências do banco antes de fechar alertas", async () => {
+  let requestUrl = "";
+  let requestOptions;
+  const count = await countPendingDiscoveries(async (url, options) => {
+    requestUrl = url;
+    requestOptions = options;
+    return new Response(null, {
+      status: 200,
+      headers: { "content-range": "0-0/27" }
+    });
+  }, "https://example.supabase.co", "test-service-role");
+
+  assert.equal(count, 27);
+  assert.match(requestUrl, /status=eq\.pending/);
+  assert.equal(requestOptions.method, "HEAD");
+  assert.match(requestOptions.headers.Prefer, /count=exact/);
 });
 
 test("a triagem repete automaticamente consultas Supabase com falha temporária", async () => {
