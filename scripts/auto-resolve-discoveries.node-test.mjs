@@ -882,7 +882,7 @@ test("prepara documento oficial para triagem sem escrever no banco", async () =>
 
 test("localiza exatamente um link de edital oficial dentro de artigo secundário", async () => {
   const articleUrl = "https://www.concursosnobrasil.com.br/noticias/concurso-igaci-2026/";
-  const officialUrl = "https://igaci.al.gov.br/concursos/edital-01-2026.pdf";
+  const officialUrl = "https://igaci.al.gov.br/concursos/edital-01-2026";
   const articleHtml = '<html><body><article><p>Veja o concurso anunciado.</p><a href="' + officialUrl + '">Clique para acessar o edital oficial</a></article></body></html>';
   const references = extractOfficialReferenceLinks(articleHtml, articleUrl);
   assert.equal(references.length, 1);
