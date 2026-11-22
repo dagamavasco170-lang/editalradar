@@ -150,16 +150,21 @@ function findOfficialUrlInGoogleRedirect(googleUrl, declaredHost) {
 }
 
 async function acquireResolutionSlot() {
-  if (activeResolutions >= MAX_CONCURRENT_RESOLUTIONS) {
-    await new Promise(resolve => resolutionWaiters.push(resolve));
+  if (activeResolutions < MAX_CONCURRENT_RESOLUTIONS) {
+    activeResolutions += 1;
+    return;
   }
-  activeResolutions += 1;
+  // The releasing task reserves its slot for this waiter before waking it.
+  await new Promise(resolve => resolutionWaiters.push(resolve));
 }
 
 function releaseResolutionSlot() {
-  activeResolutions = Math.max(0, activeResolutions - 1);
   const next = resolutionWaiters.shift();
-  if (next) next();
+  if (next) {
+    next();
+  } else {
+    activeResolutions = Math.max(0, activeResolutions - 1);
+  }
 }
 
 async function withResolutionLimit(operation) {
