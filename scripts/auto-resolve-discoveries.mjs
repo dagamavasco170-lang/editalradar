@@ -18,7 +18,7 @@ const OCR_MAX_PAGES = 3;
 const OCR_PAGE_TIMEOUT_MS = 6000;
 
 const DEFAULT_OFFICIAL_RETRY_COOLDOWN_MS = 6 * 60 * 60 * 1000;
-const DEFAULT_EXTERNAL_RETRY_COOLDOWN_MS = 24 * 60 * 60 * 1000;
+const DEFAULT_EXTERNAL_RETRY_COOLDOWN_MS = 6 * 60 * 60 * 1000;
 const PENDING_DISCOVERY_TYPES = new Set(["new_link", "page_change", "web_search_lead"]);
 
 const STATE_NAMES = {
@@ -992,7 +992,7 @@ export function buildPendingDiscoveriesUrl(
   // Páginas source_baseline continuam fora da publicação automática.
   url.searchParams.set("discovery_type", "in.(" + types.join(",") + ")");
   url.searchParams.set("or", "(reviewed_at.is.null,reviewed_at.lt." + retryBefore + ")");
-  url.searchParams.set("order", "detected_at.asc");
+  url.searchParams.set("order", "reviewed_at.asc.nullsfirst,detected_at.asc");
   url.searchParams.set("limit", "300");
   return url.toString();
 }
@@ -1011,10 +1011,31 @@ export function extractDeclaredPublisherUrl(context = "") {
 }
 
 export function prioritizePendingDiscoveries(items = [], now = Date.now()) {
-  return sortDiscoveriesByPriority(
-    (Array.isArray(items) ? items : []).filter(item => item?.status === "pending"),
-    now
-  );
+  const pending = (Array.isArray(items) ? items : [])
+    .filter(item => item?.status === "pending");
+  // First-touch rows must move ahead of retries, otherwise older reviewed
+  // discoveries can repeatedly occupy the batch and starve untouched records.
+  const neverReviewed = pending.filter(item => !item.reviewed_at);
+  const retryable = pending.filter(item => Boolean(item.reviewed_at));
+  return [
+    ...sortDiscoveriesByPriority(neverReviewed, now),
+    ...sortDiscoveriesByPriority(retryable, now)
+  ];
+}
+
+export function selectDiscoveriesForTriage(official = [], external = [], maxItems = 40, now = Date.now()) {
+  const eligible = prioritizePendingDiscoveries([
+    ...(Array.isArray(official) ? official : []),
+    ...(Array.isArray(external) ? external : [])
+  ], now);
+  const limit = Math.max(1, Math.min(100, Math.trunc(Number(maxItems) || 40)));
+  const discoveries = eligible.slice(0, limit);
+  return {
+    eligible,
+    discoveries,
+    limit,
+    deferred: Math.max(0, eligible.length - discoveries.length)
+  };
 }
 
 
@@ -1307,15 +1328,23 @@ export async function autoResolvePending(options = {}) {
   ]);
   const officialItems = Array.isArray(officialPending) ? officialPending : [];
   const externalItems = Array.isArray(externalPending) ? externalPending : [];
-  const discoveries = prioritizePendingDiscoveries([...officialItems, ...externalItems], now.getTime());
-  const queuePriorities = discoveries.reduce((counts, item) => {
+  const selection = selectDiscoveriesForTriage(
+    officialItems,
+    externalItems,
+    options.maxItems ?? 40,
+    now.getTime()
+  );
+  const discoveries = selection.discoveries;
+  const queuePriorities = selection.eligible.reduce((counts, item) => {
     const level = item.discovery_type === "web_search_lead" ? "pistas_externas" : "fontes_monitoradas";
     counts[level] = (counts[level] || 0) + 1;
     return counts;
   }, {});
   console.log("Cadência da fila: fontes oficiais " + Math.round(officialCooldownMs / 3600000) +
     "h; pistas externas " + Math.round(externalCooldownMs / 3600000) + "h.");
-  console.log("Fila elegível ordenada por evidência e idade: " + JSON.stringify(queuePriorities) + ".");
+  console.log("Fila elegível: " + selection.eligible.length + "; limite desta rodada: " +
+    selection.limit + "; reservadas para próximas rodadas: " + selection.deferred + ".");
+  console.log("Fila elegível ordenada por evidência e primeira análise: " + JSON.stringify(queuePriorities) + ".");
   if (!discoveries.length) {
     let pendingTotal = null;
     let errors = 0;
@@ -1327,12 +1356,17 @@ export async function autoResolvePending(options = {}) {
     }
     return {
       inspected: 0, published: 0, updated: 0, dismissed: 0,
+      eligible: selection.eligible.length, deferred: selection.deferred, maxItems: selection.limit,
       baselineDismissed, pending: 0, errors, pendingTotal
     };
   }
 
   const existingRows = await requestJson(request, baseUrl + "/rest/v1/contest_catalog?select=id,data,deleted&limit=1000", key) || [];
-  const result = { inspected: 0, published: 0, updated: 0, dismissed: 0, baselineDismissed, pending: 0, errors: 0, pendingReasons: {} };
+  const result = {
+    inspected: 0, published: 0, updated: 0, dismissed: 0,
+    eligible: selection.eligible.length, deferred: selection.deferred, maxItems: selection.limit,
+    baselineDismissed, pending: 0, errors: 0, pendingReasons: {}
+  };
   const keepPending = async (item, reason) => {
     result.pending += 1;
     const label = String(reason || "Não foi possível confirmar os dados na fonte oficial.").slice(0, 500);
@@ -1520,12 +1554,15 @@ async function main() {
     timeoutMs: Number(process.env.TRIAGE_TIMEOUT_MS) || TIMEOUT_MS,
     retryDelayMs: Number(process.env.TRIAGE_RETRY_DELAY_MS) || 600,
     officialCooldownMs: Number(process.env.TRIAGE_OFFICIAL_COOLDOWN_HOURS || 6) * 60 * 60 * 1000,
-    externalCooldownMs: Number(process.env.TRIAGE_EXTERNAL_COOLDOWN_HOURS || 24) * 60 * 60 * 1000
+    externalCooldownMs: Number(process.env.TRIAGE_EXTERNAL_COOLDOWN_HOURS || 6) * 60 * 60 * 1000,
+    maxItems: Number(process.env.TRIAGE_MAX_ITEMS) || 40
   });
   const summary = [
     "## Triagem automática de oportunidades",
     "",
-    "- Analisadas: " + result.inspected,
+    "- Oportunidades elegíveis: " + (result.eligible ?? result.inspected),
+    "- Analisadas nesta rodada: " + result.inspected,
+    "- Reservadas para as próximas rodadas: " + (result.deferred || 0) + " (limite por rodada: " + (result.maxItems || 40) + "),
     "- Publicadas: " + result.published,
     "- Atualizadas: " + (result.updated || 0),
     "- Descartadas: " + result.dismissed,
@@ -1541,6 +1578,9 @@ async function main() {
   console.log("Triagem automática concluída: " + JSON.stringify(result));
   if (process.env.GITHUB_OUTPUT) {
     const output = [
+      "eligible_count=" + (result.eligible ?? result.inspected),
+      "deferred_count=" + (result.deferred || 0),
+      "max_items=" + (result.maxItems || 40),
       "inspected_count=" + result.inspected,
       "published_count=" + result.published,
       "updated_count=" + (result.updated || 0),
