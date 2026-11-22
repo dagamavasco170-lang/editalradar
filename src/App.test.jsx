@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import App from "./App.jsx";
 import { concursos } from "./data/concursos.js";
 import { scoreRecommendation } from "./App.jsx";
@@ -8,13 +8,17 @@ import { buildCatalogSnapshot, getVisibleNotifications } from "./lib/notificatio
 describe("EditalRadar", () => {
   it("atualiza o estado quando o Android confirma a permissão de notificações", () => {
     localStorage.clear();
+    const postMessage = vi.fn();
     Object.defineProperty(window, "EditalRadarNative", {
       configurable: true,
-      value: { requestNotificationPermission: () => false }
+      value: { postMessage }
     });
 
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: "Ativar notificações" }));
+    expect(postMessage).toHaveBeenCalledWith(JSON.stringify({
+      action: "request_notification_permission"
+    }));
     expect(screen.getByText(/Permita os avisos quando o Android solicitar/)).toBeInTheDocument();
 
     fireEvent(window, new CustomEvent("editalradar:native-notification-permission", {

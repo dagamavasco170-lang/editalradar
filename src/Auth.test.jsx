@@ -91,10 +91,13 @@ describe("Autenticação EditalRadar", () => {
     Object.defineProperty(window, "EditalRadarNative", {
       configurable: true,
       value: {
-        requestFcmToken: vi.fn(() => {
-          window.dispatchEvent(new CustomEvent("editalradar:fcm-token", {
-            detail: { token: "fcm-test-token-".padEnd(80, "x") }
-          }));
+        postMessage: vi.fn((rawMessage) => {
+          const message = JSON.parse(rawMessage);
+          if (message.action === "request_fcm_token") {
+            window.dispatchEvent(new CustomEvent("editalradar:fcm-token", {
+              detail: { token: "fcm-test-token-".padEnd(80, "x") }
+            }));
+          }
         })
       }
     });

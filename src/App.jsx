@@ -9,6 +9,7 @@ import { getUpcomingMilestones } from "./lib/dashboard";
 import { parseBrazilianNumber } from "./lib/brazilian-numbers.js";
 import { buildCsv } from "./lib/csv-export.js";
 import { buildContestChangeHistory, formatContestHistoryDate } from "./lib/admin-history.js";
+import { isAndroidApp, sendNativeMessage } from "./lib/android-bridge.js";
 import { classifyDiscoveryKind, classifyDiscoveryPriority, classifyDiscoveryTopic, discoveryKindLabel, discoveryPriorityLabel, discoveryTopicLabel, discoveryStatusLabel, filterDiscoveries, sortDiscoveriesByPriority, countDiscoveriesByStatus } from "./lib/discovery-filters.js";
 const StudyArea = React.lazy(() => import("./StudyArea.jsx"));
 const StudyQuestionAdmin = React.lazy(() => import("./StudyQuestionAdmin.jsx"));
@@ -245,10 +246,10 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   const [adminMessage, setAdminMessage] = useState("");
   const [adminMessageType, setAdminMessageType] = useState("info");
   const [notificationPermission, setNotificationPermission] = useState(() =>
-    typeof window !== "undefined" && "Notification" in window
-      ? window.Notification.permission
-      : typeof window !== "undefined" && typeof window.EditalRadarNative?.requestNotificationPermission === "function"
-        ? "default"
+    isAndroidApp()
+      ? "default"
+      : typeof window !== "undefined" && "Notification" in window
+        ? window.Notification.permission
         : "unsupported"
   );
   const [browserNotificationsEnabled, setBrowserNotificationsEnabled] = useState(() =>
@@ -375,11 +376,11 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
         ? "Notificações ativadas! Avisaremos quando houver novidades."
         : "Os avisos não foram ativados. Você pode continuar acompanhando as novidades por aqui.");
       if (enabled) {
-        window.EditalRadarNative?.showNotification?.(
-          "EditalRadar",
-          "Notificações ativadas. Avisaremos quando o app detectar novidades.",
-          "editalradar-notifications-enabled"
-        );
+        sendNativeMessage("show_notification", {
+          title: "EditalRadar",
+          message: "Notificações ativadas. Avisaremos quando o app detectar novidades.",
+          tag: "editalradar-notifications-enabled"
+        });
       }
     };
     const handleNativeOAuthError = (event) => {
@@ -531,36 +532,9 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     return () => { cancelled = true; };
   }, [authClient, authUser?.id]);
 
-  // O Android devolve a decisão de permissão de forma assíncrona.
-  // Sem ouvir esse evento, o estado permanecia "default" e o token FCM nunca era registrado.
   useEffect(() => {
-    if (typeof window === "undefined") return undefined;
-
-    const handleNativeNotificationPermission = (event) => {
-      const enabled = event?.detail?.granted === true;
-      setNotificationPermission(enabled ? "granted" : "denied");
-      setBrowserNotificationsEnabled(enabled);
-      try {
-        safeSetItem("er-browser-notifications", JSON.stringify(enabled));
-      } catch {
-        // A permissão continua válida mesmo se o armazenamento local estiver indisponível.
-      }
-      setNotificationMessage(enabled
-        ? "Notificações ativadas! Avisaremos quando houver novidades."
-        : "Os avisos estão desativados. Ative as notificações nas configurações do aparelho.");
-    };
-
-    window.addEventListener("editalradar:native-notification-permission", handleNativeNotificationPermission);
-    return () => window.removeEventListener(
-      "editalradar:native-notification-permission",
-      handleNativeNotificationPermission
-    );
-  }, []);
-
-  useEffect(() => {
-    const nativeBridge = typeof window !== "undefined" ? window.EditalRadarNative : null;
     if (!authClient || !authUser?.id || !browserNotificationsEnabled
-      || typeof nativeBridge?.requestFcmToken !== "function"
+      || !isAndroidApp()
       || typeof authClient.functions?.invoke !== "function") return undefined;
 
     let cancelled = false;
@@ -588,7 +562,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
 
     window.addEventListener("editalradar:fcm-token", registerFcmToken);
     window.addEventListener("editalradar:fcm-status", handleFcmStatus);
-    nativeBridge.requestFcmToken();
+    sendNativeMessage("request_fcm_token");
 
     return () => {
       cancelled = true;
@@ -782,10 +756,13 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     safeSetItem(notificationStorageKey, JSON.stringify(next));
     void syncUserData({ notifications: next });
 
-    if (browserNotificationsEnabled && notificationPermission === "granted"
-      && typeof window.EditalRadarNative?.showNotification === "function") {
+    if (browserNotificationsEnabled && notificationPermission === "granted" && isAndroidApp()) {
       fresh.slice(0, 3).forEach((item) => {
-        window.EditalRadarNative.showNotification(item.title, item.message, item.id);
+        sendNativeMessage("show_notification", {
+          title: item.title,
+          message: item.message,
+          tag: item.id
+        });
       });
     } else if (browserNotificationsEnabled && notificationPermission === "granted" && "Notification" in window) {
       fresh.slice(0, 3).forEach((item) => {
@@ -1092,8 +1069,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     setAuthBusy(true);
     setAuthMessage("");
     try {
-      const isAndroidNative = typeof window.EditalRadarNative?.isAndroidApp === "function"
-        && window.EditalRadarNative.isAndroidApp() === true;
+      const isAndroidNative = isAndroidApp();
       const { error } = await authClient.auth.signInWithOAuth({
         provider: "google",
         options: {
@@ -1166,26 +1142,11 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     saveFavorites(favorites.includes(id) ? favorites.filter((item) => item !== id) : [...favorites, id]);
   };
   const enableBrowserNotifications = async () => {
-    const nativeBridge = typeof window !== "undefined" ? window.EditalRadarNative : null;
-    if (typeof nativeBridge?.requestNotificationPermission === "function") {
-      try {
-        const enabled = nativeBridge.requestNotificationPermission() === true;
-        if (enabled) {
-          setNotificationPermission("granted");
-          setBrowserNotificationsEnabled(true);
-          safeSetItem("er-browser-notifications", JSON.stringify(true));
-          setNotificationMessage("Notificações ativadas! Avisaremos quando houver novidades.");
-          nativeBridge.showNotification?.(
-            "EditalRadar",
-            "Notificações ativadas. Avisaremos quando o app detectar novidades.",
-            "editalradar-notifications-enabled"
-          );
-        } else {
-          setNotificationMessage("Permita os avisos quando o Android solicitar.");
-        }
-      } catch {
-        setNotificationMessage("Não foi possível ativar os avisos. Verifique as permissões do aparelho e tente novamente.");
-      }
+    if (isAndroidApp()) {
+      const sent = sendNativeMessage("request_notification_permission");
+      setNotificationMessage(sent
+        ? "Permita os avisos quando o Android solicitar."
+        : "Não foi possível ativar os avisos agora. Tente novamente.");
       return;
     }
     if (typeof window === "undefined" || !("Notification" in window)) {
@@ -2044,7 +2005,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                   <button className="detail-btn" type="button" onClick={enableBrowserNotifications} disabled={notificationPermission === "unsupported" || (notificationPermission === "granted" && browserNotificationsEnabled)}>
                     {notificationPermission === "granted" && browserNotificationsEnabled ? "Notificações ativadas" : notificationPermission === "denied" ? "Avisos bloqueados" : "Ativar notificações"}
                   </button>
-                  {isAdmin && authUser && browserNotificationsEnabled && typeof window.EditalRadarNative?.requestFcmToken === "function" && (
+                  {isAdmin && authUser && browserNotificationsEnabled && isAndroidApp() && (
                     <>
                       <button className="detail-btn" type="button" onClick={() => sendPushSelfTest(false)} disabled={pushTestBusy}>
                         {pushTestBusy ? "Enviando teste..." : "Testar recebimento push"}
