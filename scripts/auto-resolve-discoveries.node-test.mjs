@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { appendContext, buildPendingDiscoveriesUrl, buildRetificationUpdate, classifyDiscovery, extractDocumentText, extractRoleNamesFromText, extractVacancyDetails, fetchCandidateWithRetry, findMatchingContestForRetification, inferOrganization, mapWithConcurrency, normalizeContestIdentity, prepareDiscoveryDocument, countPendingDiscoveries, requestJson, summarizeFetchError , assessNoticeFreshness} from "./auto-resolve-discoveries.mjs";
+import { appendContext, buildPendingDiscoveriesUrl, buildRetificationUpdate, classifyDiscovery, extractDocumentText, extractRoleNamesFromText, extractVacancyDetails, fetchCandidateWithRetry, findMatchingContestForRetification, inferOrganization, mapWithConcurrency, normalizeContestIdentity, prepareDiscoveryDocument, countPendingDiscoveries, requestJson, summarizeFetchError, assessNoticeFreshness, extractDeclaredPublisherUrl, resolveGoogleNewsArticleUrl, prioritizePendingDiscoveries } from "./auto-resolve-discoveries.mjs";
 
 const discovery = {
   id: 1,
@@ -72,6 +72,26 @@ test("extrai lista de cargos da seção Cargo/Área/Especialidade no padrão FCC
   assert.match(result.data.observacao,/Técnico Judiciário/);
 });
 
+
+
+test("descarta título claramente administrativo sem descartar caso ambíguo de concurso", () => {
+  const administrative = classifyDiscovery(
+    { ...discovery, discovery_type: "new_link", title: "Consultar editais e ADEs" },
+    {
+      title: "Consultar editais e ADEs",
+      heading: "Editais e atos declaratórios executivos",
+      text: "Consulte editais e atos declaratórios executivos da Receita Federal."
+    },
+    "https://www.gov.br/pt-br/servicos/consultar-editais-e-atos-declaratorios-executivos-da-receita-federal"
+  );
+  assert.equal(administrative.decision, "dismiss");
+  const ambiguous = classifyDiscovery(
+    { ...discovery, discovery_type: "new_link", title: "Edital para concurso — detalhes a publicar" },
+    { title: "Edital para concurso", heading: "Edital para concurso", text: "O órgão divulgará informações em breve." },
+    "https://www.gov.br/concursos/novo-certame"
+  );
+  assert.equal(ambiguous.decision, "review");
+});
 
 test("descarta editais históricos sem sinal oficial de vigência", () => {
   const result = assessNoticeFreshness({
@@ -615,17 +635,19 @@ test("inclui páginas oficiais alteradas e pistas externas para validação por 
   assert.doesNotMatch(url.searchParams.get("discovery_type"), /source_baseline/);
 });
 
-test("converte uma pista da busca em verificação somente quando ela aponta para fonte oficial", async () => {
+test("resolve a notícia do Google somente para a publicação no mesmo domínio oficial declarado", async () => {
   const officialUrl = "https://igaci.al.gov.br/concursos/edital-01-2026";
+  const newsUrl = "https://news.google.com/rss/articles/opaque";
   const html = "<html><head><title>Edital 01/2026</title></head><body><h1>Concurso público</h1><p>Edital da Prefeitura Municipal de Igaci. 20 vagas.</p></body></html>";
-  let requested = "";
+  const requested = [];
   const prepared = await prepareDiscoveryDocument({
     ...discovery,
     discovery_type: "web_search_lead",
-    candidate_url: "https://news.google.com/rss/articles/opaque",
-    context: "Pista externa. Endereço informado para a fonte: " + officialUrl
+    candidate_url: newsUrl,
+    context: "Pista externa. Endereço informado para a fonte: https://igaci.al.gov.br"
   }, async url => {
-    requested = url;
+    requested.push(url);
+    if (url === newsUrl) return new Response(null, { status: 302, headers: { location: officialUrl } });
     return {
       ok: true,
       status: 200,
@@ -635,10 +657,61 @@ test("converte uma pista da busca em verificação somente quando ela aponta par
     };
   }, { fallbackRequest: async () => { throw new Error("fallback inesperado"); } });
 
-  assert.equal(requested, officialUrl);
+  assert.deepEqual(requested, [newsUrl, officialUrl]);
   assert.equal(prepared.stage, "ready");
   assert.equal(prepared.candidateUrl, officialUrl);
 });
+
+
+test("resolve redirecionador do Google apenas quando o parâmetro aponta ao publisher autorizado", async () => {
+  const officialUrl = "https://igaci.al.gov.br/concursos/edital-01-2026.pdf";
+  const redirectUrl = "https://www.google.com/url?url=" + encodeURIComponent(officialUrl);
+  const result = await resolveGoogleNewsArticleUrl(
+    "https://news.google.com/rss/articles/teste",
+    "https://igaci.al.gov.br",
+    async () => new Response(null, { status: 302, headers: { location: redirectUrl } })
+  );
+  assert.equal(result, officialUrl);
+});
+
+test("não segue redirecionamento Google para outro domínio oficial diferente do publisher declarado", async () => {
+  await assert.rejects(() => resolveGoogleNewsArticleUrl(
+    "https://news.google.com/rss/articles/teste",
+    "https://igaci.al.gov.br",
+    async () => new Response(null, { status: 302, headers: { location: "https://outro.gov.br/edital.pdf" } })
+  ), /não corresponde ao domínio oficial indicado/);
+});
+
+test("mantém notícia pendente quando o Google não revela um destino oficial", async () => {
+  const prepared = await prepareDiscoveryDocument({
+    ...discovery,
+    discovery_type: "web_search_lead",
+    candidate_url: "https://news.google.com/rss/articles/teste",
+    context: "Pista externa. Endereço informado para a fonte: https://igaci.al.gov.br"
+  }, async () => new Response("<html>Google Notícias</html>", {
+    status: 200,
+    headers: { "content-type": "text/html" }
+  }));
+  assert.equal(prepared.stage, "review");
+  assert.match(prepared.reason, /não revelou um redirecionamento verificável/);
+});
+
+test("extrai somente publisher HTTPS presente na lista de fontes oficiais", () => {
+  assert.equal(extractDeclaredPublisherUrl("Endereço informado para a fonte: https://igaci.al.gov.br")?.hostname, "igaci.al.gov.br");
+  assert.equal(extractDeclaredPublisherUrl("Endereço informado para a fonte: http://igaci.al.gov.br"), null);
+  assert.equal(extractDeclaredPublisherUrl("Endereço informado para a fonte: https://blog.example.com"), null);
+});
+
+test("prioriza links específicos de edital e mantém pistas externas abaixo de fontes monitoradas", () => {
+  const now = Date.parse("2026-11-22T12:00:00.000Z");
+  const items = [
+    { id: 1, status: "pending", discovery_type: "web_search_lead", title: "Concurso público, edital e vagas", context: "Pista externa", candidate_url: "https://news.google.com/rss/articles/a", detected_at: "2026-11-22T11:00:00.000Z" },
+    { id: 2, status: "pending", discovery_type: "new_link", title: "Edital 01/2026 — concurso público, 20 vagas", context: "Cargo identificado", candidate_url: "https://banca.org.br/concursos/edital-01-2026.pdf", detected_at: "2026-11-22T10:00:00.000Z" },
+    { id: 3, status: "pending", discovery_type: "new_link", title: "Consultar editais e ADEs", context: "Página administrativa", candidate_url: "https://www.gov.br/servicos/consultar-editais", detected_at: "2026-11-22T09:00:00.000Z" }
+  ];
+  assert.deepEqual(prioritizePendingDiscoveries(items, now).map(item => item.id), [2, 1, 3]);
+});
+
 
 test("mantém pistas externas sem domínio oficial na fila em vez de descartá-las ou publicá-las", async () => {
   let calls = 0;
