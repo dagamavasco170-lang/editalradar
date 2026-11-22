@@ -89,13 +89,14 @@ function isTrustedHost(value) {
     if (url.protocol !== "https:" || url.username || url.password) return false;
     const host = url.hostname.toLowerCase().replace(/\.$/, "");
     if (host === "planalto.gov.br" || host.endsWith(".planalto.gov.br")) return false;
-    const suffixes = [".gov.br", ".jus.br", ".leg.br", ".mp.br", ".mil.br", ".def.br", "un.org"];
+    const suffixes = [".gov.br", ".jus.br", ".leg.br", ".mp.br", ".mil.br", ".def.br"];
     const boards = [
       "cebraspe.org.br", "igeduc.selecao.net.br", "igeduc.org.br", "ibfc.org.br",
       "quadrix.org.br", "fundacaolasalle.org.br", "fgv.br", "concursosfcc.com.br",
       "vunesp.com.br", "institutoaocp.org.br"
     ];
     return suffixes.some((suffix) => host.endsWith(suffix))
+      || host === "un.org" || host.endsWith(".un.org")
       || boards.some((domain) => host === domain || host.endsWith("." + domain));
   } catch {
     return false;
