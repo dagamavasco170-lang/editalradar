@@ -431,7 +431,12 @@ export const INTERNET_SEARCH_QUERIES = [
   { label: "Concursos e seleções em Alagoas", query: '("concurso público" OR "processo seletivo") (edital OR vagas OR inscrições) (Alagoas OR Maceió OR Arapiraca)' },
   { label: "Poderes e órgãos de Justiça", query: '("concurso público" OR edital) (vagas OR inscrições OR retificação) (site:jus.br OR site:leg.br OR site:mp.br)' },
   { label: "Bancas organizadoras", query: 'concurso edital (Cebraspe OR FGV OR FCC OR Vunesp OR AOCP OR IBFC OR Quadrix OR IGEDUC)' },
-  { label: "Novos concursos e autorizações", query: 'concurso público 2026 2027 edital autorização comissão banca' }
+  { label: "Novos concursos e autorizações", query: 'concurso público 2026 2027 edital autorização comissão banca' },
+  { label: "Retificações, erratas e novos cronogramas", query: '(retificação OR retificações OR errata OR aditivo) (edital OR concurso OR processo seletivo) vagas inscrições' },
+  { label: "Concursos municipais e câmaras", query: '("concurso público" OR "processo seletivo") (prefeitura OR município OR câmara municipal) (edital OR vagas OR inscrições)' },
+  { label: "Processos seletivos simplificados", query: '"processo seletivo simplificado" (edital OR inscrições OR vagas) 2026 2027' },
+  { label: "Universidades e institutos", query: '(concurso OR "processo seletivo") (universidade OR instituto federal OR instituto estadual) (edital OR vagas OR inscrições)' },
+  { label: "Inscrições abertas e prazos", query: '("inscrições abertas" OR "prazo de inscrição" OR "período de inscrição") concurso edital vagas' }
 ];
 
 const GOOGLE_NEWS_RSS_ENDPOINT = "https://news.google.com/rss/search";
@@ -474,6 +479,39 @@ function readXmlTag(block, tag) {
   return match ? decodeXmlText(match[1]) : "";
 }
 
+export function normalizeNewsLeadIdentity(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\\u0300-\\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/\\s+/g, " ");
+}
+
+export function classifyContestLead(title = "", description = "") {
+  const text = normalizeNewsLeadIdentity(String(title) + " " + String(description).slice(0, 700));
+  if (/\\b(retificacao|retificacoes|errata|aditivo|alteracao do edital|cronograma retificado)\\b/.test(text)) {
+    return { kind: "retification", label: "Retificação/errata" };
+  }
+  if (/\\b(resultado final|homologacao|convocacao|nomeacao|classificacao final)\\b/.test(text)) {
+    return { kind: "result_update", label: "Resultado/convocação" };
+  }
+  if (/\\b(inscricoes abertas|inscricao aberta|prazo de inscricao|periodo de inscricao|inscricoes ate)\\b/.test(text)) {
+    return { kind: "open_registration", label: "Inscrições/prazo" };
+  }
+  if (/\\b(autorizacao|comissao formada|comissao organizadora|banca definida|escolha da banca|contrato com a banca|edital previsto)\\b/.test(text)) {
+    return { kind: "pre_notice", label: "Pré-edital/autorização" };
+  }
+  if (/\\bedital\\b/.test(text)) {
+    return { kind: "notice", label: "Edital/publicação" };
+  }
+  if (/\\b(processo seletivo|selecao publica)\\b/.test(text)) {
+    return { kind: "selection", label: "Processo seletivo" };
+  }
+  return { kind: "general", label: "Notícia para conferir" };
+}
+
 export function parseGoogleNewsRss(xml, options = {}) {
   const now = options.now instanceof Date ? options.now : new Date(options.now || Date.now());
   const maxAgeMs = Math.max(60_000, Number(options.maxAgeMs) || WEB_SEARCH_MAX_AGE_MS);
@@ -512,15 +550,25 @@ export function parseGoogleNewsRss(xml, options = {}) {
       || publishedTimestamp > now.getTime() + 48 * 60 * 60 * 1000
     )) continue;
     const normalizedKey = candidate.toString();
-    if (seen.has(normalizedKey)) continue;
-    seen.add(normalizedKey);
+    const leadCategory = classifyContestLead(title, description);
+    const normalizedTitle = normalizeNewsLeadIdentity(title);
+    const normalizedSource = normalizeNewsLeadIdentity(sourceName);
+    // A chave por título + veículo sobrevive a mudanças no permalink do agregador.
+    // Manchetes curtas demais continuam usando a URL para evitar colisões genéricas.
+    const stableIdentity = normalizedTitle.length >= 35
+      ? "title:" + normalizedTitle + "|source:" + normalizedSource
+      : "url:" + normalizedKey;
+    const digest = createHash("sha256").update(stableIdentity).digest("hex");
+    const discoveryKey = "web-search-title:" + digest;
+    if (seen.has(discoveryKey)) continue;
+    seen.add(discoveryKey);
 
-    const digest = createHash("sha256").update(normalizedKey).digest("hex");
     const dateLabel = Number.isFinite(publishedTimestamp)
       ? new Date(publishedTimestamp).toLocaleString("pt-BR", { timeZone: "America/Maceio" })
       : "data não informada pelo agregador";
     const contextParts = [
       "Pista encontrada na busca pública da internet.",
+      "Classificação automática: " + leadCategory.label + " (não é confirmação do edital).",
       "Consulta: " + queryLabel + ".",
       "Fonte indicada pelo Google Notícias: " + (sourceName || "não identificada") + ".",
       "Publicação: " + dateLabel + ".",
@@ -532,8 +580,8 @@ export function parseGoogleNewsRss(xml, options = {}) {
     leads.push({
       source_url: feedUrl,
       candidate_url: candidate.toString(),
-      discovery_key: "web-search:" + digest,
-      title: "Busca na internet: " + title.slice(0, 210),
+      discovery_key: discoveryKey,
+      title: "[" + leadCategory.label + "] Busca na internet: " + title.slice(0, 180),
       context: contextParts.join(" "),
       discovery_type: "web_search_lead"
     });
@@ -575,7 +623,7 @@ export async function searchInternetForContestLeads(options = {}) {
   const unique = new Map();
   for (const result of checked) {
     for (const item of result.discoveries) {
-      const key = item.candidate_url.toLowerCase();
+      const key = item.discovery_key || item.candidate_url.toLowerCase();
       const existing = unique.get(key);
       if (!existing) unique.set(key, item);
       else if (!existing.context.includes(result.label)) {

@@ -152,6 +152,46 @@ test("busca PCI Concursos entra no monitoramento como fonte externa de descobert
   assert.ok(queries.every(item => item.query.includes("pciconcursos.com.br")));
 });
 
+test("classifica pistas por natureza para orientar a revisão sem publicar notícias secundárias", () => {
+  assert.deepEqual(classifyContestLead("Retificação do edital 02/2026"), { kind: "retification", label: "Retificação/errata" });
+  assert.deepEqual(classifyContestLead("Inscrições abertas até sexta-feira"), { kind: "open_registration", label: "Inscrições/prazo" });
+  assert.deepEqual(classifyContestLead("Banca definida para o concurso"), { kind: "pre_notice", label: "Pré-edital/autorização" });
+  assert.deepEqual(classifyContestLead("Resultado final homologado"), { kind: "result_update", label: "Resultado/convocação" });
+  assert.deepEqual(classifyContestLead("Prefeitura lança edital de concurso"), { kind: "notice", label: "Edital/publicação" });
+});
+
+test("deduplica a mesma manchete do mesmo veículo quando o agregador troca o permalink", () => {
+  const xml = [
+    "<rss><channel><item>",
+    "<title>Prefeitura anuncia edital de concurso público com 40 vagas para 2027</title>",
+    "<link>https://news.google.com/rss/articles/story-version-a</link>",
+    "<pubDate>Fri, 20 Nov 2026 10:00:00 GMT</pubDate>",
+    "<source url=\"https://portal.example.org\">Portal Regional</source>",
+    "</item><item>",
+    "<title>Prefeitura anuncia edital de concurso público com 40 vagas para 2027</title>",
+    "<link>https://news.google.com/rss/articles/story-version-b</link>",
+    "<pubDate>Fri, 20 Nov 2026 10:00:00 GMT</pubDate>",
+    "<source url=\"https://portal.example.org\">Portal Regional</source>",
+    "</item></channel></rss>"
+  ].join("");
+  const leads = parseGoogleNewsRss(xml, {
+    now: new Date("2026-11-21T19:00:00-03:00"),
+    queryLabel: "Concursos municipais",
+    feedUrl: "https://news.google.com/rss/search?q=concursos"
+  });
+  assert.equal(leads.length, 1);
+  assert.match(leads[0].discovery_key, /^web-search-title:[a-f0-9]{64}$/);
+});
+
+test("amplia as buscas automáticas para retificações, seleções, municípios e instituições de ensino", () => {
+  const labels = INTERNET_SEARCH_QUERIES.map(item => item.label);
+  assert.ok(labels.includes("Retificações, erratas e novos cronogramas"));
+  assert.ok(labels.includes("Concursos municipais e câmaras"));
+  assert.ok(labels.includes("Processos seletivos simplificados"));
+  assert.ok(labels.includes("Universidades e institutos"));
+  assert.ok(labels.includes("Inscrições abertas e prazos"));
+});
+
 test("catálogo atual possui fontes HTTPS deduplicadas", () => {
   const urls = collectSourceUrls(concursos);
   assert.ok(urls.length > 0);
@@ -318,7 +358,8 @@ test("extrai pistas de concursos do RSS e descarta links inseguros, notícias an
   assert.match(leads[0].title, /40 vagas/);
   assert.match(leads[0].context, /Portal de Notícias/);
   assert.match(leads[0].context, /Confirme o edital/);
-  assert.match(leads[0].discovery_key, /^web-search:[a-f0-9]{64}$/);
+  assert.match(leads[0].discovery_key, /^web-search-title:[a-f0-9]{64}$/);
+  assert.match(leads[0].context, /Classificação automática: Edital\/publicação/);
 });
 
 test("consulta a busca pública com HTTPS, bloqueio de redirecionamentos e tratamento independente de falhas", async () => {
