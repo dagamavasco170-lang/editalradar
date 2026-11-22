@@ -37,6 +37,7 @@ describe("filtros e prioridade da fila de descobertas", () => {
   it("dá prioridade alta a edital oficial específico e limita notícia externa à faixa média", () => {
     expect(classifyDiscoveryPriority(rows[0], Date.parse("2026-11-22T12:00:00.000Z"))).toBe("high");
     expect(classifyDiscoveryPriority(rows[5], Date.parse("2026-11-22T12:00:00.000Z"))).toBe("medium");
+    expect(scoreDiscoveryPriority(rows[5], Date.parse("2026-11-22T12:00:00.000Z"))).toBe(39);
     expect(discoveryPriorityLabel("high")).toBe("Alta prioridade");
     expect(scoreDiscoveryPriority(rows[0], Date.parse("2026-11-22T12:00:00.000Z")))
       .toBeGreaterThan(scoreDiscoveryPriority(rows[5], Date.parse("2026-11-22T12:00:00.000Z")));
