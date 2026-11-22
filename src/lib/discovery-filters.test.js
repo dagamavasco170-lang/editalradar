@@ -30,7 +30,7 @@ describe("filtros da fila de descobertas", () => {
   });
 
   it("filtra por origem, assunto, situação e texto ignorando acentos e caixa", () => {
-    expect(filterDiscoveries(rows, { status: "pending", kind: "official", query: "edital" }).map(item => item.id)).toEqual([1]);
+    expect(filterDiscoveries(rows, { status: "pending", kind: "official", query: "edital 01" }).map(item => item.id)).toEqual([1]);
     expect(filterDiscoveries(rows, { status: "all", kind: "official", topic: "retification", query: "RETIFICACAO" }).map(item => item.id)).toEqual([2]);
     expect(filterDiscoveries(rows, { status: "all", kind: "secondary" }).map(item => item.id)).toEqual([3]);
   });

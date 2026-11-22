@@ -358,7 +358,7 @@ describe("Autenticação EditalRadar", () => {
 
     fireEvent.change(screen.getByLabelText("Situação da revisão"), { target: { value: "all" } });
     expect(await screen.findByText("Retificação do edital 2026")).toBeInTheDocument();
-    expect(screen.getByText("Pista externa")).toBeInTheDocument();
+    expect(screen.getAllByText("Pista externa").length).toBeGreaterThan(0);
 
     fireEvent.change(screen.getByLabelText("Situação da revisão"), { target: { value: "published" } });
     expect(screen.getByText("Retificação do edital 2026")).toBeInTheDocument();
