@@ -175,15 +175,18 @@ async function queueRetries(
 
   let queued = 0;
   for (const [delaySeconds, messages] of batches) {
-    const { data, error } = await adminDb.rpc("enqueue_push_deliveries", {
-      p_messages: messages,
-      p_delay_seconds: delaySeconds,
-    });
-    if (error || Number(data) !== messages.length) {
-      console.error("[push-notifications] Não foi possível persistir um lote de retentativas:", error?.message || "contagem divergente");
-      continue;
+    for (let offset = 0; offset < messages.length; offset += 500) {
+      const chunk = messages.slice(offset, offset + 500);
+      const { data, error } = await adminDb.rpc("enqueue_push_deliveries", {
+        p_messages: chunk,
+        p_delay_seconds: delaySeconds,
+      });
+      if (error || Number(data) !== chunk.length) {
+        console.error("[push-notifications] Não foi possível persistir um lote de retentativas:", error?.message || "contagem divergente");
+        continue;
+      }
+      queued += chunk.length;
     }
-    queued += messages.length;
   }
   return { queued, failed: jobs.length - queued };
 }
