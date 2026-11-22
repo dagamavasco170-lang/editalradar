@@ -111,46 +111,46 @@ test("GitHub Actions nunca publica APK de depuração como atualização públic
 
 
 test("atualizador nativo consulta apenas releases oficiais e evita downgrade", () => {
-  assert.match(appUpdate, /api\\.github\\.com\\/repos\\/dagamavasco170-lang\\/editalradar\\/releases\\/latest/);
+  assert.ok(appUpdate.includes("https://api.github.com/repos/dagamavasco170-lang/editalradar/releases/latest"));
   assert.ok(appUpdate.includes('Regex("^android-v'));
-  assert.match(appUpdate, /versionCode <= installedVersionCode\\(\\)/);
-  assert.match(appUpdate, /draft/);
-  assert.match(appUpdate, /prerelease/);
-  assert.match(appUpdate, /EditalRadar-Android-v/);
+  assert.ok(appUpdate.includes("versionCode <= installedVersionCode()"));
+  assert.ok(appUpdate.includes('optBoolean("draft", true)'));
+  assert.ok(appUpdate.includes('optBoolean("prerelease", true)'));
+  assert.ok(appUpdate.includes("EditalRadar-Android-v"));
 });
 
 test("download do atualizador valida origem, redirects, tamanho e SHA-256", () => {
-  assert.match(appUpdate, /RELEASE_ASSET_PREFIX/);
-  assert.match(appUpdate, /release-assets\\.githubusercontent\\.com/);
-  assert.match(appUpdate, /objects\\.githubusercontent\\.com/);
-  assert.match(appUpdate, /MAX_APK_BYTES/);
-  assert.match(appUpdate, /MessageDigest\\.getInstance\\("SHA-256"\\)/);
-  assert.match(appUpdate, /MessageDigest\\.isEqual/);
-  assert.match(appUpdate, /SHA256SUMS\\.txt/);
-  assert.match(appUpdate, /output\\.fd\\.sync\\(\\)/);
+  assert.ok(appUpdate.includes("RELEASE_ASSET_PREFIX"));
+  assert.ok(appUpdate.includes("release-assets.githubusercontent.com"));
+  assert.ok(appUpdate.includes("objects.githubusercontent.com"));
+  assert.ok(appUpdate.includes("MAX_APK_BYTES"));
+  assert.ok(appUpdate.includes('MessageDigest.getInstance("SHA-256")'));
+  assert.ok(appUpdate.includes("MessageDigest.isEqual"));
+  assert.ok(appUpdate.includes("SHA256SUMS.txt"));
+  assert.ok(appUpdate.includes("output.fd.sync()"));
 });
 
 test("atualizador confirma o mesmo pacote e certificado antes de instalar", () => {
-  assert.match(appUpdate, /getPackageArchiveInfo/);
-  assert.match(appUpdate, /candidateInfo\\.packageName != appContext\\.packageName/);
-  assert.match(appUpdate, /hasSameInstalledSignature/);
-  assert.match(android, /appUpdateManager\\.hasSameInstalledSignature\\(apkFile\\)/);
-  assert.match(android, /PackageInstaller\\.SessionParams\\(PackageInstaller\\.SessionParams\\.MODE_FULL_INSTALL\\)/);
-  assert.match(android, /session\\.commit\\(statusPendingIntent\\.intentSender\\)/);
-  assert.match(android, /Settings\\.ACTION_MANAGE_UNKNOWN_APP_SOURCES/);
-  assert.match(androidManifest, /android\\.permission\\.REQUEST_INSTALL_PACKAGES/);
-  assert.match(androidManifest, /android:name="\\.UpdateInstallReceiver"/);
-  assert.match(updateReceiver, /STATUS_PENDING_USER_ACTION/);
-  assert.match(updateReceiver, /context\\.startActivity\\(confirmationIntent\\)/);
+  assert.ok(appUpdate.includes("getPackageArchiveInfo"));
+  assert.ok(appUpdate.includes("candidateInfo.packageName != appContext.packageName"));
+  assert.ok(appUpdate.includes("hasSameInstalledSignature"));
+  assert.ok(android.includes("appUpdateManager.hasSameInstalledSignature(apkFile)"));
+  assert.ok(android.includes("PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL)"));
+  assert.ok(android.includes("session.commit(statusPendingIntent.intentSender)"));
+  assert.ok(android.includes("Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES"));
+  assert.ok(androidManifest.includes("android.permission.REQUEST_INSTALL_PACKAGES"));
+  assert.ok(androidManifest.includes('android:name=".UpdateInstallReceiver"'));
+  assert.ok(updateReceiver.includes("STATUS_PENDING_USER_ACTION"));
+  assert.ok(updateReceiver.includes("context.startActivity(confirmationIntent)"));
 });
 
-test("tela do aplicativo permite verificar e acompanhar atualizações sem abrir links externos", () => {
-  assert.match(android, /text = "Atualizações"/);
-  assert.match(android, /setOnClickListener \\{ checkForUpdates\\(manual = true\\) \\}/);
-  assert.match(android, /AUTO_UPDATE_CHECK_INTERVAL_MS = 6L \\* 60L \\* 60L \\* 1000L/);
-  assert.match(android, /Baixar e instalar/);
-  assert.match(android, /downloadProgressBar/);
-  assert.match(android, /Confirme a atualização na tela do Android/);
+test("tela do aplicativo permite verificar e acompanhar atualizações", () => {
+  assert.ok(android.includes('text = "Atualizações"'));
+  assert.ok(android.includes("setOnClickListener { checkForUpdates(manual = true) }"));
+  assert.ok(android.includes("AUTO_UPDATE_CHECK_INTERVAL_MS = 6L * 60L * 60L * 1000L"));
+  assert.ok(android.includes("Baixar e instalar"));
+  assert.ok(android.includes("downloadProgressBar"));
+  assert.ok(android.includes("Confirme a atualização na tela do Android"));
 });
 
 test("site mantém recursos de acessibilidade e safe areas móveis", () => {
