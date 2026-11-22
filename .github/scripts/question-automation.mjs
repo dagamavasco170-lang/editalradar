@@ -1,4 +1,5 @@
 import process from "node:process";
+import { execFileSync } from "node:child_process";
 
 const SUPABASE_URL = String(process.env.SUPABASE_URL || "").replace(/\/$/, "");
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
@@ -139,32 +140,43 @@ async function fetchOfficialText(sourceUrl) {
   let lastError;
   for (let attempt = 1; attempt <= 3; attempt += 1) {
     try {
-      const response = await fetch(sourceUrl, {
-        redirect: "follow",
-        headers: {
-          "User-Agent": "EditalRadar-GitHub-Automation/1.0",
-          Accept: "text/html, text/plain, application/xhtml+xml;q=0.9"
-        },
-        signal: AbortSignal.timeout(25000)
+      // curl uses the runner's configured network proxy, unlike Node fetch in
+      // some hosted runner environments. Follow redirects but validate the
+      // final URL before trusting the downloaded material.
+      const marker = "\\n__EDITALRADAR_SOURCE_META__";
+      const raw = execFileSync("curl", [
+        "--location", "--fail", "--silent", "--show-error",
+        "--connect-timeout", "15", "--max-time", "25",
+        "--max-filesize", String(MAX_SOURCE_BYTES),
+        "--user-agent", "EditalRadar-GitHub-Automation/1.0",
+        "--header", "Accept: text/html, text/plain, application/xhtml+xml;q=0.9",
+        "--write-out", marker + "%{content_type}\\t%{url_effective}\\t%{http_code}",
+        sourceUrl
+      ], {
+        encoding: "utf8",
+        maxBuffer: MAX_SOURCE_BYTES + 128 * 1024,
+        timeout: 35000
       });
-      if (!response.ok) throw new Error(`Fonte respondeu HTTP ${response.status}`);
-      if (!isTrustedHost(response.url)) throw new Error("Redirecionamento para domínio não autorizado.");
-      const contentType = String(response.headers.get("content-type") || "").toLowerCase();
+
+      const markerIndex = raw.lastIndexOf(marker);
+      if (markerIndex < 0) throw new Error("Não foi possível validar os metadados da fonte.");
+      const html = raw.slice(0, markerIndex);
+      const meta = raw.slice(markerIndex + marker.length).trim().split("\\t");
+      const contentType = String(meta[0] || "").toLowerCase();
+      const finalUrl = String(meta[1] || "");
+      const status = Number(meta[2] || 0);
+      if (status !== 200) throw new Error("Fonte respondeu HTTP " + status + ".");
+      if (!isTrustedHost(finalUrl)) throw new Error("Redirecionamento para domínio não autorizado.");
       if (!(contentType.includes("html") || contentType.startsWith("text/") || contentType.includes("xml"))) {
-        throw new Error(`Formato não suportado pelo extrator gratuito: ${contentType || "desconhecido"}`);
+        throw new Error("Formato não suportado pelo extrator gratuito: " + (contentType || "desconhecido"));
       }
-      const bytes = new Uint8Array(await response.arrayBuffer());
-      if (bytes.byteLength > MAX_SOURCE_BYTES) throw new Error("Fonte excede o limite de 5 MB.");
+      if (Buffer.byteLength(html, "utf8") > MAX_SOURCE_BYTES) throw new Error("Fonte excede o limite de 5 MB.");
       const charset = contentType.match(/charset=([^;]+)/i)?.[1]?.replace(/["']/g, "").trim() || "utf-8";
-      let html;
-      try {
-        html = new TextDecoder(charset).decode(bytes);
-      } catch {
-        html = new TextDecoder("utf-8").decode(bytes);
-      }
+      // The response is decoded by curl as UTF-8. If the official page is
+      // legacy encoded, its plain text remains readable enough for validation.
       const text = stripTags(html);
       if (text.length < 200) throw new Error("A página não contém texto suficiente para elaborar questões.");
-      return { text: text.slice(0, 12000), html };
+      return { text: text.slice(0, 12000), html, finalUrl };
     } catch (error) {
       lastError = error;
       if (attempt < 3) await new Promise((resolve) => setTimeout(resolve, attempt * 1000));
