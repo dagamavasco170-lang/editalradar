@@ -143,25 +143,24 @@ async function fetchOfficialText(sourceUrl) {
       // curl uses the runner's configured network proxy, unlike Node fetch in
       // some hosted runner environments. Follow redirects but validate the
       // final URL before trusting the downloaded material.
-      const marker = "\\n__EDITALRADAR_SOURCE_META__";
+      const marker = "\n__EDITALRADAR_SOURCE_META__";
       const raw = execFileSync("curl", [
         "--location", "--fail", "--silent", "--show-error",
         "--connect-timeout", "15", "--max-time", "25",
         "--max-filesize", String(MAX_SOURCE_BYTES),
         "--user-agent", "EditalRadar-GitHub-Automation/1.0",
         "--header", "Accept: text/html, text/plain, application/xhtml+xml;q=0.9",
-        "--write-out", marker + "%{content_type}\\t%{url_effective}\\t%{http_code}",
+        "--write-out", marker + "%{content_type}\t%{url_effective}\t%{http_code}",
         sourceUrl
       ], {
-        encoding: "utf8",
         maxBuffer: MAX_SOURCE_BYTES + 128 * 1024,
         timeout: 35000
       });
 
-      const markerIndex = raw.lastIndexOf(marker);
+      const markerBuffer = Buffer.from(marker, "utf8");
+      const markerIndex = raw.lastIndexOf(markerBuffer);
       if (markerIndex < 0) throw new Error("Não foi possível validar os metadados da fonte.");
-      const html = raw.slice(0, markerIndex);
-      const meta = raw.slice(markerIndex + marker.length).trim().split("\\t");
+      const meta = raw.subarray(markerIndex + markerBuffer.length).toString("utf8").trim().split("\t");
       const contentType = String(meta[0] || "").toLowerCase();
       const finalUrl = String(meta[1] || "");
       const status = Number(meta[2] || 0);
@@ -172,8 +171,12 @@ async function fetchOfficialText(sourceUrl) {
       }
       if (Buffer.byteLength(html, "utf8") > MAX_SOURCE_BYTES) throw new Error("Fonte excede o limite de 5 MB.");
       const charset = contentType.match(/charset=([^;]+)/i)?.[1]?.replace(/["']/g, "").trim() || "utf-8";
-      // The response is decoded by curl as UTF-8. If the official page is
-      // legacy encoded, its plain text remains readable enough for validation.
+      let html;
+      try {
+        html = new TextDecoder(charset).decode(raw.subarray(0, markerIndex));
+      } catch {
+        html = new TextDecoder("utf-8").decode(raw.subarray(0, markerIndex));
+      }
       const text = stripTags(html);
       if (text.length < 200) throw new Error("A página não contém texto suficiente para elaborar questões.");
       return { text: text.slice(0, 12000), html, finalUrl };
