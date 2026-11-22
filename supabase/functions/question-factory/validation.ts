@@ -28,16 +28,14 @@ export function isTrustedOfficialUrl(value: unknown): boolean {
     const host = url.hostname.toLowerCase().replace(/\.$/, "");
     if (!host || host.includes("..")) return false;
     if (host === "planalto.gov.br" || host.endsWith(".planalto.gov.br")) return false;
-    const publicSuffixes = [".gov.br", ".jus.br", ".leg.br", ".mp.br", ".mil.br", ".def.br"];
+    const officialRoots = ["gov.br", "jus.br", "leg.br", "mp.br", "mil.br", "def.br", "un.org", "ibge.gov.br"];
     const boards = [
       "cebraspe.org.br", "igeduc.selecao.net.br", "igeduc.org.br", "ibfc.org.br",
       "quadrix.org.br", "fundacaolasalle.org.br", "fgv.br", "concursosfcc.com.br",
       "vunesp.com.br", "institutoaocp.org.br"
     ];
-    const trustedInternational = ["un.org"];
-    return publicSuffixes.some((suffix) => host.endsWith(suffix))
-      || boards.some((domain) => host === domain || host.endsWith("." + domain))
-      || trustedInternational.some((domain) => host === domain || host.endsWith("." + domain));
+    return officialRoots.some((domain) => host === domain || host.endsWith("." + domain))
+      || boards.some((domain) => host === domain || host.endsWith("." + domain));
   } catch {
     return false;
   }
