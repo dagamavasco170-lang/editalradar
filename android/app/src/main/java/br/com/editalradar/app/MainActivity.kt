@@ -383,11 +383,10 @@ class MainActivity : Activity() {
                 val callbackIntent = Intent(this, UpdateInstallReceiver::class.java).apply {
                     action = UpdateInstallReceiver.ACTION_INSTALL_STATUS
                 }
-                val mutabilityFlag = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    PendingIntent.FLAG_MUTABLE
-                } else {
-                    PendingIntent.FLAG_IMMUTABLE
-                }
+                // PackageInstaller precisa acrescentar EXTRA_STATUS ao retorno.
+                // Com targetSdk 35, o IntentSender de commit não pode ser imutável,
+                // inclusive em aparelhos anteriores ao Android 12.
+                val mutabilityFlag = PendingIntent.FLAG_MUTABLE
                 val statusPendingIntent = PendingIntent.getBroadcast(
                     this,
                     sessionId,
@@ -840,17 +839,17 @@ class MainActivity : Activity() {
         }
         val diagnostic = buildString {
             append("EditalRadar Android ").append(versionName.ifBlank { "versão desconhecida" })
-            append("\\nCódigo do instalador: ").append(status)
-            append("\\nMotivo: ").append(statusLabel)
-            if (statusMessage.isNotBlank()) append("\\nMensagem do Android: ").append(statusMessage)
-            if (otherPackage.isNotBlank()) append("\\nPacote relacionado: ").append(otherPackage)
+            append("\nCódigo do instalador: ").append(status)
+            append("\nMotivo: ").append(statusLabel)
+            if (statusMessage.isNotBlank()) append("\nMensagem do Android: ").append(statusMessage)
+            if (otherPackage.isNotBlank()) append("\nPacote relacionado: ").append(otherPackage)
         }
 
         AlertDialog.Builder(this)
             .setTitle("A atualização não foi concluída")
             .setMessage(
                 UpdateInstallReceiver.userMessageForStatus(status) +
-                    "\\n\\nSua versão atual e seus dados foram mantidos. " +
+                    "\n\nSua versão atual e seus dados foram mantidos. " +
                     "Você pode copiar os detalhes para nos ajudar a identificar a causa."
             )
             .setNeutralButton("Copiar detalhes") { _, _ ->
