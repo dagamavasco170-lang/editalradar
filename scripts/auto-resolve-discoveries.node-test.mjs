@@ -581,21 +581,58 @@ test("triagem automática processa somente links diretos oficiais e nunca notíc
   ));
 
   assert.equal(url.searchParams.get("status"), "eq.pending");
-  assert.equal(url.searchParams.get("discovery_type"), "in.(new_link,page_change)");
-  assert.notEqual(url.searchParams.get("discovery_type"), "in.(new_link,page_change,web_search_lead)");
+  assert.equal(url.searchParams.get("discovery_type"), "in.(new_link,page_change,web_search_lead)");
   assert.match(url.searchParams.get("or"), /reviewed_at\.is\.null/);
   assert.match(url.searchParams.get("or"), /reviewed_at\.lt\.2026-11-21T12:00:00/);
   assert.equal(url.searchParams.get("limit"), "300");
 });
 
 
-test("inclui páginas oficiais alteradas na triagem automática, mas mantém pistas externas e carga inicial fora da publicação automática", () => {
+test("inclui páginas oficiais alteradas e pistas externas para validação por fonte oficial", () => {
   const url = new URL(buildPendingDiscoveriesUrl(
     "https://example.supabase.co",
     new Date("2026-11-21T18:00:00.000Z")
   ));
-  assert.equal(url.searchParams.get("discovery_type"), "in.(new_link,page_change)");
-  assert.doesNotMatch(url.searchParams.get("discovery_type"), /web_search_lead|source_baseline/);
+  assert.equal(url.searchParams.get("discovery_type"), "in.(new_link,page_change,web_search_lead)");
+  assert.doesNotMatch(url.searchParams.get("discovery_type"), /source_baseline/);
+});
+
+test("converte uma pista da busca em verificação somente quando ela aponta para fonte oficial", async () => {
+  const officialUrl = "https://igaci.al.gov.br/concursos/edital-01-2026";
+  const html = "<html><head><title>Edital 01/2026</title></head><body><h1>Concurso público</h1><p>Edital da Prefeitura Municipal de Igaci. 20 vagas.</p></body></html>";
+  let requested = "";
+  const prepared = await prepareDiscoveryDocument({
+    ...discovery,
+    discovery_type: "web_search_lead",
+    candidate_url: "https://news.google.com/rss/articles/opaque",
+    context: "Pista externa. Endereço informado para a fonte: " + officialUrl
+  }, async url => {
+    requested = url;
+    return {
+      ok: true,
+      status: 200,
+      url,
+      headers: new Headers({ "content-type": "text/html; charset=utf-8" }),
+      arrayBuffer: async () => new TextEncoder().encode(html).buffer
+    };
+  }, { fallbackRequest: async () => { throw new Error("fallback inesperado"); } });
+
+  assert.equal(requested, officialUrl);
+  assert.equal(prepared.stage, "ready");
+  assert.equal(prepared.candidateUrl, officialUrl);
+});
+
+test("mantém pistas externas sem domínio oficial na fila em vez de descartá-las ou publicá-las", async () => {
+  let calls = 0;
+  const prepared = await prepareDiscoveryDocument({
+    ...discovery,
+    discovery_type: "web_search_lead",
+    candidate_url: "https://news.google.com/rss/articles/opaque",
+    context: "Pista externa. Endereço informado para a fonte: https://portal-privado.example.org/concursos"
+  }, async () => { calls += 1; throw new Error("não deveria requisitar domínio não autorizado"); });
+  assert.equal(prepared.stage, "review");
+  assert.equal(calls, 0);
+  assert.match(prepared.reason, /fonte oficial autorizada/);
 });
 
 test("descarta páginas genéricas de categoria da banca sem consultar conteúdo como edital", async () => {
