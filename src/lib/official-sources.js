@@ -1,16 +1,46 @@
-const OFFICIAL_SUFFIXES = [".gov.br", ".jus.br", ".leg.br", ".mp.br", ".mil.br", ".def.br"];
-
-const APPROVED_PROVIDERS = [
-  "cebraspe.org.br",
-  "igeduc.selecao.net.br",
-  "igeduc.org.br",
-  "ibfc.org.br",
-  "quadrix.org.br",
-  "fundacaolasalle.org.br",
+const APPROVED_SOURCE_DOMAINS = [
+  "brasilescola.uol.com.br",
+  "mundoeducacao.uol.com.br",
+  "todamateria.com.br",
+  "todoestudo.com.br",
+  "pt.khanacademy.org",
+  "khanacademy.org",
+  "somatematica.com.br",
+  "soportugues.com.br",
+  "infoescola.com",
+  "politize.com.br",
+  "direitonet.com.br",
+  "jusbrasil.com.br",
+  "jrconcursos.com.br",
+  "blog.grancursosonline.com.br",
+  "grancursosonline.com.br",
+  "jcconcursos.com.br",
+  "7fontesconcursos.com.br",
+  "tecconcursos.com.br",
+  "blog.qconcursos.com",
+  "qconcursos.com",
+  "tecmundo.com.br",
+  "olhardigital.com.br",
+  "guiadoestudante.abril.com.br",
+  "novaescola.org.br",
+  "cpdoc.fgv.br",
   "fgv.br",
-  "concursosfcc.com.br",
-  "vunesp.com.br",
-  "institutoaocp.org.br"
+  "contabeis.com.br",
+  "manualdaquimica.com",
+  "drauziovarella.uol.com.br",
+  "minhavida.com.br",
+  "educamaisbrasil.com.br",
+  "educacao.uol.com.br",
+  "mundoestranho.abril.com.br",
+  "todospelaeducacao.org.br",
+  "institutopeninsula.org.br",
+  "fundacaolemann.org.br",
+  "cursinhoparamedicina.com.br",
+  "estrategiaconcursos.com.br",
+  "blog.estrategiaconcursos.com.br",
+  "novaconcursos.com.br",
+  "concursosnobrasil.com",
+  "blog.grupogen.com.br",
 ];
 
 export function parseHttpsUrl(value) {
@@ -27,11 +57,8 @@ export function parseHttpsUrl(value) {
 export function isTrustedOfficialHostname(hostname) {
   const host = String(hostname || "").toLowerCase().replace(/\.$/, "");
   if (!host || host.includes("..")) return false;
-  // Never accept the Planalto domain or any of its subdomains as an exam source.
-  if (host === "planalto.gov.br" || host.endsWith(".planalto.gov.br")) return false;
-  return OFFICIAL_SUFFIXES.some(suffix => host.endsWith(suffix))
-    || host === "un.org" || host.endsWith(".un.org")
-    || APPROVED_PROVIDERS.some(domain => host === domain || host.endsWith("." + domain));
+  // Only vetted private educational publishers and study platforms are accepted.
+  return APPROVED_SOURCE_DOMAINS.some(domain => host === domain || host.endsWith("." + domain));
 }
 
 export function isTrustedOfficialUrl(value) {
@@ -40,6 +67,6 @@ export function isTrustedOfficialUrl(value) {
 }
 
 export function officialSourceLabel(value) {
-  if (isTrustedOfficialUrl(value)) return "Fonte oficial";
+  if (isTrustedOfficialUrl(value)) return "Fonte de estudo selecionada";
   return parseHttpsUrl(value) ? "Referência externa · confirme no órgão" : "Fonte não verificada";
 }
