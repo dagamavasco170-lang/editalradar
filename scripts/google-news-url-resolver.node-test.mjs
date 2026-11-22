@@ -93,7 +93,7 @@ test("recusa um endereço resolvido que não pertence ao publisher oficial decla
 
   await assert.rejects(
     () => resolveGoogleNewsArticleUrl(newsUrl, declaredSource, request),
-    /não corresponde ao domínio oficial informado/
+    /não corresponde ao domínio oficial/
   );
 });
 
@@ -144,13 +144,15 @@ test("não segue redirecionamento para host externo arbitrário", async () => {
 });
 
 test("limita o tamanho das respostas do Google antes de extrair assinatura ou resultado", async () => {
-  const result = await resolveGoogleNewsArticleUrl(
-    "https://news.google.com/rss/articles/large-page",
-    declaredSource,
-    async () => new Response("x".repeat(2 * 1024 * 1024 + 1), {
-      status: 200,
-      headers: { "content-type": "text/html" }
-    })
+  await assert.rejects(
+    () => resolveGoogleNewsArticleUrl(
+      "https://news.google.com/rss/articles/large-page",
+      declaredSource,
+      async () => new Response("x".repeat(2 * 1024 * 1024 + 1), {
+        status: 200,
+        headers: { "content-type": "text/html" }
+      })
+    ),
+    /excedeu o limite/
   );
-  assert.equal(result, null);
 });
