@@ -81,7 +81,7 @@ test("assinatura de distribuição usa apenas a chave permanente recebida pelo a
   assert.match(androidGradle, /ANDROID_RELEASE_KEY_PASSWORD/);
   assert.match(androidGradle, /signingConfig signingConfigs\.getByName\('release'\)/);
   assert.match(androidGradle, /versionCode 9/);
-  assert.match(androidGradle, /versionName '1\.2\.5'/);
+  assert.match(androidGradle, /versionName '1\\.2\\.6'/);
   assert.doesNotMatch(androidGradle, /storePassword\s*['"][^'"]+['"]/);
 });
 
@@ -112,7 +112,7 @@ test("GitHub Actions nunca publica APK de depuração como atualização públic
 
 test("atualizador nativo consulta apenas releases oficiais e evita downgrade", () => {
   assert.match(appUpdate, /api\\.github\\.com\\/repos\\/dagamavasco170-lang\\/editalradar\\/releases\\/latest/);
-  assert.match(appUpdate, /Regex\\("\\^android-v/);
+  assert.ok(appUpdate.includes('Regex("^android-v'));
   assert.match(appUpdate, /versionCode <= installedVersionCode\\(\\)/);
   assert.match(appUpdate, /draft/);
   assert.match(appUpdate, /prerelease/);
