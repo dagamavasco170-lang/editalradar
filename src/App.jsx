@@ -251,6 +251,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     readStore("er-browser-notifications", false) === true
   );
   const [notificationMessage, setNotificationMessage] = useState("");
+  const [pushTestBusy, setPushTestBusy] = useState(false);
   const [notificationView, setNotificationView] = useState("all");
   const [notificationLimit, setNotificationLimit] = useState(8);
   const [jumpToNotifications, setJumpToNotifications] = useState(false);
@@ -1197,6 +1198,40 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     }
   };
 
+  const sendPushSelfTest = async () => {
+    if (!authUser?.id || typeof authClient?.functions?.invoke !== "function") {
+      setNotificationMessage("Entre na sua conta para testar as notificações push.");
+      return;
+    }
+    setPushTestBusy(true);
+    setNotificationMessage("");
+    try {
+      const { data, error } = await authClient.functions.invoke("push-notifications", {
+        body: { action: "test_self" }
+      });
+      if (error) throw error;
+      if (data?.ok && data.sent > 0) {
+        setNotificationMessage("Teste enviado ao seu aparelho. Confira a central de notificações do Android.");
+      } else {
+        setNotificationMessage(data?.error || "O teste não foi enviado. Ative as notificações e confirme o cadastro do aparelho.");
+      }
+    } catch (error) {
+      let message = error?.message || "Não foi possível enviar o teste push.";
+      try {
+        const response = error?.context;
+        if (response && typeof response.clone === "function") {
+          const payload = await response.clone().json();
+          message = payload?.error || message;
+        }
+      } catch {
+        // Mantém a mensagem de erro da chamada quando a resposta não contém JSON.
+      }
+      setNotificationMessage(message);
+    } finally {
+      setPushTestBusy(false);
+    }
+  };
+
   const markAllNotificationsRead = () => {
     const next = notifications.map((item) => ({ ...item, read: true }));
     setNotifications(next);
@@ -1970,6 +2005,11 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                   <button className="detail-btn" type="button" onClick={enableBrowserNotifications} disabled={notificationPermission === "unsupported" || (notificationPermission === "granted" && browserNotificationsEnabled)}>
                     {notificationPermission === "granted" && browserNotificationsEnabled ? "Notificações ativadas" : notificationPermission === "denied" ? "Permissão bloqueada" : "Ativar notificações"}
                   </button>
+                  {authUser && browserNotificationsEnabled && typeof window.EditalRadarNative?.requestFcmToken === "function" && (
+                    <button className="detail-btn" type="button" onClick={sendPushSelfTest} disabled={pushTestBusy}>
+                      {pushTestBusy ? "Enviando teste..." : "Testar recebimento push"}
+                    </button>
+                  )}
                   {unreadNotificationCount > 0 && <button className="alert-remove" type="button" onClick={markAllNotificationsRead}>Marcar como lidas</button>}
                   {activeNotifications.length > 0 && <button className="alert-remove" type="button" onClick={clearNotificationHistory}>Limpar histórico</button>}
                 </div>
