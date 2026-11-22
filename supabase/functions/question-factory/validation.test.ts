@@ -30,16 +30,16 @@ describe("Validação automática de questões", () => {
     expect(validateQuestion({ ...question, evidence_excerpt: "princípio da supremacia absoluta" }, source).valid).toBe(false);
   });
   it("aceita apenas editoras e plataformas privadas selecionadas", () => {
-    expect(isTrustedOfficialUrl("https://brasilescola.uol.com.br/gramatica")).toBe(true);
-    expect(isTrustedOfficialUrl("https://pt.khanacademy.org/math")).toBe(true);
-    expect(isTrustedOfficialUrl("https://www.politize.com.br/trilhas/politicas-publicas/")).toBe(true);
-    expect(isTrustedOfficialUrl("https://blog.grancursosonline.com.br/informatica-para-concursos-conceitos-basicos-para-prova/")).toBe(true);
-    expect(isTrustedOfficialUrl("https://www.gov.br/concursos")).toBe(false);
-    expect(isTrustedOfficialUrl("https://www2.camara.leg.br/atividade-legislativa")).toBe(false);
-    expect(isTrustedOfficialUrl("https://educa.ibge.gov.br/")).toBe(false);
-    expect(isTrustedOfficialUrl("https://brasilescola.uol.com.br.falso.example.com/")).toBe(false);
-    expect(isTrustedOfficialUrl("http://brasilescola.uol.com.br/")).toBe(false);
-    expect(isTrustedOfficialUrl("https://usuario:senha@todamateria.com.br/")).toBe(false);
+    expect(isTrustedPrivateStudySourceUrl("https://brasilescola.uol.com.br/gramatica")).toBe(true);
+    expect(isTrustedPrivateStudySourceUrl("https://pt.khanacademy.org/math")).toBe(true);
+    expect(isTrustedPrivateStudySourceUrl("https://www.politize.com.br/trilhas/politicas-publicas/")).toBe(true);
+    expect(isTrustedPrivateStudySourceUrl("https://blog.grancursosonline.com.br/informatica-para-concursos-conceitos-basicos-para-prova/")).toBe(true);
+    expect(isTrustedPrivateStudySourceUrl("https://www.gov.br/concursos")).toBe(false);
+    expect(isTrustedPrivateStudySourceUrl("https://www2.camara.leg.br/atividade-legislativa")).toBe(false);
+    expect(isTrustedPrivateStudySourceUrl("https://educa.ibge.gov.br/")).toBe(false);
+    expect(isTrustedPrivateStudySourceUrl("https://brasilescola.uol.com.br.falso.example.com/")).toBe(false);
+    expect(isTrustedPrivateStudySourceUrl("http://brasilescola.uol.com.br/")).toBe(false);
+    expect(isTrustedPrivateStudySourceUrl("https://usuario:senha@todamateria.com.br/")).toBe(false);
   });
   it("detecta enunciados praticamente duplicados", () => {
     const original = "Segundo o texto de referência, quais princípios devem orientar a administração pública?";
