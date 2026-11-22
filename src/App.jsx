@@ -1942,7 +1942,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                 </div>
                 <div className="notification-actions">
                   <button className="detail-btn" type="button" onClick={enableBrowserNotifications} disabled={notificationPermission === "unsupported" || (notificationPermission === "granted" && browserNotificationsEnabled)}>
-                    {notificationPermission === "granted" && browserNotificationsEnabled ? "Notificações ativadas" : notificationPermission === "denied" ? "Permissão bloqueada" : "Ativar no navegador"}
+                    {notificationPermission === "granted" && browserNotificationsEnabled ? "Notificações ativadas" : notificationPermission === "denied" ? "Permissão bloqueada" : "Ativar notificações"}
                   </button>
                   {unreadNotificationCount > 0 && <button className="alert-remove" type="button" onClick={markAllNotificationsRead}>Marcar como lidas</button>}
                   {activeNotifications.length > 0 && <button className="alert-remove" type="button" onClick={clearNotificationHistory}>Limpar histórico</button>}
@@ -1993,7 +1993,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                     : notificationPermission === "unsupported"
                       ? "Seu navegador não oferece notificações de desktop."
                       : "Ative os avisos do navegador para receber uma notificação quando o EditalRadar detectar novidades."}
-                {" "}Os avisos são detectados quando você abre ou atualiza o site após uma mudança no catálogo.
+                {" "}Os avisos locais aparecem após a sincronização. No Android, os avisos com o aplicativo fechado dependem da configuração do Firebase Cloud Messaging.
               </small>
               {notificationMessage && <small className="notification-feedback" role="status">{notificationMessage}</small>}
             </section>
