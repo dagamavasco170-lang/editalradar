@@ -26,9 +26,17 @@ export function classifyWorkerFcmFailure(httpStatus, payload = {}, retryAfter = 
   };
 }
 
-export function nextPushRetryAttempt(messageAttempt, readCount, maxAttempts = 7) {
-  const attempt = Math.max(1, Number(messageAttempt) || 1) + Math.max(0, Number(readCount) - 1);
-  return attempt < maxAttempts ? attempt + 1 : null;
+// The message stores the number of failed sends before it entered the queue.
+// Each subsequent PGMQ read is another delivery attempt, including recoveries
+// after a worker crash or a visibility timeout.
+export function currentPushDeliveryAttempt(messageAttempt, readCount) {
+  const previousFailures = Math.max(1, Number(messageAttempt) || 1);
+  const deliveryNumber = Math.max(1, Number(readCount) || 1);
+  return previousFailures + deliveryNumber;
+}
+
+export function hasPushRetryBudget(currentAttempt, maxAttempts = 7) {
+  return Number(currentAttempt) < maxAttempts;
 }
 
 export function getWorkerRetryDelaySeconds(failure, retryNumber, now = Date.now(), random = Math.random) {
