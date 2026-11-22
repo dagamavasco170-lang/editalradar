@@ -94,9 +94,7 @@ function isTrustedHost(value) {
       "pt.wikibooks.org",
       "pt.wikipedia.org",
       "pt.wikiversity.org",
-      "pt.wiktionary.org",
-      "escolhalivre.org.br",
-    ];
+      "pt.wiktionary.org",    ];
     return approvedDomains.some((domain) => host === domain || host.endsWith("." + domain));
   } catch {
     return false;
