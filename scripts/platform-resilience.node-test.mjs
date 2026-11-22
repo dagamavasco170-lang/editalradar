@@ -4,12 +4,15 @@ import { readFile } from "node:fs/promises";
 
 const readProjectFile = (path) => readFile(new URL(path, import.meta.url), "utf8");
 
-const [android, serviceWorker, styles, androidGradle, androidWorkflow] = await Promise.all([
+const [android, serviceWorker, styles, androidGradle, androidWorkflow, appUpdate, updateReceiver, androidManifest] = await Promise.all([
   readProjectFile("../android/app/src/main/java/br/com/editalradar/app/MainActivity.kt"),
   readProjectFile("../public/sw.js"),
   readProjectFile("../src/styles.css"),
   readProjectFile("../android/app/build.gradle"),
-  readProjectFile("../.github/workflows/android-release.yml")
+  readProjectFile("../.github/workflows/android-release.yml"),
+  readProjectFile("../android/app/src/main/java/br/com/editalradar/app/AppUpdateManager.kt"),
+  readProjectFile("../android/app/src/main/java/br/com/editalradar/app/UpdateInstallReceiver.kt"),
+  readProjectFile("../android/app/src/main/AndroidManifest.xml")
 ]);
 
 test("WebView mantém navegação interna restrita à origem e ao caminho do app", () => {
@@ -77,8 +80,8 @@ test("assinatura de distribuição usa apenas a chave permanente recebida pelo a
   assert.match(androidGradle, /ANDROID_RELEASE_KEY_ALIAS/);
   assert.match(androidGradle, /ANDROID_RELEASE_KEY_PASSWORD/);
   assert.match(androidGradle, /signingConfig signingConfigs\.getByName\('release'\)/);
-  assert.match(androidGradle, /versionCode 8/);
-  assert.match(androidGradle, /versionName '1\.2\.5'/);
+  assert.match(androidGradle, /versionCode 9/);
+  assert.ok(androidGradle.includes("versionName '1.2.6'"));
   assert.doesNotMatch(androidGradle, /storePassword\s*['"][^'"]+['"]/);
 });
 
@@ -104,6 +107,50 @@ test("GitHub Actions nunca publica APK de depuração como atualização públic
   assert.notEqual(publishStepStart, -1);
   const publishCondition = androidWorkflow.slice(publishStepStart).split(String.fromCharCode(10))[1] ?? "";
   assert.ok(publishCondition.includes("steps.signing.outputs.ready == 'true'"));
+});
+
+
+test("atualizador nativo consulta apenas releases oficiais e evita downgrade", () => {
+  assert.ok(appUpdate.includes("https://api.github.com/repos/dagamavasco170-lang/editalradar/releases/latest"));
+  assert.ok(appUpdate.includes('Regex("^android-v'));
+  assert.ok(appUpdate.includes("versionCode <= installedVersionCode()"));
+  assert.ok(appUpdate.includes('optBoolean("draft", true)'));
+  assert.ok(appUpdate.includes('optBoolean("prerelease", true)'));
+  assert.ok(appUpdate.includes("EditalRadar-Android-v"));
+});
+
+test("download do atualizador valida origem, redirects, tamanho e SHA-256", () => {
+  assert.ok(appUpdate.includes("RELEASE_ASSET_PREFIX"));
+  assert.ok(appUpdate.includes("release-assets.githubusercontent.com"));
+  assert.ok(appUpdate.includes("objects.githubusercontent.com"));
+  assert.ok(appUpdate.includes("MAX_APK_BYTES"));
+  assert.ok(appUpdate.includes('MessageDigest.getInstance("SHA-256")'));
+  assert.ok(appUpdate.includes("MessageDigest.isEqual"));
+  assert.ok(appUpdate.includes("SHA256SUMS.txt"));
+  assert.ok(appUpdate.includes("output.fd.sync()"));
+});
+
+test("atualizador confirma o mesmo pacote e certificado antes de instalar", () => {
+  assert.ok(appUpdate.includes("getPackageArchiveInfo"));
+  assert.ok(appUpdate.includes("candidateInfo.packageName != appContext.packageName"));
+  assert.ok(appUpdate.includes("hasSameInstalledSignature"));
+  assert.ok(android.includes("appUpdateManager.hasSameInstalledSignature(apkFile)"));
+  assert.ok(android.includes("PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL)"));
+  assert.ok(android.includes("session.commit(statusPendingIntent.intentSender)"));
+  assert.ok(android.includes("Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES"));
+  assert.ok(androidManifest.includes("android.permission.REQUEST_INSTALL_PACKAGES"));
+  assert.ok(androidManifest.includes('android:name=".UpdateInstallReceiver"'));
+  assert.ok(updateReceiver.includes("STATUS_PENDING_USER_ACTION"));
+  assert.ok(updateReceiver.includes("context.startActivity(confirmationIntent)"));
+});
+
+test("tela do aplicativo permite verificar e acompanhar atualizações", () => {
+  assert.ok(android.includes('text = "Atualizações"'));
+  assert.ok(android.includes("setOnClickListener { checkForUpdates(manual = true) }"));
+  assert.ok(android.includes("AUTO_UPDATE_CHECK_INTERVAL_MS = 6L * 60L * 60L * 1000L"));
+  assert.ok(android.includes("Baixar e instalar"));
+  assert.ok(android.includes("downloadProgressBar"));
+  assert.ok(android.includes("Confirme a atualização na tela do Android"));
 });
 
 test("site mantém recursos de acessibilidade e safe areas móveis", () => {

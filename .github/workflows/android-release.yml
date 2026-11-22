@@ -200,6 +200,9 @@ jobs:
           - Versão ${VERSION_CODE}.
           - APK e AAB assinados com a chave permanente do EditalRadar.
           - Esta assinatura é mantida nas próximas versões para permitir atualizações diretas.
+          - Verificação de novas versões pelo próprio aplicativo.
+          - Download com conferência SHA-256 e validação da assinatura antes de instalar.
+          - Instalação encaminhada pelo instalador seguro do Android, com confirmação do usuário.
           - Melhorias de estabilidade, segurança e experiência de uso.
           EOF
 

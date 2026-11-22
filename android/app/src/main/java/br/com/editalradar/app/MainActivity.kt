@@ -2,6 +2,7 @@ package br.com.editalradar.app
 
 import android.Manifest
 import android.app.Activity
+import android.app.AlertDialog
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -9,6 +10,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
+import android.content.pm.PackageInstaller
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.net.ConnectivityManager
@@ -17,6 +19,7 @@ import android.net.NetworkCapabilities
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
@@ -33,6 +36,9 @@ import android.view.WindowManager
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
+import android.widget.Toast
+import java.io.File
+import java.io.FileInputStream
 import com.google.firebase.FirebaseApp
 import com.google.firebase.messaging.FirebaseMessaging
 
@@ -43,12 +49,23 @@ class MainActivity : Activity() {
         private const val HOME_PATH = "/editalradar/"
         private const val NOTIFICATION_CHANNEL_ID = "editalradar_updates"
         private const val NOTIFICATION_PERMISSION_REQUEST = 8102
+        private const val APP_UPDATE_PERMISSION_REQUEST = 8103
+        private const val AUTO_UPDATE_CHECK_INTERVAL_MS = 6L * 60L * 60L * 1000L
+        private const val UPDATE_PREFERENCES = "editalradar_app_updates"
+        private const val LAST_UPDATE_CHECK_KEY = "last_update_check"
+        private const val PENDING_UPDATE_APK_KEY = "pending_update_apk"
         const val EXTRA_PUSH_URL = "br.com.editalradar.app.EXTRA_PUSH_URL"
     }
 
     private lateinit var webView: WebView
     private lateinit var progress: ProgressBar
     private lateinit var statusText: TextView
+    private lateinit var updateButton: TextView
+    private lateinit var appUpdateManager: AppUpdateManager
+    private var availableUpdate: AppUpdateRelease? = null
+    private var downloadDialog: AlertDialog? = null
+    private var downloadProgressBar: ProgressBar? = null
+    private var downloadProgressText: TextView? = null
     private var connectivityManager: ConnectivityManager? = null
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
     private var lastKnownOnlineState: Boolean? = null
@@ -57,6 +74,7 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         buildScreen()
+        appUpdateManager = AppUpdateManager(this)
         configureNotifications()
         configureWebView()
 
@@ -73,6 +91,7 @@ class MainActivity : Activity() {
             }
         }
         refreshConnectivity()
+        maybeCheckForUpdates()
     }
 
     private fun buildScreen() {
@@ -123,10 +142,272 @@ class MainActivity : Activity() {
             }
             insets
         }
-        root.addView(statusText, LinearLayout.LayoutParams(-1, dp(40)))
+        updateButton = TextView(this).apply {
+            text = "Atualizações"
+            textSize = 12f
+            setTextColor(Color.WHITE)
+            setBackgroundColor(Color.rgb(32, 75, 116))
+            gravity = Gravity.CENTER
+            setPadding(dp(12), dp(8), dp(12), dp(8))
+            minHeight = dp(40)
+            minimumWidth = dp(108)
+            isFocusable = true
+            contentDescription = "Verificar atualizações do EditalRadar"
+            setOnClickListener { checkForUpdates(manual = true) }
+        }
+
+        val header = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            addView(statusText, LinearLayout.LayoutParams(0, dp(40), 1f))
+            addView(updateButton, LinearLayout.LayoutParams(-2, dp(40)))
+        }
+
+        root.addView(header, LinearLayout.LayoutParams(-1, dp(40)))
         root.addView(progress, LinearLayout.LayoutParams(-1, dp(3)))
         root.addView(webView, LinearLayout.LayoutParams(-1, 0, 1f))
         setContentView(root)
+    }
+
+    private fun maybeCheckForUpdates() {
+        if (!isInternetAvailable()) return
+        val preferences = getSharedPreferences(UPDATE_PREFERENCES, Context.MODE_PRIVATE)
+        val lastCheck = preferences.getLong(LAST_UPDATE_CHECK_KEY, 0L)
+        val now = System.currentTimeMillis()
+        if (now - lastCheck < AUTO_UPDATE_CHECK_INTERVAL_MS) return
+
+        preferences.edit().putLong(LAST_UPDATE_CHECK_KEY, now).apply()
+        checkForUpdates(manual = false)
+    }
+
+    private fun checkForUpdates(manual: Boolean) {
+        if (!isInternetAvailable()) {
+            if (manual) {
+                Toast.makeText(this, "Conecte-se à internet para verificar atualizações.", Toast.LENGTH_LONG).show()
+            }
+            return
+        }
+
+        updateButton.isEnabled = false
+        if (availableUpdate == null) updateButton.text = "Verificando…"
+
+        appUpdateManager.checkForUpdate { result ->
+            if (isFinishing || isDestroyed) return@checkForUpdate
+            updateButton.isEnabled = true
+
+            result.onSuccess { release ->
+                availableUpdate = release
+                updateButton.text = if (release != null) "Atualizar" else "Atualizações"
+                updateButton.contentDescription = if (release != null) {
+                    "Atualização ${release.versionName} disponível. Toque para baixar."
+                } else {
+                    "Verificar atualizações do EditalRadar"
+                }
+
+                if (release != null) {
+                    if (manual) showUpdatePrompt(release)
+                } else if (manual) {
+                    Toast.makeText(this, "Você já está usando a versão mais recente.", Toast.LENGTH_SHORT).show()
+                }
+            }.onFailure {
+                updateButton.text = if (availableUpdate != null) "Atualizar" else "Atualizações"
+                if (manual) {
+                    Toast.makeText(this, "Não foi possível verificar agora. Tente novamente mais tarde.", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
+
+    private fun showUpdatePrompt(release: AppUpdateRelease) {
+        val notes = release.releaseNotes.ifBlank { "Melhorias de estabilidade e segurança." }
+        AlertDialog.Builder(this)
+            .setTitle("Nova versão disponível")
+            .setMessage("EditalRadar ${release.versionName}\n\n$notes")
+            .setPositiveButton("Baixar e instalar") { _, _ -> downloadAndInstall(release) }
+            .setNegativeButton("Mais tarde", null)
+            .show()
+    }
+
+    private fun showDownloadProgress() {
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(24), dp(8), dp(24), dp(16))
+        }
+        downloadProgressText = TextView(this).apply {
+            text = "Preparando o download…"
+            textSize = 14f
+        }
+        downloadProgressBar = ProgressBar(
+            this,
+            null,
+            android.R.attr.progressBarStyleHorizontal
+        ).apply {
+            max = 100
+            isIndeterminate = true
+        }
+        content.addView(downloadProgressText, LinearLayout.LayoutParams(-1, -2))
+        content.addView(
+            downloadProgressBar,
+            LinearLayout.LayoutParams(-1, dp(18)).apply { topMargin = dp(16) }
+        )
+
+        downloadDialog = AlertDialog.Builder(this)
+            .setTitle("Baixando atualização")
+            .setView(content)
+            .setCancelable(false)
+            .create()
+        downloadDialog?.show()
+    }
+
+    private fun downloadAndInstall(release: AppUpdateRelease) {
+        updateButton.isEnabled = false
+        updateButton.text = "Baixando…"
+        showDownloadProgress()
+
+        appUpdateManager.downloadAndVerify(
+            release = release,
+            onProgress = { percentage ->
+                if (isFinishing || isDestroyed) return@downloadAndVerify
+                val bar = downloadProgressBar ?: return@downloadAndVerify
+                if (percentage < 0) {
+                    bar.isIndeterminate = true
+                    downloadProgressText?.text = "Baixando atualização…"
+                } else {
+                    bar.isIndeterminate = false
+                    bar.progress = percentage
+                    downloadProgressText?.text = "Baixando atualização: $percentage%"
+                }
+            },
+            onComplete = { result ->
+                downloadDialog?.dismiss()
+                downloadDialog = null
+                downloadProgressBar = null
+                downloadProgressText = null
+                updateButton.isEnabled = true
+                updateButton.text = if (availableUpdate != null) "Atualizar" else "Atualizações"
+
+                if (isFinishing || isDestroyed) return@downloadAndVerify
+                result.onSuccess { apkFile ->
+                    if (!appUpdateManager.hasSameInstalledSignature(apkFile)) {
+                        apkFile.delete()
+                        AlertDialog.Builder(this)
+                            .setTitle("Não foi possível instalar")
+                            .setMessage("Esta versão não corresponde à assinatura do aplicativo instalado. A instalação foi interrompida por segurança.")
+                            .setPositiveButton("Entendi", null)
+                            .show()
+                        return@onSuccess
+                    }
+                    installDownloadedUpdate(apkFile)
+                }.onFailure {
+                    Toast.makeText(this, "Não foi possível baixar a atualização. Tente novamente.", Toast.LENGTH_LONG).show()
+                }
+            }
+        )
+    }
+
+    private fun installDownloadedUpdate(apkFile: File) {
+        if (!apkFile.isFile || apkFile.length() <= 0L) {
+            Toast.makeText(this, "O arquivo de atualização não está disponível. Tente baixar novamente.", Toast.LENGTH_LONG).show()
+            return
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+            !packageManager.canRequestPackageInstalls()
+        ) {
+            getSharedPreferences(UPDATE_PREFERENCES, Context.MODE_PRIVATE)
+                .edit()
+                .putString(PENDING_UPDATE_APK_KEY, apkFile.absolutePath)
+                .apply()
+
+            AlertDialog.Builder(this)
+                .setTitle("Permitir instalação")
+                .setMessage("Para concluir a atualização, permita que o EditalRadar instale sua própria atualização. O Android mostrará essa autorização uma única vez.")
+                .setPositiveButton("Abrir configurações") { _, _ ->
+                    try {
+                        val settingsIntent = Intent(
+                            Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                            Uri.parse("package:$packageName")
+                        )
+                        @Suppress("DEPRECATION")
+                        startActivityForResult(settingsIntent, APP_UPDATE_PERMISSION_REQUEST)
+                    } catch (_: Exception) {
+                        Toast.makeText(this, "Não foi possível abrir essa configuração.", Toast.LENGTH_LONG).show()
+                    }
+                }
+                .setNegativeButton("Agora não", null)
+                .show()
+            return
+        }
+
+        commitApkInstall(apkFile)
+    }
+
+    private fun commitApkInstall(apkFile: File) {
+        if (!appUpdateManager.hasSameInstalledSignature(apkFile)) {
+            Toast.makeText(this, "A atualização não passou pela verificação de segurança.", Toast.LENGTH_LONG).show()
+            return
+        }
+
+        try {
+            val parameters = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
+                setAppPackageName(packageName)
+                setSize(apkFile.length())
+            }
+            val installer = packageManager.packageInstaller
+            val sessionId = installer.createSession(parameters)
+
+            installer.openSession(sessionId).use { session ->
+                FileInputStream(apkFile).use { input ->
+                    session.openWrite("base.apk", 0L, apkFile.length()).use { output ->
+                        input.copyTo(output, 64 * 1024)
+                        session.fsync(output)
+                    }
+                }
+
+                val callbackIntent = Intent(this, UpdateInstallReceiver::class.java).apply {
+                    action = UpdateInstallReceiver.ACTION_INSTALL_STATUS
+                }
+                val mutabilityFlag = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    PendingIntent.FLAG_MUTABLE
+                } else {
+                    PendingIntent.FLAG_IMMUTABLE
+                }
+                val statusPendingIntent = PendingIntent.getBroadcast(
+                    this,
+                    sessionId,
+                    callbackIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or mutabilityFlag
+                )
+                session.commit(statusPendingIntent.intentSender)
+            }
+
+            statusText.text = "Confirme a atualização na tela do Android."
+        } catch (_: Exception) {
+            Toast.makeText(this, "Não foi possível iniciar a instalação. Tente novamente.", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode != APP_UPDATE_PERMISSION_REQUEST) return
+
+        val preferences = getSharedPreferences(UPDATE_PREFERENCES, Context.MODE_PRIVATE)
+        val pendingPath = preferences.getString(PENDING_UPDATE_APK_KEY, null)
+        preferences.edit().remove(PENDING_UPDATE_APK_KEY).apply()
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+            packageManager.canRequestPackageInstalls() &&
+            !pendingPath.isNullOrBlank()
+        ) {
+            val pendingFile = File(pendingPath)
+            if (pendingFile.isFile && appUpdateManager.hasSameInstalledSignature(pendingFile)) {
+                commitApkInstall(pendingFile)
+            } else {
+                Toast.makeText(this, "O arquivo de atualização precisa ser baixado novamente.", Toast.LENGTH_LONG).show()
+            }
+        } else {
+            Toast.makeText(this, "A autorização de instalação não foi concedida.", Toast.LENGTH_LONG).show()
+        }
     }
 
     private fun configureWebView() {
@@ -520,6 +801,7 @@ class MainActivity : Activity() {
 
             // Recupera automaticamente a tela que falhou durante uma queda de rede.
             if (connectionRestored) {
+                maybeCheckForUpdates()
                 webView.post {
                     if (isFinishing || isDestroyed || !isInternetAvailable()) return@post
                     val currentUri = webView.url?.let(Uri::parse)
@@ -577,6 +859,8 @@ class MainActivity : Activity() {
     }
 
     override fun onDestroy() {
+        if (::appUpdateManager.isInitialized) appUpdateManager.close()
+        downloadDialog?.dismiss()
         unregisterNetworkMonitor()
         if (::webView.isInitialized) {
             webView.stopLoading()
