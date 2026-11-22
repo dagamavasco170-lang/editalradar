@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { concursos } from "../src/data/concursos.js";
-import { collectSourceUrls, compareSource, fingerprintContent, normalizeHtml, extractOpportunityLinks, buildDiscoveriesForSource, fetchOfficialSource, isTrustedOfficialHost, pruneSourceState, buildGoogleNewsRssUrl, parseGoogleNewsRss, searchInternetForContestLeads, filterUnseenWebSearchDiscoveries, INTERNET_SEARCH_QUERIES } from "./monitor-sources.mjs";
+import { collectSourceUrls, compareSource, fingerprintContent, normalizeHtml, extractOpportunityLinks, buildDiscoveriesForSource, fetchOfficialSource, isTrustedOfficialHost, pruneSourceState, buildGoogleNewsRssUrl, parseGoogleNewsRss, searchInternetForContestLeads, filterUnseenWebSearchDiscoveries, INTERNET_SEARCH_QUERIES, classifyContestLead } from "./monitor-sources.mjs";
 
 test("coleta somente URLs HTTPS únicas", () => {
   const urls = collectSourceUrls([

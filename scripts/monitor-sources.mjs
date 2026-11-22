@@ -482,31 +482,31 @@ function readXmlTag(block, tag) {
 export function normalizeNewsLeadIdentity(value) {
   return String(value || "")
     .normalize("NFD")
-    .replace(/[\\u0300-\\u036f]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, " ")
     .trim()
-    .replace(/\\s+/g, " ");
+    .replace(/\s+/g, " ");
 }
 
 export function classifyContestLead(title = "", description = "") {
   const text = normalizeNewsLeadIdentity(String(title) + " " + String(description).slice(0, 700));
-  if (/\\b(retificacao|retificacoes|errata|aditivo|alteracao do edital|cronograma retificado)\\b/.test(text)) {
+  if (/\b(retificacao|retificacoes|errata|aditivo|alteracao do edital|cronograma retificado)\b/.test(text)) {
     return { kind: "retification", label: "Retificação/errata" };
   }
-  if (/\\b(resultado final|homologacao|convocacao|nomeacao|classificacao final)\\b/.test(text)) {
+  if (/\b(resultado final|homologacao|convocacao|nomeacao|classificacao final)\b/.test(text)) {
     return { kind: "result_update", label: "Resultado/convocação" };
   }
-  if (/\\b(inscricoes abertas|inscricao aberta|prazo de inscricao|periodo de inscricao|inscricoes ate)\\b/.test(text)) {
+  if (/\b(inscricoes abertas|inscricao aberta|prazo de inscricao|periodo de inscricao|inscricoes ate)\b/.test(text)) {
     return { kind: "open_registration", label: "Inscrições/prazo" };
   }
-  if (/\\b(autorizacao|comissao formada|comissao organizadora|banca definida|escolha da banca|contrato com a banca|edital previsto)\\b/.test(text)) {
+  if (/\b(autorizacao|comissao formada|comissao organizadora|banca definida|escolha da banca|contrato com a banca|edital previsto)\b/.test(text)) {
     return { kind: "pre_notice", label: "Pré-edital/autorização" };
   }
-  if (/\\bedital\\b/.test(text)) {
+  if (/\bedital\b/.test(text)) {
     return { kind: "notice", label: "Edital/publicação" };
   }
-  if (/\\b(processo seletivo|selecao publica)\\b/.test(text)) {
+  if (/\b(processo seletivo|selecao publica)\b/.test(text)) {
     return { kind: "selection", label: "Processo seletivo" };
   }
   return { kind: "general", label: "Notícia para conferir" };
