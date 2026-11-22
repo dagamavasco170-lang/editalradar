@@ -47,6 +47,14 @@ Os avisos locais existentes continuam funcionando quando o aplicativo está aber
 - O APK é o pacote para instalação direta. O AAB fica disponível para uma eventual distribuição pela Play Store; a publicação na loja não é automática.
 - Builds debug são usados somente para verificação de CI quando a assinatura de produção não está disponível e não substituem a versão estável.
 
+## Integridade das atualizações e distribuição
+
+- O atualizador consulta somente a release estável oficial do GitHub e limita o tamanho da resposta de metadados.
+- O APK precisa corresponder ao identificador do aplicativo, à versão e ao tamanho publicados pela release; o download também é conferido pelo SHA-256 de `SHA256SUMS.txt`.
+- A instalação definitiva é entregue ao `PackageInstaller` do Android, que valida a compatibilidade da assinatura com o aplicativo instalado.
+- Antes de publicar uma versão, o CI verifica APK e AAB, confere o certificado permanente do EditalRadar e valida o identificador do pacote, `versionCode`, `versionName`, `minSdk` e `targetSdk` do APK.
+- A chave privada de distribuição permanece nos secrets do GitHub Actions; o fingerprint público do certificado é fixado nos testes de publicação para impedir uma troca acidental da identidade de assinatura.
+
 ## Compilação
 
 Com JDK 17, Android SDK e Gradle 8.10.2:

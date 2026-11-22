@@ -11,6 +11,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.security.MessageDigest
 import java.util.concurrent.Executors
+import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.atomic.AtomicBoolean
 import org.json.JSONObject
 
@@ -19,6 +20,7 @@ internal data class AppUpdateRelease(
     val versionCode: Long,
     val releaseNotes: String,
     val apkName: String,
+    val apkSizeBytes: Long,
     val apkUrl: String,
     val checksumUrl: String
 )
@@ -30,6 +32,7 @@ internal class AppUpdateManager(context: Context) {
         private const val RELEASE_ASSET_PREFIX =
             "https://github.com/dagamavasco170-lang/editalradar/releases/download/"
         private const val MAX_APK_BYTES = 80L * 1024L * 1024L
+        private const val MAX_RELEASE_METADATA_BYTES = 512L * 1024L
         private const val MAX_CHECKSUM_BYTES = 32L * 1024L
         private val REDIRECT_HOSTS = setOf(
             "github.com",
@@ -52,10 +55,15 @@ internal class AppUpdateManager(context: Context) {
             return
         }
 
-        worker.execute {
-            val result = runCatching { findAvailableRelease() }
+        try {
+            worker.execute {
+                val result = runCatching { findAvailableRelease() }
+                busy.set(false)
+                mainHandler.post { onComplete(result) }
+            }
+        } catch (error: RejectedExecutionException) {
             busy.set(false)
-            mainHandler.post { onComplete(result) }
+            mainHandler.post { onComplete(Result.failure(error)) }
         }
     }
 
@@ -71,10 +79,15 @@ internal class AppUpdateManager(context: Context) {
             return
         }
 
-        worker.execute {
-            val result = runCatching { downloadReleaseApk(release, onProgress) }
+        try {
+            worker.execute {
+                val result = runCatching { downloadReleaseApk(release, onProgress) }
+                busy.set(false)
+                mainHandler.post { onComplete(result) }
+            }
+        } catch (error: RejectedExecutionException) {
             busy.set(false)
-            mainHandler.post { onComplete(result) }
+            mainHandler.post { onComplete(Result.failure(error)) }
         }
     }
 
@@ -93,7 +106,7 @@ internal class AppUpdateManager(context: Context) {
             if (connection.responseCode != HttpURLConnection.HTTP_OK) {
                 throw IllegalStateException("Não foi possível consultar as atualizações.")
             }
-            connection.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+            readBoundedText(connection, MAX_RELEASE_METADATA_BYTES)
         } finally {
             connection.disconnect()
         }
@@ -118,15 +131,30 @@ internal class AppUpdateManager(context: Context) {
         val apkName = "EditalRadar-Android-v$versionName.apk"
         val assets = releaseJson.optJSONArray("assets") ?: return null
         var apkUrl: String? = null
+        var apkSizeBytes = -1L
+        var apkAssetUploaded = false
         var checksumUrl: String? = null
+        var checksumSizeBytes = -1L
+        var checksumAssetUploaded = false
 
         for (index in 0 until assets.length()) {
             val asset = assets.optJSONObject(index) ?: continue
             when (asset.optString("name")) {
-                apkName -> apkUrl = asset.optString("browser_download_url")
-                "SHA256SUMS.txt" -> checksumUrl = asset.optString("browser_download_url")
+                apkName -> {
+                    apkUrl = asset.optString("browser_download_url")
+                    apkSizeBytes = asset.optLong("size", -1L)
+                    apkAssetUploaded = asset.optString("state") == "uploaded"
+                }
+                "SHA256SUMS.txt" -> {
+                    checksumUrl = asset.optString("browser_download_url")
+                    checksumSizeBytes = asset.optLong("size", -1L)
+                    checksumAssetUploaded = asset.optString("state") == "uploaded"
+                }
             }
         }
+
+        if (!apkAssetUploaded || apkSizeBytes !in 1L..MAX_APK_BYTES) return null
+        if (!checksumAssetUploaded || checksumSizeBytes !in 1L..MAX_CHECKSUM_BYTES) return null
 
         val expectedPrefix = "$RELEASE_ASSET_PREFIX$tag/"
         val verifiedApkUrl = apkUrl?.takeIf {
@@ -148,6 +176,7 @@ internal class AppUpdateManager(context: Context) {
             versionCode = versionCode,
             releaseNotes = notes,
             apkName = apkName,
+            apkSizeBytes = apkSizeBytes,
             apkUrl = verifiedApkUrl,
             checksumUrl = verifiedChecksumUrl
         )
@@ -186,8 +215,10 @@ internal class AppUpdateManager(context: Context) {
 
         try {
             val declaredLength = connection.contentLengthLong
-            if (declaredLength > MAX_APK_BYTES) {
-                throw IllegalStateException("O arquivo de atualização ultrapassa o tamanho permitido.")
+            if (declaredLength > MAX_APK_BYTES ||
+                (declaredLength > 0L && declaredLength != release.apkSizeBytes)
+            ) {
+                throw IllegalStateException("O tamanho do arquivo de atualização não corresponde à publicação oficial.")
             }
 
             val digest = MessageDigest.getInstance("SHA-256")
@@ -217,8 +248,10 @@ internal class AppUpdateManager(context: Context) {
                 }
             }
 
-            if (downloaded <= 0L || (declaredLength > 0L && downloaded != declaredLength)) {
-                throw IllegalStateException("O download não foi concluído corretamente.")
+            if (downloaded != release.apkSizeBytes ||
+                (declaredLength > 0L && downloaded != declaredLength)
+            ) {
+                throw IllegalStateException("O download não corresponde ao tamanho publicado pela versão oficial.")
             }
 
             val actualHash = digest.digest().joinToString("") { "%02x".format(it.toInt() and 0xff) }

@@ -113,8 +113,8 @@ test("assinatura de distribuição usa apenas a chave permanente recebida pelo a
   assert.match(androidGradle, /ANDROID_RELEASE_KEY_ALIAS/);
   assert.match(androidGradle, /ANDROID_RELEASE_KEY_PASSWORD/);
   assert.match(androidGradle, /signingConfig signingConfigs\.getByName\('release'\)/);
-  assert.match(androidGradle, /versionCode 14/);
-  assert.ok(androidGradle.includes("versionName '1.3.1'"));
+  assert.match(androidGradle, /versionCode 15/);
+  assert.ok(androidGradle.includes("versionName '1.3.2'"));
   assert.ok(androidGradle.includes("androidx.webkit:webkit:1.18.0"));
   assert.doesNotMatch(androidGradle, /storePassword\s*['"][^'"]+['"]/);
 });
@@ -144,6 +144,14 @@ test("GitHub Actions nunca publica APK de depuração como atualização públic
   assert.ok(androidWorkflow.includes("Verify signed APK and AAB before publishing"));
   assert.ok(androidWorkflow.includes("-name apksigner"));
   assert.ok(androidWorkflow.includes("jarsigner -verify"));
+  assert.ok(androidWorkflow.includes("EXPECTED_ANDROID_SIGNER_SHA256"));
+  assert.ok(androidWorkflow.includes("6192a29e44539f63b525a9288f95fc98d6deb2f936cef50d624a228ca358595b"));
+  assert.ok(androidWorkflow.includes("keytool -printcert -jarfile"));
+  assert.ok(androidWorkflow.includes("AAB_SIGNER_SHA256"));
+  assert.ok(androidWorkflow.includes("-name aapt"));
+  assert.ok(androidWorkflow.includes('"$AAPT" dump badging "$APK_PATH"'));
+  assert.ok(androidWorkflow.includes("targetSdkVersion"));
+  assert.ok(androidWorkflow.includes("minSdk"));
   assert.ok(androidWorkflow.includes("needs.android-build.outputs.release_ready == 'true'"));
   assert.ok(androidWorkflow.includes("uses: softprops/action-gh-release@v3"));
   assert.ok(androidWorkflow.includes("sha256sum --check SHA256SUMS.txt"));
@@ -162,6 +170,7 @@ test("falha temporária ao consultar atualização não bloqueia novas tentativa
   const successBlock = android.slice(successStart, failureStart);
   assert.ok(successBlock.includes("if (!manual)"));
   assert.ok(successBlock.includes("putLong(LAST_UPDATE_CHECK_KEY, System.currentTimeMillis())"));
+  assert.ok(android.includes("lastCheck > 0L && now >= lastCheck && now - lastCheck < AUTO_UPDATE_CHECK_INTERVAL_MS"));
 });
 
 test("atualizador nativo consulta apenas releases oficiais e evita downgrade", () => {
@@ -171,6 +180,18 @@ test("atualizador nativo consulta apenas releases oficiais e evita downgrade", (
   assert.ok(appUpdate.includes('optBoolean("draft", true)'));
   assert.ok(appUpdate.includes('optBoolean("prerelease", true)'));
   assert.ok(appUpdate.includes("EditalRadar-Android-v"));
+  assert.ok(appUpdate.includes("MAX_RELEASE_METADATA_BYTES = 512L * 1024L"));
+  assert.ok(appUpdate.includes("readBoundedText(connection, MAX_RELEASE_METADATA_BYTES)"));
+  assert.ok(!appUpdate.includes("it.readText()"));
+  assert.ok(appUpdate.includes("RejectedExecutionException"));
+});
+
+test("atualizador exige ativos publicados e confere o tamanho anunciado pela release", () => {
+  assert.ok(appUpdate.includes('asset.optString("state") == "uploaded"'));
+  assert.ok(appUpdate.includes("apkSizeBytes = asset.optLong(\"size\", -1L)"));
+  assert.ok(appUpdate.includes("apkSizeBytes !in 1L..MAX_APK_BYTES"));
+  assert.ok(appUpdate.includes("downloaded != release.apkSizeBytes"));
+  assert.ok(appUpdate.includes("declaredLength != release.apkSizeBytes"));
 });
 
 test("download do atualizador valida origem, redirects, tamanho e SHA-256", () => {
