@@ -14,11 +14,10 @@ describe("fontes de estudo privadas e fontes de prova", () => {
       "https://brasilescola.uol.com.br/gramatica",
       "https://www.mundoeducacao.uol.com.br/matematica",
       "https://www.todamateria.com.br/materias/",
-      "https://pt.khanacademy.org/math",
       "https://www.politize.com.br/trilhas/politicas-publicas/",
-      "https://www.jrconcursos.com.br/materiais-gratuitos-para-concursos-publicos/materiais-por-disciplinas/",
       "https://blog.grancursosonline.com.br/informatica-para-concursos-conceitos-basicos-para-prova/",
-      "https://www.somatematica.com.br/"
+      "https://www.somatematica.com.br/",
+      "https://www.guiadoestudante.abril.com.br/atualidades/"
     ]) expect(isTrustedPrivateStudySourceUrl(url), url).toBe(true);
   });
 
@@ -31,6 +30,8 @@ describe("fontes de estudo privadas e fontes de prova", () => {
       "https://www.gov.br.evil.com/concursos",
       "http://brasilescola.uol.com.br/gramatica",
       "https://brasilescola.uol.com.br.evil.com/concursos",
+      "https://www.jusbrasil.com.br/artigos/",
+      "https://www.tecconcursos.com.br/materias/",
       "https://brasilescola.uol.com.br@evil.com/concursos",
       "javascript:alert(1)",
       "not-a-url",
