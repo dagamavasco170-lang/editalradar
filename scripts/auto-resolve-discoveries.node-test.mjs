@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { appendContext, buildPendingDiscoveriesUrl, buildRetificationUpdate, classifyDiscovery, extractDocumentText, extractRoleNamesFromText, extractVacancyDetails, fetchCandidateWithRetry, findMatchingContestForRetification, inferOrganization, mapWithConcurrency, normalizeContestIdentity, prepareDiscoveryDocument, countPendingDiscoveries, requestJson, summarizeFetchError, assessNoticeFreshness, extractDeclaredPublisherUrl, resolveGoogleNewsArticleUrl, prioritizePendingDiscoveries } from "./auto-resolve-discoveries.mjs";
+import { appendContext, buildPendingDiscoveriesUrl, buildRetificationUpdate, classifyDiscovery, extractDocumentText, extractRoleNamesFromText, extractVacancyDetails, fetchCandidateWithRetry, findMatchingContestForRetification, inferOrganization, mapWithConcurrency, normalizeContestIdentity, prepareDiscoveryDocument, countPendingDiscoveries, requestJson, summarizeFetchError, assessNoticeFreshness, extractDeclaredPublisherUrl, resolveGoogleNewsArticleUrl, prioritizePendingDiscoveries, isClearlyUnrelatedAdministrativeDiscovery } from "./auto-resolve-discoveries.mjs";
 
 const discovery = {
   id: 1,
@@ -612,27 +612,69 @@ test("a triagem não repete inserção de catálogo não idempotente após respo
   assert.equal(calls, 1);
 });
 
-test("triagem automática processa links oficiais e valida pistas externas pela fonte indicada", () => {
-  const url = new URL(buildPendingDiscoveriesUrl(
-    "https://example.supabase.co",
-    new Date("2026-11-21T18:00:00.000Z")
+test("consulta fontes oficiais a cada 6 horas e pistas externas a cada 24 horas", () => {
+  const now = new Date("2026-11-21T18:00:00.000Z");
+  const officialUrl = new URL(buildPendingDiscoveriesUrl(
+    "https://example.supabase.co", now, 6 * 60 * 60 * 1000, ["new_link", "page_change"]
+  ));
+  const externalUrl = new URL(buildPendingDiscoveriesUrl(
+    "https://example.supabase.co", now, 24 * 60 * 60 * 1000, ["web_search_lead"]
   ));
 
-  assert.equal(url.searchParams.get("status"), "eq.pending");
-  assert.equal(url.searchParams.get("discovery_type"), "in.(new_link,page_change,web_search_lead)");
-  assert.match(url.searchParams.get("or"), /reviewed_at\.is\.null/);
-  assert.match(url.searchParams.get("or"), /reviewed_at\.lt\.2026-11-21T12:00:00/);
-  assert.equal(url.searchParams.get("limit"), "300");
+  assert.equal(officialUrl.searchParams.get("status"), "eq.pending");
+  assert.equal(officialUrl.searchParams.get("discovery_type"), "in.(new_link,page_change)");
+  assert.match(officialUrl.searchParams.get("or"), /reviewed_at\.is\.null/);
+  assert.match(officialUrl.searchParams.get("or"), /reviewed_at\.lt\.2026-11-21T12:00:00/);
+  assert.equal(officialUrl.searchParams.get("limit"), "300");
+
+  assert.equal(externalUrl.searchParams.get("discovery_type"), "in.(web_search_lead)");
+  assert.match(externalUrl.searchParams.get("or"), /reviewed_at\.lt\.2026-11-20T18:00:00/);
+  assert.equal(externalUrl.searchParams.get("limit"), "300");
 });
 
 
-test("inclui páginas oficiais alteradas e pistas externas para validação por fonte oficial", () => {
+test("mantém páginas-base fora da automação e rejeita tipos de descoberta desconhecidos", () => {
   const url = new URL(buildPendingDiscoveriesUrl(
     "https://example.supabase.co",
-    new Date("2026-11-21T18:00:00.000Z")
+    new Date("2026-11-21T18:00:00.000Z"),
+    6 * 60 * 60 * 1000,
+    ["new_link", "page_change"]
   ));
-  assert.equal(url.searchParams.get("discovery_type"), "in.(new_link,page_change,web_search_lead)");
-  assert.doesNotMatch(url.searchParams.get("discovery_type"), /source_baseline/);
+  assert.equal(url.searchParams.get("discovery_type"), "in.(new_link,page_change)");
+  assert.doesNotMatch(url.searchParams.get("discovery_type"), /source_baseline|web_search_lead/);
+  assert.throws(() => buildPendingDiscoveriesUrl("https://example.supabase.co", new Date(), 0, ["source_baseline"]), /tipo permitido/);
+});
+
+
+test("descarta serviços administrativos claramente alheios a concursos antes de acessar a rede", async () => {
+  const unrelated = [
+    { title: "Avisos de Edital de Leilao", candidate_url: "https://www.gov.br/receitafederal/avisos-de-edital-de-leilao" },
+    { title: "• Procurações (Autorizações de Acesso)", candidate_url: "https://www.gov.br/receitafederal/assuntos/procuracoes" },
+    { title: "Consultar editais e ADEs", candidate_url: "https://www.gov.br/servicos/consultar-editais-e-atos-declaratorios-executivos" },
+    { title: "Atos Declaratórios Executivos", candidate_url: "https://www.gov.br/receitafederal/atos-declaratorios" }
+  ];
+  let networkCalls = 0;
+  for (const item of unrelated) {
+    assert.equal(isClearlyUnrelatedAdministrativeDiscovery({ ...item, discovery_type: "new_link" }), true);
+    const prepared = await prepareDiscoveryDocument({
+      ...discovery, ...item, discovery_type: "new_link"
+    }, async () => {
+      networkCalls += 1;
+      throw new Error("A rede não deveria ser chamada.");
+    });
+    assert.equal(prepared.stage, "dismiss");
+    assert.match(prepared.reason, /sem relação com concurso/);
+  }
+  assert.equal(networkCalls, 0);
+});
+
+test("não descarta edital de concurso por engano no filtro administrativo antecipado", () => {
+  const legitimate = {
+    discovery_type: "new_link",
+    title: "Edital 01/2026 — concurso público para agente administrativo",
+    candidate_url: "https://banca.org.br/concursos/edital-01-2026"
+  };
+  assert.equal(isClearlyUnrelatedAdministrativeDiscovery(legitimate), false);
 });
 
 test("resolve a notícia do Google somente para a publicação no mesmo domínio oficial declarado", async () => {
