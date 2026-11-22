@@ -1,5 +1,5 @@
 import React,{useEffect,useState} from "react";
-import { isTrustedOfficialUrl, parseHttpsUrl } from "./lib/official-sources.js";
+import { isTrustedOfficialUrl, isTrustedPrivateStudySourceUrl, parseHttpsUrl } from "./lib/official-sources.js";
 
 const blank=()=>({exam_name:"",exam_year:String(new Date().getFullYear()),board:"Cebraspe",discipline:"Língua Portuguesa",topic:"",difficulty:"Intermediária",prompt:"",options:["","","","",""],answer:"a",explanation:"",source_url:"",rights_holder:"",license_status:"permission_granted",license_proof_url:""});
 const blankTopic=()=>({discipline:"Direito Constitucional",topic:"Princípios da Administração Pública",difficulty:"Intermediária",source_url:"",source_excerpt:"",questions_per_run:3,cadence_days:1,active:true});
@@ -53,7 +53,7 @@ export default function StudyQuestionAdmin({authClient,userId}){
  const saveTopic=async event=>{
   event.preventDefault();setAutomationMessage("");
   if(!authClient||!userId){setAutomationMessage("Entre com uma conta administrativa.");setAutomationKind("error");return;}
-  if(!isTrustedOfficialUrl(topicForm.source_url)){setAutomationMessage("Use uma fonte HTTPS de órgão público ou banca reconhecida.");setAutomationKind("error");return;}
+  if(!isTrustedPrivateStudySourceUrl(topicForm.source_url)){setAutomationMessage("Use uma editora ou plataforma privada de estudo da lista autorizada.");setAutomationKind("error");return;}
   if(topicForm.source_excerpt.trim().length>0&&topicForm.source_excerpt.trim().length<200){setAutomationMessage("O trecho manual precisa ter pelo menos 200 caracteres. Deixe-o vazio para tentar a extração automática da página.");setAutomationKind("error");return;}
   if(topicForm.source_excerpt.trim().length>12000){setAutomationMessage("O trecho manual não pode ultrapassar 12.000 caracteres.");setAutomationKind("error");return;}
   setBusyId("save-topic");
@@ -144,16 +144,16 @@ export default function StudyQuestionAdmin({authClient,userId}){
    </div>
    <div className="question-ai-how"><strong>Revisão em duas etapas</strong><p>Gemini Flash-Lite elabora a questão e um segundo passe revisa a resposta, os distratores, a justificativa e a aderência à fonte. Há validação automática de evidência literal e duplicidade. Somente questões com nota mínima de 90/100 e todos os critérios atendidos são publicadas.</p></div>
    <form className="question-ai-form" onSubmit={saveTopic}>
-    <div><strong>Configurar tema recorrente</strong><small>Informe a fonte oficial. O sistema tenta extrair o texto automaticamente; o trecho manual é uma alternativa para PDFs e imagens.</small></div>
+    <div><strong>Configurar tema recorrente</strong><small>Informe uma fonte privada de estudo. O sistema tenta extrair o texto automaticamente; para PDFs e imagens, cole um trecho permitido pelo titular do conteúdo.</small></div>
     <div className="study-admin-grid">
      <label>Disciplina<select value={topicForm.discipline} onChange={e=>updateTopic("discipline",e.target.value)}>{["Língua Portuguesa","Raciocínio lógico","Direito Constitucional","Direito Administrativo","Informática","Direito Civil","Direito Penal","Direito Processual","Conhecimentos específicos"].map(item=><option key={item}>{item}</option>)}</select></label>
      <label>Dificuldade<select value={topicForm.difficulty} onChange={e=>updateTopic("difficulty",e.target.value)}>{["Fácil","Intermediária","Avançada"].map(item=><option key={item}>{item}</option>)}</select></label>
      <label className="study-admin-wide">Assunto<input value={topicForm.topic} onChange={e=>updateTopic("topic",e.target.value)} required maxLength={160} placeholder="Ex.: Direitos e garantias fundamentais"/></label>
-     <label className="study-admin-wide">Fonte oficial HTTPS<input type="url" value={topicForm.source_url} onChange={e=>updateTopic("source_url",e.target.value)} required placeholder="https://www.gov.br/..."/></label>
+     <label className="study-admin-wide">Fonte privada de estudo HTTPS<input type="url" value={topicForm.source_url} onChange={e=>updateTopic("source_url",e.target.value)} required placeholder="https://brasilescola.uol.com.br/..."/></label>
      <label>Questões por execução<select value={topicForm.questions_per_run} onChange={e=>updateTopic("questions_per_run",Number(e.target.value))}>{[1,2,3].map(value=><option key={value} value={value}>{value}</option>)}</select></label>
      <label>Frequência<select value={topicForm.cadence_days} onChange={e=>updateTopic("cadence_days",Number(e.target.value))}>{[{value:1,label:"Diária"},{value:2,label:"A cada 2 dias"},{value:7,label:"Semanal"},{value:14,label:"A cada 14 dias"},{value:30,label:"Mensal"}].map(item=><option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
     </div>
-    <label>Trecho do material oficial (opcional)<textarea rows={5} maxLength={12000} value={topicForm.source_excerpt} onChange={e=>updateTopic("source_excerpt",e.target.value)} placeholder="Deixe vazio para a automação extrair o texto da página oficial. Para PDF ou imagem, cole aqui um trecho de 200 a 12.000 caracteres."/></label>
+    <label>Trecho do material de estudo (opcional)<textarea rows={5} maxLength={12000} value={topicForm.source_excerpt} onChange={e=>updateTopic("source_excerpt",e.target.value)} placeholder="Deixe vazio para a automação extrair o texto da página de estudo. Para PDF ou imagem, cole aqui um trecho de 200 a 12.000 caracteres."/></label>
     <div className="question-ai-form-footer"><small>{topicForm.source_excerpt.trim().length}/12.000 caracteres · extração automática quando vazio</small><button className="primary-btn" type="submit" disabled={busyId==="save-topic"}>{busyId==="save-topic"?"Salvando…":"Adicionar tema"}</button></div>
    </form>
    <div className="question-ai-topics">
