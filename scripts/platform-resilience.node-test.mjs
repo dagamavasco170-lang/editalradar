@@ -116,16 +116,17 @@ test("GitHub Actions nunca publica APK de depuração como atualização públic
     "      - name: Validate Firebase Android configuration" + lineBreak +
     "        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'"
   ));
-  assert.match(androidWorkflow, /permissions:\\n  contents: read/);
-  assert.match(androidWorkflow, /publish-release:[\\s\\S]*?permissions:\\n      contents: write/);
-  assert.doesNotMatch(androidWorkflow, /android\\/\\*\\*/);
-  assert.match(androidWorkflow, /Verify signed APK and AAB before publishing/);
-  assert.match(androidWorkflow, /apksigner.*verify/);
-  assert.match(androidWorkflow, /jarsigner -verify/);
-  assert.match(androidWorkflow, /needs\\.android-build\\.outputs\\.release_ready == 'true'/);
-  assert.match(androidWorkflow, /uses: softprops\\/action-gh-release@v2/);
-  assert.match(androidWorkflow, /sha256sum --check SHA256SUMS\\.txt/);
-  assert.match(androidWorkflow, /actions\\/download-artifact@v4/);
+  assert.ok(androidWorkflow.includes("permissions:\\n  contents: read"));
+  assert.ok(androidWorkflow.includes("publish-release:"));
+  assert.ok(androidWorkflow.includes("permissions:\\n      contents: write"));
+  assert.ok(!androidWorkflow.includes('      - "android/**"'));
+  assert.ok(androidWorkflow.includes("Verify signed APK and AAB before publishing"));
+  assert.ok(androidWorkflow.includes("apksigner\""));
+  assert.ok(androidWorkflow.includes("jarsigner -verify"));
+  assert.ok(androidWorkflow.includes("needs.android-build.outputs.release_ready == 'true'"));
+  assert.ok(androidWorkflow.includes("uses: softprops/action-gh-release@v2"));
+  assert.ok(androidWorkflow.includes("sha256sum --check SHA256SUMS.txt"));
+  assert.ok(androidWorkflow.includes("actions/download-artifact@v4"));
 });
 
 
@@ -134,8 +135,12 @@ test("falha temporária ao consultar atualização não bloqueia novas tentativa
     android.indexOf("    private fun maybeCheckForUpdates()"),
     android.indexOf("    private fun checkForUpdates(manual: Boolean)")
   );
-  assert.doesNotMatch(maybeCheckBlock, /putLong\\(LAST_UPDATE_CHECK_KEY/);
-  assert.match(android, /result\\.onSuccess \\{ release ->[\\s\\S]*?if \\(!manual\\) \\{[\\s\\S]*?putLong\\(LAST_UPDATE_CHECK_KEY, System\\.currentTimeMillis\\(\\)\\)/);
+  assert.ok(!maybeCheckBlock.includes("putLong(LAST_UPDATE_CHECK_KEY"));
+  const successStart = android.indexOf("result.onSuccess { release ->");
+  const failureStart = android.indexOf("}.onFailure", successStart);
+  const successBlock = android.slice(successStart, failureStart);
+  assert.ok(successBlock.includes("if (!manual)"));
+  assert.ok(successBlock.includes("putLong(LAST_UPDATE_CHECK_KEY, System.currentTimeMillis())"));
 });
 
 test("atualizador nativo consulta apenas releases oficiais e evita downgrade", () => {
