@@ -490,13 +490,13 @@ test("mantém feeds editoriais auxiliares explícitos, HTTPS e independentes do 
   assert.equal(SECONDARY_NEWS_FEEDS.length, 3);
   assert.ok(SECONDARY_NEWS_FEEDS.every(feed => feed.feedUrl.startsWith("https://")));
   assert.ok(SECONDARY_NEWS_FEEDS.some(feed => feed.id === "concursos-no-brasil"
-    && feed.feedUrl === "https://concursosnobrasil.com.br/feed/"));
+    && feed.feedUrl === "https://www.concursosnobrasil.com.br/feed/"));
   assert.ok(SECONDARY_NEWS_FEEDS.some(feed => feed.id === "estrategia-concursos"));
   assert.ok(SECONDARY_NEWS_FEEDS.some(feed => feed.id === "g1-concursos"));
 });
 
 test("extrai pistas recentes de RSS editorial sem tratar o artigo como prova oficial", () => {
-  const feedUrl = "https://concursosnobrasil.com.br/feed/";
+  const feedUrl = "https://www.concursosnobrasil.com.br/feed/";
   const xml = [
     "<rss><channel><item>",
     "<title>Prefeitura de Igaci publica edital de concurso público com 20 vagas</title>",
