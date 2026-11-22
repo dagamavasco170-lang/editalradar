@@ -5,8 +5,6 @@ on:
     branches: [main]
     paths:
       - "android/**"
-      - "src/App.jsx"
-      - "src/lib/notifications.js"
       - ".github/workflows/android-release.yml"
   workflow_dispatch:
 
@@ -94,6 +92,7 @@ jobs:
           target_commitish: ${{ github.sha }}
           body_path: android-release-notes.md
           files: release-assets/*
+          overwrite_files: true
           fail_on_unmatched_files: true
           make_latest: true
           draft: false
