@@ -651,7 +651,8 @@ test("descarta serviços administrativos claramente alheios a concursos antes de
     { title: "Avisos de Edital de Leilao", candidate_url: "https://www.gov.br/receitafederal/avisos-de-edital-de-leilao" },
     { title: "• Procurações (Autorizações de Acesso)", candidate_url: "https://www.gov.br/receitafederal/assuntos/procuracoes" },
     { title: "Consultar editais e ADEs", candidate_url: "https://www.gov.br/servicos/consultar-editais-e-atos-declaratorios-executivos" },
-    { title: "Atos Declaratórios Executivos", candidate_url: "https://www.gov.br/receitafederal/atos-declaratorios" }
+    { title: "Atos Declaratórios Executivos", candidate_url: "https://www.gov.br/receitafederal/atos-declaratorios" },
+    { title: "Atos Declaratorios Executivos", candidate_url: "https://www.gov.br/receitafederal/atos-declaratorios" }
   ];
   let networkCalls = 0;
   for (const item of unrelated) {
