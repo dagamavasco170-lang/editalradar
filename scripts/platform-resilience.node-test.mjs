@@ -133,6 +133,17 @@ test("Android 16 usa uma cadeia de ferramentas compatível e target API 36", () 
   assert.ok(androidReadme.includes("targetSdk 36"));
 });
 
+test("permissão de instalação usa Activity Result API sem callback legado", () => {
+  assert.ok(android.includes("ActivityResultContracts.StartActivityForResult()"));
+  assert.ok(android.includes("updateInstallPermissionLauncher = registerForActivityResult("));
+  assert.ok(android.includes("updateInstallPermissionLauncher.launch(settingsIntent)"));
+  assert.ok(android.includes("private fun resumePendingUpdateAfterPermission()"));
+  assert.ok(android.includes("PENDING_UPDATE_APK_KEY"));
+  assert.doesNotMatch(android, /startActivityForResult\(/);
+  assert.doesNotMatch(android, /override fun onActivityResult\(/);
+  assert.doesNotMatch(android, /APP_UPDATE_PERMISSION_REQUEST/);
+});
+
 test("navegação de retorno WebView usa o dispatcher AndroidX", () => {
   assert.ok(android.includes("import androidx.activity.ComponentActivity"));
   assert.ok(android.includes("import androidx.activity.OnBackPressedCallback"));
@@ -212,8 +223,8 @@ test("assinatura de distribuição usa apenas a chave permanente recebida pelo a
   assert.match(androidGradle, /ANDROID_RELEASE_KEY_ALIAS/);
   assert.match(androidGradle, /ANDROID_RELEASE_KEY_PASSWORD/);
   assert.match(androidGradle, /signingConfig signingConfigs\.getByName\('release'\)/);
-  assert.match(androidGradle, /versionCode 19/);
-  assert.ok(androidGradle.includes("versionName '1.3.6'"));
+  assert.match(androidGradle, /versionCode 20/);
+  assert.ok(androidGradle.includes("versionName '1.3.7'"));
   assert.ok(androidGradle.includes("androidx.activity:activity-ktx:1.13.0"));
   assert.ok(androidGradle.includes("androidx.fragment:fragment-ktx:1.9.1"));
   assert.ok(androidGradle.includes("androidx.webkit:webkit:1.18.0"));
