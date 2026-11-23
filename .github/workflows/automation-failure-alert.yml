@@ -10,6 +10,7 @@ on:
       - "Gerar e revisar questões automaticamente"
       - "Monitorar saúde das automações"
       - "Recuperar automações com falha"
+      - "Atualizar dependências com correções seguras"
     types: [completed]
 
 permissions:
