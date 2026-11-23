@@ -1,5 +1,7 @@
 name: Build and publish EditalRadar Android release
 
+# API 36 release uses the AndroidX Activity Result contract with Fragment 1.9.1.
+
 on:
   push:
     branches: [main]
