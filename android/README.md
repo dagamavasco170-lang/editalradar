@@ -63,6 +63,7 @@ Os avisos locais existentes continuam funcionando quando o aplicativo está aber
 ## Compatibilidade com Android 16
 
 - O app compila com `compileSdk 36` e `targetSdk 36`, mantendo `minSdk 24` para continuar atendendo aparelhos a partir do Android 7.
+- As APIs Activity Result usam AndroidX Activity 1.13.0 e Fragment 1.9.1 para manter compatibilidade verificada pelo Lint.
 - A navegação usa o `OnBackPressedDispatcher` do AndroidX e habilita o callback de retorno do sistema. O histórico da WebView só intercepta o gesto enquanto há uma página anterior; na página inicial, o Android executa a ação normal de voltar.
 - A tela aplica os insets das barras do sistema e do recorte da tela para evitar que controles fiquem escondidos sob a barra de status ou navegação.
 
