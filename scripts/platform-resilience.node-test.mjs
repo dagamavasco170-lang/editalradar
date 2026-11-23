@@ -78,9 +78,14 @@ test("WebView recria uma instância nova quando o renderizador Android é encerr
   assert.ok(android.includes("Feche e abra o aplicativo novamente."));
 });
 
-test("Android registra falhas de recursos da WebView sem registrar conteúdo sensível", () => {
+test("Android registra falhas da WebView com detalhes sanitizados apenas em builds de teste", () => {
   assert.ok(android.includes("onConsoleMessage(consoleMessage: ConsoleMessage)"));
-  assert.ok(android.includes('Log.w("EditalRadarWebView", "JavaScript error in'));
+  assert.ok(android.includes("val debugBuild = applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0"));
+  assert.ok(android.includes("val safeDetails = if (debugBuild)"));
+  assert.ok(android.includes("consoleMessage.message()"));
+  assert.ok(android.includes("access_token|refresh_token|api[_-]?key|authorization"));
+  assert.ok(android.includes("[redacted-token]"));
+  assert.ok(android.includes('"JavaScript error"'));
   assert.ok(android.includes("Resource load error"));
   assert.ok(android.includes('Log.w("EditalRadarWebView", "HTTP'));
   assert.ok(androidSmokeScript.includes("EditalRadarWebView:W"));
