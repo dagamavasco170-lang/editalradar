@@ -95,6 +95,20 @@ test("Android atualiza o token FCM ao retomar a página confiável", () => {
   assert.ok(android.includes('getSharedPreferences("editalradar_push", Context.MODE_PRIVATE)'));
 });
 
+test("callbacks nativos assíncronos só chegam à WebView oficial e pronta", () => {
+  assert.ok(android.includes("private fun isTrustedWebPageReady(): Boolean"));
+  assert.ok(android.includes("!::webView.isInitialized || !webPageReady || isFinishing || isDestroyed"));
+  assert.ok(android.includes("return isInternalAppUrl(currentUri)"));
+  assert.ok(android.includes("private fun postToTrustedWebPage("));
+  assert.ok(android.includes("targetWebView !== webView || !isTrustedWebPageReady()"));
+  assert.ok(android.includes("retryFcmTokenDelivery: Boolean = false"));
+  assert.ok(android.includes("pendingFcmTokenDelivery = true"));
+  assert.ok(android.includes("if (webPageReady && pendingFcmTokenDelivery) requestFcmToken()"));
+  assert.match(android, /private fun dispatchNativeNotificationPermission\(granted: Boolean\)[\\s\\S]*?postToTrustedWebPage\(script\)/);
+  assert.match(android, /private fun dispatchFcmToken\(token: String\)[\\s\\S]*?postToTrustedWebPage\(script, retryFcmTokenDelivery = true\)/);
+  assert.match(android, /private fun dispatchFcmStatus\(configured: Boolean\)[\\s\\S]*?postToTrustedWebPage\(script\)/);
+});
+
 test("Android 16 usa uma cadeia de ferramentas compatível e target API 36", () => {
   assert.match(androidGradle, /compileSdk 36/);
   assert.match(androidGradle, /targetSdk 36/);
@@ -184,8 +198,8 @@ test("assinatura de distribuição usa apenas a chave permanente recebida pelo a
   assert.match(androidGradle, /ANDROID_RELEASE_KEY_ALIAS/);
   assert.match(androidGradle, /ANDROID_RELEASE_KEY_PASSWORD/);
   assert.match(androidGradle, /signingConfig signingConfigs\.getByName\('release'\)/);
-  assert.match(androidGradle, /versionCode 18/);
-  assert.ok(androidGradle.includes("versionName '1.3.5'"));
+  assert.match(androidGradle, /versionCode 19/);
+  assert.ok(androidGradle.includes("versionName '1.3.6'"));
   assert.ok(androidGradle.includes("androidx.activity:activity-ktx:1.13.0"));
   assert.ok(androidGradle.includes("androidx.fragment:fragment-ktx:1.9.1"));
   assert.ok(androidGradle.includes("androidx.webkit:webkit:1.18.0"));
