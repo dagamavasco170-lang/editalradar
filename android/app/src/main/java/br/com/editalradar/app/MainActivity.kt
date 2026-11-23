@@ -3,6 +3,8 @@ package br.com.editalradar.app
 import android.Manifest
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
 import android.app.AlertDialog
 import android.app.Notification
 import android.app.NotificationChannel
@@ -58,7 +60,6 @@ class MainActivity : ComponentActivity() {
         private const val HOME_HOST = "dagamavasco170-lang.github.io"
         private const val HOME_PATH = "/editalradar/"
         private const val NOTIFICATION_CHANNEL_ID = "editalradar_updates"
-        private const val NOTIFICATION_PERMISSION_REQUEST = 8102
         private const val APP_UPDATE_PERMISSION_REQUEST = 8103
         private const val MAX_NATIVE_MESSAGE_CHARS = 2_048
         private const val AUTO_UPDATE_CHECK_INTERVAL_MS = 6L * 60L * 60L * 1000L
@@ -83,11 +84,18 @@ class MainActivity : ComponentActivity() {
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
     private var lastKnownOnlineState: Boolean? = null
     private var notificationPermissionRequestPending = false
+    private lateinit var notificationPermissionLauncher: ActivityResultLauncher<String>
     private var webPageReady = false
     private var fcmTokenRequestInFlight = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        notificationPermissionLauncher = registerForActivityResult(
+            ActivityResultContracts.RequestPermission()
+        ) { granted ->
+            notificationPermissionRequestPending = false
+            dispatchNativeNotificationPermission(granted)
+        }
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         buildScreen()
         configureBackNavigation()
@@ -737,10 +745,7 @@ class MainActivity : ComponentActivity() {
         if (notificationPermissionRequestPending) return
         notificationPermissionRequestPending = true
         try {
-            requestPermissions(
-                arrayOf(Manifest.permission.POST_NOTIFICATIONS),
-                NOTIFICATION_PERMISSION_REQUEST
-            )
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         } catch (_: Exception) {
             notificationPermissionRequestPending = false
             dispatchNativeNotificationPermission(granted = false)
@@ -1087,19 +1092,6 @@ class MainActivity : ComponentActivity() {
     override fun onSaveInstanceState(outState: Bundle) {
         if (::webView.isInitialized) webView.saveState(outState)
         super.onSaveInstanceState(outState)
-    }
-
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == NOTIFICATION_PERMISSION_REQUEST) {
-            notificationPermissionRequestPending = false
-            val granted = grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED
-            dispatchNativeNotificationPermission(granted)
-        }
     }
 
     private fun configureBackNavigation() {
