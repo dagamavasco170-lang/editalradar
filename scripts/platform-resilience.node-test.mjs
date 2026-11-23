@@ -70,6 +70,23 @@ test("WebView recria uma instância nova quando o renderizador Android é encerr
   assert.ok(android.includes("Feche e abra o aplicativo novamente."));
 });
 
+test("Android atualiza o token FCM ao retomar a página confiável", () => {
+  assert.ok(android.includes("private var webPageReady = false"));
+  assert.ok(android.includes("private var fcmTokenRequestInFlight = false"));
+  assert.ok(android.includes("override fun onPageStarted("));
+  assert.ok(android.includes("override fun onPageFinished("));
+  assert.ok(android.includes("webPageReady = runCatching { isInternalAppUrl(Uri.parse(url)) }"));
+  const resumeStart = android.indexOf("override fun onResume()");
+  const resumeEnd = android.indexOf("private fun showPendingInstallFailureIfAny()", resumeStart);
+  const resumeBlock = android.slice(resumeStart, resumeEnd);
+  assert.ok(resumeBlock.includes("if (webPageReady) requestFcmToken()"));
+  assert.ok(android.includes("if (fcmTokenRequestInFlight || isFinishing || isDestroyed) return"));
+  assert.ok(android.includes("fcmTokenRequestInFlight = true"));
+  assert.ok(android.includes("fcmTokenRequestInFlight = false"));
+  assert.ok(android.includes("if (isFinishing || isDestroyed) return@addOnCompleteListener"));
+  assert.ok(android.includes('getSharedPreferences("editalradar_push", Context.MODE_PRIVATE)'));
+});
+
 test("WebView respeita o ciclo de vida e recupera a página inicial", () => {
   assert.match(android, /val restoredWebState = savedInstanceState != null/);
   assert.match(android, /else if \(!restoredWebState\)/);
@@ -126,8 +143,8 @@ test("assinatura de distribuição usa apenas a chave permanente recebida pelo a
   assert.match(androidGradle, /ANDROID_RELEASE_KEY_ALIAS/);
   assert.match(androidGradle, /ANDROID_RELEASE_KEY_PASSWORD/);
   assert.match(androidGradle, /signingConfig signingConfigs\.getByName\('release'\)/);
-  assert.match(androidGradle, /versionCode 16/);
-  assert.ok(androidGradle.includes("versionName '1.3.3'"));
+  assert.match(androidGradle, /versionCode 17/);
+  assert.ok(androidGradle.includes("versionName '1.3.4'"));
   assert.ok(androidGradle.includes("androidx.webkit:webkit:1.18.0"));
   assert.doesNotMatch(androidGradle, /storePassword\s*['"][^'"]+['"]/);
 });
