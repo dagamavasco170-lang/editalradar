@@ -49,12 +49,19 @@ jobs:
                 continue;
               }
               const ageHours = (now - new Date(latest.created_at).getTime()) / 3600000;
-              if (latest.conclusion !== "success") {
-                problems.push("**" + workflow.label + "**: última execução terminou com `" + (latest.conclusion || latest.status) + "`. [Ver execução](" + latest.html_url + ")");
+              const link = "[Ver execução](" + latest.html_url + ")";
+              if (latest.status === "in_progress" || latest.status === "queued") {
+                if (ageHours > workflow.maxAgeHours) {
+                  problems.push("**" + workflow.label + "**: execução está " + latest.status + " há " + ageHours.toFixed(1) + "h (limite " + workflow.maxAgeHours + "h). " + link);
+                } else {
+                  healthy.push("**" + workflow.label + "**: execução " + latest.status + " (" + ageHours.toFixed(1) + "h). " + link);
+                }
+              } else if (latest.conclusion !== "success") {
+                problems.push("**" + workflow.label + "**: última execução terminou com `" + (latest.conclusion || latest.status) + "`. " + link);
               } else if (ageHours > workflow.maxAgeHours) {
-                problems.push("**" + workflow.label + "**: execução mais recente há " + ageHours.toFixed(1) + " horas (limite " + workflow.maxAgeHours + "h). [Ver execução](" + latest.html_url + ")");
+                problems.push("**" + workflow.label + "**: execução mais recente há " + ageHours.toFixed(1) + " horas (limite " + workflow.maxAgeHours + "h). " + link);
               } else {
-                healthy.push("**" + workflow.label + "**: OK (" + ageHours.toFixed(1) + "h desde a última execução). [Ver execução](" + latest.html_url + ")");
+                healthy.push("**" + workflow.label + "**: OK (" + ageHours.toFixed(1) + "h desde a última execução). " + link);
               }
             }
             const title = "[Automação] Saúde dos workflows agendados";
