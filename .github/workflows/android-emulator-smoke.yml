@@ -32,7 +32,7 @@ jobs:
   smoke:
     name: Install and launch on Android emulator
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 40
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -52,43 +52,79 @@ jobs:
         working-directory: android
         run: gradle assembleDebug --no-daemon --max-workers=2
 
-      - name: Install and launch on emulator
+      - name: Enable KVM when available (software fallback otherwise)
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -e /dev/kvm ]]; then
+            sudo chmod 666 /dev/kvm || true
+          fi
+
+          if [[ -r /dev/kvm && -w /dev/kvm ]]; then
+            echo "KVM is available; the emulator can use hardware acceleration."
+          else
+            echo "KVM is unavailable; allowing the Android Emulator software TCG fallback."
+            echo "ANDROID_I_WANT_MY_TCG=yes" >> "$GITHUB_ENV"
+          fi
+
+      - name: Install and launch on Android 10 emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 35
+          api-level: 29
           target: google_apis
           arch: x86_64
           profile: pixel_2
           disable-animations: true
+          emulator-boot-timeout: 900
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
           script: |
             set -euo pipefail
             APK="android/app/build/outputs/apk/debug/app-debug.apk"
             test -s "$APK"
+
+            adb get-state
             adb install -r "$APK"
             adb shell am force-stop br.com.editalradar.app
             adb shell am start -W -n br.com.editalradar.app/.MainActivity
-            sleep 20
-            if ! adb shell pidof br.com.editalradar.app >/dev/null; then
+
+            for attempt in $(seq 1 30); do
+              if adb shell pidof br.com.editalradar.app >/dev/null 2>&1; then
+                break
+              fi
+              sleep 2
+            done
+
+            if ! adb shell pidof br.com.editalradar.app >/dev/null 2>&1; then
               adb logcat -d -s AndroidRuntime:E
               echo "O processo do EditalRadar não permaneceu ativo após a inicialização."
               exit 1
             fi
+
             if ! adb shell dumpsys activity activities | grep -Fq "br.com.editalradar.app/.MainActivity"; then
               adb logcat -d -s AndroidRuntime:E
               echo "A MainActivity não foi encontrada na pilha de atividades."
               exit 1
             fi
+
             adb shell uiautomator dump /sdcard/editalradar-window.xml >/dev/null
             WINDOW_XML="$(adb shell cat /sdcard/editalradar-window.xml)"
-            if ! printf "%s" "$WINDOW_XML" | grep -Eq "WebView|android.webkit"; then
-              echo "A janela do app não apresentou o componente WebView esperado."
+
+            if ! printf "%s" "$WINDOW_XML" | grep -Fq "Atualizações"; then
+              echo "O botão nativo de atualização não apareceu na interface."
               printf "%s\n" "$WINDOW_XML"
               exit 1
             fi
+
+            if ! printf "%s" "$WINDOW_XML" | grep -Eq "WebView|android.webkit"; then
+              echo "O componente WebView esperado não apareceu na janela do app."
+              printf "%s\n" "$WINDOW_XML"
+              exit 1
+            fi
+
             if adb logcat -d -s AndroidRuntime:E | grep -Fq "br.com.editalradar.app"; then
               echo "Foi detectada uma exceção fatal relacionada ao EditalRadar."
               adb logcat -d -s AndroidRuntime:E
               exit 1
             fi
-            echo "Smoke test concluído: APK instalado, MainActivity ativa e interface nativa visível."
+
+            echo "Smoke test concluído: APK instalado em Android 10, MainActivity ativa e interface nativa/WebView presentes."
