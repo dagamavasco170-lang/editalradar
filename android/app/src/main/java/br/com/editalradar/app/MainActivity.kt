@@ -60,7 +60,6 @@ class MainActivity : ComponentActivity() {
         private const val HOME_HOST = "dagamavasco170-lang.github.io"
         private const val HOME_PATH = "/editalradar/"
         private const val NOTIFICATION_CHANNEL_ID = "editalradar_updates"
-        private const val APP_UPDATE_PERMISSION_REQUEST = 8103
         private const val MAX_NATIVE_MESSAGE_CHARS = 2_048
         private const val AUTO_UPDATE_CHECK_INTERVAL_MS = 6L * 60L * 60L * 1000L
         private const val UPDATE_PREFERENCES = "editalradar_app_updates"
@@ -85,6 +84,7 @@ class MainActivity : ComponentActivity() {
     private var lastKnownOnlineState: Boolean? = null
     private var notificationPermissionRequestPending = false
     private lateinit var notificationPermissionLauncher: ActivityResultLauncher<String>
+    private lateinit var updateInstallPermissionLauncher: ActivityResultLauncher<Intent>
     private var webPageReady = false
     private var fcmTokenRequestInFlight = false
     private var pendingFcmTokenDelivery = false
@@ -97,6 +97,11 @@ class MainActivity : ComponentActivity() {
         ) { granted ->
             notificationPermissionRequestPending = false
             dispatchNativeNotificationPermission(granted)
+        }
+        updateInstallPermissionLauncher = registerForActivityResult(
+            ActivityResultContracts.StartActivityForResult()
+        ) {
+            resumePendingUpdateAfterPermission()
         }
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         buildScreen()
@@ -363,7 +368,7 @@ class MainActivity : ComponentActivity() {
                             Uri.parse("package:$packageName")
                         )
                         @Suppress("DEPRECATION")
-                        startActivityForResult(settingsIntent, APP_UPDATE_PERMISSION_REQUEST)
+                        updateInstallPermissionLauncher.launch(settingsIntent)
                     } catch (_: Exception) {
                         Toast.makeText(this, "Não foi possível abrir essa configuração.", Toast.LENGTH_LONG).show()
                     }
@@ -427,11 +432,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    @Suppress("DEPRECATION")
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode != APP_UPDATE_PERMISSION_REQUEST) return
-
+    private fun resumePendingUpdateAfterPermission() {
         val preferences = getSharedPreferences(UPDATE_PREFERENCES, Context.MODE_PRIVATE)
         val pendingPath = preferences.getString(PENDING_UPDATE_APK_KEY, null)
         preferences.edit().remove(PENDING_UPDATE_APK_KEY).apply()
