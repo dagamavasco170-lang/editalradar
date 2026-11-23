@@ -188,7 +188,7 @@ done
 if [[ "$CONTENT_READY" != "true" ]]; then
   echo "O aplicativo iniciou, mas o título principal do catálogo não apareceu na WebView."
   printf '%s\n' "$WINDOW_XML"
-  adb logcat -d -s chromium:E WebViewFactory:E AndroidRuntime:E
+  adb logcat -d -s EditalRadarWebView:W chromium:E WebViewFactory:E AndroidRuntime:E
   exit 1
 fi
 
