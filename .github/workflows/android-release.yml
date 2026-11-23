@@ -17,6 +17,7 @@ on:
       - ".github/workflows/android-release.yml"
       - "scripts/android-emulator-smoke.sh"
       - "scripts/platform-resilience.node-test.mjs"
+      - "scripts/validate-android-version.sh"
   pull_request:
     branches: [main]
     paths:
@@ -97,6 +98,42 @@ jobs:
           echo "name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
           echo "code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
           echo "Android version: $VERSION_NAME ($VERSION_CODE)"
+
+      - name: Validate Android version against latest published release
+        shell: bash
+        env:
+          APP_VERSION: ${{ steps.version.outputs.name }}
+          VERSION_CODE: ${{ steps.version.outputs.code }}
+        run: |
+          set -euo pipefail
+          git fetch --tags --force
+          latest_tag="$(git tag -l 'android-v*' --sort=-v:refname | head -n 1)"
+          if [ -z "$latest_tag" ]; then
+            echo "No published Android version tag found; initial release validation skipped."
+            exit 0
+          fi
+          previous_gradle="$(git show "${latest_tag}:android/app/build.gradle")"
+          previous_name="$(printf '%s\n' "$previous_gradle" | sed -n "s/^[[:space:]]*versionName ['\\"]\\([^'\\"]*\\)['\\"].*/\\1/p" | head -n 1)"
+          previous_code="$(printf '%s\n' "$previous_gradle" | sed -n 's/^[[:space:]]*versionCode \([0-9][0-9]*\).*/\1/p' | head -n 1)"
+          test -n "$previous_name" && test -n "$previous_code"
+          python3 - "$APP_VERSION" "$VERSION_CODE" "$latest_tag" "$previous_name" "$previous_code" <<'PY'
+          import re, sys
+          current_name, current_code, tag, previous_name, previous_code = sys.argv[1:]
+          current_code, previous_code = int(current_code), int(previous_code)
+          semver = re.compile(r"^\\d+\\.\\d+\\.\\d+$")
+          if not semver.fullmatch(current_name) or not semver.fullmatch(previous_name):
+              raise SystemExit("Android versionName must follow X.Y.Z semantic version format.")
+          def parts(v): return tuple(map(int, v.split(".")))
+          if tag != "android-v" + previous_name:
+              raise SystemExit("Latest Android release tag and its Gradle versionName do not match.")
+          if parts(current_name) < parts(previous_name) or current_code < previous_code:
+              raise SystemExit(f"Android downgrade blocked: current {current_name} ({current_code}), latest {previous_name} ({previous_code}).")
+          if current_name == previous_name and current_code != previous_code:
+              raise SystemExit("versionCode changed without a versionName change; update both together.")
+          if parts(current_name) > parts(previous_name) and current_code <= previous_code:
+              raise SystemExit("New versionName must also increase versionCode.")
+          print(f"Versioning OK: {current_name} ({current_code}) vs latest {previous_name} ({previous_code}).")
+          PY
 
       - name: Validate Firebase Android configuration
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
