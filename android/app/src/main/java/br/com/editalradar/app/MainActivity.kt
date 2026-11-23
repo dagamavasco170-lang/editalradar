@@ -159,6 +159,8 @@ class MainActivity : ComponentActivity() {
             setOnClickListener { retryCurrentPage() }
             contentDescription = "Estado da conexão. Toque para tentar novamente."
             accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+            maxLines = 2
+            ellipsize = android.text.TextUtils.TruncateAt.END
         }
 
         progress = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
@@ -200,6 +202,8 @@ class MainActivity : ComponentActivity() {
             setPadding(dp(12), dp(8), dp(12), dp(8))
             minHeight = dp(48)
             minimumWidth = dp(112)
+            maxLines = 2
+            ellipsize = android.text.TextUtils.TruncateAt.END
             isFocusable = true
             contentDescription = "Verificar atualizações do EditalRadar"
             setOnClickListener { checkForUpdates(manual = true) }
@@ -207,11 +211,13 @@ class MainActivity : ComponentActivity() {
 
         val header = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
-            addView(statusText, LinearLayout.LayoutParams(0, dp(48), 1f))
-            addView(updateButton, LinearLayout.LayoutParams(-2, dp(48)))
+            // Alturas flexíveis acomodam fontes ampliadas sem cortar o texto.
+            // O minHeight de cada controle preserva alvos de toque de 48 dp.
+            addView(statusText, LinearLayout.LayoutParams(0, -2, 1f))
+            addView(updateButton, LinearLayout.LayoutParams(-2, -2))
         }
 
-        root.addView(header, LinearLayout.LayoutParams(-1, dp(48)))
+        root.addView(header, LinearLayout.LayoutParams(-1, -2))
         root.addView(progress, LinearLayout.LayoutParams(-1, dp(3)))
         root.addView(webView, LinearLayout.LayoutParams(-1, 0, 1f))
         setContentView(root)
