@@ -78,6 +78,14 @@ test("WebView recria uma instância nova quando o renderizador Android é encerr
   assert.ok(android.includes("Feche e abra o aplicativo novamente."));
 });
 
+test("Android registra falhas de recursos da WebView sem registrar conteúdo sensível", () => {
+  assert.ok(android.includes("onConsoleMessage(consoleMessage: ConsoleMessage)"));
+  assert.ok(android.includes('Log.w("EditalRadarWebView", "JavaScript error in'));
+  assert.ok(android.includes("Resource load error"));
+  assert.ok(android.includes('Log.w("EditalRadarWebView", "HTTP'));
+  assert.ok(androidSmokeScript.includes("EditalRadarWebView:W"));
+});
+
 test("Android atualiza o token FCM ao retomar a página confiável", () => {
   assert.ok(android.includes("private var webPageReady = false"));
   assert.ok(android.includes("private var fcmTokenRequestInFlight = false"));
