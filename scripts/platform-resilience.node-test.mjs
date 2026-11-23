@@ -632,3 +632,31 @@ test("site mantém recursos de acessibilidade e safe areas móveis", () => {
   assert.match(styles, /safe-area-inset-left/);
   assert.match(styles, /safe-area-inset-bottom/);
 });
+
+
+test("barra superior Android adapta altura a fontes ampliadas e mantém textos legíveis", () => {
+  const statusStart = android.indexOf("statusText = TextView(this)");
+  const statusEnd = android.indexOf("progress = ProgressBar", statusStart);
+  const statusBlock = android.slice(statusStart, statusEnd);
+  assert.match(statusBlock, /maxLines = 2/);
+  assert.match(statusBlock, /ellipsize = android\.text\.TextUtils\.TruncateAt\.END/);
+
+  const updateStart = android.indexOf("updateButton = TextView(this)");
+  const updateEnd = android.indexOf("val header = LinearLayout", updateStart);
+  const updateBlock = android.slice(updateStart, updateEnd);
+  assert.match(updateBlock, /maxLines = 2/);
+  assert.match(updateBlock, /minimumWidth = dp\(112\)/);
+  assert.match(updateBlock, /minHeight = dp\(48\)/);
+  assert.match(android, /LinearLayout\.LayoutParams\(0, -2, 1f\)/);
+  assert.match(android, /root\.addView\(header, LinearLayout\.LayoutParams\(-1, -2\)\)/);
+});
+
+test("atualizador Android limita notificações de progresso a mudanças de percentual", () => {
+  const start = appUpdate.indexOf("private fun downloadReleaseApk(");
+  const end = appUpdate.indexOf("private fun openReleaseAssetConnection(", start);
+  const block = appUpdate.slice(start, end);
+  assert.ok(block.includes("var lastReportedPercentage = Int.MIN_VALUE"));
+  assert.ok(block.includes("if (percentage != lastReportedPercentage)"));
+  assert.ok(block.includes("lastReportedPercentage = percentage"));
+  assert.ok(block.includes("onProgress(100)"));
+});
