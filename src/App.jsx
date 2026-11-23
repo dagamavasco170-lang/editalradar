@@ -8,7 +8,7 @@ import { isTrustedOfficialUrl, officialSourceLabel, parseHttpsUrl } from "./lib/
 import { getUpcomingMilestones } from "./lib/dashboard";
 import { parseBrazilianNumber } from "./lib/brazilian-numbers.js";
 import { buildCsv } from "./lib/csv-export.js";
-import { buildContestChangeHistory, formatContestHistoryDate } from "./lib/admin-history.js";
+import { buildContestChangeHistory, describeContestHistoryEntry, formatContestHistoryDate } from "./lib/admin-history.js";
 import { isAndroidApp, sendNativeMessage } from "./lib/android-bridge.js";
 import { classifyDiscoveryKind, classifyDiscoveryPriority, classifyDiscoveryTopic, discoveryKindLabel, discoveryPriorityLabel, discoveryTopicLabel, discoveryStatusLabel, filterDiscoveries, sortDiscoveriesByPriority, countDiscoveriesByStatus } from "./lib/discovery-filters.js";
 const StudyArea = React.lazy(() => import("./StudyArea.jsx"));
@@ -1795,7 +1795,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                           {[...item.historicoAtualizacoes].slice(-10).reverse().map((entry, index) => (
                             <li key={entry.id || entry.at || index}>
                               <strong>{formatContestHistoryDate(entry.at)} · {entry.actor || "Administrador"}</strong>
-                              <span>{entry.summary || (Array.isArray(entry.changes) ? entry.changes.length + " campo(s) alterado(s)" : "Atualização registrada")}</span>
+                              <span>{describeContestHistoryEntry(entry)}</span>
                               {Array.isArray(entry.changes) && entry.changes.length > 0 && (
                                 <ul>{entry.changes.map((change, changeIndex) => (
                                   <li key={change.field || changeIndex}>
