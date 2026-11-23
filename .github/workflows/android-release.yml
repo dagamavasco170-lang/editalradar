@@ -395,13 +395,29 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Skip already published version
+        id: tag_check
+        env:
+          GH_TOKEN: ${GITHUB_TOKEN}
+          VERSION_NAME: ${{ needs.android-build.outputs.version_name }}
+        shell: bash
+        run: |
+          if gh release view "android-v${VERSION_NAME}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::A versão android-v${VERSION_NAME} já existe; não será sobrescrita."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Download signed release assets
+        if: steps.tag_check.outputs.exists != 'true'
         uses: actions/download-artifact@v8
         with:
           name: EditalRadar-Android-v${{ needs.android-build.outputs.version_name }}
           path: release-assets
 
       - name: Validate published files and checksums
+        if: steps.tag_check.outputs.exists != 'true'
         env:
           APP_VERSION: ${{ needs.android-build.outputs.version_name }}
           VERSION_CODE: ${{ needs.android-build.outputs.version_code }}
@@ -415,6 +431,7 @@ jobs:
           (cd release-assets && sha256sum --check SHA256SUMS.txt)
 
       - name: Prepare release notes
+        if: steps.tag_check.outputs.exists != 'true'
         env:
           APP_VERSION: ${{ needs.android-build.outputs.version_name }}
           VERSION_CODE: ${{ needs.android-build.outputs.version_code }}
@@ -433,6 +450,7 @@ jobs:
           EOF
 
       - name: Publish permanently signed GitHub Release
+        if: steps.tag_check.outputs.exists != 'true'
         uses: softprops/action-gh-release@v3
         with:
           tag_name: android-v${{ needs.android-build.outputs.version_name }}
