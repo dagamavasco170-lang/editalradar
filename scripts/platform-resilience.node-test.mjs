@@ -705,9 +705,11 @@ test("falhas de workflow monitorado criam issues sem duplicar", () => {
   assert.match(failureReporter, /evitando duplicação/);
 });
 
-test("relatório Supabase usa secret key apenas no header apikey", () => {
+test("relatório Supabase suporta secret keys novas e JWT service_role legado", () => {
   assert.match(clientDiagnosticsSummary, /apikey: process\.env\.SUPABASE_SERVICE_ROLE_KEY/);
-  assert.doesNotMatch(clientDiagnosticsSummary, /Authorization: ["']Bearer/);
+  assert.match(clientDiagnosticsSummary, /startsWith\("sb_secret_"\)/);
+  assert.match(clientDiagnosticsSummary, /headers\.Authorization = "Bearer " \+ supabaseKey/);
+  assert.match(clientDiagnosticsSummary, /legacy service_role JWTs/);
 });
 
 test("GitHub recebe apenas métricas agregadas dos logs de cliente", () => {
