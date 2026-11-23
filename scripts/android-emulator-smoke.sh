@@ -163,22 +163,47 @@ if ! adb shell dumpsys activity activities | grep -Fq "$APP_ID/.MainActivity"; t
   exit 1
 fi
 
-adb shell uiautomator dump /sdcard/editalradar-window.xml >/dev/null
-WINDOW_XML="$(adb shell cat /sdcard/editalradar-window.xml)"
-if ! printf '%s' "$WINDOW_XML" | grep -Fq "Atualizações"; then
-  echo "O botão nativo de atualização não apareceu na interface."
+WINDOW_XML_PATH="/sdcard/editalradar-window.xml"
+WINDOW_XML=""
+
+# UIAutomator pode retornar temporariamente "null root node" logo depois do
+# startActivity. Cada tentativa remove o XML anterior para nunca aceitar uma
+# captura antiga como se fosse a tela atual.
+capture_window_xml() {
+  WINDOW_XML=""
+  adb shell rm -f "$WINDOW_XML_PATH" >/dev/null 2>&1 || true
+
+  if ! adb shell uiautomator dump "$WINDOW_XML_PATH" >/dev/null 2>&1; then
+    return 1
+  fi
+
+  WINDOW_XML="$(adb shell cat "$WINDOW_XML_PATH" 2>/dev/null || true)"
+  [[ -n "$WINDOW_XML" ]]
+}
+
+echo "Aguardando a interface nativa ficar disponível..."
+NATIVE_UI_READY=false
+for attempt in $(seq 1 10); do
+  if capture_window_xml && printf '%s' "$WINDOW_XML" | grep -Fq "Atualizações"; then
+    NATIVE_UI_READY=true
+    break
+  fi
+  sleep 2
+done
+
+if [[ "$NATIVE_UI_READY" != "true" ]]; then
+  echo "A interface nativa não pôde ser confirmada pelo UIAutomator."
   printf '%s\n' "$WINDOW_XML"
+  adb logcat -d -s EditalRadarWebView:W chromium:E WebViewFactory:E AndroidRuntime:E
   exit 1
 fi
 
 # Confirma que a WebView realmente abriu o catálogo, e não apenas a moldura
-# nativa. Isso detecta telas brancas ou carregamentos que ficam presos.
+# nativa. A falha transitória do UIAutomator nunca substitui esta verificação.
 echo "Aguardando o catálogo principal aparecer na WebView..."
 CONTENT_READY=false
 for attempt in $(seq 1 24); do
-  adb shell uiautomator dump /sdcard/editalradar-window.xml >/dev/null 2>&1 || true
-  WINDOW_XML="$(adb shell cat /sdcard/editalradar-window.xml 2>/dev/null || true)"
-  if printf '%s' "$WINDOW_XML" | grep -Eiq "Encontre concursos"; then
+  if capture_window_xml && printf '%s' "$WINDOW_XML" | grep -Eiq "Encontre concursos"; then
     CONTENT_READY=true
     break
   fi
