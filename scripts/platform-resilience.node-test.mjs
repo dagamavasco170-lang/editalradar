@@ -700,7 +700,7 @@ test("diagnósticos do site e Android enviam erros com limites e filtros", () =>
 test("falhas de workflow monitorado criam issues sem duplicar", () => {
   assert.match(failureReporter, /workflow_run/);
   assert.match(failureReporter, /conclusion == 'failure'/);
-  assert.match(failureReporter, /issues\\.create/);
+  assert.match(failureReporter, /issues\.create/);
   assert.match(failureReporter, /\[CI falhou\]/);
   assert.match(failureReporter, /evitando duplicação/);
 });
