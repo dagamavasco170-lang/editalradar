@@ -23,7 +23,7 @@ describe("EditalRadar", () => {
     expect(document.documentElement.style.colorScheme).toBe("dark");
     expect(localStorage.getItem("er-theme")).toBe(JSON.stringify("dark"));
     expect(screen.getByRole("button", { name: "Ativar modo claro" })).toHaveAttribute("aria-pressed", "true");
-    expect(postMessage).toHaveBeenCalledWith(JSON.stringify({ action: "set_theme", theme: "dark" }));
+    expect(postMessage).toHaveBeenCalledWith(JSON.stringify({ theme: "dark", action: "set_theme" }));
 
     firstRender.unmount();
     render(<App authClient={null} authConfigured={false} />);
