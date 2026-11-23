@@ -1,0 +1,64 @@
+name: Recuperar automações com falha
+
+on:
+  schedule:
+    - cron: "45 * * * *"
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: automation-recovery
+  cancel-in-progress: false
+
+jobs:
+  retry:
+    name: Reexecutar falhas transitórias
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Reexecutar uma vez workflows críticos com falha recente
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const targets = [
+              { file: "source-monitor.yml", label: "Monitor de fontes" },
+              { file: "question-automation.yml", label: "Automação de questões" }
+            ];
+            const now = Date.now();
+            for (const target of targets) {
+              const response = await github.rest.actions.listWorkflowRuns({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: target.file,
+                per_page: 10
+              });
+              const run = response.data.workflow_runs.find(item =>
+                item.event === "schedule" || item.event === "workflow_dispatch"
+              );
+              if (!run) {
+                core.info(target.label + ": sem execução recente para verificar.");
+                continue;
+              }
+              const ageHours = (now - new Date(run.created_at).getTime()) / 3600000;
+              if (run.status !== "completed" || run.conclusion === "success") {
+                core.info(target.label + ": não há falha concluída que precise de recuperação.");
+                continue;
+              }
+              if (ageHours > 2) {
+                core.info(target.label + ": falha antiga (" + ageHours.toFixed(1) + "h); não reexecutar automaticamente.");
+                continue;
+              }
+              if (run.run_attempt >= 2) {
+                core.info(target.label + ": limite de uma reexecução já atingido.");
+                continue;
+              }
+              await github.rest.actions.reRunFailedJobs({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                run_id: run.id
+              });
+              core.warning(target.label + ": reexecução de falhas iniciada para run #" + run.id + ".");
+            }
