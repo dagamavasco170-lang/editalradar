@@ -46,7 +46,7 @@ for release in releases:
     if release.get("draft") or release.get("prerelease"):
         continue
 
-    match = re.fullmatch(r"android-v(\\d+)\\.(\\d+)\\.(\\d+)", release.get("tag_name", ""))
+    match = re.fullmatch(r"android-v(\d+)\.(\d+)\.(\d+)", release.get("tag_name", ""))
     if match is None:
         continue
 
