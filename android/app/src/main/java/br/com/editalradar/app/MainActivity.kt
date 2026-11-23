@@ -395,7 +395,7 @@ class MainActivity : ComponentActivity() {
                     action = UpdateInstallReceiver.ACTION_INSTALL_STATUS
                 }
                 // PackageInstaller precisa acrescentar EXTRA_STATUS ao retorno.
-                // Com targetSdk 35, o IntentSender de commit não pode ser imutável,
+                // Com targetSdk 36, o IntentSender de commit não pode ser imutável,
                 // inclusive em aparelhos anteriores ao Android 12.
                 val mutabilityFlag = PendingIntent.FLAG_MUTABLE
                 val statusPendingIntent = PendingIntent.getBroadcast(
