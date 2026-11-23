@@ -1,0 +1,88 @@
+name: Monitorar saúde das automações
+
+on:
+  schedule:
+    - cron: "15 */6 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/automation-health.yml"
+
+permissions:
+  actions: read
+  issues: write
+  contents: read
+
+concurrency:
+  group: automation-health
+  cancel-in-progress: false
+
+jobs:
+  health:
+    name: Verificar automações agendadas
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verificar execuções recentes e registrar alertas
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const workflows = [
+              { file: "source-monitor.yml", label: "Monitor de fontes", maxAgeHours: 12 },
+              { file: "question-automation.yml", label: "Automação de questões", maxAgeHours: 36 }
+            ];
+            const now = Date.now();
+            const problems = [];
+            const healthy = [];
+            for (const workflow of workflows) {
+              const response = await github.rest.actions.listWorkflowRuns({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: workflow.file,
+                per_page: 5
+              });
+              const runs = response.data.workflow_runs.filter(run => run.event === "schedule" || run.event === "workflow_dispatch");
+              const latest = runs[0];
+              if (!latest) {
+                problems.push("**" + workflow.label + "**: nenhuma execução agendada/manual encontrada.");
+                continue;
+              }
+              const ageHours = (now - new Date(latest.created_at).getTime()) / 3600000;
+              if (latest.conclusion !== "success") {
+                problems.push("**" + workflow.label + "**: última execução terminou com `" + (latest.conclusion || latest.status) + "`. [Ver execução](" + latest.html_url + ")");
+              } else if (ageHours > workflow.maxAgeHours) {
+                problems.push("**" + workflow.label + "**: execução mais recente há " + ageHours.toFixed(1) + " horas (limite " + workflow.maxAgeHours + "h). [Ver execução](" + latest.html_url + ")");
+              } else {
+                healthy.push("**" + workflow.label + "**: OK (" + ageHours.toFixed(1) + "h desde a última execução). [Ver execução](" + latest.html_url + ")");
+              }
+            }
+            const title = "[Automação] Saúde dos workflows agendados";
+            const openIssues = await github.paginate(github.rest.issues.listForRepo, {
+              owner: context.repo.owner, repo: context.repo.repo, state: "open", per_page: 100
+            });
+            const existing = openIssues.find(issue => !issue.pull_request && issue.title === title);
+            const report = [
+              "## Monitor de automações",
+              "",
+              problems.length ? "### Problemas detectados\n" + problems.join("\n") : "### Tudo funcionando\nNenhuma falha ou atraso fora do limite foi detectado.",
+              "",
+              healthy.length ? "### Automações saudáveis\n" + healthy.join("\n") : "",
+              "",
+              "Verificação: " + new Date().toISOString(),
+              "Execução: " + context.serverUrl + "/" + context.repo.owner + "/" + context.repo.repo + "/actions/runs/" + context.runId
+            ].filter(Boolean).join("\n");
+            await core.summary.addRaw(report).write();
+            if (problems.length) {
+              if (existing) {
+                await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, body: report });
+                core.warning("Alertas anexados à issue #" + existing.number);
+              } else {
+                const created = await github.rest.issues.create({ owner: context.repo.owner, repo: context.repo.repo, title, body: report, labels: [] });
+                core.warning("Issue de saúde criada: #" + created.data.number);
+              }
+            } else if (existing) {
+              await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, body: "A saúde das automações foi recuperada.\n\n" + report });
+              await github.rest.issues.update({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, state: "closed", state_reason: "completed" });
+              core.info("Alerta #" + existing.number + " encerrado após recuperação.");
+            }
