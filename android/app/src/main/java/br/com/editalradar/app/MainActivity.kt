@@ -541,12 +541,42 @@ class MainActivity : ComponentActivity() {
             override fun onPageFinished(view: WebView, url: String?) {
                 super.onPageFinished(view, url)
                 if (view === webView) {
-                    webPageReady = !url.isNullOrBlank() &&
+                    val isTrustedPage = !url.isNullOrBlank() &&
                         runCatching { isInternalAppUrl(Uri.parse(url)) }.getOrDefault(false)
+                    webPageReady = false
                     updateWebViewBackNavigation(view.canGoBack())
-                    if (webPageReady && pendingFcmTokenDelivery) requestFcmToken()
+                    if (isTrustedPage) verifyAppMounted(view)
                 }
             }
+
+        /**
+         * A finished HTML navigation is not enough: the React bundle may still fail
+         * before mounting. Only expose native callbacks after the actual app shell
+         * exists, and give the user a clear retry action if startup never completes.
+         */
+        private fun verifyAppMounted(targetView: WebView, attempt: Int = 0) {
+            if (targetView !== webView || isFinishing || isDestroyed) return
+
+            targetView.evaluateJavascript(
+                "Boolean(document.querySelector('.app-shell'))"
+            ) { result ->
+                if (targetView !== webView || isFinishing || isDestroyed) return@evaluateJavascript
+
+                if (result == "true") {
+                    webPageReady = true
+                    if (pendingFcmTokenDelivery) requestFcmToken()
+                } else if (attempt < 10) {
+                    targetView.postDelayed(
+                        { verifyAppMounted(targetView, attempt + 1) },
+                        1_000L
+                    )
+                } else {
+                    webPageReady = false
+                    setStatusWarning("O aplicativo não conseguiu iniciar. Toque aqui para tentar novamente.")
+                    Log.w("EditalRadarWebView", "React app shell was not mounted after 10 checks")
+                }
+            }
+        }
 
             override fun doUpdateVisitedHistory(view: WebView, url: String?, isReload: Boolean) {
                 super.doUpdateVisitedHistory(view, url, isReload)
