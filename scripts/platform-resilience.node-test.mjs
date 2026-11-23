@@ -16,7 +16,7 @@ const [android, serviceWorker, styles, androidGradle, androidWorkflow, appUpdate
   readProjectFile("../src/lib/android-bridge.js"),
   readProjectFile("../src/App.jsx")
 ]);
-const [androidProjectGradle, androidApkWorkflow, androidReadme, androidSmokeScript, viteConfig, androidSmokeWorkflow, automationRecovery, automationHealth, clientTelemetry, diagnosticsFunction, diagnosticsMigration, failureReporter] = await Promise.all([
+const [androidProjectGradle, androidApkWorkflow, androidReadme, androidSmokeScript, viteConfig, androidSmokeWorkflow, automationRecovery, automationHealth, clientTelemetry, diagnosticsFunction, diagnosticsMigration, failureReporter, clientDiagnosticsSummary] = await Promise.all([
   readProjectFile("../android/build.gradle"),
   readProjectFile("../.github/workflows/android-apk.yml"),
   readProjectFile("../android/README.md"),
@@ -28,7 +28,8 @@ const [androidProjectGradle, androidApkWorkflow, androidReadme, androidSmokeScri
   readProjectFile("../src/lib/telemetry.js"),
   readProjectFile("../supabase/functions/diagnostics-ingest/index.ts"),
   readProjectFile("../supabase/migrations/20261123170000_app_diagnostics_log_sink.sql"),
-  readProjectFile("../.github/workflows/ci-failure-report.yml")
+  readProjectFile("../.github/workflows/ci-failure-report.yml"),
+  readProjectFile("../.github/workflows/client-diagnostics-summary.yml")
 ]);
 
 test("monitor de saúde considera somente execuções schedule/manual e fecha alertas recuperados", () => {
@@ -702,4 +703,12 @@ test("falhas de workflow monitorado criam issues sem duplicar", () => {
   assert.match(failureReporter, /issues\\.create/);
   assert.match(failureReporter, /\[CI falhou\]/);
   assert.match(failureReporter, /evitando duplicação/);
+});
+
+test("GitHub recebe apenas métricas agregadas dos logs de cliente", () => {
+  assert.match(clientDiagnosticsSummary, /SUPABASE_SERVICE_ROLE_KEY/);
+  assert.match(clientDiagnosticsSummary, /schedule/);
+  assert.match(clientDiagnosticsSummary, /events por plataforma/);
+  assert.match(clientDiagnosticsSummary, /github\\.rest\\.issues\\.create/);
+  assert.match(clientDiagnosticsSummary, /sem mensagens, stack traces, IDs de usuário ou IP/);
 });
