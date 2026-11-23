@@ -30,7 +30,7 @@ export const getRecommendationReasons = (item, profile = {}) => {
  const areaMatches=(keywords[area]||[]).some(w=>text.includes(w)), level=(profile.education_level||"").toLowerCase(), itemLevel=(item.nivel||"").toLowerCase();
  const levelMatches=!level||!itemLevel||itemLevel==="não informado"||(level.includes("médio")&&itemLevel.includes("médio"))||(level.includes("técnico")&&(itemLevel.includes("médio")||itemLevel.includes("técnico")))||(level.includes("superior")&&itemLevel.includes("superior"));
  const stateMatches=!profile.state||item.estado===profile.state||item.estado==="Brasil", cityMatches=!profile.city||item.localidade===profile.city||item.localidade==="Brasil";
- const active=/(inscriç(?:ões)?\\s+(?:abertas|em andamento)|autorizad[oa]|pré[- ]?edital|edital\\s+publicado|anunciad[oa]|convocaç)/.test((item.status||"").toLowerCase());
+ const active=/(inscriç(?:ões)?\s+(?:abertas|em andamento)|autorizad[oa]|pré[- ]?edital|edital\s+publicado|anunciad[oa]|convocaç)/.test((item.status||"").toLowerCase());
  return [areaMatches&&"Área de interesse",levelMatches&&"Escolaridade",stateMatches&&"Estado/local",cityMatches&&"Cidade/local",active&&"Oportunidade ativa"].filter(Boolean);
 };
 const readStore = (key, fallback) => {
