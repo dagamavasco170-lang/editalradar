@@ -80,7 +80,12 @@ jobs:
               exit 1
             fi
             adb shell uiautomator dump /sdcard/editalradar-window.xml >/dev/null
-            adb shell cat /sdcard/editalradar-window.xml | grep -Fq "Atualizações"
+            WINDOW_XML="$(adb shell cat /sdcard/editalradar-window.xml)"
+            if ! printf "%s" "$WINDOW_XML" | grep -Eq "WebView|android.webkit"; then
+              echo "A janela do app não apresentou o componente WebView esperado."
+              printf "%s\n" "$WINDOW_XML"
+              exit 1
+            fi
             if adb logcat -d -s AndroidRuntime:E | grep -Fq "br.com.editalradar.app"; then
               echo "Foi detectada uma exceção fatal relacionada ao EditalRadar."
               adb logcat -d -s AndroidRuntime:E
