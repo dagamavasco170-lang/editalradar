@@ -16,10 +16,11 @@ const [android, serviceWorker, styles, androidGradle, androidWorkflow, appUpdate
   readProjectFile("../src/lib/android-bridge.js"),
   readProjectFile("../src/App.jsx")
 ]);
-const [androidProjectGradle, androidApkWorkflow, androidReadme] = await Promise.all([
+const [androidProjectGradle, androidApkWorkflow, androidReadme, androidSmokeScript] = await Promise.all([
   readProjectFile("../android/build.gradle"),
   readProjectFile("../.github/workflows/android-apk.yml"),
-  readProjectFile("../android/README.md")
+  readProjectFile("../android/README.md"),
+  readProjectFile("../scripts/android-emulator-smoke.sh")
 ]);
 
 test("WebView mantém navegação interna restrita à origem e ao caminho do app", () => {
@@ -167,12 +168,13 @@ test("release Android só publica depois de instalação e atualização real em
   assert.ok(androidWorkflow.includes("needs.android-smoke.result == 'success'"));
   assert.ok(androidWorkflow.includes("api-level: 29"));
   assert.ok(androidWorkflow.includes("ANDROID_I_WANT_MY_TCG=yes"));
-  assert.ok(androidWorkflow.includes("releases/latest"));
-  assert.ok(androidWorkflow.includes("adb install \"$PREVIOUS_APK\""));
-  assert.ok(androidWorkflow.includes('adb install -r "$CURRENT_APK"'));
-  assert.ok(androidWorkflow.includes("versionName=$APP_VERSION"));
-  assert.ok(androidWorkflow.includes("versionCode=$VERSION_CODE"));
-  assert.ok(androidWorkflow.includes("adb shell am start -W -n br.com.editalradar.app/.MainActivity"));
+  assert.ok(androidWorkflow.includes('script: bash "$GITHUB_WORKSPACE/scripts/android-emulator-smoke.sh"'));
+  assert.ok(androidSmokeScript.includes("releases/latest"));
+  assert.ok(androidSmokeScript.includes('adb install "$PREVIOUS_APK"'));
+  assert.ok(androidSmokeScript.includes('adb install -r "$CURRENT_APK"'));
+  assert.ok(androidSmokeScript.includes("versionName=$APP_VERSION"));
+  assert.ok(androidSmokeScript.includes("versionCode=$VERSION_CODE"));
+  assert.ok(androidSmokeScript.includes('adb shell am start -W -n "$APP_ID/.MainActivity"'));
 });
 
 test("navegação de retorno WebView usa o dispatcher AndroidX", () => {
