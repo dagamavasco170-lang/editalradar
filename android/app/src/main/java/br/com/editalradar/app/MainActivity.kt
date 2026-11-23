@@ -169,6 +169,7 @@ class MainActivity : ComponentActivity() {
 
         webView = WebView(this).apply {
             contentDescription = "Conteúdo do EditalRadar"
+            setBackgroundColor(if (isDarkThemeEnabled) Color.rgb(13, 22, 36) else Color.WHITE)
         }
         root.setOnApplyWindowInsetsListener { view, insets ->
             // O teclado usa SOFT_INPUT_ADJUST_RESIZE; não somar IME ao padding de barras.
@@ -634,6 +635,7 @@ class MainActivity : ComponentActivity() {
         val replacement = runCatching {
             WebView(this).apply {
                 contentDescription = "Conteúdo do EditalRadar"
+                setBackgroundColor(if (isDarkThemeEnabled) Color.rgb(13, 22, 36) else Color.WHITE)
             }
         }.getOrNull()
 
