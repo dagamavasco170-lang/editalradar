@@ -355,6 +355,16 @@ test("controles nativos Android respeitam alvos de toque de 48 dp", () => {
   assert.ok(android.includes("LinearLayout.LayoutParams(-1, dp(48))"));
 });
 
+test("smoke test Android inicializa ADB com tentativas limitadas e reinício do daemon", () => {
+  assert.ok(androidSmokeScript.includes("ensure_adb_ready()"));
+  assert.ok(androidSmokeScript.includes("for attempt in $(seq 1 5)"));
+  assert.ok(androidSmokeScript.includes("timeout 15 adb start-server"));
+  assert.ok(androidSmokeScript.includes('state="$(timeout 15 adb get-state 2>/dev/null || true)"'));
+  assert.ok(androidSmokeScript.includes('[[ "$state" == "device" ]]'));
+  assert.ok(androidSmokeScript.includes("adb kill-server"));
+  assert.ok(androidSmokeScript.includes("ADB não conseguiu confirmar o emulador"));
+});
+
 test("smoke test Android confirma o conteúdo principal, não apenas a Activity", () => {
   assert.ok(androidSmokeScript.includes("uiautomator dump"));
   assert.ok(androidSmokeScript.includes('grep -Eiq "Encontre concursos"'));
