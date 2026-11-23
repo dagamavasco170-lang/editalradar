@@ -706,7 +706,7 @@ test("falhas de workflow monitorado criam issues sem duplicar", () => {
 });
 
 test("relatório Supabase suporta secret keys novas e JWT service_role legado", () => {
-  assert.match(clientDiagnosticsSummary, /apikey: process\.env\.SUPABASE_SERVICE_ROLE_KEY/);
+  assert.match(clientDiagnosticsSummary, /apikey: supabaseKey/);
   assert.match(clientDiagnosticsSummary, /startsWith\("sb_secret_"\)/);
   assert.match(clientDiagnosticsSummary, /headers\.Authorization = "Bearer " \+ supabaseKey/);
   assert.match(clientDiagnosticsSummary, /legacy service_role JWTs/);
