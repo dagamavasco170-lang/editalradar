@@ -30,7 +30,7 @@ export function summarizeContestChanges(changes = []) {
 
 export function describeContestHistoryEntry(entry = {}) {
   const changes = Array.isArray(entry.changes) ? entry.changes : [];
-  const legacyGeneric = /^\\d+ campo\\(s\\) alterado\\(s\\)$/.test(String(entry.summary || ""));
+  const legacyGeneric = /^\d+ campo\(s\) alterado\(s\)$/.test(String(entry.summary || ""));
   if (entry.summary && !legacyGeneric) return entry.summary;
   return summarizeContestChanges(changes) || entry.summary || "Atualização registrada";
 }
