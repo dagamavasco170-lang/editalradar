@@ -197,6 +197,8 @@ test("GitHub Actions nunca publica APK de depuração como atualização públic
   assert.match(androidWorkflow, /ANDROID_RELEASE_KEY_ALIAS/);
   assert.match(androidWorkflow, /ANDROID_RELEASE_KEY_PASSWORD/);
   assert.match(androidWorkflow, /gradle assembleRelease bundleRelease/);
+  assert.ok(androidWorkflow.includes("Validate Android release lint on pull requests"));
+  assert.ok(androidWorkflow.includes("run: gradle lintRelease --no-daemon --max-workers=2"));
   assert.match(androidWorkflow, /steps\.signing\.outputs\.ready == 'true'/);
   assert.match(androidWorkflow, /verification-only/);
   const lineBreak = String.fromCharCode(10);
