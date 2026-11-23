@@ -46,11 +46,13 @@ internal class AppUpdateManager(context: Context) {
     private val worker = Executors.newSingleThreadExecutor()
     private val mainHandler = Handler(Looper.getMainLooper())
     private val busy = AtomicBoolean(false)
+    private val closed = AtomicBoolean(false)
 
     fun checkForUpdate(onComplete: (Result<AppUpdateRelease?>) -> Unit) {
+        if (closed.get()) return
         if (!busy.compareAndSet(false, true)) {
-            mainHandler.post {
-                onComplete(Result.failure(IllegalStateException("Uma verificação já está em andamento.")))
+            if (!closed.get()) mainHandler.post {
+                if (!closed.get()) onComplete(Result.failure(IllegalStateException("Uma verificação já está em andamento.")))
             }
             return
         }
@@ -59,11 +61,15 @@ internal class AppUpdateManager(context: Context) {
             worker.execute {
                 val result = runCatching { findAvailableRelease() }
                 busy.set(false)
-                mainHandler.post { onComplete(result) }
+                if (!closed.get()) mainHandler.post {
+                    if (!closed.get()) onComplete(result)
+                }
             }
         } catch (error: RejectedExecutionException) {
             busy.set(false)
-            mainHandler.post { onComplete(Result.failure(error)) }
+            if (!closed.get()) mainHandler.post {
+                if (!closed.get()) onComplete(Result.failure(error))
+            }
         }
     }
 
@@ -72,9 +78,10 @@ internal class AppUpdateManager(context: Context) {
         onProgress: (Int) -> Unit,
         onComplete: (Result<File>) -> Unit
     ) {
+        if (closed.get()) return
         if (!busy.compareAndSet(false, true)) {
-            mainHandler.post {
-                onComplete(Result.failure(IllegalStateException("Um download já está em andamento.")))
+            if (!closed.get()) mainHandler.post {
+                if (!closed.get()) onComplete(Result.failure(IllegalStateException("Um download já está em andamento.")))
             }
             return
         }
@@ -241,7 +248,9 @@ internal class AppUpdateManager(context: Context) {
                         } else {
                             -1
                         }
-                        mainHandler.post { onProgress(percentage) }
+                        if (!closed.get()) mainHandler.post {
+                            if (!closed.get()) onProgress(percentage)
+                        }
                     }
                     output.flush()
                     output.fd.sync()
@@ -418,6 +427,9 @@ internal class AppUpdateManager(context: Context) {
     }
 
     fun close() {
+        if (!closed.compareAndSet(false, true)) return
         worker.shutdownNow()
+        // Remove retornos que já estavam na fila principal e poderiam reter a Activity.
+        mainHandler.removeCallbacksAndMessages(null)
     }
 }
