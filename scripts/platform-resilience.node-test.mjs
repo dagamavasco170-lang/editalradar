@@ -25,6 +25,18 @@ const [androidProjectGradle, androidApkWorkflow, androidReadme, androidSmokeScri
   readProjectFile("../.github/workflows/android-emulator-smoke.yml")
 ]);
 
+test("workflow Android extrai versão do Gradle de forma consistente e docs apontam para versão estável", () => {
+  assert.match(androidWorkflow, /lines = Path\("android\/app\/build\.gradle"\)\.read_text\(\)\.splitlines\(\)/);
+  assert.match(androidWorkflow, /name_line = next\(\(line\.strip\(\) for line in lines/);
+  assert.match(androidWorkflow, /code_line = next\(\(line\.strip\(\) for line in lines/);
+  assert.doesNotMatch(androidWorkflow, /line = Path\("android\/app\/build\.gradle"\)/);
+  const versionName = androidGradle.match(/versionName ['"]([^'"]+)['"]/);
+  const versionCode = androidGradle.match(/versionCode (\d+)/);
+  assert.ok(versionName && versionCode);
+  assert.match(androidReadme, new RegExp("Versão estável publicada: " + versionName[1] + " \\(versionCode " + versionCode[1] + "\\)"));
+  assert.ok(androidReadme.includes("android-v" + versionName[1]));
+});
+
 test("WebView mantém navegação interna restrita à origem e ao caminho do app", () => {
   assert.match(android, /private fun isInternalAppUrl\(uri: Uri\)/);
   assert.match(android, /HOME_PATH = "\/editalradar\/"/);
