@@ -26,6 +26,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.webkit.ConsoleMessage
 import android.webkit.CookieManager
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
@@ -502,6 +503,14 @@ class MainActivity : ComponentActivity() {
                 progress.progress = newProgress
                 progress.visibility = if (newProgress >= 100) View.GONE else View.VISIBLE
             }
+
+            override fun onConsoleMessage(consoleMessage: ConsoleMessage): Boolean {
+                if (consoleMessage.messageLevel() == ConsoleMessage.MessageLevel.ERROR) {
+                    val source = consoleMessage.sourceId().substringAfterLast('/').take(100)
+                    Log.w("EditalRadarWebView", "JavaScript error in $source:${consoleMessage.lineNumber()}")
+                }
+                return true
+            }
         }
 
         webView.webViewClient = object : WebViewClient() {
@@ -565,6 +574,13 @@ class MainActivity : ComponentActivity() {
                 error: android.webkit.WebResourceError?
             ) {
                 super.onReceivedError(view, request, error)
+                if (request?.url?.host == HOME_HOST) {
+                    val failedPath = request.url.path?.take(120).orEmpty()
+                    Log.w(
+                        "EditalRadarWebView",
+                        "Resource load error ${error?.errorCode} at $failedPath; mainFrame=${request.isForMainFrame}"
+                    )
+                }
                 if (request?.isForMainFrame == true) {
                     if (!isInternetAvailable()) {
                         statusText.text = "Sem conexão. Algumas informações já carregadas ainda podem estar disponíveis. Toque para tentar novamente."
@@ -582,6 +598,13 @@ class MainActivity : ComponentActivity() {
                 errorResponse: android.webkit.WebResourceResponse?
             ) {
                 super.onReceivedHttpError(view, request, errorResponse)
+                if (request?.url?.host == HOME_HOST &&
+                    errorResponse != null &&
+                    errorResponse.statusCode >= 400
+                ) {
+                    val failedPath = request.url.path?.take(120).orEmpty()
+                    Log.w("EditalRadarWebView", "HTTP ${errorResponse.statusCode} at $failedPath")
+                }
                 if (request?.isForMainFrame == true &&
                     errorResponse != null &&
                     errorResponse.statusCode >= 500
