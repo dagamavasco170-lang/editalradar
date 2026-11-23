@@ -120,6 +120,9 @@ class MainActivity : ComponentActivity() {
         appUpdateManager = AppUpdateManager(this)
         configureNotifications()
         configureWebView()
+        // Define o modo de cache antes da primeira navegação, inclusive em uma
+        // abertura sem internet após o Android encerrar o processo do aplicativo.
+        refreshConnectivity()
 
         val restoredWebState = savedInstanceState != null &&
             webView.restoreState(savedInstanceState) != null
@@ -134,7 +137,6 @@ class MainActivity : ComponentActivity() {
                 webView.loadUrl(HOME_URL)
             }
         }
-        refreshConnectivity()
         maybeCheckForUpdates()
     }
 
@@ -152,7 +154,7 @@ class MainActivity : ComponentActivity() {
             setBackgroundColor(Color.rgb(24, 105, 87))
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(16), dp(8), dp(16), dp(8))
-            minHeight = dp(38)
+            minHeight = dp(48)
             setOnClickListener { retryCurrentPage() }
             contentDescription = "Estado da conexão. Toque para tentar novamente."
             accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
@@ -194,8 +196,8 @@ class MainActivity : ComponentActivity() {
             setBackgroundColor(Color.rgb(32, 75, 116))
             gravity = Gravity.CENTER
             setPadding(dp(12), dp(8), dp(12), dp(8))
-            minHeight = dp(40)
-            minimumWidth = dp(108)
+            minHeight = dp(48)
+            minimumWidth = dp(112)
             isFocusable = true
             contentDescription = "Verificar atualizações do EditalRadar"
             setOnClickListener { checkForUpdates(manual = true) }
@@ -203,11 +205,11 @@ class MainActivity : ComponentActivity() {
 
         val header = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
-            addView(statusText, LinearLayout.LayoutParams(0, dp(40), 1f))
-            addView(updateButton, LinearLayout.LayoutParams(-2, dp(40)))
+            addView(statusText, LinearLayout.LayoutParams(0, dp(48), 1f))
+            addView(updateButton, LinearLayout.LayoutParams(-2, dp(48)))
         }
 
-        root.addView(header, LinearLayout.LayoutParams(-1, dp(40)))
+        root.addView(header, LinearLayout.LayoutParams(-1, dp(48)))
         root.addView(progress, LinearLayout.LayoutParams(-1, dp(3)))
         root.addView(webView, LinearLayout.LayoutParams(-1, 0, 1f))
         setContentView(root)
