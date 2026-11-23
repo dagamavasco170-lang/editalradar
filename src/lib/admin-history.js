@@ -21,6 +21,20 @@ const displayValue = value => {
   return normalized.length > 240 ? normalized.slice(0, 237) + "..." : normalized;
 };
 
+export function summarizeContestChanges(changes = []) {
+  if (!Array.isArray(changes) || changes.length === 0) return "Atualização registrada";
+  const describe = change => `${change.label || change.field || "Campo"}: ${change.from || "Não informado"} → ${change.to || "Não informado"}`;
+  if (changes.length <= 2) return changes.map(describe).join(" · ");
+  return `${describe(changes[0])} · ${describe(changes[1])} · +${changes.length - 2} outra(s) alteração(ões)`;
+}
+
+export function describeContestHistoryEntry(entry = {}) {
+  const changes = Array.isArray(entry.changes) ? entry.changes : [];
+  const legacyGeneric = /^\\d+ campo\\(s\\) alterado\\(s\\)$/.test(String(entry.summary || ""));
+  if (entry.summary && !legacyGeneric) return entry.summary;
+  return summarizeContestChanges(changes) || entry.summary || "Atualização registrada";
+}
+
 export function buildContestChangeHistory(previous = {}, next = {}, options = {}) {
   const history = Array.isArray(previous?.historicoAtualizacoes)
     ? previous.historicoAtualizacoes
@@ -44,7 +58,7 @@ export function buildContestChangeHistory(previous = {}, next = {}, options = {}
     id: at + "-" + history.length,
     at,
     actor,
-    summary: changes.length + " campo(s) alterado(s)",
+    summary: summarizeContestChanges(changes),
     changes
   }].slice(-50);
 }
