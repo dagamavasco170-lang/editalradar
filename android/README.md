@@ -7,6 +7,8 @@ Aplicativo Android com interface do EditalRadar e recursos nativos em Kotlin.
 - Interface do produto existente, com favoritos, conta, histórico e catálogo sincronizado pelo Supabase.
 - Cache do app para acesso ao conteúdo já carregado quando estiver sem internet.
 - Recuperação automática da tela quando o Android encerra o processo interno da WebView; a aplicação recria a visualização e retorna à página inicial sem apagar a sessão salva.
+- Gesto de voltar integrado ao AndroidX: volta pelo histórico da WebView e deixa o Android fechar o app quando não há página anterior.
+- Compatibilidade preparada para Android 16 (API 36), incluindo áreas seguras de tela e navegação preditiva.
 - Indicador nativo de conexão; toque nele para tentar atualizar a página.
 - Canal de notificações Android. Quando o app detectar novos concursos ou mudanças em favoritos durante uma sincronização, poderá exibir avisos do sistema.
 - Retorno OAuth via esquema `editalradar://auth-callback`, mantendo a verificação PKCE no WebView.
@@ -58,9 +60,15 @@ Os avisos locais existentes continuam funcionando quando o aplicativo está aber
 - Antes de publicar uma versão, o CI verifica APK e AAB, confere o certificado permanente do EditalRadar e valida o identificador do pacote, `versionCode`, `versionName`, `minSdk` e `targetSdk` do APK.
 - A chave privada de distribuição permanece nos secrets do GitHub Actions; o fingerprint público do certificado é fixado nos testes de publicação para impedir uma troca acidental da identidade de assinatura.
 
+## Compatibilidade com Android 16
+
+- O app compila com `compileSdk 36` e `targetSdk 36`, mantendo `minSdk 24` para continuar atendendo aparelhos a partir do Android 7.
+- A navegação usa o `OnBackPressedDispatcher` do AndroidX e habilita o callback de retorno do sistema. O histórico da WebView só intercepta o gesto enquanto há uma página anterior; na página inicial, o Android executa a ação normal de voltar.
+- A tela aplica os insets das barras do sistema e do recorte da tela para evitar que controles fiquem escondidos sob a barra de status ou navegação.
+
 ## Compilação
 
-Com JDK 17, Android SDK e Gradle 8.10.2:
+Com JDK 17, Android SDK 36, Android Gradle Plugin 8.9.1 e Gradle 8.11.1:
 
 ```sh
 cd android
