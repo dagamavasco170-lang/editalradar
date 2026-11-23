@@ -664,3 +664,15 @@ test("atualizador Android limita notificações de progresso a mudanças de perc
   assert.ok(block.includes("lastReportedPercentage = percentage"));
   assert.ok(block.includes("onProgress(100)"));
 });
+
+
+test("busca do destaque usa campo e botão em linhas próprias em celulares estreitos", () => {
+  assert.match(styles, /grid-template-columns:22px minmax\(0,1fr\)/);
+  assert.match(styles, /\.hero-search input\{[\s\S]*?height:44px;min-height:44px/);
+  assert.match(styles, /\.hero-search button\{[\s\S]*?min-height:46px/);
+  assert.match(styles, /\.hero\{padding-bottom:22px\}/);
+});
+
+test("conteúdo móvel reserva espaço para a navegação inferior fixa", () => {
+  assert.match(styles, /\.main\{padding-bottom:calc\(92px \+ env\(safe-area-inset-bottom, 0px\)\)\}/);
+});
