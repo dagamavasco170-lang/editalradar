@@ -93,6 +93,31 @@ test("Android registra falhas da WebView com detalhes sanitizados apenas em buil
   assert.ok(androidSmokeScript.includes("EditalRadarWebView:W"));
 });
 
+test("Android desanexa a WebView e encerra callbacks antes de destruir a Activity", () => {
+  const destroyStart = android.indexOf("override fun onDestroy()");
+  const destroyEnd = android.indexOf("\n    }", destroyStart);
+  const destroyBlock = android.slice(destroyStart, destroyEnd);
+  const detachIndex = destroyBlock.indexOf("(retiringWebView.parent as? ViewGroup)?.removeView(retiringWebView)");
+  const stopIndex = destroyBlock.indexOf("retiringWebView.stopLoading()");
+  const historyIndex = destroyBlock.indexOf("retiringWebView.clearHistory()");
+  const destroyIndex = destroyBlock.indexOf("retiringWebView.destroy()");
+  assert.ok(detachIndex >= 0 && stopIndex > detachIndex);
+  assert.ok(historyIndex > stopIndex && destroyIndex > historyIndex);
+  assert.ok(destroyBlock.includes("webPageReady = false"));
+  assert.ok(destroyBlock.includes("pendingFcmTokenDelivery = false"));
+  assert.ok(destroyBlock.includes("appUpdateManager.close()"));
+});
+
+test("download de atualização ignora callback tardio após Activity ser encerrada", () => {
+  const callbackStart = android.indexOf("onComplete = { result ->");
+  const callbackEnd = android.indexOf("\n            }\n        )", callbackStart);
+  const callback = android.slice(callbackStart, callbackEnd);
+  const guardIndex = callback.indexOf("if (isFinishing || isDestroyed) return@downloadAndVerify");
+  const dialogIndex = callback.indexOf("downloadDialog?.dismiss()");
+  const buttonIndex = callback.indexOf("updateButton.isEnabled = true");
+  assert.ok(guardIndex >= 0 && dialogIndex > guardIndex && buttonIndex > guardIndex);
+});
+
 test("WebView só fica pronta após a interface React montar", () => {
   assert.ok(android.includes("private fun verifyAppMounted(targetView: WebView, attempt: Int = 0)"));
   assert.ok(android.includes("Boolean(document.querySelector('.app-shell'))"));
@@ -380,8 +405,8 @@ test("assinatura de distribuição usa apenas a chave permanente recebida pelo a
   assert.match(androidGradle, /ANDROID_RELEASE_KEY_ALIAS/);
   assert.match(androidGradle, /ANDROID_RELEASE_KEY_PASSWORD/);
   assert.match(androidGradle, /signingConfig signingConfigs\.getByName\('release'\)/);
-  assert.match(androidGradle, /versionCode 22/);
-  assert.ok(androidGradle.includes("versionName '1.3.9'"));
+  assert.match(androidGradle, /versionCode 23/);
+  assert.ok(androidGradle.includes("versionName '1.3.10'"));
   assert.ok(androidGradle.includes("androidx.activity:activity-ktx:1.13.0"));
   assert.ok(androidGradle.includes("androidx.fragment:fragment-ktx:1.9.1"));
   assert.ok(androidGradle.includes("androidx.webkit:webkit:1.18.0"));
