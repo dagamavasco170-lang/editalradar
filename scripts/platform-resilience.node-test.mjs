@@ -144,6 +144,16 @@ test("permissão de instalação usa Activity Result API sem callback legado", (
   assert.doesNotMatch(android, /APP_UPDATE_PERMISSION_REQUEST/);
 });
 
+test("release Android só publica depois do teste de instalação em Android 10", () => {
+  assert.ok(androidWorkflow.includes("  android-smoke:"));
+  assert.ok(androidWorkflow.includes("needs: [android-build, android-smoke]"));
+  assert.ok(androidWorkflow.includes("needs.android-smoke.result == 'success'"));
+  assert.ok(androidWorkflow.includes("api-level: 29"));
+  assert.ok(androidWorkflow.includes("ANDROID_I_WANT_MY_TCG=yes"));
+  assert.ok(androidWorkflow.includes("adb install -r"));
+  assert.ok(androidWorkflow.includes("adb shell am start -W -n br.com.editalradar.app/.MainActivity"));
+});
+
 test("navegação de retorno WebView usa o dispatcher AndroidX", () => {
   assert.ok(android.includes("import androidx.activity.ComponentActivity"));
   assert.ok(android.includes("import androidx.activity.OnBackPressedCallback"));
