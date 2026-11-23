@@ -333,6 +333,10 @@ class MainActivity : ComponentActivity() {
                 }
             },
             onComplete = { result ->
+                // O executor pode concluir o download depois que o Android recriar
+                // ou encerrar a Activity. Não toque em Views/Dialog após esse ponto.
+                if (isFinishing || isDestroyed) return@downloadAndVerify
+
                 downloadDialog?.dismiss()
                 downloadDialog = null
                 downloadProgressBar = null
@@ -340,7 +344,6 @@ class MainActivity : ComponentActivity() {
                 updateButton.isEnabled = true
                 updateButton.text = if (availableUpdate != null) "Atualizar" else "Atualizações"
 
-                if (isFinishing || isDestroyed) return@downloadAndVerify
                 result.onSuccess { apkFile ->
                     if (!appUpdateManager.isValidUpdatePackage(apkFile, release)) {
                         apkFile.delete()
@@ -1334,12 +1337,25 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        // Invalida retornos assíncronos antes de liberar os recursos da Activity.
+        webPageReady = false
+        pendingFcmTokenDelivery = false
+        fcmTokenRequestInFlight = false
+
         if (::appUpdateManager.isInitialized) appUpdateManager.close()
         downloadDialog?.dismiss()
+        downloadDialog = null
+        downloadProgressBar = null
+        downloadProgressText = null
         unregisterNetworkMonitor()
+
         if (::webView.isInitialized) {
-            webView.stopLoading()
-            webView.destroy()
+            val retiringWebView = webView
+            // Android exige desanexar a WebView da hierarquia antes de destroy().
+            (retiringWebView.parent as? ViewGroup)?.removeView(retiringWebView)
+            retiringWebView.stopLoading()
+            retiringWebView.clearHistory()
+            retiringWebView.destroy()
         }
         super.onDestroy()
     }
