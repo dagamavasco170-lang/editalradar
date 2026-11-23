@@ -835,7 +835,7 @@ class MainActivity : ComponentActivity() {
         runOnUiThread {
             runCatching {
                 webView.evaluateJavascript(
-                    "window.dispatchEvent(new CustomEvent('editalradar-native-diagnostic',{detail:${JSONObject.quote(payload.toString())}}))",
+                    "window.dispatchEvent(new CustomEvent('editalradar-native-diagnostic',{detail:${payload.toString()}}))",
                     null
                 )
             }
