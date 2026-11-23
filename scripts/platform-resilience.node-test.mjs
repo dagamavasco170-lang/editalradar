@@ -123,6 +123,23 @@ test("callbacks nativos assíncronos só chegam à WebView oficial e pronta", ()
   assert.ok(android.slice(statusDispatchStart, statusDispatchEnd).includes("postToTrustedWebPage(script)"));
 });
 
+test("modo escuro é persistido no navegador e sincronizado com o tema nativo Android", () => {
+  assert.ok(app.includes('safeSetItem("er-theme", JSON.stringify(nextTheme))'));
+  assert.ok(app.includes('aria-pressed={theme === "dark"}'));
+  assert.ok(styles.includes('html[data-theme="dark"]'));
+  assert.ok(styles.includes("color-scheme: dark"));
+  assert.ok(android.includes('private const val NATIVE_UI_PREFERENCES = "editalradar_ui"'));
+  assert.ok(android.includes('private const val DARK_THEME_KEY = "dark_mode"'));
+  assert.ok(android.includes(".getBoolean(DARK_THEME_KEY, false)"));
+  assert.ok(android.includes(".putBoolean(DARK_THEME_KEY, dark)"));
+  assert.ok(android.includes('"set_theme" -> applyNativeTheme(message.optString("theme") == "dark")'));
+  assert.ok(android.includes("themedAlertDialogBuilder()"));
+  assert.ok(android.includes("Theme_Material_Dialog_Alert"));
+  assert.ok(android.includes("window.navigationBarColor = background"));
+  assert.ok(android.includes("isDarkThemeEnabled) Color.rgb(27, 60, 55)"));
+  assert.doesNotMatch(android, /AlertDialog\.Builder\(this\)/);
+});
+
 test("Android 16 usa uma cadeia de ferramentas compatível e target API 36", () => {
   assert.match(androidGradle, /compileSdk 36/);
   assert.match(androidGradle, /targetSdk 36/);
@@ -237,8 +254,8 @@ test("assinatura de distribuição usa apenas a chave permanente recebida pelo a
   assert.match(androidGradle, /ANDROID_RELEASE_KEY_ALIAS/);
   assert.match(androidGradle, /ANDROID_RELEASE_KEY_PASSWORD/);
   assert.match(androidGradle, /signingConfig signingConfigs\.getByName\('release'\)/);
-  assert.match(androidGradle, /versionCode 20/);
-  assert.ok(androidGradle.includes("versionName '1.3.7'"));
+  assert.match(androidGradle, /versionCode 21/);
+  assert.ok(androidGradle.includes("versionName '1.3.8'"));
   assert.ok(androidGradle.includes("androidx.activity:activity-ktx:1.13.0"));
   assert.ok(androidGradle.includes("androidx.fragment:fragment-ktx:1.9.1"));
   assert.ok(androidGradle.includes("androidx.webkit:webkit:1.18.0"));
