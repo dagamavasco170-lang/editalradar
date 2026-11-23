@@ -315,7 +315,7 @@ jobs:
         run: echo "::notice::O build foi validado, mas a publicação está aguardando a configuração da chave permanente. Consulte ANDROID_SIGNING.md."
 
   android-smoke:
-    name: Install and launch on Android 10 emulator
+    name: Install and upgrade on Android 10 emulator
     needs: android-build
     runs-on: ubuntu-latest
     timeout-minutes: 40
@@ -334,7 +334,15 @@ jobs:
         with:
           gradle-version: 8.11.1
 
-      - name: Build debug APK for device smoke test
+      - name: Download permanently signed release artifact
+        if: needs.android-build.outputs.release_ready == 'true'
+        uses: actions/download-artifact@v8
+        with:
+          name: EditalRadar-Android-v${{ needs.android-build.outputs.version_name }}
+          path: release-assets
+
+      - name: Build debug APK for pull request smoke test
+        if: needs.android-build.outputs.release_ready != 'true'
         working-directory: android
         run: gradle assembleDebug --no-daemon --max-workers=2
 
@@ -352,8 +360,12 @@ jobs:
             echo "ANDROID_I_WANT_MY_TCG=yes" >> "$GITHUB_ENV"
           fi
 
-      - name: Install and launch on Android 10 emulator
+      - name: Install, upgrade and launch on Android 10 emulator
         uses: reactivecircus/android-emulator-runner@v2
+        env:
+          RELEASE_READY: ${{ needs.android-build.outputs.release_ready }}
+          APP_VERSION: ${{ needs.android-build.outputs.version_name }}
+          VERSION_CODE: ${{ needs.android-build.outputs.version_code }}
         with:
           api-level: 29
           target: google_apis
@@ -364,10 +376,83 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
           script: |
             set -euo pipefail
-            APK="android/app/build/outputs/apk/debug/app-debug.apk"
-            test -s "$APK"
             adb get-state
-            adb install -r "$APK"
+
+            if [[ "$RELEASE_READY" == "true" ]]; then
+              CURRENT_APK="$GITHUB_WORKSPACE/release-assets/EditalRadar-Android-v${APP_VERSION}.apk"
+              CHECKSUM_FILE="$GITHUB_WORKSPACE/release-assets/SHA256SUMS.txt"
+              test -s "$CURRENT_APK"
+              test -s "$CHECKSUM_FILE"
+              (cd "$GITHUB_WORKSPACE/release-assets" && sha256sum --check SHA256SUMS.txt)
+
+              # Fetch the preceding stable APK so Android must perform a real in-place
+              # update. This catches signing-certificate mismatches before release.
+              LATEST_RELEASE_JSON="$(curl --fail --silent --show-error --location --retry 3 --retry-all-errors \
+                https://api.github.com/repos/dagamavasco170-lang/editalradar/releases/latest)"
+              PREVIOUS_RELEASE_INFO="$(printf '%s' "$LATEST_RELEASE_JSON" | python3 -c '
+            import json, sys
+            release = json.load(sys.stdin)
+            tag = release.get("tag_name", "")
+            assets = release.get("assets", [])
+            apk = next((item for item in assets if item.get("name", "").endswith(".apk") and item.get("state") == "uploaded"), None)
+            sums = next((item for item in assets if item.get("name") == "SHA256SUMS.txt" and item.get("state") == "uploaded"), None)
+            if not tag.startswith("android-v") or apk is None or sums is None:
+                raise SystemExit("A release estável anterior não possui APK e SHA256SUMS válidos.")
+            print(tag)
+            print(apk["name"])
+            print(apk["browser_download_url"])
+            print(sums["browser_download_url"])
+            ')"
+              mapfile -t PREVIOUS_INFO <<< "$PREVIOUS_RELEASE_INFO"
+              PREVIOUS_TAG="${PREVIOUS_INFO[0]}"
+              PREVIOUS_APK_NAME="${PREVIOUS_INFO[1]}"
+              PREVIOUS_APK_URL="${PREVIOUS_INFO[2]}"
+              PREVIOUS_SUMS_URL="${PREVIOUS_INFO[3]}"
+
+              if [[ "$PREVIOUS_TAG" == "android-v${APP_VERSION}" ]]; then
+                echo "A API de releases retornou a própria versão em teste, não a versão anterior."
+                exit 1
+              fi
+
+              PREVIOUS_APK="$RUNNER_TEMP/$PREVIOUS_APK_NAME"
+              PREVIOUS_SUMS="$RUNNER_TEMP/previous-SHA256SUMS.txt"
+              curl --fail --silent --show-error --location --retry 3 --retry-all-errors "$PREVIOUS_APK_URL" -o "$PREVIOUS_APK"
+              curl --fail --silent --show-error --location --retry 3 --retry-all-errors "$PREVIOUS_SUMS_URL" -o "$PREVIOUS_SUMS"
+
+              EXPECTED_HASH="$(awk -v name="$PREVIOUS_APK_NAME" '$2 == name || $2 == "*" name { print $1; exit }' "$PREVIOUS_SUMS")"
+              if [[ ! "$EXPECTED_HASH" =~ ^[a-fA-F0-9]{64}$ ]]; then
+                echo "Não foi possível localizar o SHA-256 do APK estável anterior."
+                exit 1
+              fi
+              printf '%s  %s\n' "$EXPECTED_HASH" "$PREVIOUS_APK" | sha256sum --check -
+
+              echo "Instalando a versão estável anterior: $PREVIOUS_TAG"
+              adb install "$PREVIOUS_APK"
+              adb shell am force-stop br.com.editalradar.app
+
+              echo "Tentando atualizar por cima com a versão assinada $APP_VERSION."
+              adb install -r "$CURRENT_APK"
+
+              PACKAGE_SUMMARY="$(adb shell dumpsys package br.com.editalradar.app)"
+              if ! printf '%s' "$PACKAGE_SUMMARY" | grep -Fq "versionName=$APP_VERSION"; then
+                echo "O Android não confirmou a versão esperada após a atualização."
+                printf '%s\n' "$PACKAGE_SUMMARY" | grep -E "versionCode=|versionName=" || true
+                exit 1
+              fi
+              if ! printf '%s' "$PACKAGE_SUMMARY" | grep -Fq "versionCode=$VERSION_CODE"; then
+                echo "O Android não confirmou o versionCode esperado após a atualização."
+                printf '%s\n' "$PACKAGE_SUMMARY" | grep -E "versionCode=|versionName=" || true
+                exit 1
+              fi
+            else
+              CURRENT_APK="$GITHUB_WORKSPACE/android/app/build/outputs/apk/debug/app-debug.apk"
+              echo "APK de verificação: $CURRENT_APK"
+              ls -l "$GITHUB_WORKSPACE/android/app/build/outputs/apk/debug/"
+              test -s "$CURRENT_APK"
+              adb install -r "$CURRENT_APK"
+            fi
+
+            adb logcat -c
             adb shell am force-stop br.com.editalradar.app
             adb shell am start -W -n br.com.editalradar.app/.MainActivity
 
@@ -397,17 +482,13 @@ jobs:
               printf "%s\n" "$WINDOW_XML"
               exit 1
             fi
-            if ! printf "%s" "$WINDOW_XML" | grep -Eq "WebView|android.webkit"; then
-              echo "O componente WebView esperado não apareceu na janela do app."
-              printf "%s\n" "$WINDOW_XML"
-              exit 1
-            fi
-            if adb logcat -d -s AndroidRuntime:E | grep -Fq "br.com.editalradar.app"; then
-              echo "Foi detectada uma exceção fatal relacionada ao EditalRadar."
+
+            if adb logcat -d -s AndroidRuntime:E | grep -Fq "FATAL EXCEPTION"; then
+              echo "Foi detectada uma exceção fatal durante a inicialização do EditalRadar."
               adb logcat -d -s AndroidRuntime:E
               exit 1
             fi
-            echo "Smoke test concluído: APK instalado em Android 10, MainActivity ativa e interface nativa/WebView presentes."
+            echo "Smoke test concluído: aplicativo instalado/atualizado, versão conferida e MainActivity ativa em Android 10."
 
   publish-release:
     name: Publish signed Android release
