@@ -44,6 +44,49 @@ test("alterna o modo escuro e mantém a preferência após recarregar", async ({
   await expect(page.getByRole("button", { name: "Ativar modo escuro" })).toHaveAttribute("aria-pressed", "false");
 });
 
+test("mantém todas as superfícies principais escuras sem gradientes brancos", async ({ page }) => {
+  await page.goto("./");
+  await page.getByRole("button", { name: "Ativar modo escuro" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+
+  const inspectLightSurfaces = async (selector) => page.locator(selector).evaluateAll((elements) => {
+    const isLight = (color) => {
+      const match = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
+      if (!match) return false;
+      const [, r, g, b, alpha = "1"] = match;
+      if (Number(alpha) < 0.8) return false;
+      const [red, green, blue] = [r, g, b].map((value) => Number(value) / 255);
+      const luminance = 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+      return luminance > 0.88;
+    };
+    return elements
+      .filter((element) => {
+        const style = getComputedStyle(element);
+        const imageColors = [...style.backgroundImage.matchAll(/rgba?\([^)]*\)/g)].map((match) => match[0]);
+        return isLight(style.backgroundColor) || imageColors.some(isLight);
+      })
+      .map((element) => ({
+        element: element.className?.baseVal || element.className || element.tagName,
+        background: getComputedStyle(element).background,
+      }));
+  });
+
+  const homeSurfaces = await inspectLightSurfaces([
+    ".candidate-dashboard", ".source-notice", ".alerts-panel", ".contest-card",
+    ".org-icon", ".help-card", ".mini-avatar", ".dashboard-focus", ".dashboard-stat",
+    ".catalog-filter-panel", ".card-facts > span"
+  ].join(","));
+  expect(homeSurfaces, "superfícies claras que sobraram na página inicial").toEqual([]);
+
+  await page.getByRole("button", { name: /Área de estudos/ }).click();
+  await expect(page.locator(".focus-timer-panel")).toBeVisible();
+  const studySurfaces = await inspectLightSurfaces([
+    ".focus-timer-panel", ".focus-timer-dial", ".study-target-card",
+    ".study-session", ".question-card", ".panel", ".study-page .detail-btn"
+  ].join(","));
+  expect(studySurfaces, "superfícies claras que sobraram na área de estudos").toEqual([]);
+});
+
 test("pesquisa concursos pelo nome do órgão no navegador", async ({ page }) => {
   await page.goto("./");
   const search = page.getByPlaceholder("Buscar cargo ou órgão...");
