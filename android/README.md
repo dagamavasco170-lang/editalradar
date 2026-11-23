@@ -6,6 +6,7 @@ Aplicativo Android com interface do EditalRadar e recursos nativos em Kotlin.
 
 - Interface do produto existente, com favoritos, conta, histórico e catálogo sincronizado pelo Supabase.
 - Cache do app para acesso ao conteúdo já carregado quando estiver sem internet.
+- Recuperação automática da tela quando o Android encerra o processo interno da WebView; a aplicação recria a visualização e retorna à página inicial sem apagar a sessão salva.
 - Indicador nativo de conexão; toque nele para tentar atualizar a página.
 - Canal de notificações Android. Quando o app detectar novos concursos ou mudanças em favoritos durante uma sincronização, poderá exibir avisos do sistema.
 - Retorno OAuth via esquema `editalradar://auth-callback`, mantendo a verificação PKCE no WebView.
