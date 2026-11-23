@@ -57,6 +57,19 @@ test("ponte Android limita ações ao WebMessageListener de origem confiável", 
   assert.doesNotMatch(app, /window\.EditalRadarNative/);
 });
 
+test("WebView recria uma instância nova quando o renderizador Android é encerrado", () => {
+  assert.match(android, /private lateinit var contentRoot: LinearLayout/);
+  assert.ok(android.includes("override fun onRenderProcessGone("));
+  assert.ok(android.includes("private fun recoverFromRendererTermination("));
+  assert.ok(android.includes("container?.removeView(goneView)"));
+  assert.ok(android.includes("goneView.destroy()"));
+  assert.ok(android.includes("webView = replacement"));
+  assert.ok(android.includes("configureWebView()"));
+  assert.ok(android.includes("replacement.loadUrl(HOME_URL)"));
+  assert.ok(android.includes("EditalRadarWebView"));
+  assert.ok(android.includes("Feche e abra o aplicativo novamente."));
+});
+
 test("WebView respeita o ciclo de vida e recupera a página inicial", () => {
   assert.match(android, /val restoredWebState = savedInstanceState != null/);
   assert.match(android, /else if \(!restoredWebState\)/);
@@ -113,8 +126,8 @@ test("assinatura de distribuição usa apenas a chave permanente recebida pelo a
   assert.match(androidGradle, /ANDROID_RELEASE_KEY_ALIAS/);
   assert.match(androidGradle, /ANDROID_RELEASE_KEY_PASSWORD/);
   assert.match(androidGradle, /signingConfig signingConfigs\.getByName\('release'\)/);
-  assert.match(androidGradle, /versionCode 15/);
-  assert.ok(androidGradle.includes("versionName '1.3.2'"));
+  assert.match(androidGradle, /versionCode 16/);
+  assert.ok(androidGradle.includes("versionName '1.3.3'"));
   assert.ok(androidGradle.includes("androidx.webkit:webkit:1.18.0"));
   assert.doesNotMatch(androidGradle, /storePassword\s*['"][^'"]+['"]/);
 });

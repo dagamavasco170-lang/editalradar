@@ -15,6 +15,7 @@ import android.content.pm.ApplicationInfo
 import android.content.pm.PackageInstaller
 import android.content.pm.PackageManager
 import android.graphics.Color
+import android.util.Log
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
@@ -29,9 +30,11 @@ import android.webkit.SslErrorHandler
 import android.net.http.SslError
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebSettings
 import android.view.Gravity
 import android.view.View
+import android.view.ViewGroup
 import android.view.WindowInsets
 import android.view.WindowManager
 import android.widget.LinearLayout
@@ -65,6 +68,7 @@ class MainActivity : Activity() {
     }
 
     private lateinit var webView: WebView
+    private lateinit var contentRoot: LinearLayout
     private lateinit var progress: ProgressBar
     private lateinit var statusText: TextView
     private lateinit var updateButton: TextView
@@ -107,6 +111,7 @@ class MainActivity : Activity() {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.WHITE)
         }
+        contentRoot = root
 
         statusText = TextView(this).apply {
             text = "Preparando seu EditalRadar…"
@@ -546,6 +551,75 @@ class MainActivity : Activity() {
                 statusText.text = "Não foi possível estabelecer uma conexão segura. Tente novamente mais tarde."
                 statusText.setBackgroundColor(Color.rgb(154, 65, 45))
             }
+
+            override fun onRenderProcessGone(
+                view: WebView,
+                detail: RenderProcessGoneDetail
+            ): Boolean {
+                return recoverFromRendererTermination(view, detail.didCrash())
+            }
+        }
+    }
+
+    /**
+     * A WebView whose renderer has exited cannot be reused. Replace only the
+     * affected instance and reopen the trusted app home, avoiding an immediate
+     * retry of the page that may have caused a renderer crash.
+     */
+    private fun recoverFromRendererTermination(goneView: WebView, didCrash: Boolean): Boolean {
+        val parent = goneView.parent as? ViewGroup
+        val container = parent ?: if (::contentRoot.isInitialized) contentRoot else null
+        val oldIndex = container?.indexOfChild(goneView) ?: -1
+        val oldLayoutParams = goneView.layoutParams
+
+        if (oldIndex >= 0) {
+            container?.removeView(goneView)
+        }
+
+        runCatching { goneView.destroy() }
+
+        if (goneView !== webView || isFinishing || isDestroyed || container == null) {
+            Log.w("EditalRadarWebView", "Discarded terminated WebView; crashed=$didCrash")
+            return true
+        }
+
+        val replacement = runCatching {
+            WebView(this).apply {
+                contentDescription = "Conteúdo do EditalRadar"
+            }
+        }.getOrNull()
+
+        if (replacement == null) {
+            statusText.text = "A página foi reiniciada, mas não pôde ser reaberta agora. Feche e abra o aplicativo novamente."
+            statusText.setBackgroundColor(Color.rgb(154, 91, 29))
+            Log.w("EditalRadarWebView", "Could not recreate WebView after renderer termination")
+            return true
+        }
+
+        webView = replacement
+        val layoutParams = oldLayoutParams ?: LinearLayout.LayoutParams(-1, 0, 1f)
+        val insertionIndex = if (oldIndex >= 0) {
+            oldIndex.coerceIn(0, container.childCount)
+        } else {
+            container.childCount
+        }
+        container.addView(replacement, insertionIndex, layoutParams)
+
+        progress.progress = 0
+        progress.visibility = View.VISIBLE
+        statusText.text = "O EditalRadar precisou reiniciar uma página e já está se recuperando…"
+        statusText.setBackgroundColor(Color.rgb(154, 91, 29))
+
+        return try {
+            configureWebView()
+            replacement.loadUrl(HOME_URL)
+            Log.w("EditalRadarWebView", "Recreated WebView renderer; crashed=$didCrash")
+            true
+        } catch (error: Exception) {
+            progress.visibility = View.GONE
+            statusText.text = "Não foi possível reabrir o EditalRadar agora. Feche e abra o aplicativo novamente."
+            Log.w("EditalRadarWebView", "WebView recovery initialization failed", error)
+            true
         }
     }
 
