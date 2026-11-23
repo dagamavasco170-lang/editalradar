@@ -45,6 +45,10 @@ jobs:
                 core.info(target.label + ": sem execução recente para verificar.");
                 continue;
               }
+              if (run.head_branch !== "main") {
+                core.info(target.label + ": execução fora da branch main; ignorada por segurança.");
+                continue;
+              }
               const ageHours = (now - new Date(run.created_at).getTime()) / 3600000;
               if (run.status !== "completed" || run.conclusion === "success") {
                 core.info(target.label + ": não há falha concluída que precise de recuperação.");
