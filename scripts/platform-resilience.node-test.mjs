@@ -16,7 +16,7 @@ const [android, serviceWorker, styles, androidGradle, androidWorkflow, appUpdate
   readProjectFile("../src/lib/android-bridge.js"),
   readProjectFile("../src/App.jsx")
 ]);
-const [androidProjectGradle, androidApkWorkflow, androidReadme, androidSmokeScript, viteConfig, androidSmokeWorkflow, automationRecovery, automationHealth] = await Promise.all([
+const [androidProjectGradle, androidApkWorkflow, androidReadme, androidSmokeScript, viteConfig, androidSmokeWorkflow, automationRecovery, automationHealth, clientTelemetry, diagnosticsFunction, diagnosticsMigration, failureReporter] = await Promise.all([
   readProjectFile("../android/build.gradle"),
   readProjectFile("../.github/workflows/android-apk.yml"),
   readProjectFile("../android/README.md"),
@@ -24,7 +24,11 @@ const [androidProjectGradle, androidApkWorkflow, androidReadme, androidSmokeScri
   readProjectFile("../vite.config.js"),
   readProjectFile("../.github/workflows/android-emulator-smoke.yml"),
   readProjectFile("../.github/workflows/automation-recovery.yml"),
-  readProjectFile("../.github/workflows/automation-health.yml")
+  readProjectFile("../.github/workflows/automation-health.yml"),
+  readProjectFile("../src/lib/telemetry.js"),
+  readProjectFile("../supabase/functions/diagnostics-ingest/index.ts"),
+  readProjectFile("../supabase/migrations/20261123170000_app_diagnostics_log_sink.sql"),
+  readProjectFile("../.github/workflows/ci-failure-report.yml")
 ]);
 
 test("monitor de saúde considera somente execuções schedule/manual e fecha alertas recuperados", () => {
@@ -675,4 +679,27 @@ test("busca do destaque usa campo e botão em linhas próprias em celulares estr
 
 test("conteúdo móvel reserva espaço para a navegação inferior fixa", () => {
   assert.match(styles, /\.main\{padding-bottom:calc\(92px \+ env\(safe-area-inset-bottom, 0px\)\)\}/);
+});
+
+test("diagnósticos do site e Android enviam erros com limites e filtros", () => {
+  assert.match(clientTelemetry, /unhandledrejection/);
+  assert.match(clientTelemetry, /resource_load_error/);
+  assert.match(clientTelemetry, /console_error/);
+  assert.match(clientTelemetry, /editalradar-native-diagnostic/);
+  assert.match(clientTelemetry, /BATCH_SIZE = 5/);
+  assert.match(clientTelemetry, /MAX_QUEUE = 30/);
+  assert.match(diagnosticsFunction, /Rate limit reached/);
+  assert.match(diagnosticsFunction, /Bearer\\s\+/);
+  assert.match(diagnosticsFunction, /private_key/);
+  assert.match(diagnosticsFunction, /char_length/);
+  assert.match(diagnosticsMigration, /enable row level security/);
+  assert.match(diagnosticsMigration, /revoke all on public\\.app_diagnostics from anon, authenticated/);
+});
+
+test("falhas de workflow monitorado criam issues sem duplicar", () => {
+  assert.match(failureReporter, /workflow_run/);
+  assert.match(failureReporter, /conclusion == 'failure'/);
+  assert.match(failureReporter, /issues\\.create/);
+  assert.match(failureReporter, /ci-failure/);
+  assert.match(failureReporter, /evitando duplicação/);
 });
