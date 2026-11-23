@@ -705,6 +705,11 @@ test("falhas de workflow monitorado criam issues sem duplicar", () => {
   assert.match(failureReporter, /evitando duplicação/);
 });
 
+test("relatório Supabase usa secret key apenas no header apikey", () => {
+  assert.match(clientDiagnosticsSummary, /apikey: process\.env\.SUPABASE_SERVICE_ROLE_KEY/);
+  assert.doesNotMatch(clientDiagnosticsSummary, /Authorization: ["']Bearer/);
+});
+
 test("GitHub recebe apenas métricas agregadas dos logs de cliente", () => {
   assert.match(clientDiagnosticsSummary, /SUPABASE_SERVICE_ROLE_KEY/);
   assert.match(clientDiagnosticsSummary, /schedule/);
