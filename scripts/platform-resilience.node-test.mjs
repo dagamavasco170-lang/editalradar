@@ -116,6 +116,19 @@ test("gerenciador de atualizações cancela callbacks ao ser encerrado", () => {
   assert.ok(appUpdate.includes("if (!closed.compareAndSet(false, true)) return"));
   assert.ok(appUpdate.includes("worker.shutdownNow()"));
   assert.ok(appUpdate.includes("mainHandler.removeCallbacksAndMessages(null)"));
+
+  const downloadStart = appUpdate.indexOf("fun downloadAndVerify(");
+  const downloadEnd = appUpdate.indexOf("private fun findAvailableRelease()", downloadStart);
+  const downloadBlock = appUpdate.slice(downloadStart, downloadEnd);
+  assert.ok(downloadBlock.includes("if (!closed.get()) mainHandler.post"));
+  assert.ok(downloadBlock.includes("if (!closed.get()) onComplete(result)"));
+  assert.ok(downloadBlock.includes("if (!closed.get()) onComplete(Result.failure(error))"));
+
+  const archiveStart = appUpdate.indexOf("private fun downloadReleaseApk(");
+  const archiveEnd = appUpdate.indexOf("private fun openReleaseAssetConnection(", archiveStart);
+  const archiveBlock = appUpdate.slice(archiveStart, archiveEnd);
+  assert.ok(archiveBlock.includes("if (!closed.get()) onProgress(percentage)"));
+  assert.ok(archiveBlock.includes("if (!closed.get()) onProgress(100)"));
 });
 
 test("download de atualização ignora callback tardio após Activity ser encerrada", () => {
