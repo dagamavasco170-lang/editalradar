@@ -234,6 +234,7 @@ internal class AppUpdateManager(context: Context) {
 
             val digest = MessageDigest.getInstance("SHA-256")
             var downloaded = 0L
+            var lastReportedPercentage = Int.MIN_VALUE
             connection.inputStream.use { input ->
                 FileOutputStream(temporaryFile).use { output ->
                     val buffer = ByteArray(64 * 1024)
@@ -252,8 +253,13 @@ internal class AppUpdateManager(context: Context) {
                         } else {
                             -1
                         }
-                        if (!closed.get()) mainHandler.post {
-                            if (!closed.get()) onProgress(percentage)
+                        // Atualiza a UI no máximo uma vez por percentual (mais o 100% final),
+                        // evitando centenas de mensagens na fila principal em downloads grandes.
+                        if (percentage != lastReportedPercentage) {
+                            lastReportedPercentage = percentage
+                            if (!closed.get()) mainHandler.post {
+                                if (!closed.get()) onProgress(percentage)
+                            }
                         }
                     }
                     output.flush()
