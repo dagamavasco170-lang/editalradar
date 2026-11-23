@@ -1,0 +1,53 @@
+name: Atualizar dependências com correções seguras
+
+on:
+  schedule:
+    - cron: "20 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: dependency-autofix
+  cancel-in-progress: false
+
+jobs:
+  patch:
+    name: Aplicar patches npm e validar
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Instalar dependências existentes
+        run: npm ci --no-audit --no-fund
+      - name: Aplicar apenas correções compatíveis indicadas pelo npm
+        run: npm audit fix --package-lock-only --ignore-scripts --no-fund
+      - name: Reinstalar a árvore corrigida
+        run: npm ci --no-audit --no-fund
+      - name: Testar
+        run: npm test
+      - name: Compilar
+        run: npm run build
+      - name: Abrir PR se houver atualizações
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: automation/npm-security-patches
+          delete-branch: true
+          title: "chore: aplicar patches seguros nas dependências"
+          commit-message: "chore: apply compatible npm security patches"
+          body: |
+            Atualização automática semanal de dependências usando apenas correções compatíveis do npm.
+            A instalação, suíte de testes e build passaram antes da criação desta PR.
+            Revise o diff e os avisos de auditoria antes de integrar.
+          labels: dependencies, automated
+          add-paths: package-lock.json
