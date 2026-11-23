@@ -59,8 +59,8 @@ test("ponte Android limita ações ao WebMessageListener de origem confiável", 
 
 test("WebView recria uma instância nova quando o renderizador Android é encerrado", () => {
   assert.match(android, /private lateinit var contentRoot: LinearLayout/);
-  assert.match(android, /override fun onRenderProcessGone\\(/);
-  assert.match(android, /private fun recoverFromRendererTermination\\(/);
+  assert.ok(android.includes("override fun onRenderProcessGone("));
+  assert.ok(android.includes("private fun recoverFromRendererTermination("));
   assert.ok(android.includes("container.removeView(goneView)"));
   assert.ok(android.includes("goneView.destroy()"));
   assert.ok(android.includes("webView = replacement"));
