@@ -65,6 +65,8 @@ test("ponte Android limita ações ao WebMessageListener de origem confiável", 
 test("WebView recria uma instância nova quando o renderizador Android é encerrado", () => {
   assert.match(android, /private lateinit var contentRoot: LinearLayout/);
   assert.ok(android.includes("override fun onRenderProcessGone("));
+  const rendererCallbackStart = android.indexOf("override fun onRenderProcessGone(");
+  assert.ok(android.slice(rendererCallbackStart - 100, rendererCallbackStart).includes("@android.annotation.TargetApi(Build.VERSION_CODES.O)"));
   assert.ok(android.includes("private fun recoverFromRendererTermination("));
   assert.ok(android.includes("container?.removeView(goneView)"));
   assert.ok(android.includes("goneView.destroy()"));
@@ -184,6 +186,8 @@ test("assinatura de distribuição usa apenas a chave permanente recebida pelo a
   assert.match(androidGradle, /signingConfig signingConfigs\.getByName\('release'\)/);
   assert.match(androidGradle, /versionCode 18/);
   assert.ok(androidGradle.includes("versionName '1.3.5'"));
+  assert.ok(androidGradle.includes("androidx.activity:activity-ktx:1.13.0"));
+  assert.ok(androidGradle.includes("androidx.fragment:fragment-ktx:1.9.1"));
   assert.ok(androidGradle.includes("androidx.webkit:webkit:1.18.0"));
   assert.doesNotMatch(androidGradle, /storePassword\s*['"][^'"]+['"]/);
 });
@@ -195,6 +199,8 @@ test("GitHub Actions nunca publica APK de depuração como atualização públic
   assert.match(androidWorkflow, /ANDROID_RELEASE_KEY_ALIAS/);
   assert.match(androidWorkflow, /ANDROID_RELEASE_KEY_PASSWORD/);
   assert.match(androidWorkflow, /gradle assembleRelease bundleRelease/);
+  assert.ok(androidWorkflow.includes("Validate Android release lint on pull requests"));
+  assert.ok(androidWorkflow.includes("run: gradle lintRelease --no-daemon --max-workers=2"));
   assert.match(androidWorkflow, /steps\.signing\.outputs\.ready == 'true'/);
   assert.match(androidWorkflow, /verification-only/);
   const lineBreak = String.fromCharCode(10);

@@ -90,6 +90,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Release lint requires Fragment 1.3+ with Activity Result; module pins 1.9.1.
         notificationPermissionLauncher = registerForActivityResult(
             ActivityResultContracts.RequestPermission()
         ) { granted ->
@@ -585,6 +586,7 @@ class MainActivity : ComponentActivity() {
                 statusText.setBackgroundColor(Color.rgb(154, 65, 45))
             }
 
+            @android.annotation.TargetApi(Build.VERSION_CODES.O)
             override fun onRenderProcessGone(
                 view: WebView,
                 detail: RenderProcessGoneDetail
