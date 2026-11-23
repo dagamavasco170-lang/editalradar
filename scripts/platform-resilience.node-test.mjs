@@ -124,6 +124,25 @@ test("callbacks nativos assíncronos só chegam à WebView oficial e pronta", ()
   assert.ok(android.slice(statusDispatchStart, statusDispatchEnd).includes("postToTrustedWebPage(script)"));
 });
 
+test("telas principais removem fundos e gradientes claros no modo escuro", () => {
+  for (const selector of [
+    'html[data-theme="dark"] .candidate-dashboard',
+    'html[data-theme="dark"] .source-notice',
+    'html[data-theme="dark"] .alerts-panel',
+    'html[data-theme="dark"] .pci-catalog-notice',
+    'html[data-theme="dark"] .contest-card',
+    'html[data-theme="dark"] .org-icon',
+    'html[data-theme="dark"] .help-card',
+    'html[data-theme="dark"] .mini-avatar',
+    'html[data-theme="dark"] .dashboard-focus',
+    'html[data-theme="dark"] .study-target-card',
+    'html[data-theme="dark"] .focus-timer-panel',
+    'html[data-theme="dark"] .focus-timer-dial'
+  ]) {
+    assert.ok(styles.includes(selector), `regra escura ausente: ${selector}`);
+  }
+});
+
 test("modo escuro é persistido no navegador e sincronizado com o tema nativo Android", () => {
   assert.ok(app.includes('safeSetItem("er-theme", JSON.stringify(nextTheme))'));
   assert.ok(app.includes('aria-pressed={theme === "dark"}'));
