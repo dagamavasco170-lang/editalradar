@@ -16,12 +16,13 @@ const [android, serviceWorker, styles, androidGradle, androidWorkflow, appUpdate
   readProjectFile("../src/lib/android-bridge.js"),
   readProjectFile("../src/App.jsx")
 ]);
-const [androidProjectGradle, androidApkWorkflow, androidReadme, androidSmokeScript, viteConfig] = await Promise.all([
+const [androidProjectGradle, androidApkWorkflow, androidReadme, androidSmokeScript, viteConfig, androidSmokeWorkflow] = await Promise.all([
   readProjectFile("../android/build.gradle"),
   readProjectFile("../.github/workflows/android-apk.yml"),
   readProjectFile("../android/README.md"),
   readProjectFile("../scripts/android-emulator-smoke.sh"),
-  readProjectFile("../vite.config.js")
+  readProjectFile("../vite.config.js"),
+  readProjectFile("../.github/workflows/android-emulator-smoke.yml")
 ]);
 
 test("WebView mantém navegação interna restrita à origem e ao caminho do app", () => {
@@ -186,6 +187,19 @@ test("modo escuro é persistido no navegador e sincronizado com o tema nativo An
     "a WebView inicial e a recriada após falha precisam respeitar o tema escuro"
   );
   assert.doesNotMatch(android, /AlertDialog\.Builder\(this\)/);
+});
+
+test("mudanças no frontend também executam o teste de WebView Android", () => {
+  for (const path of [
+    '      - "vite.config.js"',
+    '      - "index.html"',
+    '      - "src/**"',
+    '      - "public/**"',
+    '      - "package.json"',
+    '      - "package-lock.json"'
+  ]) {
+    assert.ok(androidSmokeWorkflow.includes(path), `gatilho Android ausente: ${path}`);
+  }
 });
 
 test("build web transpila sintaxe para WebView antiga do Android 10", () => {
