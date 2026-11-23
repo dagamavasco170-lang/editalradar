@@ -4,7 +4,11 @@ Aplicativo Android com interface do EditalRadar e recursos nativos em Kotlin.
 
 ## O que esta versão oferece
 
+- Barra superior nativa com altura adaptável à escala de fonte do sistema, sem cortar textos longos; controles mantêm alvos de toque confortáveis.
+- Progresso do atualizador limitado a mudanças reais de percentual, deixando downloads grandes mais suaves e evitando sobrecarregar a fila da interface.
+
 - Interface do produto existente, com favoritos, conta, histórico e catálogo sincronizado pelo Supabase.
+- Barra superior com altura adaptável a fontes ampliadas, limites de linhas e alvos de toque de pelo menos 48 dp.
 - Modo claro/escuro com alternância na barra superior; a escolha é salva no navegador e no armazenamento nativo, aplica as cores às barras do sistema e mantém diálogos Android coerentes com o tema.
 - Cache do app configurado antes da primeira navegação, para favorecer a abertura com conteúdo já carregado mesmo quando o Android reinicia o processo sem conexão.
 - Controles nativos com alvos de toque de pelo menos 48 dp, facilitando o uso em celulares e com recursos de acessibilidade.
