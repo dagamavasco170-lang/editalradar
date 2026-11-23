@@ -16,11 +16,12 @@ const [android, serviceWorker, styles, androidGradle, androidWorkflow, appUpdate
   readProjectFile("../src/lib/android-bridge.js"),
   readProjectFile("../src/App.jsx")
 ]);
-const [androidProjectGradle, androidApkWorkflow, androidReadme, androidSmokeScript] = await Promise.all([
+const [androidProjectGradle, androidApkWorkflow, androidReadme, androidSmokeScript, viteConfig] = await Promise.all([
   readProjectFile("../android/build.gradle"),
   readProjectFile("../.github/workflows/android-apk.yml"),
   readProjectFile("../android/README.md"),
-  readProjectFile("../scripts/android-emulator-smoke.sh")
+  readProjectFile("../scripts/android-emulator-smoke.sh"),
+  readProjectFile("../vite.config.js")
 ]);
 
 test("WebView mantém navegação interna restrita à origem e ao caminho do app", () => {
@@ -105,8 +106,9 @@ test("Android atualiza o token FCM ao retomar a página confiável", () => {
   assert.ok(android.includes("private var fcmTokenRequestInFlight = false"));
   assert.ok(android.includes("override fun onPageStarted("));
   assert.ok(android.includes("override fun onPageFinished("));
-  assert.ok(android.includes("webPageReady = !url.isNullOrBlank()"));
+  assert.ok(android.includes("webPageReady = false"));
   assert.ok(android.includes("runCatching { isInternalAppUrl(Uri.parse(url)) }.getOrDefault(false)"));
+  assert.ok(android.includes("if (isTrustedPage) verifyAppMounted(view)"));
   const resumeStart = android.indexOf("override fun onResume()");
   const resumeEnd = android.indexOf("private fun showPendingInstallFailureIfAny()", resumeStart);
   const resumeBlock = android.slice(resumeStart, resumeEnd);
@@ -184,6 +186,12 @@ test("modo escuro é persistido no navegador e sincronizado com o tema nativo An
     "a WebView inicial e a recriada após falha precisam respeitar o tema escuro"
   );
   assert.doesNotMatch(android, /AlertDialog\.Builder\(this\)/);
+});
+
+test("build web transpila sintaxe para WebView antiga do Android 10", () => {
+  assert.ok(viteConfig.includes('target: "chrome70"'));
+  assert.ok(viteConfig.includes("optional chaining/nullish coalescing"));
+  assert.ok(androidReadme.includes("Chrome 70"));
 });
 
 test("Android 16 usa uma cadeia de ferramentas compatível e target API 36", () => {
