@@ -97,6 +97,7 @@ class MainActivity : ComponentActivity() {
 
         val restoredWebState = savedInstanceState != null &&
             webView.restoreState(savedInstanceState) != null
+        updateWebViewBackNavigation(webView.canGoBack())
 
         if (!handleAuthIntent(intent)) {
             val pushUrl = intent?.getStringExtra(EXTRA_PUSH_URL)
