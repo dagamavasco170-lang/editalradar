@@ -112,3 +112,12 @@ A fábrica de questões autorais é autônoma: o GitHub Actions amplia continuam
 Configure `GEMINI_API_KEY` em Supabase → Edge Functions → Secrets. O modelo é fixado em `gemini-3.1-flash-lite`, sem fallback para OpenAI ou qualquer provedor pago. Limites de proteção: até 3 execuções por dia e no máximo 3 questões por execução (2 chamadas de IA por execução, geração + revisão). O agendamento diário usa GitHub Actions → **Gerar e revisar questões automaticamente**, com os secrets existentes `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY`. Cada tema define a frequência (1 a 30 dias). A automação usa exclusivamente o trecho oficial fornecido como base factual; questões são conteúdo original EditalRadar, não cópias de provas reais.
 
 A extração de texto de páginas HTML oficiais é automática. Para PDF ou imagem, informe manualmente um trecho oficial. A cota gratuita do Gemini está sujeita aos limites e condições do Google e pode ficar indisponível. Para garantir que o uso permaneça sem cobrança, não habilite faturamento no projeto Google usado para a chave; o código não possui provedor pago nem fallback, mas a modalidade de conta/API é controlada pelo Google. Na cota gratuita, conteúdo enviado pode ser utilizado pelo Google para melhoria de produtos, conforme termos vigentes.
+
+
+## Diagnóstico automático e privacidade
+
+O site e o aplicativo Android/WebView enviam automaticamente registros técnicos de falhas para análise e correção, quando a conexão está disponível. São coletados eventos de erro, mensagens técnicas limitadas, stack traces, versão/commit, caminho da página sem parâmetros e agente do navegador. O identificador técnico é aleatório e local ao dispositivo/navegador; não enviamos IP ao banco de diagnósticos.
+
+A ingestão filtra emails, tokens, credenciais e parâmetros de URL, limita o tamanho e a frequência dos registros e mantém o banco inacessível diretamente aos usuários. Os diagnósticos são eliminados automaticamente após 30 dias. A captura é voltada a falhas JavaScript, recursos que não carregam, promessas rejeitadas e falhas nativas da WebView (HTTP, TLS e encerramento do renderizador).
+
+Os workflows do GitHub continuam mantendo seus logs próprios em **Actions** e agora abrem uma issue automaticamente quando um workflow monitorado falha, com link para os logs completos e sem duplicar issues abertas do mesmo commit/workflow. Os logs técnicos do cliente ficam no backend de diagnósticos para análise; não são publicados como issues abertas, para evitar expor mensagens/stack traces de usuários.
