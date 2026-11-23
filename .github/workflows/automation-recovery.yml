@@ -40,14 +40,11 @@ jobs:
                 per_page: 10
               });
               const run = response.data.workflow_runs.find(item =>
+                item.head_branch === "main" &&
                 ["schedule", "workflow_dispatch", "push"].includes(item.event)
               );
               if (!run) {
-                core.info(target.label + ": sem execução recente para verificar.");
-                continue;
-              }
-              if (run.head_branch !== "main") {
-                core.info(target.label + ": execução fora da branch main; ignorada por segurança.");
+                core.info(target.label + ": sem execução recente elegível na branch main.");
                 continue;
               }
               const ageHours = (now - new Date(run.created_at).getTime()) / 3600000;
