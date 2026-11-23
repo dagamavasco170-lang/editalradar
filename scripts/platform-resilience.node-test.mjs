@@ -700,6 +700,6 @@ test("falhas de workflow monitorado criam issues sem duplicar", () => {
   assert.match(failureReporter, /workflow_run/);
   assert.match(failureReporter, /conclusion == 'failure'/);
   assert.match(failureReporter, /issues\\.create/);
-  assert.match(failureReporter, /ci-failure/);
+  assert.match(failureReporter, /\[CI falhou\]/);
   assert.match(failureReporter, /evitando duplicação/);
 });
