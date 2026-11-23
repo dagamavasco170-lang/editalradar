@@ -25,7 +25,10 @@ jobs:
           script: |
             const targets = [
               { file: "source-monitor.yml", label: "Monitor de fontes" },
-              { file: "question-automation.yml", label: "Automação de questões" }
+              { file: "question-automation.yml", label: "Automação de questões" },
+              { file: "build.yml", label: "Testes, build e publicação do site" },
+              { file: "android-emulator-smoke.yml", label: "Teste de instalação Android" },
+              { file: "android-apk.yml", label: "Compilação do APK" }
             ];
             const now = Date.now();
             for (const target of targets) {
@@ -36,7 +39,7 @@ jobs:
                 per_page: 10
               });
               const run = response.data.workflow_runs.find(item =>
-                item.event === "schedule" || item.event === "workflow_dispatch"
+                ["schedule", "workflow_dispatch", "push"].includes(item.event)
               );
               if (!run) {
                 core.info(target.label + ": sem execução recente para verificar.");
