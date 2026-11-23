@@ -32,7 +32,8 @@ describe("histórico de alterações do catálogo", () => {
       ]
     })).toBe("Vagas: 10 → 20 · Situação: Em preparação → Inscrições abertas · +1 outra(s) alteração(ões)");
   });
-\n  it("não cria eventos quando os dados não mudaram e preserva histórico antigo", () => {
+
+  it("não cria eventos quando os dados não mudaram e preserva histórico antigo", () => {
     const history = [{ id: "old", at: "2026-11-20T10:00:00Z", changes: [] }];
     expect(buildContestChangeHistory(
       { cargo: "Analista", historicoAtualizacoes: history },
