@@ -33,12 +33,12 @@ if [[ "$RELEASE_READY" == "true" ]]; then
   )"
 
   PREVIOUS_INFO_FILE="$RUNNER_TEMP/previous-release-info.txt"
-  printf '%s' "$LATEST_RELEASE_JSON" | python3 - "$APP_VERSION" > "$PREVIOUS_INFO_FILE" <<'PY'
+  python3 - "$APP_VERSION" "$LATEST_RELEASE_JSON" > "$PREVIOUS_INFO_FILE" <<'PY'
 import json
 import sys
 
 current_version = sys.argv[1]
-release = json.load(sys.stdin)
+release = json.loads(sys.argv[2])
 tag = release.get("tag_name", "")
 assets = release.get("assets", [])
 
