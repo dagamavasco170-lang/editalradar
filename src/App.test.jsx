@@ -6,6 +6,31 @@ import { scoreRecommendation } from "./App.jsx";
 import { buildCatalogSnapshot, getVisibleNotifications } from "./lib/notifications";
 
 describe("EditalRadar", () => {
+  it("alterna o modo escuro, sincroniza com o Android e restaura a preferência após recarregar", () => {
+    localStorage.clear();
+    const postMessage = vi.fn();
+    Object.defineProperty(window, "EditalRadarNative", {
+      configurable: true,
+      value: { postMessage }
+    });
+
+    const firstRender = render(<App authClient={null} authConfigured={false} />);
+    const darkToggle = screen.getByRole("button", { name: "Ativar modo escuro" });
+    expect(darkToggle).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(darkToggle);
+
+    expect(document.documentElement).toHaveAttribute("data-theme", "dark");
+    expect(document.documentElement.style.colorScheme).toBe("dark");
+    expect(localStorage.getItem("er-theme")).toBe(JSON.stringify("dark"));
+    expect(screen.getByRole("button", { name: "Ativar modo claro" })).toHaveAttribute("aria-pressed", "true");
+    expect(postMessage).toHaveBeenCalledWith(JSON.stringify({ action: "set_theme", theme: "dark" }));
+
+    firstRender.unmount();
+    render(<App authClient={null} authConfigured={false} />);
+    expect(document.documentElement).toHaveAttribute("data-theme", "dark");
+    expect(screen.getByRole("button", { name: "Ativar modo claro" })).toHaveAttribute("aria-pressed", "true");
+    delete window.EditalRadarNative;
+  });
   it("atualiza o estado quando o Android confirma a permissão de notificações", () => {
     localStorage.clear();
     const postMessage = vi.fn();
