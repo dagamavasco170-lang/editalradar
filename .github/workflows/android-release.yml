@@ -17,7 +17,6 @@ on:
       - ".github/workflows/android-release.yml"
       - "scripts/android-emulator-smoke.sh"
       - "scripts/platform-resilience.node-test.mjs"
-      - "scripts/validate-android-version.sh"
   pull_request:
     branches: [main]
     paths:
