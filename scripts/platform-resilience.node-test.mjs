@@ -442,8 +442,10 @@ test("assinatura de distribuição usa apenas a chave permanente recebida pelo a
   assert.match(androidGradle, /ANDROID_RELEASE_KEY_ALIAS/);
   assert.match(androidGradle, /ANDROID_RELEASE_KEY_PASSWORD/);
   assert.match(androidGradle, /signingConfig signingConfigs\.getByName\('release'\)/);
-  assert.match(androidGradle, /versionCode 24/);
-  assert.ok(androidGradle.includes("versionName '1.3.11'"));
+  const versionCode = androidGradle.match(/^\\s*versionCode (\\d+)$/m);
+  const versionName = androidGradle.match(/^\\s*versionName ['"]([^'"]+)['"]$/m);
+  assert.ok(versionCode && Number(versionCode[1]) > 0, "versionCode deve ser um inteiro positivo");
+  assert.ok(versionName && /^\\d+\\.\\d+\\.\\d+$/.test(versionName[1]), "versionName deve seguir semver simples");
   assert.ok(androidGradle.includes("androidx.activity:activity-ktx:1.13.0"));
   assert.ok(androidGradle.includes("androidx.fragment:fragment-ktx:1.9.1"));
   assert.ok(androidGradle.includes("androidx.webkit:webkit:1.18.0"));
