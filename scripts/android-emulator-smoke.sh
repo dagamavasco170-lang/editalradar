@@ -171,6 +171,29 @@ if ! printf '%s' "$WINDOW_XML" | grep -Fq "Atualizações"; then
   exit 1
 fi
 
+# Confirma que a WebView realmente abriu o catálogo, e não apenas a moldura
+# nativa. Isso detecta telas brancas ou carregamentos que ficam presos.
+echo "Aguardando o catálogo principal aparecer na WebView..."
+CONTENT_READY=false
+for attempt in $(seq 1 24); do
+  adb shell uiautomator dump /sdcard/editalradar-window.xml >/dev/null 2>&1 || true
+  WINDOW_XML="$(adb shell cat /sdcard/editalradar-window.xml 2>/dev/null || true)"
+  if printf '%s' "$WINDOW_XML" | grep -Eiq "Encontre concursos"; then
+    CONTENT_READY=true
+    break
+  fi
+  sleep 5
+done
+
+if [[ "$CONTENT_READY" != "true" ]]; then
+  echo "O aplicativo iniciou, mas o título principal do catálogo não apareceu na WebView."
+  printf '%s\n' "$WINDOW_XML"
+  adb logcat -d -s chromium:E WebViewFactory:E AndroidRuntime:E
+  exit 1
+fi
+
+echo "Conteúdo principal do catálogo confirmado na WebView."
+
 if adb logcat -d -s AndroidRuntime:E | grep -Fq "FATAL EXCEPTION"; then
   echo "Foi detectada uma exceção fatal durante a inicialização do EditalRadar."
   adb logcat -d -s AndroidRuntime:E
