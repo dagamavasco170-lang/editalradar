@@ -4,6 +4,26 @@ set -euo pipefail
 : "${GITHUB_WORKSPACE:?GITHUB_WORKSPACE não está definido pelo GitHub Actions}"
 : "${RUNNER_TEMP:?RUNNER_TEMP não está definido pelo GitHub Actions}"
 
+
+# Em caso de falha, preserve evidências para diagnóstico sem depender de reproduzir
+# o problema localmente. O artifact é coletado pelo workflow mesmo após erro.
+collect_failure_diagnostics() {
+  local exit_code=$?
+  if (( exit_code == 0 )); then return; fi
+  local diagnostics_dir="$GITHUB_WORKSPACE/android-smoke-diagnostics"
+  mkdir -p "$diagnostics_dir" || return
+  echo "Smoke Android falhou (exit $exit_code); coletando diagnósticos..."
+  adb logcat -d -v time > "$diagnostics_dir/logcat.txt" 2>&1 || true
+  adb shell dumpsys activity activities > "$diagnostics_dir/activities.txt" 2>&1 || true
+  adb shell dumpsys window windows > "$diagnostics_dir/windows.txt" 2>&1 || true
+  adb shell screencap -p /sdcard/editalradar-failure.png >/dev/null 2>&1 && \
+    adb pull /sdcard/editalradar-failure.png "$diagnostics_dir/screenshot.png" >/dev/null 2>&1 || true
+  adb shell uiautomator dump /sdcard/editalradar-failure.xml >/dev/null 2>&1 && \
+    adb pull /sdcard/editalradar-failure.xml "$diagnostics_dir/window.xml" >/dev/null 2>&1 || true
+  echo "Diagnósticos guardados em $diagnostics_dir"
+}
+trap collect_failure_diagnostics EXIT
+
 APP_ID="br.com.editalradar.app"
 RELEASE_READY="${RELEASE_READY:-false}"
 APP_VERSION="${APP_VERSION:-}"
