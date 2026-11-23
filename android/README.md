@@ -54,7 +54,7 @@ Os avisos locais existentes continuam funcionando quando o aplicativo está aber
 
 ## Pacotes publicados
 
-- **Versão em validação: 1.3.12 (versionCode 25).** A publicação depende da aprovação do build assinado, da atualização sobre a versão anterior e da abertura do catálogo no emulador Android 10. Esta versão melhora a adaptação da barra nativa a fontes ampliadas e reduz atualizações redundantes da interface durante downloads.
+- **Versão em validação: 1.3.12 (versionCode 25).** O tag da próxima versão será `android-v1.3.12`. A publicação depende da aprovação do build assinado, da atualização sobre a versão anterior e da abertura do catálogo no emulador Android 10. Esta versão melhora a adaptação da barra nativa a fontes ampliadas e reduz atualizações redundantes da interface durante downloads.
 - O APK é o pacote para instalação direta. O AAB fica disponível para uma eventual distribuição pela Play Store; a publicação na loja não é automática.
 - Builds debug são usados somente para verificação de CI quando a assinatura de produção não está disponível e não substituem a versão estável.
 
