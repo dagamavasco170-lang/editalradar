@@ -269,7 +269,7 @@ test("Android tenta novamente automaticamente quando a conectividade validada re
 });
 
 test("PWA limita a espera de navegação e volta ao cache em redes instáveis", () => {
-  assert.match(serviceWorker, /editalradar-app-v5/);
+  assert.match(serviceWorker, /editalradar-app-v6/);
   assert.match(serviceWorker, /new AbortController\(\)/);
   assert.match(serviceWorker, /controller\.abort\(\), 4500/);
   assert.match(serviceWorker, /self\.clearTimeout\(timeoutId\)/);
@@ -294,6 +294,11 @@ test("PWA usa cache local em erros temporários do servidor", () => {
   assert.match(serviceWorker, /response\.status === 408/);
   assert.match(serviceWorker, /response\.status === 429/);
   assert.match(serviceWorker, /exactPage \|\| appShell \|\| response/);
+});
+
+test("recursos estáticos pré-armazenados funcionam com cabeçalhos Origin diferentes", () => {
+  assert.ok(serviceWorker.includes('cache.match(request, { ignoreVary: true })'));
+  assert.ok(serviceWorker.includes("CACHE_NAME = \"editalradar-app-v6\""));
 });
 
 test("Android apresenta mensagens claras sem expor detalhes internos", () => {
