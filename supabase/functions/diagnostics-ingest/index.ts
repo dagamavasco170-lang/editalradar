@@ -60,6 +60,11 @@ Deno.serve(async (req) => {
     .gte("created_at", new Date(Date.now() - 15 * 60_000).toISOString());
   if (countError) return json({ error: "Diagnostic storage unavailable" }, 503, origin);
   if ((count ?? 0) >= 40) return json({ error: "Rate limit reached" }, 429, origin);
+  const { count: globalCount, error: globalCountError } = await admin.from("app_diagnostics")
+    .select("id", { count: "exact", head: true })
+    .gte("created_at", new Date(Date.now() - 60_000).toISOString());
+  if (globalCountError) return json({ error: "Diagnostic storage unavailable" }, 503, origin);
+  if ((globalCount ?? 0) >= 500) return json({ error: "Service rate limit reached" }, 429, origin);
 
   const rows = payload.logs.map((item: any) => ({
     client_id: clientId,
