@@ -91,6 +91,15 @@ test("Android registra falhas da WebView com detalhes sanitizados apenas em buil
   assert.ok(androidSmokeScript.includes("EditalRadarWebView:W"));
 });
 
+test("WebView só fica pronta após a interface React montar", () => {
+  assert.ok(android.includes("private fun verifyAppMounted(targetView: WebView, attempt: Int = 0)"));
+  assert.ok(android.includes("Boolean(document.querySelector('.app-shell'))"));
+  assert.ok(android.includes('if (result == "true")'));
+  assert.ok(android.includes("React app shell was not mounted after 10 checks"));
+  assert.ok(android.includes("O aplicativo não conseguiu iniciar. Toque aqui para tentar novamente."));
+  assert.ok(android.includes("if (pendingFcmTokenDelivery) requestFcmToken()"));
+});
+
 test("Android atualiza o token FCM ao retomar a página confiável", () => {
   assert.ok(android.includes("private var webPageReady = false"));
   assert.ok(android.includes("private var fcmTokenRequestInFlight = false"));
