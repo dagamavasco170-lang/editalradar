@@ -28,7 +28,8 @@ jobs:
               { file: "question-automation.yml", label: "Automação de questões" },
               { file: "build.yml", label: "Testes, build e publicação do site" },
               { file: "android-emulator-smoke.yml", label: "Teste de instalação Android" },
-              { file: "android-apk.yml", label: "Compilação do APK" }
+              { file: "android-apk.yml", label: "Compilação do APK" },
+              { file: "dependency-autofix.yml", label: "Correções automáticas de dependências" }
             ];
             const now = Date.now();
             for (const target of targets) {
