@@ -694,7 +694,7 @@ test("diagnósticos do site e Android enviam erros com limites e filtros", () =>
   assert.match(diagnosticsFunction, /private_key/);
   assert.match(diagnosticsFunction, /char_length/);
   assert.match(diagnosticsMigration, /enable row level security/);
-  assert.match(diagnosticsMigration, /revoke all on public\\.app_diagnostics from anon, authenticated/);
+  assert.match(diagnosticsMigration, /revoke all on public\.app_diagnostics from anon, authenticated/);
 });
 
 test("falhas de workflow monitorado criam issues sem duplicar", () => {
@@ -708,7 +708,7 @@ test("falhas de workflow monitorado criam issues sem duplicar", () => {
 test("GitHub recebe apenas métricas agregadas dos logs de cliente", () => {
   assert.match(clientDiagnosticsSummary, /SUPABASE_SERVICE_ROLE_KEY/);
   assert.match(clientDiagnosticsSummary, /schedule/);
-  assert.match(clientDiagnosticsSummary, /events por plataforma/);
-  assert.match(clientDiagnosticsSummary, /github\\.rest\\.issues\\.create/);
+  assert.match(clientDiagnosticsSummary, /Eventos por plataforma/);
+  assert.match(clientDiagnosticsSummary, /github\.rest\.issues\.create/);
   assert.match(clientDiagnosticsSummary, /sem mensagens, stack traces, IDs de usuário ou IP/);
 });
