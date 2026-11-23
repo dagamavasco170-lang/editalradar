@@ -2173,7 +2173,7 @@ button,.detail-btn,.primary-btn{line-height:1.35}
 .push-health-errors li b{font-size:10px;color:#8d4e3d}
 .push-health-errors li small{grid-column:1/-1;color:#9a8b82;font-size:8px}
 .push-health-privacy{margin:12px 0 0;color:#8a979b;font-size:9px;line-height:1.5}
-@media(max-width:760px){.push-health-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.push-health-updated{width:100%;margin-left:19px}}
+@media(max-width:760px){.push-health-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.push-health-overview{display:grid;grid-template-columns:9px minmax(0,1fr);align-items:start;column-gap:10px;row-gap:6px}.push-health-overview>div{grid-column:2;grid-row:1}.push-health-indicator{grid-column:1;grid-row:1;margin-top:4px}.push-health-updated{grid-column:2;grid-row:2;width:auto;margin:0;white-space:normal;line-height:1.45;overflow-wrap:anywhere}}
 @media(max-width:420px){.push-health-grid{grid-template-columns:1fr}.push-health-card{padding:10px}.push-health-heading{align-items:flex-start}.push-health-heading>.detail-btn{white-space:nowrap}}
 
 
