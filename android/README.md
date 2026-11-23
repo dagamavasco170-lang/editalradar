@@ -51,7 +51,7 @@ Os avisos locais existentes continuam funcionando quando o aplicativo está aber
 
 ## Pacotes publicados
 
-- A versão preparada para publicação é 1.3.9 (versionCode 22); ela só será disponibilizada depois que a instalação/atualização assinada e a abertura real do catálogo no Android 10 passarem. A permissão de instalação de atualizações usa a Activity Result API, sem callback legado. Cada versão é publicada em uma GitHub Release, com APK e AAB assinados pela chave permanente do EditalRadar e arquivo de checksums SHA-256.
+- **Versão estável publicada: 1.3.9 (versionCode 22).** [Baixar APK](https://github.com/dagamavasco170-lang/editalradar/releases/download/android-v1.3.9/EditalRadar-Android-v1.3.9.apk) · [Baixar AAB](https://github.com/dagamavasco170-lang/editalradar/releases/download/android-v1.3.9/EditalRadar-Android-v1.3.9.aab) · [Checksums SHA-256](https://github.com/dagamavasco170-lang/editalradar/releases/download/android-v1.3.9/SHA256SUMS.txt). A instalação/atualização assinada e a abertura real do catálogo foram aprovadas no Android 10. A permissão de instalação de atualizações usa a Activity Result API, sem callback legado.
 - O APK é o pacote para instalação direta. O AAB fica disponível para uma eventual distribuição pela Play Store; a publicação na loja não é automática.
 - Builds debug são usados somente para verificação de CI quando a assinatura de produção não está disponível e não substituem a versão estável.
 
