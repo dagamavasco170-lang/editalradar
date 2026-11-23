@@ -87,6 +87,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var notificationPermissionLauncher: ActivityResultLauncher<String>
     private var webPageReady = false
     private var fcmTokenRequestInFlight = false
+    private var pendingFcmTokenDelivery = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -500,6 +501,7 @@ class MainActivity : ComponentActivity() {
                     webPageReady = !url.isNullOrBlank() &&
                         runCatching { isInternalAppUrl(Uri.parse(url)) }.getOrDefault(false)
                     updateWebViewBackNavigation(view.canGoBack())
+                    if (webPageReady && pendingFcmTokenDelivery) requestFcmToken()
                 }
             }
 
@@ -755,12 +757,18 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun requestFcmToken() {
+        if (isFinishing || isDestroyed) return
+        if (!isTrustedWebPageReady()) {
+            pendingFcmTokenDelivery = true
+            return
+        }
+        if (fcmTokenRequestInFlight) return
         if (FirebaseApp.getApps(this@MainActivity).isEmpty()) {
             dispatchFcmStatus(configured = false)
             return
         }
-        if (fcmTokenRequestInFlight || isFinishing || isDestroyed) return
 
+        pendingFcmTokenDelivery = false
         val cachedToken = getSharedPreferences("editalradar_push", Context.MODE_PRIVATE)
             .getString("fcm_token", null)
         if (!cachedToken.isNullOrBlank()) dispatchFcmToken(cachedToken)
@@ -790,10 +798,40 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun isTrustedWebPageReady(): Boolean {
+        if (!::webView.isInitialized || !webPageReady || isFinishing || isDestroyed) return false
+        val currentUri = webView.url?.let(Uri::parse) ?: return false
+        return isInternalAppUrl(currentUri)
+    }
+
+    /**
+     * Async native callbacks may outlive the page that requested them. Deliver only
+     * while the current top-level WebView is still on the official, loaded app URL.
+     */
+    private fun postToTrustedWebPage(
+        script: String,
+        retryFcmTokenDelivery: Boolean = false
+    ) {
+        if (!isTrustedWebPageReady()) {
+            if (retryFcmTokenDelivery) pendingFcmTokenDelivery = true
+            return
+        }
+
+        val targetWebView = webView
+        targetWebView.post {
+            if (targetWebView !== webView || !isTrustedWebPageReady()) {
+                if (retryFcmTokenDelivery) pendingFcmTokenDelivery = true
+                return@post
+            }
+            targetWebView.evaluateJavascript(script, null)
+            if (retryFcmTokenDelivery) pendingFcmTokenDelivery = false
+        }
+    }
+
     private fun dispatchNativeNotificationPermission(granted: Boolean) {
         val script = "window.dispatchEvent(new CustomEvent('editalradar:native-notification-permission'," +
             " {detail:{granted:$granted}}));"
-        if (::webView.isInitialized) webView.post { webView.evaluateJavascript(script, null) }
+        postToTrustedWebPage(script)
     }
 
     private fun configureNotifications() {
@@ -902,12 +940,12 @@ class MainActivity : ComponentActivity() {
     private fun dispatchFcmToken(token: String) {
         val safeToken = org.json.JSONObject.quote(token)
         val script = "window.dispatchEvent(new CustomEvent('editalradar:fcm-token',{detail:{token:$safeToken}}));"
-        if (::webView.isInitialized) webView.post { webView.evaluateJavascript(script, null) }
+        postToTrustedWebPage(script, retryFcmTokenDelivery = true)
     }
 
     private fun dispatchFcmStatus(configured: Boolean) {
         val script = "window.dispatchEvent(new CustomEvent('editalradar:fcm-status',{detail:{configured:$configured}}));"
-        if (::webView.isInitialized) webView.post { webView.evaluateJavascript(script, null) }
+        postToTrustedWebPage(script)
     }
 
     override fun onResume() {
