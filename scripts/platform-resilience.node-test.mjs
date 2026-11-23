@@ -88,7 +88,8 @@ test("Android atualiza o token FCM ao retomar a página confiável", () => {
   const resumeEnd = android.indexOf("private fun showPendingInstallFailureIfAny()", resumeStart);
   const resumeBlock = android.slice(resumeStart, resumeEnd);
   assert.ok(resumeBlock.includes("if (webPageReady) requestFcmToken()"));
-  assert.ok(android.includes("if (fcmTokenRequestInFlight || isFinishing || isDestroyed) return"));
+  assert.ok(android.includes("if (isFinishing || isDestroyed) return"));
+  assert.ok(android.includes("if (fcmTokenRequestInFlight) return"));
   assert.ok(android.includes("fcmTokenRequestInFlight = true"));
   assert.ok(android.includes("fcmTokenRequestInFlight = false"));
   assert.ok(android.includes("if (isFinishing || isDestroyed) return@addOnCompleteListener"));
@@ -104,9 +105,22 @@ test("callbacks nativos assíncronos só chegam à WebView oficial e pronta", ()
   assert.ok(android.includes("retryFcmTokenDelivery: Boolean = false"));
   assert.ok(android.includes("pendingFcmTokenDelivery = true"));
   assert.ok(android.includes("if (webPageReady && pendingFcmTokenDelivery) requestFcmToken()"));
-  assert.match(android, /private fun dispatchNativeNotificationPermission\(granted: Boolean\)[\\s\\S]*?postToTrustedWebPage\(script\)/);
-  assert.match(android, /private fun dispatchFcmToken\(token: String\)[\\s\\S]*?postToTrustedWebPage\(script, retryFcmTokenDelivery = true\)/);
-  assert.match(android, /private fun dispatchFcmStatus\(configured: Boolean\)[\\s\\S]*?postToTrustedWebPage\(script\)/);
+  const permissionStart = android.indexOf("private fun dispatchNativeNotificationPermission(");
+  const permissionEnd = android.indexOf("private fun configureNotifications()", permissionStart);
+  assert.ok(permissionStart >= 0 && permissionEnd > permissionStart);
+  assert.ok(android.slice(permissionStart, permissionEnd).includes("postToTrustedWebPage(script)"));
+
+  const tokenDispatchStart = android.indexOf("private fun dispatchFcmToken(");
+  const tokenDispatchEnd = android.indexOf("private fun dispatchFcmStatus(", tokenDispatchStart);
+  assert.ok(tokenDispatchStart >= 0 && tokenDispatchEnd > tokenDispatchStart);
+  assert.ok(android.slice(tokenDispatchStart, tokenDispatchEnd).includes(
+    "postToTrustedWebPage(script, retryFcmTokenDelivery = true)"
+  ));
+
+  const statusDispatchStart = android.indexOf("private fun dispatchFcmStatus(");
+  const statusDispatchEnd = android.indexOf("override fun onResume()", statusDispatchStart);
+  assert.ok(statusDispatchStart >= 0 && statusDispatchEnd > statusDispatchStart);
+  assert.ok(android.slice(statusDispatchStart, statusDispatchEnd).includes("postToTrustedWebPage(script)"));
 });
 
 test("Android 16 usa uma cadeia de ferramentas compatível e target API 36", () => {
