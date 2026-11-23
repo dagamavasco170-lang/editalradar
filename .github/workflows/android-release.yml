@@ -166,6 +166,12 @@ jobs:
           echo "ready=true" >> "$GITHUB_OUTPUT"
           echo "Assinatura permanente validada."
 
+      - name: Validate Android release lint on pull requests
+        if: github.event_name == 'pull_request'
+        working-directory: android
+        timeout-minutes: 15
+        run: gradle lintRelease --no-daemon --max-workers=2
+
       - name: Build permanently signed APK and AAB
         if: steps.signing.outputs.ready == 'true'
         working-directory: android
