@@ -3318,3 +3318,64 @@ html[data-theme="dark"] .recommendation-reasons span{background:#20374d!importan
 
 .recommendation-priority{display:block;max-width:78px;text-align:center;font-size:8px;line-height:1.25;font-weight:700;color:#4b6470;margin-top:3px;overflow-wrap:anywhere}
 [data-theme="dark"] .recommendation-priority{color:#c5d7e0}
+
+
+/* UX mobile: navegação inferior acessível, área útil maior e ações fáceis de tocar. */
+@media(max-width:760px){
+  .sidebar{
+    position:fixed;inset:auto 0 0;width:100%;height:auto;min-height:0;
+    z-index:40;background:var(--surface, #fff);border-right:0;border-top:1px solid #e3eaf0;
+    padding:7px 8px calc(7px + env(safe-area-inset-bottom));display:flex;flex-direction:row;
+    box-shadow:0 -8px 24px rgba(20,40,60,.07);
+  }
+  .sidebar .brand,.sidebar .side-label,.sidebar .sidebar-bottom{display:none!important}
+  .sidebar-nav{display:flex;flex:1;justify-content:space-around;align-items:stretch;gap:3px}
+  .sidebar .nav-item{
+    display:flex;flex:1;min-width:0;flex-direction:column;justify-content:center;align-items:center;
+    gap:3px;padding:8px 3px;border-radius:10px;margin:0;font-size:10px;line-height:1.15;
+    color:#607485;min-height:52px;
+  }
+  .sidebar .nav-item span:first-child{font-size:19px;width:auto;line-height:1}
+  .sidebar .nav-item .nav-label{font-size:10px;display:block;white-space:nowrap}
+  .sidebar .nav-item b{display:inline-flex;margin:0;font-size:9px;padding:1px 5px;position:absolute;top:2px;right:calc(50% - 24px)}
+  .sidebar .nav-item{position:relative}
+  .sidebar .nav-item.active{background:#e9f5f1;color:#168364}
+  .main{padding-bottom:calc(75px + env(safe-area-inset-bottom))}
+  .topbar{position:sticky;top:0;z-index:20;min-height:58px;height:auto;padding:10px 14px;gap:8px}
+  .breadcrumb{font-size:11px;max-width:56%;line-height:1.35}
+  .top-actions{gap:8px}
+  .top-actions button{min-height:40px}
+  .content{padding:16px 13px 28px}
+  .hero{border-radius:14px;padding:20px 17px;min-height:0}
+  .hero p{line-height:1.5}
+  .hero-search button,.primary-btn,.detail-btn,.alert-save{min-height:44px}
+  .filters select,.search-filter{min-height:44px}
+  .contest-card{padding:14px;border-radius:13px}
+  .contest-card .detail-btn{min-height:42px}
+  .cards{gap:10px}
+}
+@media(max-width:480px){
+  .sidebar{padding-left:5px;padding-right:5px}
+  .sidebar .nav-item{min-height:49px;padding:6px 2px}
+  .sidebar .nav-item .nav-label{font-size:9px}
+  .sidebar .nav-item span:first-child{font-size:18px}
+  .topbar{padding:8px 11px}
+  .breadcrumb{max-width:48%;font-size:10px}
+  .top-actions{gap:5px}
+  .content{padding:13px 11px 24px}
+  .hero{padding:18px 14px}
+  .hero h1{font-size:21px;line-height:1.25}
+  .hero p{font-size:12px}
+  .stat{min-height:62px}
+  .contest-card h3{font-size:15px;line-height:1.4}
+  .card-meta span{min-width:calc(50% - 8px)}
+  .detail-btn{padding:9px 11px}
+}
+/* Foco visível, toque confortável e menos animação quando o usuário prefere. */
+button,a,input,select,textarea{touch-action:manipulation}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{
+  outline:3px solid #69bca0;outline-offset:2px
+}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{scroll-behavior:auto!important;transition:none!important;animation:none!important}
+}
