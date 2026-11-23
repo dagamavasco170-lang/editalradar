@@ -3244,6 +3244,67 @@ html[data-theme="dark"] .stat,
 html[data-theme="dark"] .panel {
   color: #e5edf8;
 }
+
+/* Correção de superfícies com gradientes claros que permaneciam visíveis no tema escuro. */
+html[data-theme="dark"] .candidate-dashboard {
+  background: linear-gradient(145deg, #1b2e43 0%, #172538 76%) !important;
+}
+html[data-theme="dark"] .source-notice,
+html[data-theme="dark"] .alerts-panel,
+html[data-theme="dark"] .pci-catalog-notice {
+  background: linear-gradient(110deg, #1d3047 0%, #172538 100%) !important;
+  border-color: #344861 !important;
+}
+html[data-theme="dark"] .contest-card {
+  background: linear-gradient(180deg, #1a2b41 0%, #172538 100%) !important;
+}
+html[data-theme="dark"] .org-icon {
+  background: linear-gradient(145deg, #29435e 0%, #1c3048 100%) !important;
+  border-color: #405a74 !important;
+  color: #b9ddff !important;
+}
+html[data-theme="dark"] .help-card {
+  background: linear-gradient(145deg, #1d3936 0%, #172b36 100%) !important;
+  border-color: #35514f !important;
+}
+html[data-theme="dark"] .mini-avatar {
+  background: linear-gradient(145deg, #304967 0%, #20364f 100%) !important;
+  color: #d9eaff !important;
+}
+html[data-theme="dark"] .dashboard-focus {
+  background: linear-gradient(145deg, #1e3858 0%, #192c45 100%) !important;
+  border-color: #3b5675 !important;
+}
+html[data-theme="dark"] .study-target-card {
+  background: linear-gradient(120deg, #1e3b5d 0%, #182b43 100%) !important;
+  border-color: #3a5878 !important;
+}
+html[data-theme="dark"] .focus-timer-panel {
+  background:
+    radial-gradient(circle at 90% 0%, rgba(96,165,250,.11), transparent 36%),
+    linear-gradient(120deg, #1b304b 0%, #172538 72%) !important;
+  border-color: #344b68 !important;
+}
+html[data-theme="dark"] .focus-timer-dial {
+  background: conic-gradient(#60a5fa var(--timer-progress), #30435a 0) !important;
+}
+html[data-theme="dark"] .skip-link:focus {
+  background: #203b57 !important;
+  color: #e5edf8 !important;
+  border-color: #6ba8f5 !important;
+}
+
+/* Mantém os fundos do conteúdo em tons noturnos, inclusive em estados hover e foco. */
+html[data-theme="dark"] .candidate-dashboard .dashboard-stat,
+html[data-theme="dark"] .dashboard-milestones,
+html[data-theme="dark"] .dashboard-focus,
+html[data-theme="dark"] .alerts-panel .saved-alert,
+html[data-theme="dark"] .source-notice,
+html[data-theme="dark"] .pci-catalog-notice,
+html[data-theme="dark"] .contest-card {
+  color: #e5edf8;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html[data-theme="dark"] *,
   html[data-theme="dark"] *::before,
