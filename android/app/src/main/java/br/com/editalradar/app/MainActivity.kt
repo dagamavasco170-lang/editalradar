@@ -568,8 +568,7 @@ class MainActivity : ComponentActivity() {
                         statusText.setBackgroundColor(Color.rgb(154, 91, 29))
                         webView.settings.cacheMode = WebSettings.LOAD_CACHE_ELSE_NETWORK
                     } else {
-                        statusText.text = "Não foi possível abrir esta página agora. Toque para tentar novamente."
-                        statusText.setBackgroundColor(Color.rgb(154, 91, 29))
+                        setStatusWarning("Não foi possível abrir esta página agora. Toque para tentar novamente.")
                     }
                 }
             }
@@ -584,8 +583,7 @@ class MainActivity : ComponentActivity() {
                     errorResponse != null &&
                     errorResponse.statusCode >= 500
                 ) {
-                    statusText.text = "Não foi possível atualizar agora. Toque para tentar novamente."
-                    statusText.setBackgroundColor(Color.rgb(154, 91, 29))
+                    setStatusWarning("Não foi possível atualizar agora. Toque para tentar novamente.")
                 }
             }
 
@@ -596,8 +594,7 @@ class MainActivity : ComponentActivity() {
             ) {
                 // Nunca permite ignorar certificado inválido ou conexão TLS adulterada.
                 handler?.cancel()
-                statusText.text = "Não foi possível estabelecer uma conexão segura. Tente novamente mais tarde."
-                statusText.setBackgroundColor(Color.rgb(154, 65, 45))
+                setStatusWarning("Não foi possível estabelecer uma conexão segura. Tente novamente mais tarde.", severe = true)
             }
 
             @android.annotation.TargetApi(Build.VERSION_CODES.O)
@@ -639,8 +636,7 @@ class MainActivity : ComponentActivity() {
         }.getOrNull()
 
         if (replacement == null) {
-            statusText.text = "A página foi reiniciada, mas não pôde ser reaberta agora. Feche e abra o aplicativo novamente."
-            statusText.setBackgroundColor(Color.rgb(154, 91, 29))
+            setStatusWarning("A página foi reiniciada, mas não pôde ser reaberta agora. Feche e abra o aplicativo novamente.")
             Log.w("EditalRadarWebView", "Could not recreate WebView after renderer termination")
             return true
         }
@@ -658,8 +654,7 @@ class MainActivity : ComponentActivity() {
 
         progress.progress = 0
         progress.visibility = View.VISIBLE
-        statusText.text = "O EditalRadar precisou reiniciar uma página e já está se recuperando…"
-        statusText.setBackgroundColor(Color.rgb(154, 91, 29))
+        setStatusWarning("O EditalRadar precisou reiniciar uma página e já está se recuperando…")
 
         return try {
             configureWebView()
@@ -810,6 +805,21 @@ class MainActivity : ComponentActivity() {
             android.R.style.Theme_Material_Light_Dialog_Alert
         }
         return AlertDialog.Builder(ContextThemeWrapper(this, dialogTheme))
+    }
+
+    private fun setStatusWarning(message: String, severe: Boolean = false) {
+        statusText.text = message
+        statusText.setTextColor(
+            if (isDarkThemeEnabled) Color.rgb(229, 237, 248) else Color.WHITE
+        )
+        statusText.setBackgroundColor(
+            when {
+                isDarkThemeEnabled && severe -> Color.rgb(78, 43, 49)
+                isDarkThemeEnabled -> Color.rgb(66, 49, 29)
+                severe -> Color.rgb(154, 65, 45)
+                else -> Color.rgb(154, 91, 29)
+            }
+        )
     }
 
     private fun requestNativeNotificationPermission() {
