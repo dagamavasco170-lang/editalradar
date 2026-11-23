@@ -88,6 +88,7 @@ class MainActivity : ComponentActivity() {
     private var webPageReady = false
     private var fcmTokenRequestInFlight = false
     private var pendingFcmTokenDelivery = false
+    private var isDarkThemeEnabled = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -725,6 +726,7 @@ class MainActivity : ComponentActivity() {
         }
 
         when (message.optString("action")) {
+            "set_theme" -> applyNativeTheme(message.optString("theme") == "dark")
             "request_notification_permission" -> requestNativeNotificationPermission()
             "show_notification" -> {
                 val title = message.optString("title", "EditalRadar")
@@ -736,6 +738,44 @@ class MainActivity : ComponentActivity() {
                 postNativeNotification(title, body, tag)
             }
             "request_fcm_token" -> requestFcmToken()
+        }
+    }
+
+    private fun applyNativeTheme(dark: Boolean) {
+        isDarkThemeEnabled = dark
+        val background = if (dark) Color.rgb(15, 23, 34) else Color.WHITE
+        val foreground = if (dark) Color.rgb(225, 233, 242) else Color.WHITE
+        val statusBackground = if (dark) Color.rgb(24, 36, 51) else Color.rgb(24, 105, 87)
+        val updateBackground = if (dark) Color.rgb(39, 65, 91) else Color.rgb(32, 75, 116)
+
+        if (::contentRoot.isInitialized) contentRoot.setBackgroundColor(background)
+        if (::webView.isInitialized) webView.setBackgroundColor(background)
+        if (::statusText.isInitialized) {
+            statusText.setTextColor(foreground)
+            statusText.setBackgroundColor(statusBackground)
+        }
+        if (::updateButton.isInitialized) {
+            updateButton.setTextColor(foreground)
+            updateButton.setBackgroundColor(updateBackground)
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            window.statusBarColor = background
+            var visibility = window.decorView.systemUiVisibility
+            visibility = if (dark) {
+                visibility and View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR.inv()
+            } else {
+                visibility or View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                visibility = if (dark) {
+                    visibility and View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR.inv()
+                } else {
+                    visibility or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
+                }
+                window.navigationBarColor = background
+            }
+            window.decorView.systemUiVisibility = visibility
         }
     }
 
