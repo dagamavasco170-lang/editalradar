@@ -692,7 +692,7 @@ test("diagnósticos do site e Android enviam erros com limites e filtros", () =>
   assert.match(diagnosticsFunction, /Rate limit reached/);
   assert.match(diagnosticsFunction, /Bearer\\s\+/);
   assert.match(diagnosticsFunction, /private_key/);
-  assert.match(diagnosticsFunction, /char_length/);
+  assert.match(diagnosticsMigration, /char_length/);
   assert.match(diagnosticsMigration, /enable row level security/);
   assert.match(diagnosticsMigration, /revoke all on public\.app_diagnostics from anon, authenticated/);
 });
