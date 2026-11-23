@@ -6,7 +6,8 @@ Aplicativo Android com interface do EditalRadar e recursos nativos em Kotlin.
 
 - Interface do produto existente, com favoritos, conta, histórico e catálogo sincronizado pelo Supabase.
 - Modo claro/escuro com alternância na barra superior; a escolha é salva no navegador e no armazenamento nativo, aplica as cores às barras do sistema e mantém diálogos Android coerentes com o tema.
-- Cache do app para acesso ao conteúdo já carregado quando estiver sem internet.
+- Cache do app configurado antes da primeira navegação, para favorecer a abertura com conteúdo já carregado mesmo quando o Android reinicia o processo sem conexão.
+- Controles nativos com alvos de toque de pelo menos 48 dp, facilitando o uso em celulares e com recursos de acessibilidade.
 - Recuperação automática da tela quando o Android encerra o processo interno da WebView; a aplicação recria a visualização e retorna à página inicial sem apagar a sessão salva.
 - Gesto de voltar integrado ao AndroidX: volta pelo histórico da WebView e deixa o Android fechar o app quando não há página anterior.
 - Compatibilidade preparada para Android 16 (API 36), incluindo áreas seguras de tela e navegação preditiva.
@@ -49,7 +50,7 @@ Os avisos locais existentes continuam funcionando quando o aplicativo está aber
 
 ## Pacotes publicados
 
-- A próxima versão preparada para publicação é 1.3.8 (versionCode 21); ela só será disponibilizada depois que o teste de atualização no Android 10 passar. A permissão de instalação de atualizações usa a Activity Result API, sem callback legado. Cada versão é publicada em uma GitHub Release, com APK e AAB assinados pela chave permanente do EditalRadar e arquivo de checksums SHA-256.
+- A versão preparada para publicação é 1.3.9 (versionCode 22); ela só será disponibilizada depois que a instalação/atualização assinada e a abertura real do catálogo no Android 10 passarem. A permissão de instalação de atualizações usa a Activity Result API, sem callback legado. Cada versão é publicada em uma GitHub Release, com APK e AAB assinados pela chave permanente do EditalRadar e arquivo de checksums SHA-256.
 - O APK é o pacote para instalação direta. O AAB fica disponível para uma eventual distribuição pela Play Store; a publicação na loja não é automática.
 - Builds debug são usados somente para verificação de CI quando a assinatura de produção não está disponível e não substituem a versão estável.
 
