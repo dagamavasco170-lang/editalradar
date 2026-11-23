@@ -226,6 +226,35 @@ test("WebView respeita o ciclo de vida e recupera a página inicial", () => {
   assert.match(android, /webView\.onResume\(\)/);
 });
 
+test("Android escolhe o cache offline antes da primeira navegação da WebView", () => {
+  const createStart = android.indexOf("override fun onCreate(");
+  const buildScreenStart = android.indexOf("private fun buildScreen()", createStart);
+  const createBlock = android.slice(createStart, buildScreenStart);
+  const configureIndex = createBlock.indexOf("configureWebView()");
+  const connectivityIndex = createBlock.indexOf("refreshConnectivity()");
+  const navigationIndices = [
+    createBlock.indexOf("webView.loadUrl(HOME_URL)"),
+    createBlock.indexOf("webView.loadUrl(resolvePushUrl(pushUrl))")
+  ].filter((index) => index >= 0);
+  assert.ok(configureIndex >= 0 && connectivityIndex > configureIndex);
+  assert.ok(navigationIndices.length > 0);
+  assert.ok(navigationIndices.every((index) => index > connectivityIndex));
+});
+
+test("controles nativos Android respeitam alvos de toque de 48 dp", () => {
+  assert.ok(android.includes("minHeight = dp(48)"));
+  assert.ok(android.includes("LinearLayout.LayoutParams(0, dp(48), 1f)"));
+  assert.ok(android.includes("LinearLayout.LayoutParams(-2, dp(48))"));
+  assert.ok(android.includes("LinearLayout.LayoutParams(-1, dp(48))"));
+});
+
+test("smoke test Android confirma o conteúdo principal, não apenas a Activity", () => {
+  assert.ok(androidSmokeScript.includes("uiautomator dump"));
+  assert.ok(androidSmokeScript.includes('grep -Eiq "Encontre concursos"'));
+  assert.ok(androidSmokeScript.includes("CONTENT_READY"));
+  assert.ok(androidSmokeScript.includes("Conteúdo principal do catálogo confirmado na WebView."));
+});
+
 test("Android tenta novamente automaticamente quando a conectividade validada retorna", () => {
   assert.match(android, /lastKnownOnlineState: Boolean\? = null/);
   assert.match(android, /connectionRestored = online && lastKnownOnlineState == false/);
@@ -275,8 +304,8 @@ test("assinatura de distribuição usa apenas a chave permanente recebida pelo a
   assert.match(androidGradle, /ANDROID_RELEASE_KEY_ALIAS/);
   assert.match(androidGradle, /ANDROID_RELEASE_KEY_PASSWORD/);
   assert.match(androidGradle, /signingConfig signingConfigs\.getByName\('release'\)/);
-  assert.match(androidGradle, /versionCode 21/);
-  assert.ok(androidGradle.includes("versionName '1.3.8'"));
+  assert.match(androidGradle, /versionCode 22/);
+  assert.ok(androidGradle.includes("versionName '1.3.9'"));
   assert.ok(androidGradle.includes("androidx.activity:activity-ktx:1.13.0"));
   assert.ok(androidGradle.includes("androidx.fragment:fragment-ktx:1.9.1"));
   assert.ok(androidGradle.includes("androidx.webkit:webkit:1.18.0"));
