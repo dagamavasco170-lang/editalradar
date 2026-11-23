@@ -30,7 +30,8 @@ jobs:
           script: |
             const workflows = [
               { file: "source-monitor.yml", label: "Monitor de fontes", maxAgeHours: 12 },
-              { file: "question-automation.yml", label: "Automação de questões", maxAgeHours: 36 }
+              { file: "question-automation.yml", label: "Automação de questões", maxAgeHours: 36 },
+              { file: "dependency-autofix.yml", label: "Correções automáticas de dependências", maxAgeHours: 192 }
             ];
             const now = Date.now();
             const problems = [];
