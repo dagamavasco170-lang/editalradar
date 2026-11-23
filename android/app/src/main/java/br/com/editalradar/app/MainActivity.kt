@@ -35,6 +35,7 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebSettings
+import android.view.ContextThemeWrapper
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
@@ -65,6 +66,8 @@ class MainActivity : ComponentActivity() {
         private const val UPDATE_PREFERENCES = "editalradar_app_updates"
         private const val LAST_UPDATE_CHECK_KEY = "last_update_check"
         private const val PENDING_UPDATE_APK_KEY = "pending_update_apk"
+        private const val NATIVE_UI_PREFERENCES = "editalradar_ui"
+        private const val DARK_THEME_KEY = "dark_mode"
         const val EXTRA_PUSH_URL = "br.com.editalradar.app.EXTRA_PUSH_URL"
     }
 
@@ -92,6 +95,12 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        isDarkThemeEnabled = getSharedPreferences(NATIVE_UI_PREFERENCES, Context.MODE_PRIVATE)
+            .getBoolean(DARK_THEME_KEY, false)
+        setTheme(
+            if (isDarkThemeEnabled) android.R.style.Theme_Material_NoActionBar
+            else android.R.style.Theme_Material_Light_NoActionBar
+        )
         // Release lint requires Fragment 1.3+ with Activity Result; module pins 1.9.1.
         notificationPermissionLauncher = registerForActivityResult(
             ActivityResultContracts.RequestPermission()
@@ -106,6 +115,7 @@ class MainActivity : ComponentActivity() {
         }
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         buildScreen()
+        applyNativeTheme(isDarkThemeEnabled)
         configureBackNavigation()
         appUpdateManager = AppUpdateManager(this)
         configureNotifications()
@@ -260,7 +270,7 @@ class MainActivity : ComponentActivity() {
 
     private fun showUpdatePrompt(release: AppUpdateRelease) {
         val notes = release.releaseNotes.ifBlank { "Melhorias de estabilidade e segurança." }
-        AlertDialog.Builder(this)
+        themedAlertDialogBuilder()
             .setTitle("Nova versão disponível")
             .setMessage("EditalRadar ${release.versionName}\n\n$notes")
             .setPositiveButton("Baixar e instalar") { _, _ -> downloadAndInstall(release) }
@@ -291,7 +301,7 @@ class MainActivity : ComponentActivity() {
             LinearLayout.LayoutParams(-1, dp(18)).apply { topMargin = dp(16) }
         )
 
-        downloadDialog = AlertDialog.Builder(this)
+        downloadDialog = themedAlertDialogBuilder()
             .setTitle("Baixando atualização")
             .setView(content)
             .setCancelable(false)
@@ -330,7 +340,7 @@ class MainActivity : ComponentActivity() {
                 result.onSuccess { apkFile ->
                     if (!appUpdateManager.isValidUpdatePackage(apkFile, release)) {
                         apkFile.delete()
-                        AlertDialog.Builder(this)
+                        themedAlertDialogBuilder()
                             .setTitle("Atualização inválida")
                             .setMessage("O arquivo recebido não corresponde à versão oficial esperada. Nenhuma alteração foi feita no aplicativo.")
                             .setPositiveButton("Entendi", null)
@@ -359,7 +369,7 @@ class MainActivity : ComponentActivity() {
                 .putString(PENDING_UPDATE_APK_KEY, apkFile.absolutePath)
                 .apply()
 
-            AlertDialog.Builder(this)
+            themedAlertDialogBuilder()
                 .setTitle("Permitir instalação")
                 .setMessage("Para concluir a atualização, permita que o EditalRadar instale sua própria atualização. O Android mostrará essa autorização uma única vez.")
                 .setPositiveButton("Abrir configurações") { _, _ ->
@@ -743,11 +753,17 @@ class MainActivity : ComponentActivity() {
 
     private fun applyNativeTheme(dark: Boolean) {
         isDarkThemeEnabled = dark
-        val background = if (dark) Color.rgb(15, 23, 34) else Color.WHITE
-        val foreground = if (dark) Color.rgb(225, 233, 242) else Color.WHITE
-        val statusBackground = if (dark) Color.rgb(24, 36, 51) else Color.rgb(24, 105, 87)
+        getSharedPreferences(NATIVE_UI_PREFERENCES, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(DARK_THEME_KEY, dark)
+            .apply()
+
+        val background = if (dark) Color.rgb(13, 22, 36) else Color.WHITE
+        val foreground = if (dark) Color.rgb(229, 237, 248) else Color.WHITE
+        val statusBackground = if (dark) Color.rgb(27, 60, 55) else Color.rgb(24, 105, 87)
         val updateBackground = if (dark) Color.rgb(39, 65, 91) else Color.rgb(32, 75, 116)
 
+        window.decorView.setBackgroundColor(background)
         if (::contentRoot.isInitialized) contentRoot.setBackgroundColor(background)
         if (::webView.isInitialized) webView.setBackgroundColor(background)
         if (::statusText.isInitialized) {
@@ -757,6 +773,11 @@ class MainActivity : ComponentActivity() {
         if (::updateButton.isInitialized) {
             updateButton.setTextColor(foreground)
             updateButton.setBackgroundColor(updateBackground)
+        }
+        if (::progress.isInitialized) {
+            progress.progressTintList = android.content.res.ColorStateList.valueOf(
+                if (dark) Color.rgb(100, 190, 255) else Color.rgb(33, 151, 115)
+            )
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -775,8 +796,20 @@ class MainActivity : ComponentActivity() {
                 }
                 window.navigationBarColor = background
             }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                window.isNavigationBarContrastEnforced = false
+            }
             window.decorView.systemUiVisibility = visibility
         }
+    }
+
+    private fun themedAlertDialogBuilder(): AlertDialog.Builder {
+        val dialogTheme = if (isDarkThemeEnabled) {
+            android.R.style.Theme_Material_Dialog_Alert
+        } else {
+            android.R.style.Theme_Material_Light_Dialog_Alert
+        }
+        return AlertDialog.Builder(ContextThemeWrapper(this, dialogTheme))
     }
 
     private fun requestNativeNotificationPermission() {
@@ -1047,7 +1080,7 @@ class MainActivity : ComponentActivity() {
             if (otherPackage.isNotBlank()) append("\nPacote relacionado: ").append(otherPackage)
         }
 
-        AlertDialog.Builder(this)
+        themedAlertDialogBuilder()
             .setTitle("A atualização não foi concluída")
             .setMessage(
                 UpdateInstallReceiver.userMessageForStatus(status) +
@@ -1125,8 +1158,13 @@ class MainActivity : ComponentActivity() {
         } else {
             "Sem conexão. Algumas informações já carregadas ainda podem estar disponíveis. Toque para tentar novamente."
         }
+        statusText.setTextColor(if (isDarkThemeEnabled) Color.rgb(229, 237, 248) else Color.WHITE)
         statusText.setBackgroundColor(
-            if (online) Color.rgb(24, 105, 87) else Color.rgb(154, 91, 29)
+            if (isDarkThemeEnabled) {
+                if (online) Color.rgb(27, 60, 55) else Color.rgb(66, 49, 29)
+            } else {
+                if (online) Color.rgb(24, 105, 87) else Color.rgb(154, 91, 29)
+            }
         )
 
         if (::webView.isInitialized) {
