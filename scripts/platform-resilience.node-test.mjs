@@ -16,6 +16,11 @@ const [android, serviceWorker, styles, androidGradle, androidWorkflow, appUpdate
   readProjectFile("../src/lib/android-bridge.js"),
   readProjectFile("../src/App.jsx")
 ]);
+const [androidProjectGradle, androidApkWorkflow, androidReadme] = await Promise.all([
+  readProjectFile("../android/build.gradle"),
+  readProjectFile("../.github/workflows/android-apk.yml"),
+  readProjectFile("../android/README.md")
+]);
 
 test("WebView mantém navegação interna restrita à origem e ao caminho do app", () => {
   assert.match(android, /private fun isInternalAppUrl\(uri: Uri\)/);
@@ -87,6 +92,34 @@ test("Android atualiza o token FCM ao retomar a página confiável", () => {
   assert.ok(android.includes('getSharedPreferences("editalradar_push", Context.MODE_PRIVATE)'));
 });
 
+test("Android 16 usa uma cadeia de ferramentas compatível e target API 36", () => {
+  assert.match(androidGradle, /compileSdk 36/);
+  assert.match(androidGradle, /targetSdk 36/);
+  assert.match(androidProjectGradle, /com\.android\.application' version '8\.9\.1'/);
+  assert.ok(androidWorkflow.includes("gradle-version: 8.11.1"));
+  assert.ok(androidApkWorkflow.includes("gradle-version: 8.11.1"));
+  assert.ok(androidWorkflow.includes('target_sdk.group(1) != "36"'));
+  assert.ok(androidReadme.includes("targetSdk 36"));
+});
+
+test("navegação de retorno WebView usa o dispatcher AndroidX", () => {
+  assert.ok(android.includes("import androidx.activity.ComponentActivity"));
+  assert.ok(android.includes("import androidx.activity.OnBackPressedCallback"));
+  assert.ok(android.includes("class MainActivity : ComponentActivity()"));
+  assert.ok(android.includes("onBackPressedDispatcher.addCallback(this, webViewBackCallback)"));
+  assert.ok(android.includes("webViewBackCallback.isEnabled = canGoBack"));
+  assert.ok(android.includes("override fun doUpdateVisitedHistory("));
+  assert.ok(android.includes("updateWebViewBackNavigation(view.canGoBack())"));
+  assert.doesNotMatch(android, /override fun onBackPressed\(/);
+  assert.ok(androidManifest.includes('android:enableOnBackInvokedCallback="true"'));
+});
+
+test("layout Android preserva áreas seguras ao usar edge-to-edge", () => {
+  assert.ok(android.includes("setOnApplyWindowInsetsListener"));
+  assert.ok(android.includes("WindowInsets.Type.systemBars()"));
+  assert.ok(android.includes("WindowInsets.Type.displayCutout()"));
+});
+
 test("WebView respeita o ciclo de vida e recupera a página inicial", () => {
   assert.match(android, /val restoredWebState = savedInstanceState != null/);
   assert.match(android, /else if \(!restoredWebState\)/);
@@ -143,8 +176,8 @@ test("assinatura de distribuição usa apenas a chave permanente recebida pelo a
   assert.match(androidGradle, /ANDROID_RELEASE_KEY_ALIAS/);
   assert.match(androidGradle, /ANDROID_RELEASE_KEY_PASSWORD/);
   assert.match(androidGradle, /signingConfig signingConfigs\.getByName\('release'\)/);
-  assert.match(androidGradle, /versionCode 17/);
-  assert.ok(androidGradle.includes("versionName '1.3.4'"));
+  assert.match(androidGradle, /versionCode 18/);
+  assert.ok(androidGradle.includes("versionName '1.3.5'"));
   assert.ok(androidGradle.includes("androidx.webkit:webkit:1.18.0"));
   assert.doesNotMatch(androidGradle, /storePassword\s*['"][^'"]+['"]/);
 });
