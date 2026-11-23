@@ -1,4 +1,4 @@
-const CACHE_NAME = "editalradar-app-v5";
+const CACHE_NAME = "editalradar-app-v6";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -98,7 +98,10 @@ self.addEventListener("fetch", (event) => {
 
   event.respondWith(
     caches.open(CACHE_NAME).then(async (cache) => {
-      const cached = await cache.match(request);
+      // Asset pre-caching can use a request without the Origin header,
+      // while modulepreload later includes it. Ignore Vary so the same
+      // same-origin bundle remains available when offline.
+      const cached = await cache.match(request, { ignoreVary: true });
       if (cached) return cached;
       const response = await fetch(request);
       if (response.ok) {
