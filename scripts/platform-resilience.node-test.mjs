@@ -285,6 +285,10 @@ test("release Android só publica depois de instalação e atualização real em
   assert.ok(androidWorkflow.includes("api-level: 29"));
   assert.ok(androidWorkflow.includes("ANDROID_I_WANT_MY_TCG=yes"));
   assert.ok(androidWorkflow.includes('script: bash "$GITHUB_WORKSPACE/scripts/android-emulator-smoke.sh"'));
+  assert.ok(androidSmokeScript.includes('RELEASES_FILE="$RUNNER_TEMP/android-releases.json"'));
+  assert.ok(androidSmokeScript.includes('printf \'%s\' "$RELEASES_JSON" > "$RELEASES_FILE"'));
+  assert.ok(androidSmokeScript.includes('json.load(releases_file)'));
+  assert.ok(!androidSmokeScript.includes('python3 - "$APP_VERSION" "$RELEASES_JSON"'));
   assert.ok(androidSmokeScript.includes("/releases?per_page=50"));
   assert.ok(androidSmokeScript.includes('release.get("draft")'));
   assert.ok(androidSmokeScript.includes('release.get("prerelease")'));
