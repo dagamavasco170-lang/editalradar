@@ -16,15 +16,25 @@ const [android, serviceWorker, styles, androidGradle, androidWorkflow, appUpdate
   readProjectFile("../src/lib/android-bridge.js"),
   readProjectFile("../src/App.jsx")
 ]);
-const [androidProjectGradle, androidApkWorkflow, androidReadme, androidSmokeScript, viteConfig, androidSmokeWorkflow, automationRecovery] = await Promise.all([
+const [androidProjectGradle, androidApkWorkflow, androidReadme, androidSmokeScript, viteConfig, androidSmokeWorkflow, automationRecovery, automationHealth] = await Promise.all([
   readProjectFile("../android/build.gradle"),
   readProjectFile("../.github/workflows/android-apk.yml"),
   readProjectFile("../android/README.md"),
   readProjectFile("../scripts/android-emulator-smoke.sh"),
   readProjectFile("../vite.config.js"),
   readProjectFile("../.github/workflows/android-emulator-smoke.yml"),
-  readProjectFile("../.github/workflows/automation-recovery.yml")
+  readProjectFile("../.github/workflows/automation-recovery.yml"),
+  readProjectFile("../.github/workflows/automation-health.yml")
 ]);
+
+test("monitor de saúde considera somente execuções schedule/manual e fecha alertas recuperados", () => {
+  assert.match(automationHealth, /run\.event === "schedule" \|\| run\.event === "workflow_dispatch"/);
+  assert.match(automationHealth, /maxAgeHours: 12/);
+  assert.match(automationHealth, /maxAgeHours: 36/);
+  assert.match(automationHealth, /maxAgeHours: 192/);
+  assert.ok(automationHealth.includes('latest.conclusion !== "success"'));
+  assert.ok(automationHealth.includes('issues.update({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, state: "closed", state_reason: "completed" })'));
+});
 
 test("recuperação automática seleciona somente execuções da main", () => {
   assert.match(automationRecovery, /workflow_runs\.find\(item =>\s*item\.head_branch === "main" &&\s*\["schedule", "workflow_dispatch", "push"\]\.includes\(item\.event\)/);
