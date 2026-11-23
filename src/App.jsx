@@ -24,6 +24,15 @@ export const scoreRecommendation = (item, profile = {}) => {
  const active=/(inscriç|autorizado|pré-edital|edital publicado|anunciado)/.test((item.status||"").toLowerCase());
  return Math.round((areaMatches?40:0)+(levelMatches?25:0)+(stateMatches?20:0)+(cityMatches?5:0)+(active?10:0));
 };
+export const getRecommendationReasons = (item, profile = {}) => {
+ const area=(profile.interest_area||"").toLowerCase(), text=[item.cargo,item.orgao,item.area,item.nivel,item.estado,item.localidade,item.status].join(" ").toLowerCase();
+ const keywords={administrativa:["administr","assistente","técnico","tecnico","analista"],policial:["polícia","policia","policial","segurança","seguranca"],tribunais:["tribunal","judiciário","judiciario","justiça","justica"],"fiscal e controle":["auditor","fiscal","receita","controle","cgu"],bancária:["banco","bancário","bancaria","bacen","central"],educação:["professor","educação","educacao","pedag"],saúde:["saúde","saude","médico","medico","enferm"],jurídica:["procurador","juríd","jurid","adv"],tecnologia:["tecnologia","dados","sistemas","ti","infraestrutura"]};
+ const areaMatches=(keywords[area]||[]).some(w=>text.includes(w)), level=(profile.education_level||"").toLowerCase(), itemLevel=(item.nivel||"").toLowerCase();
+ const levelMatches=!level||!itemLevel||itemLevel==="não informado"||(level.includes("médio")&&itemLevel.includes("médio"))||(level.includes("técnico")&&(itemLevel.includes("médio")||itemLevel.includes("técnico")))||(level.includes("superior")&&itemLevel.includes("superior"));
+ const stateMatches=!profile.state||item.estado===profile.state||item.estado==="Brasil", cityMatches=!profile.city||item.localidade===profile.city||item.localidade==="Brasil";
+ const active=/(inscriç|autorizado|pré-edital|edital publicado|anunciado)/.test((item.status||"").toLowerCase());
+ return [areaMatches&&"Área de interesse",levelMatches&&"Escolaridade",stateMatches&&"Estado/local",cityMatches&&"Cidade/local",active&&"Oportunidade ativa"].filter(Boolean);
+};
 const readStore = (key, fallback) => {
   const value = safeGetItem(key);
   if (!value) return fallback;
@@ -2089,7 +2098,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                 <div className="recommendations-list">{profileRecommendations.map(({item,score})=>(
                   <article className="recommendation-card" key={item.id}>
                     <div className="recommendation-score"><strong>{score}%</strong><small>compatibilidade</small></div>
-                    <div className="recommendation-info"><strong>{item.cargo}</strong><span>{item.orgao} · {item.estado||"Brasil"}</span><small>{item.status}</small></div>
+                    <div className="recommendation-info"><strong>{item.cargo}</strong><span>{item.orgao} · {item.estado||"Brasil"}</span><small>{item.status}</small><div className="recommendation-reasons" aria-label="Motivos da recomendação">{getRecommendationReasons(item,recommendationProfile).map(reason=><span key={reason}>{reason}</span>)}</div></div>
                     <button className="recommendation-open" onClick={()=>openContestDetails(item)}>Ver detalhes</button>
                   </article>
                 ))}</div>
