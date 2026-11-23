@@ -32,7 +32,7 @@ test("alterna o modo escuro e mantém a preferência após recarregar", async ({
   await themeToggle.click();
 
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-  await expect(page.locator(".topbar")).toHaveCSS("background-color", "rgb(23, 37, 56)");
+  await expect(page.locator(".topbar")).toHaveCSS("background-color", "rgb(27, 42, 61)");
   await expect(page.getByRole("button", { name: "Ativar modo claro" })).toHaveAttribute("aria-pressed", "true");
 
   await page.reload();
