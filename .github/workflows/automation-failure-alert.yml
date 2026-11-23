@@ -1,0 +1,80 @@
+name: Alertar e acompanhar falhas de automação
+
+on:
+  workflow_run:
+    workflows:
+      - "Test, build and deploy EditalRadar"
+      - "Android emulator smoke test"
+      - "Build EditalRadar Android APK"
+      - "Monitorar fontes de concursos"
+      - "Gerar e revisar questões automaticamente"
+      - "Monitorar saúde das automações"
+      - "Recuperar automações com falha"
+    types: [completed]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: automation-failure-alert-${{ github.event.workflow_run.id }}
+  cancel-in-progress: false
+
+jobs:
+  report:
+    name: Registrar falhas e recuperação
+    if: github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Criar ou atualizar alerta e encerrar quando recuperado
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const run = context.payload.workflow_run;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const title = "[Falha automática] " + run.name;
+            const issues = await github.paginate(github.rest.issues.listForRepo, {
+              owner, repo, state: "all", per_page: 100
+            });
+            const existing = issues.find(issue => !issue.pull_request && issue.title === title);
+            const url = run.html_url;
+            if (run.conclusion === "success") {
+              if (existing && existing.state === "open") {
+                await github.rest.issues.createComment({
+                  owner, repo, issue_number: existing.number,
+                  body: "A automação foi recuperada e terminou com sucesso. Execução: " + url
+                });
+                await github.rest.issues.update({
+                  owner, repo, issue_number: existing.number, state: "closed", state_reason: "completed"
+                });
+                core.info("Alerta fechado após recuperação confirmada.");
+              } else {
+                core.info("Execução concluída com sucesso; nenhum alerta aberto.");
+              }
+              return;
+            }
+            if (run.conclusion !== "failure" && run.conclusion !== "cancelled" && run.conclusion !== "timed_out") {
+              core.info("Conclusão não exige alerta.");
+              return;
+            }
+            const body = [
+              "## Falha em automação do EditalRadar",
+              "",
+              "**Workflow:** " + run.name,
+              "**Resultado:** " + run.conclusion,
+              "**Branch:** " + run.head_branch,
+              "**Commit:** " + run.head_sha,
+              "**Tentativa:** " + run.run_attempt,
+              "",
+              "O sistema de recuperação automática pode tentar novamente falhas transitórias. Confira os logs antes de alterar código ou dados.",
+              "",
+              "[Abrir logs desta execução](" + url + ")"
+            ].join("\n");
+            if (existing && existing.state === "open") {
+              await github.rest.issues.createComment({ owner, repo, issue_number: existing.number, body });
+              core.warning("Falha registrada na issue #" + existing.number);
+            } else {
+              const created = await github.rest.issues.create({ owner, repo, title, body });
+              core.warning("Alerta de falha criado: #" + created.data.number);
+            }
