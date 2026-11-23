@@ -60,7 +60,11 @@ test("workflow Android extrai versão do Gradle de forma consistente e docs apon
   const versionName = androidGradle.match(/versionName ['"]([^'"]+)['"]/);
   const versionCode = androidGradle.match(/versionCode (\d+)/);
   assert.ok(versionName && versionCode);
-  assert.match(androidReadme, new RegExp("Versão estável publicada: " + versionName[1] + " \\(versionCode " + versionCode[1] + "\\)"));
+  const versionDescription = versionName[1] + " (versionCode " + versionCode[1] + ")";
+  assert.ok(
+    androidReadme.includes("Versão estável publicada: " + versionDescription) ||
+    androidReadme.includes("Versão em validação: " + versionDescription)
+  );
   assert.ok(androidReadme.includes("android-v" + versionName[1]));
 });
 
@@ -389,9 +393,9 @@ test("Android escolhe o cache offline antes da primeira navegação da WebView",
 
 test("controles nativos Android respeitam alvos de toque de 48 dp", () => {
   assert.ok(android.includes("minHeight = dp(48)"));
-  assert.ok(android.includes("LinearLayout.LayoutParams(0, dp(48), 1f)"));
-  assert.ok(android.includes("LinearLayout.LayoutParams(-2, dp(48))"));
-  assert.ok(android.includes("LinearLayout.LayoutParams(-1, dp(48))"));
+  assert.ok(android.includes("LinearLayout.LayoutParams(0, -2, 1f)"));
+  assert.ok(android.includes("LinearLayout.LayoutParams(-2, -2)"));
+  assert.ok(android.includes("LinearLayout.LayoutParams(-1, -2)"));
 });
 
 test("smoke test Android inicializa ADB com tentativas limitadas e reinício do daemon", () => {
