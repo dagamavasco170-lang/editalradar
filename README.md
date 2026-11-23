@@ -36,7 +36,7 @@ O catálogo também pode exibir registros preliminares de Alagoas identificados 
 - Favoritos e filtros sincronizados para usuários autenticados.
 - Central de notificações com histórico local para visitantes e sincronizado entre dispositivos para usuários autenticados.
 - Planejador semanal de estudos por carga horária e dias disponíveis, com sessões marcáveis e foco no concurso selecionado. O plano é salvo localmente e separado por conta neste navegador.\n- Banco de questões autorais por disciplina e estilo de banca; as questões são exercícios originais de treino, não questões oficiais nem reproduções de provas.
-- Interface responsiva.
+- Interface responsiva com modo claro/escuro e preferência de aparência salva no dispositivo.
 - Aplicativo instalável (PWA), com cache do catálogo e da interface para acesso básico sem conexão após a primeira visita.
 - Painel administrativo com controle por função, cadastro/edição/remoção de concursos e fila de revisão de oportunidades detectadas pelo monitor de fontes oficiais.
 
