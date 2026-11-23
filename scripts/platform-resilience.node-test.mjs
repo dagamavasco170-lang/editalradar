@@ -88,11 +88,39 @@ test("Android atualiza o token FCM ao retomar a página confiável", () => {
   const resumeEnd = android.indexOf("private fun showPendingInstallFailureIfAny()", resumeStart);
   const resumeBlock = android.slice(resumeStart, resumeEnd);
   assert.ok(resumeBlock.includes("if (webPageReady) requestFcmToken()"));
-  assert.ok(android.includes("if (fcmTokenRequestInFlight || isFinishing || isDestroyed) return"));
+  assert.ok(android.includes("if (isFinishing || isDestroyed) return"));
+  assert.ok(android.includes("if (fcmTokenRequestInFlight) return"));
   assert.ok(android.includes("fcmTokenRequestInFlight = true"));
   assert.ok(android.includes("fcmTokenRequestInFlight = false"));
   assert.ok(android.includes("if (isFinishing || isDestroyed) return@addOnCompleteListener"));
   assert.ok(android.includes('getSharedPreferences("editalradar_push", Context.MODE_PRIVATE)'));
+});
+
+test("callbacks nativos assíncronos só chegam à WebView oficial e pronta", () => {
+  assert.ok(android.includes("private fun isTrustedWebPageReady(): Boolean"));
+  assert.ok(android.includes("!::webView.isInitialized || !webPageReady || isFinishing || isDestroyed"));
+  assert.ok(android.includes("return isInternalAppUrl(currentUri)"));
+  assert.ok(android.includes("private fun postToTrustedWebPage("));
+  assert.ok(android.includes("targetWebView !== webView || !isTrustedWebPageReady()"));
+  assert.ok(android.includes("retryFcmTokenDelivery: Boolean = false"));
+  assert.ok(android.includes("pendingFcmTokenDelivery = true"));
+  assert.ok(android.includes("if (webPageReady && pendingFcmTokenDelivery) requestFcmToken()"));
+  const permissionStart = android.indexOf("private fun dispatchNativeNotificationPermission(");
+  const permissionEnd = android.indexOf("private fun configureNotifications()", permissionStart);
+  assert.ok(permissionStart >= 0 && permissionEnd > permissionStart);
+  assert.ok(android.slice(permissionStart, permissionEnd).includes("postToTrustedWebPage(script)"));
+
+  const tokenDispatchStart = android.indexOf("private fun dispatchFcmToken(");
+  const tokenDispatchEnd = android.indexOf("private fun dispatchFcmStatus(", tokenDispatchStart);
+  assert.ok(tokenDispatchStart >= 0 && tokenDispatchEnd > tokenDispatchStart);
+  assert.ok(android.slice(tokenDispatchStart, tokenDispatchEnd).includes(
+    "postToTrustedWebPage(script, retryFcmTokenDelivery = true)"
+  ));
+
+  const statusDispatchStart = android.indexOf("private fun dispatchFcmStatus(");
+  const statusDispatchEnd = android.indexOf("override fun onResume()", statusDispatchStart);
+  assert.ok(statusDispatchStart >= 0 && statusDispatchEnd > statusDispatchStart);
+  assert.ok(android.slice(statusDispatchStart, statusDispatchEnd).includes("postToTrustedWebPage(script)"));
 });
 
 test("Android 16 usa uma cadeia de ferramentas compatível e target API 36", () => {
@@ -184,8 +212,8 @@ test("assinatura de distribuição usa apenas a chave permanente recebida pelo a
   assert.match(androidGradle, /ANDROID_RELEASE_KEY_ALIAS/);
   assert.match(androidGradle, /ANDROID_RELEASE_KEY_PASSWORD/);
   assert.match(androidGradle, /signingConfig signingConfigs\.getByName\('release'\)/);
-  assert.match(androidGradle, /versionCode 18/);
-  assert.ok(androidGradle.includes("versionName '1.3.5'"));
+  assert.match(androidGradle, /versionCode 19/);
+  assert.ok(androidGradle.includes("versionName '1.3.6'"));
   assert.ok(androidGradle.includes("androidx.activity:activity-ktx:1.13.0"));
   assert.ok(androidGradle.includes("androidx.fragment:fragment-ktx:1.9.1"));
   assert.ok(androidGradle.includes("androidx.webkit:webkit:1.18.0"));

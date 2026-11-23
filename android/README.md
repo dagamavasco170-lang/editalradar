@@ -36,7 +36,7 @@ O aplicativo já inclui o serviço Android para receber mensagens FCM mesmo quan
 5. Cadastre o JSON completo da conta de serviço no Supabase, em **Edge Functions → Secrets**, com o nome `FCM_SERVICE_ACCOUNT_JSON`.
 6. Faça login no app Android, entre na área de notificações e toque em **Ativar notificações**. O token será vinculado à conta autenticada.
 
-Quando o aplicativo volta ao primeiro plano, ele consulta novamente o token FCM e o envia à página somente depois que a WebView oficial terminou de carregar. Isso ajuda a manter o dispositivo registrado quando o Firebase renova o token enquanto o app está em segundo plano.
+Quando o aplicativo volta ao primeiro plano, ele consulta novamente o token FCM e o envia à página somente depois que a WebView oficial terminou de carregar. Isso ajuda a manter o dispositivo registrado quando o Firebase renova o token enquanto o app está em segundo plano. Os retornos assíncronos do Android também são descartados quando a página muda ou deixa de ser a origem oficial; se a entrega do token for interrompida durante o carregamento, o aplicativo tenta novamente quando a página confiável termina de abrir.
 
 Quando um administrador cadastrar ou atualizar um concurso, a função protegida `push-notifications` enviará o aviso aos aparelhos Android que autorizaram notificações. Tokens inválidos são removidos automaticamente. O limite atual de envio por chamada é de 1.000 dispositivos.
 
