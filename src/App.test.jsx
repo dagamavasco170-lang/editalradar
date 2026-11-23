@@ -6,6 +6,17 @@ import { scoreRecommendation } from "./App.jsx";
 import { buildCatalogSnapshot, getVisibleNotifications } from "./lib/notifications";
 
 describe("EditalRadar", () => {
+  it("migra a preferência de modo escuro gravada pelas versões anteriores", () => {
+    localStorage.clear();
+    localStorage.setItem("er-theme", "dark");
+
+    render(<App authClient={null} authConfigured={false} />);
+
+    expect(document.documentElement).toHaveAttribute("data-theme", "dark");
+    expect(screen.getByRole("button", { name: "Ativar modo claro" })).toHaveAttribute("aria-pressed", "true");
+    expect(localStorage.getItem("er-theme")).toBe(JSON.stringify("dark"));
+  });
+
   it("alterna o modo escuro, sincroniza com o Android e restaura a preferência após recarregar", () => {
     localStorage.clear();
     const postMessage = vi.fn();
