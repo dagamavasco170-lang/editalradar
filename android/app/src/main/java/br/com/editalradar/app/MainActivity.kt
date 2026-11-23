@@ -1,7 +1,8 @@
 package br.com.editalradar.app
 
 import android.Manifest
-import android.app.Activity
+import androidx.activity.ComponentActivity
+import androidx.activity.OnBackPressedCallback
 import android.app.AlertDialog
 import android.app.Notification
 import android.app.NotificationChannel
@@ -51,7 +52,7 @@ import org.json.JSONObject
 import com.google.firebase.FirebaseApp
 import com.google.firebase.messaging.FirebaseMessaging
 
-class MainActivity : Activity() {
+class MainActivity : ComponentActivity() {
     companion object {
         private const val HOME_URL = "https://dagamavasco170-lang.github.io/editalradar/"
         private const val HOME_HOST = "dagamavasco170-lang.github.io"
@@ -68,6 +69,7 @@ class MainActivity : Activity() {
     }
 
     private lateinit var webView: WebView
+    private lateinit var webViewBackCallback: OnBackPressedCallback
     private lateinit var contentRoot: LinearLayout
     private lateinit var progress: ProgressBar
     private lateinit var statusText: TextView
@@ -88,6 +90,7 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         buildScreen()
+        configureBackNavigation()
         appUpdateManager = AppUpdateManager(this)
         configureNotifications()
         configureWebView()
@@ -483,9 +486,16 @@ class MainActivity : Activity() {
 
             override fun onPageFinished(view: WebView, url: String?) {
                 super.onPageFinished(view, url)
-                if (view === webView && !url.isNullOrBlank()) {
-                    webPageReady = runCatching { isInternalAppUrl(Uri.parse(url)) }.getOrDefault(false)
+                if (view === webView) {
+                    webPageReady = !url.isNullOrBlank() &&
+                        runCatching { isInternalAppUrl(Uri.parse(url)) }.getOrDefault(false)
+                    updateWebViewBackNavigation(view.canGoBack())
                 }
+            }
+
+            override fun doUpdateVisitedHistory(view: WebView, url: String?, isReload: Boolean) {
+                super.doUpdateVisitedHistory(view, url, isReload)
+                if (view === webView) updateWebViewBackNavigation(view.canGoBack())
             }
 
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
@@ -612,6 +622,7 @@ class MainActivity : Activity() {
 
         webView = replacement
         webPageReady = false
+        updateWebViewBackNavigation(canGoBack = false)
         val layoutParams = oldLayoutParams ?: LinearLayout.LayoutParams(-1, 0, 1f)
         val insertionIndex = if (oldIndex >= 0) {
             oldIndex.coerceIn(0, container.childCount)
@@ -1090,10 +1101,26 @@ class MainActivity : Activity() {
         }
     }
 
-    @Suppress("DEPRECATION")
-    override fun onBackPressed() {
-        if (::webView.isInitialized && webView.canGoBack()) webView.goBack()
-        else super.onBackPressed()
+    private fun configureBackNavigation() {
+        webViewBackCallback = object : OnBackPressedCallback(false) {
+            override fun handleOnBackPressed() {
+                if (::webView.isInitialized && webView.canGoBack()) {
+                    webView.goBack()
+                } else {
+                    // The callback is enabled only while WebView history exists.
+                    // If history changes before dispatch, return control to Android.
+                    isEnabled = false
+                    finish()
+                }
+            }
+        }
+        onBackPressedDispatcher.addCallback(this, webViewBackCallback)
+    }
+
+    private fun updateWebViewBackNavigation(canGoBack: Boolean) {
+        if (::webViewBackCallback.isInitialized) {
+            webViewBackCallback.isEnabled = canGoBack
+        }
     }
 
     override fun onDestroy() {
