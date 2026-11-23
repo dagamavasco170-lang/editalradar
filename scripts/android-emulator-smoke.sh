@@ -32,14 +32,17 @@ if [[ "$RELEASE_READY" == "true" ]]; then
       "https://api.github.com/repos/dagamavasco170-lang/editalradar/releases?per_page=50"
   )"
 
+  RELEASES_FILE="$RUNNER_TEMP/android-releases.json"
   PREVIOUS_INFO_FILE="$RUNNER_TEMP/previous-release-info.txt"
-  python3 - "$APP_VERSION" "$RELEASES_JSON" > "$PREVIOUS_INFO_FILE" <<'PY'
+  printf '%s' "$RELEASES_JSON" > "$RELEASES_FILE"
+  python3 - "$APP_VERSION" "$RELEASES_FILE" > "$PREVIOUS_INFO_FILE" <<'PY'
 import json
 import re
 import sys
 
 current_version = tuple(int(part) for part in sys.argv[1].split("."))
-releases = json.loads(sys.argv[2])
+with open(sys.argv[2], encoding="utf-8") as releases_file:
+    releases = json.load(releases_file)
 previous_candidates = []
 
 for release in releases:
