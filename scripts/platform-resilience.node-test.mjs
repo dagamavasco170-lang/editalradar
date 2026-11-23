@@ -80,7 +80,8 @@ test("Android atualiza o token FCM ao retomar a página confiável", () => {
   assert.ok(android.includes("private var fcmTokenRequestInFlight = false"));
   assert.ok(android.includes("override fun onPageStarted("));
   assert.ok(android.includes("override fun onPageFinished("));
-  assert.ok(android.includes("webPageReady = runCatching { isInternalAppUrl(Uri.parse(url)) }"));
+  assert.ok(android.includes("webPageReady = !url.isNullOrBlank()"));
+  assert.ok(android.includes("runCatching { isInternalAppUrl(Uri.parse(url)) }.getOrDefault(false)"));
   const resumeStart = android.indexOf("override fun onResume()");
   const resumeEnd = android.indexOf("private fun showPendingInstallFailureIfAny()", resumeStart);
   const resumeBlock = android.slice(resumeStart, resumeEnd);
