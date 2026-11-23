@@ -112,8 +112,8 @@ jobs:
             exit 0
           fi
           previous_gradle="$(git show "${latest_tag}:android/app/build.gradle")"
-          previous_name="$(printf '%s\\n' "$previous_gradle" | grep -m1 -E '^[[:space:]]*versionName[[:space:]]+' | sed -E 's/.*versionName[[:space:]]+["\x27]([^"\x27]+)["\x27].*/\1/')"
-          previous_code="$(printf '%s\\n' "$previous_gradle" | grep -m1 -E '^[[:space:]]*versionCode[[:space:]]+' | sed -E 's/.*versionCode[[:space:]]+([0-9]+).*/\1/')"
+          previous_name="$(printf '%s\n' "$previous_gradle" | grep -m1 -E '^[[:space:]]*versionName[[:space:]]+' | sed -E 's/.*versionName[[:space:]]+["\x27]([^"\x27]+)["\x27].*/\1/')"
+          previous_code="$(printf '%s\n' "$previous_gradle" | grep -m1 -E '^[[:space:]]*versionCode[[:space:]]+' | sed -E 's/.*versionCode[[:space:]]+([0-9]+).*/\1/')"
           if [ -z "$previous_name" ] || [ -z "$previous_code" ]; then
             echo "Unable to parse versionName/versionCode from latest Android release tag."
             exit 1
@@ -123,7 +123,7 @@ jobs:
           import re, sys
           current_name, current_code, tag, previous_name, previous_code = sys.argv[1:]
           current_code, previous_code = int(current_code), int(previous_code)
-          semver = re.compile(r"^\\d+\\.\\d+\\.\\d+$")
+          semver = re.compile(r"^\d+\.\d+\.\d+$")
           if not semver.fullmatch(current_name) or not semver.fullmatch(previous_name):
               raise SystemExit("Android versionName must follow X.Y.Z semantic version format.")
           def parts(v): return tuple(map(int, v.split(".")))
