@@ -389,7 +389,7 @@ jobs:
   publish-release:
     name: Publish signed Android release
     needs: [android-build, android-smoke]
-    if: github.event_name == 'workflow_dispatch' && inputs.publish_release == true && github.ref == 'refs/heads/main' && needs.android-build.outputs.release_ready == 'true' && needs.android-smoke.result == 'success'
+    if: github.ref == 'refs/heads/main' && needs.android-build.outputs.release_ready == 'true' && needs.android-smoke.result == 'success' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish_release == true))
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
