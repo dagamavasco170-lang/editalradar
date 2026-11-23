@@ -25,25 +25,41 @@ if [[ "$RELEASE_READY" == "true" ]]; then
     sha256sum --check SHA256SUMS.txt
   )
 
-  # A API latest continua apontando para a versão anterior enquanto este job roda,
-  # pois a publicação da nova release só acontece depois que o teste passar.
-  LATEST_RELEASE_JSON="$(
+  # Seleciona a versão estável imediatamente anterior, não apenas /latest.
+  # Isso mantém o fluxo repetível caso a mesma versão seja reexecutada após publicar.
+  RELEASES_JSON="$(
     curl --fail --silent --show-error --location --retry 3 --retry-all-errors \
-      https://api.github.com/repos/dagamavasco170-lang/editalradar/releases/latest
+      "https://api.github.com/repos/dagamavasco170-lang/editalradar/releases?per_page=50"
   )"
 
   PREVIOUS_INFO_FILE="$RUNNER_TEMP/previous-release-info.txt"
-  python3 - "$APP_VERSION" "$LATEST_RELEASE_JSON" > "$PREVIOUS_INFO_FILE" <<'PY'
+  python3 - "$APP_VERSION" "$RELEASES_JSON" > "$PREVIOUS_INFO_FILE" <<'PY'
 import json
+import re
 import sys
 
-current_version = sys.argv[1]
-release = json.loads(sys.argv[2])
-tag = release.get("tag_name", "")
-assets = release.get("assets", [])
+current_version = tuple(int(part) for part in sys.argv[1].split("."))
+releases = json.loads(sys.argv[2])
+previous_candidates = []
 
-if not tag.startswith("android-v") or tag == f"android-v{current_version}":
+for release in releases:
+    if release.get("draft") or release.get("prerelease"):
+        continue
+
+    match = re.fullmatch(r"android-v(\\d+)\\.(\\d+)\\.(\\d+)", release.get("tag_name", ""))
+    if match is None:
+        continue
+
+    version = tuple(int(part) for part in match.groups())
+    if version < current_version:
+        previous_candidates.append((version, release))
+
+if not previous_candidates:
     raise SystemExit("A API não retornou uma versão estável anterior à versão em teste.")
+
+_, previous_release = max(previous_candidates, key=lambda item: item[0])
+tag = previous_release.get("tag_name", "")
+assets = previous_release.get("assets", [])
 
 apk = next(
     (
