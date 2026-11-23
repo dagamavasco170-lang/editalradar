@@ -204,6 +204,7 @@ const brazilianStates = [
 
 export default function App({ authClient = supabase, authConfigured = isSupabaseConfigured } = {}) {
   const [page, setPage] = useState("concursos");
+  const [theme, setTheme] = useState(() => readStore("er-theme", "light") === "dark" ? "dark" : "light");
   const [query, setQuery] = useState("");
   const [nivel, setNivel] = useState("Todos os níveis");
   const [esfera, setEsfera] = useState("Todas as esferas");
@@ -292,6 +293,16 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   const [profileBusy, setProfileBusy] = useState(false);
   const [profileMessage, setProfileMessage] = useState("");
   const [profileMessageType, setProfileMessageType] = useState("info");
+
+  useEffect(() => {
+    const nextTheme = theme === "dark" ? "dark" : "light";
+    document.documentElement.dataset.theme = nextTheme;
+    document.documentElement.style.colorScheme = nextTheme;
+    safeSetItem("er-theme", nextTheme);
+    const themeColor = document.querySelector('meta[name="theme-color"]');
+    themeColor?.setAttribute("content", nextTheme === "dark" ? "#101923" : "#12364b");
+    sendNativeMessage("set_theme", { theme: nextTheme });
+  }, [theme]);
   const notificationStorageKey = "er-notifications:" + (authUser?.id || "visitor");
   const catalogSnapshotStorageKey = "er-catalog-snapshot:" + (authUser?.id || "visitor");
   const comparisonStorageKey = "er-comparison:" + (authUser?.id || "visitor");
@@ -1498,7 +1509,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
       <main className="main" id="main-content">
         <header className="topbar">
           <div className="breadcrumb">Início <span>/</span> {page === "detalhes" ? "Detalhes do concurso" : page === "comparar" ? "Comparador de concursos" : page === "concursos" ? "Concursos" : page === "estudos" ? "Área de estudos" : page === "admin" ? "Administração" : "Meus favoritos"}</div>
-          <div className="top-actions"><span className="date-chip">◷ &nbsp;Sua jornada começa hoje</span><button className="install-trigger" type="button" onClick={handleInstallApp} disabled={isAppInstalled}>{isAppInstalled ? "App instalado" : deferredInstallPrompt ? "Instalar app" : "Como instalar"}</button><button className="notification-bell" type="button" onClick={openNotifications} aria-label={`Ver notificações (${unreadNotificationCount} não lidas)`} title="Ver notificações">♧{unreadNotificationCount > 0 && <span>{unreadNotificationCount > 9 ? "9+" : unreadNotificationCount}</span>}</button>{authUser ? <button className="auth-trigger" onClick={handleSignOut} disabled={!authReady}>Sair da conta</button> : <button className="auth-trigger" onClick={() => { setShowAuth(true); setAuthMessage(""); }}>Entrar / cadastrar</button>}<div className="mini-avatar">{(authUser?.user_metadata?.full_name || authUser?.user_metadata?.name || authUser?.email || "C")[0]?.toUpperCase() || "C"}</div></div>
+          <div className="top-actions"><span className="date-chip">◷ &nbsp;Sua jornada começa hoje</span><button className="install-trigger" type="button" onClick={handleInstallApp} disabled={isAppInstalled}>{isAppInstalled ? "App instalado" : deferredInstallPrompt ? "Instalar app" : "Como instalar"}</button><button className="theme-toggle" type="button" onClick={() => setTheme((current) => current === "dark" ? "light" : "dark")} aria-label={theme === "dark" ? "Ativar modo claro" : "Ativar modo escuro"} title={theme === "dark" ? "Ativar modo claro" : "Ativar modo escuro"}><span aria-hidden="true">{theme === "dark" ? "☀" : "☾"}</span></button><button className="notification-bell" type="button" onClick={openNotifications} aria-label={`Ver notificações (${unreadNotificationCount} não lidas)`} title="Ver notificações">♧{unreadNotificationCount > 0 && <span>{unreadNotificationCount > 9 ? "9+" : unreadNotificationCount}</span>}</button>{authUser ? <button className="auth-trigger" onClick={handleSignOut} disabled={!authReady}>Sair da conta</button> : <button className="auth-trigger" onClick={() => { setShowAuth(true); setAuthMessage(""); }}>Entrar / cadastrar</button>}<div className="mini-avatar">{(authUser?.user_metadata?.full_name || authUser?.user_metadata?.name || authUser?.email || "C")[0]?.toUpperCase() || "C"}</div></div>
         </header>
         {!isOnline && <div className="offline-status" role="status">Sem conexão no momento. Você ainda pode consultar informações já carregadas; conecte-se à internet para atualizar o catálogo e acessar sua conta.</div>}
 
