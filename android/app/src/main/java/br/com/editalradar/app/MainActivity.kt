@@ -564,6 +564,18 @@ class MainActivity : ComponentActivity() {
 
                 if (result == "true") {
                     webPageReady = true
+                    val online = isInternetAvailable()
+                    statusText.text = if (online) "EditalRadar • pronto" else "EditalRadar • disponível offline"
+                    statusText.setTextColor(
+                        if (isDarkThemeEnabled) Color.rgb(229, 237, 248) else Color.WHITE
+                    )
+                    statusText.setBackgroundColor(
+                        if (isDarkThemeEnabled) {
+                            if (online) Color.rgb(27, 60, 55) else Color.rgb(66, 49, 29)
+                        } else {
+                            if (online) Color.rgb(24, 105, 87) else Color.rgb(154, 91, 29)
+                        }
+                    )
                     if (pendingFcmTokenDelivery) requestFcmToken()
                 } else if (attempt < 10) {
                     targetView.postDelayed(
