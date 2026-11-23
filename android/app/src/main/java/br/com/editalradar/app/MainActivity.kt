@@ -81,6 +81,8 @@ class MainActivity : Activity() {
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
     private var lastKnownOnlineState: Boolean? = null
     private var notificationPermissionRequestPending = false
+    private var webPageReady = false
+    private var fcmTokenRequestInFlight = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -474,6 +476,18 @@ class MainActivity : Activity() {
         }
 
         webView.webViewClient = object : WebViewClient() {
+            override fun onPageStarted(view: WebView, url: String?, favicon: android.graphics.Bitmap?) {
+                super.onPageStarted(view, url, favicon)
+                if (view === webView) webPageReady = false
+            }
+
+            override fun onPageFinished(view: WebView, url: String?) {
+                super.onPageFinished(view, url)
+                if (view === webView && !url.isNullOrBlank()) {
+                    webPageReady = runCatching { isInternalAppUrl(Uri.parse(url)) }.getOrDefault(false)
+                }
+            }
+
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                 val uri = request.url
                 val scheme = uri.scheme?.lowercase()
@@ -597,6 +611,7 @@ class MainActivity : Activity() {
         }
 
         webView = replacement
+        webPageReady = false
         val layoutParams = oldLayoutParams ?: LinearLayout.LayoutParams(-1, 0, 1f)
         val insertionIndex = if (oldIndex >= 0) {
             oldIndex.coerceIn(0, container.childCount)
@@ -725,24 +740,33 @@ class MainActivity : Activity() {
             dispatchFcmStatus(configured = false)
             return
         }
+        if (fcmTokenRequestInFlight || isFinishing || isDestroyed) return
 
         val cachedToken = getSharedPreferences("editalradar_push", Context.MODE_PRIVATE)
             .getString("fcm_token", null)
         if (!cachedToken.isNullOrBlank()) dispatchFcmToken(cachedToken)
 
+        fcmTokenRequestInFlight = true
         try {
             FirebaseMessaging.getInstance().token
                 .addOnCompleteListener { task ->
+                    fcmTokenRequestInFlight = false
+                    if (isFinishing || isDestroyed) return@addOnCompleteListener
                     if (!task.isSuccessful) {
                         dispatchFcmStatus(configured = true)
                         return@addOnCompleteListener
                     }
-                    val token = task.result ?: return@addOnCompleteListener
+                    val token = task.result
+                    if (token.isNullOrBlank()) {
+                        dispatchFcmStatus(configured = true)
+                        return@addOnCompleteListener
+                    }
                     getSharedPreferences("editalradar_push", Context.MODE_PRIVATE)
                         .edit().putString("fcm_token", token).apply()
                     dispatchFcmToken(token)
                 }
         } catch (_: Exception) {
+            fcmTokenRequestInFlight = false
             dispatchFcmStatus(configured = false)
         }
     }
@@ -869,7 +893,12 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
-        if (::webView.isInitialized) webView.onResume()
+        if (::webView.isInitialized) {
+            webView.onResume()
+            // FCM may rotate its registration token while the app is backgrounded.
+            // Re-dispatch it only after the trusted app page is ready to receive it.
+            if (webPageReady) requestFcmToken()
+        }
         showPendingInstallFailureIfAny()
     }
 
