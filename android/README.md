@@ -48,7 +48,7 @@ Os avisos locais existentes continuam funcionando quando o aplicativo está aber
 
 ## Pacotes publicados
 
-- A versão estável é publicada em uma GitHub Release, com APK e AAB assinados pela chave permanente do EditalRadar e arquivo de checksums SHA-256.
+- A versão estável atual é 1.3.7 (versionCode 20). A permissão de instalação de atualizações usa a Activity Result API, sem callback legado. Cada versão é publicada em uma GitHub Release, com APK e AAB assinados pela chave permanente do EditalRadar e arquivo de checksums SHA-256.
 - O APK é o pacote para instalação direta. O AAB fica disponível para uma eventual distribuição pela Play Store; a publicação na loja não é automática.
 - Builds debug são usados somente para verificação de CI quando a assinatura de produção não está disponível e não substituem a versão estável.
 
