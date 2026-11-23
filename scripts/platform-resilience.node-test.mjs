@@ -293,7 +293,7 @@ test("release Android só publica depois de instalação e atualização real em
   assert.ok(androidSmokeScript.includes('release.get("draft")'));
   assert.ok(androidSmokeScript.includes('release.get("prerelease")'));
   assert.ok(androidSmokeScript.split("\n").some((line) =>
-    line.includes("re.fullmatch") && line.includes("android-v(") && line.includes("\\d+")
+    line.includes("re.fullmatch") && line.includes("android-v(") && line.includes("\d+")
   ));
   assert.ok(androidSmokeScript.includes("max(previous_candidates"));
   assert.ok(androidSmokeScript.includes('adb install "$PREVIOUS_APK"'));
@@ -445,7 +445,7 @@ test("assinatura de distribuição usa apenas a chave permanente recebida pelo a
   const versionCode = androidGradle.match(/^\s*versionCode (\d+)$/m);
   const versionName = androidGradle.match(/^\s*versionName ['"]([^'"]+)['"]$/m);
   assert.ok(versionCode && Number(versionCode[1]) > 0, "versionCode deve ser um inteiro positivo");
-  assert.ok(versionName && /^\\d+\.\d+\.\d+$/.test(versionName[1]), "versionName deve seguir semver simples");
+  assert.ok(versionName && /^\d+\.\d+\.\d+$/.test(versionName[1]), "versionName deve seguir semver simples");
   assert.ok(androidGradle.includes("androidx.activity:activity-ktx:1.13.0"));
   assert.ok(androidGradle.includes("androidx.fragment:fragment-ktx:1.9.1"));
   assert.ok(androidGradle.includes("androidx.webkit:webkit:1.18.0"));
