@@ -2142,7 +2142,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                 <button type="button" className={situacao === "Pré-edital / anunciado" ? "filter-shortcut active" : "filter-shortcut"} aria-pressed={situacao === "Pré-edital / anunciado"} onClick={() => setSituacao("Pré-edital / anunciado")}>Pré-edital e anunciados</button>
               </div>
               <div className="filters">
-              <label className="search-filter"><span>⌕</span><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar cargo ou órgão..." /></label>
+              <label className="search-filter"><span aria-hidden="true">⌕</span><input type="search" aria-label="Buscar concurso por cargo ou órgão" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar cargo ou órgão..." />{query && <button className="search-clear" type="button" onClick={() => setQuery("")} aria-label="Limpar busca">×</button>}</label>
               <select aria-label="Esfera" value={esfera} onChange={(e) => setEsfera(e.target.value)}><option>Todas as esferas</option>{["Federal", "Estadual", "Municipal"].map(x => <option key={x}>{x}</option>)}</select>
               <select aria-label="Estado" value={estado} onChange={(e) => setEstado(e.target.value)}><option>Todos os estados</option>{estados.map(x => <option key={x}>{x}</option>)}</select>
               <select aria-label="Cidade" value={localidade} onChange={(e) => setLocalidade(e.target.value)}><option>Todas as cidades</option>{cidades.map(x => <option key={x}>{x}</option>)}</select>
