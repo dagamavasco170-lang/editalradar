@@ -63,6 +63,10 @@ O painel fica disponível apenas para contas cujo campo protegido `app_metadata.
 
 As alterações são guardadas como sobreposições: fichas preexistentes podem ser editadas ou removidas sem apagar a curadoria original do repositório; novos concursos recebem IDs do banco. Links oficiais HTTPS são obrigatórios.
 
+## Aplicativo Android
+
+Versão estável: **1.3.9**. [Baixar APK para instalar no Android](https://github.com/dagamavasco170-lang/editalradar/releases/download/android-v1.3.9/EditalRadar-Android-v1.3.9.apk) · [Abrir a GitHub Release e conferir AAB e checksums](https://github.com/dagamavasco170-lang/editalradar/releases/tag/android-v1.3.9). A atualização de 1.3.8 para 1.3.9 foi validada no emulador Android 10, preservando a assinatura do aplicativo.
+
 ## Instalação e uso offline
 
 O EditalRadar pode ser instalado no celular ou computador pelo menu de instalação do navegador. No iPhone/iPad, use Compartilhar → Adicionar à Tela de Início no Safari. O service worker mantém a interface e os arquivos estáticos em cache para permitir a abertura após a primeira visita online. Sem internet, o catálogo já carregado e os dados locais continuam acessíveis; login, sincronização com a conta e atualização do catálogo dependem de conexão. O navegador atualiza o aplicativo quando uma nova versão é publicada.
