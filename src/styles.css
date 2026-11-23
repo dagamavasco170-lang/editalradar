@@ -3379,3 +3379,9 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{scroll-behavior:auto!important;transition:none!important;animation:none!important}
 }
+
+@media(max-width:760px){
+  html[data-theme="dark"] .sidebar{background:#142235!important;border-top-color:#30435a!important}
+  html[data-theme="dark"] .sidebar .nav-item{color:#a9bbcf}
+  html[data-theme="dark"] .sidebar .nav-item.active{background:#1c3d39!important;color:#82d5b2!important}
+}
