@@ -11,6 +11,9 @@ export default defineConfig({
   // GitHub Pages publica em subpasta; Vercel e desenvolvimento usam a raiz.
   base: process.env.GITHUB_ACTIONS === "true" ? "/editalradar/" : "/",
   build: {
+    // A WebView fornecida por aparelhos Android 10 pode ser anterior ao Chrome 80.
+    // Chrome 70 evita entregar optional chaining/nullish coalescing sem transpilação.
+    target: "chrome70",
     rollupOptions: {
       output: {
         manualChunks(id) {
