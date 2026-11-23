@@ -304,6 +304,22 @@ test("smoke test Android confirma o conteúdo principal, não apenas a Activity"
   assert.ok(androidSmokeScript.includes("Conteúdo principal do catálogo confirmado na WebView."));
 });
 
+test("smoke test Android tolera falhas transitórias do UIAutomator sem aceitar XML antigo", () => {
+  assert.ok(androidSmokeScript.includes("capture_window_xml()"));
+  assert.ok(androidSmokeScript.includes('adb shell rm -f "$WINDOW_XML_PATH"'));
+  assert.ok(androidSmokeScript.includes('if ! adb shell uiautomator dump "$WINDOW_XML_PATH"'));
+  assert.ok(androidSmokeScript.includes('adb shell cat "$WINDOW_XML_PATH" 2>/dev/null || true'));
+  assert.ok(androidSmokeScript.includes("NATIVE_UI_READY"));
+  assert.ok(androidSmokeScript.includes("for attempt in $(seq 1 24)"));
+  assert.ok(androidSmokeScript.includes('grep -Eiq "Encontre concursos"'));
+});
+
+test("workflow de release Android roda novamente quando o teste de emulador muda", () => {
+  assert.ok(androidWorkflow.includes('      - "scripts/android-emulator-smoke.sh"'));
+  assert.ok(androidWorkflow.includes('      - "scripts/platform-resilience.node-test.mjs"'));
+  assert.ok(androidWorkflow.includes('      - ".github/workflows/android-release.yml"'));
+});
+
 test("Android tenta novamente automaticamente quando a conectividade validada retorna", () => {
   assert.match(android, /lastKnownOnlineState: Boolean\? = null/);
   assert.match(android, /connectionRestored = online && lastKnownOnlineState == false/);
