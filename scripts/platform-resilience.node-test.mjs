@@ -184,6 +184,8 @@ test("assinatura de distribuição usa apenas a chave permanente recebida pelo a
   assert.match(androidGradle, /signingConfig signingConfigs\.getByName\('release'\)/);
   assert.match(androidGradle, /versionCode 18/);
   assert.ok(androidGradle.includes("versionName '1.3.5'"));
+  assert.ok(androidGradle.includes("androidx.activity:activity-ktx:1.13.0"));
+  assert.ok(androidGradle.includes("androidx.fragment:fragment-ktx:1.9.1"));
   assert.ok(androidGradle.includes("androidx.webkit:webkit:1.18.0"));
   assert.doesNotMatch(androidGradle, /storePassword\s*['"][^'"]+['"]/);
 });
