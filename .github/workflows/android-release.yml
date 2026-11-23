@@ -62,7 +62,7 @@ jobs:
       - name: Set up Gradle with dependency cache
         uses: gradle/actions/setup-gradle@v6
         with:
-          gradle-version: 8.10.2
+          gradle-version: 8.11.1
           cache-read-only: ${{ github.event_name == 'pull_request' }}
 
       - name: Read Android version
@@ -237,7 +237,7 @@ jobs:
           target_sdk = re.search(r"^targetSdkVersion:'(\d+)'$", badging, re.MULTILINE)
           if min_sdk is None or min_sdk.group(1) != "24":
               raise SystemExit("O minSdk do APK diverge do mínimo suportado pelo projeto.")
-          if target_sdk is None or target_sdk.group(1) != "35":
+          if target_sdk is None or target_sdk.group(1) != "36":
               raise SystemExit("O targetSdk do APK diverge da política de distribuição do projeto.")
           print("Identidade do pacote, versão e SDK do APK validados.")
           PY

@@ -1,7 +1,10 @@
 package br.com.editalradar.app
 
 import android.Manifest
-import android.app.Activity
+import androidx.activity.ComponentActivity
+import androidx.activity.OnBackPressedCallback
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
 import android.app.AlertDialog
 import android.app.Notification
 import android.app.NotificationChannel
@@ -51,13 +54,12 @@ import org.json.JSONObject
 import com.google.firebase.FirebaseApp
 import com.google.firebase.messaging.FirebaseMessaging
 
-class MainActivity : Activity() {
+class MainActivity : ComponentActivity() {
     companion object {
         private const val HOME_URL = "https://dagamavasco170-lang.github.io/editalradar/"
         private const val HOME_HOST = "dagamavasco170-lang.github.io"
         private const val HOME_PATH = "/editalradar/"
         private const val NOTIFICATION_CHANNEL_ID = "editalradar_updates"
-        private const val NOTIFICATION_PERMISSION_REQUEST = 8102
         private const val APP_UPDATE_PERMISSION_REQUEST = 8103
         private const val MAX_NATIVE_MESSAGE_CHARS = 2_048
         private const val AUTO_UPDATE_CHECK_INTERVAL_MS = 6L * 60L * 60L * 1000L
@@ -68,6 +70,7 @@ class MainActivity : Activity() {
     }
 
     private lateinit var webView: WebView
+    private lateinit var webViewBackCallback: OnBackPressedCallback
     private lateinit var contentRoot: LinearLayout
     private lateinit var progress: ProgressBar
     private lateinit var statusText: TextView
@@ -81,19 +84,28 @@ class MainActivity : Activity() {
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
     private var lastKnownOnlineState: Boolean? = null
     private var notificationPermissionRequestPending = false
+    private lateinit var notificationPermissionLauncher: ActivityResultLauncher<String>
     private var webPageReady = false
     private var fcmTokenRequestInFlight = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        notificationPermissionLauncher = registerForActivityResult(
+            ActivityResultContracts.RequestPermission()
+        ) { granted ->
+            notificationPermissionRequestPending = false
+            dispatchNativeNotificationPermission(granted)
+        }
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         buildScreen()
+        configureBackNavigation()
         appUpdateManager = AppUpdateManager(this)
         configureNotifications()
         configureWebView()
 
         val restoredWebState = savedInstanceState != null &&
             webView.restoreState(savedInstanceState) != null
+        updateWebViewBackNavigation(webView.canGoBack())
 
         if (!handleAuthIntent(intent)) {
             val pushUrl = intent?.getStringExtra(EXTRA_PUSH_URL)
@@ -392,7 +404,7 @@ class MainActivity : Activity() {
                     action = UpdateInstallReceiver.ACTION_INSTALL_STATUS
                 }
                 // PackageInstaller precisa acrescentar EXTRA_STATUS ao retorno.
-                // Com targetSdk 35, o IntentSender de commit não pode ser imutável,
+                // Com targetSdk 36, o IntentSender de commit não pode ser imutável,
                 // inclusive em aparelhos anteriores ao Android 12.
                 val mutabilityFlag = PendingIntent.FLAG_MUTABLE
                 val statusPendingIntent = PendingIntent.getBroadcast(
@@ -483,9 +495,16 @@ class MainActivity : Activity() {
 
             override fun onPageFinished(view: WebView, url: String?) {
                 super.onPageFinished(view, url)
-                if (view === webView && !url.isNullOrBlank()) {
-                    webPageReady = runCatching { isInternalAppUrl(Uri.parse(url)) }.getOrDefault(false)
+                if (view === webView) {
+                    webPageReady = !url.isNullOrBlank() &&
+                        runCatching { isInternalAppUrl(Uri.parse(url)) }.getOrDefault(false)
+                    updateWebViewBackNavigation(view.canGoBack())
                 }
+            }
+
+            override fun doUpdateVisitedHistory(view: WebView, url: String?, isReload: Boolean) {
+                super.doUpdateVisitedHistory(view, url, isReload)
+                if (view === webView) updateWebViewBackNavigation(view.canGoBack())
             }
 
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
@@ -612,6 +631,7 @@ class MainActivity : Activity() {
 
         webView = replacement
         webPageReady = false
+        updateWebViewBackNavigation(canGoBack = false)
         val layoutParams = oldLayoutParams ?: LinearLayout.LayoutParams(-1, 0, 1f)
         val insertionIndex = if (oldIndex >= 0) {
             oldIndex.coerceIn(0, container.childCount)
@@ -725,10 +745,7 @@ class MainActivity : Activity() {
         if (notificationPermissionRequestPending) return
         notificationPermissionRequestPending = true
         try {
-            requestPermissions(
-                arrayOf(Manifest.permission.POST_NOTIFICATIONS),
-                NOTIFICATION_PERMISSION_REQUEST
-            )
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         } catch (_: Exception) {
             notificationPermissionRequestPending = false
             dispatchNativeNotificationPermission(granted = false)
@@ -1077,23 +1094,26 @@ class MainActivity : Activity() {
         super.onSaveInstanceState(outState)
     }
 
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == NOTIFICATION_PERMISSION_REQUEST) {
-            notificationPermissionRequestPending = false
-            val granted = grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED
-            dispatchNativeNotificationPermission(granted)
+    private fun configureBackNavigation() {
+        webViewBackCallback = object : OnBackPressedCallback(false) {
+            override fun handleOnBackPressed() {
+                if (::webView.isInitialized && webView.canGoBack()) {
+                    webView.goBack()
+                } else {
+                    // The callback is enabled only while WebView history exists.
+                    // If history changes before dispatch, return control to Android.
+                    isEnabled = false
+                    finish()
+                }
+            }
         }
+        onBackPressedDispatcher.addCallback(this, webViewBackCallback)
     }
 
-    @Suppress("DEPRECATION")
-    override fun onBackPressed() {
-        if (::webView.isInitialized && webView.canGoBack()) webView.goBack()
-        else super.onBackPressed()
+    private fun updateWebViewBackNavigation(canGoBack: Boolean) {
+        if (::webViewBackCallback.isInitialized) {
+            webViewBackCallback.isEnabled = canGoBack
+        }
     }
 
     override fun onDestroy() {
