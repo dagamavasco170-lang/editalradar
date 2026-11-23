@@ -2255,6 +2255,26 @@ textarea:disabled {
   }
 }
 
+.theme-toggle {
+  display: inline-grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  border: 1px solid #d6e0ec;
+  border-radius: 11px;
+  background: #fff;
+  color: #40536b;
+  box-shadow: 0 3px 10px rgba(20,35,59,.06);
+  transition: background .16s ease, border-color .16s ease, transform .16s ease;
+}
+.theme-toggle:hover {
+  background: #f3f7fb;
+  border-color: #b9c9dc;
+}
+.theme-toggle:active { transform: scale(.96); }
+.theme-toggle span { font-size: 19px; line-height: 1; }
+
 /* EditalRadar Dark Theme — preferência salva no navegador e sincronizada com Android. */
 html[data-theme="dark"] {
   color-scheme: dark;
@@ -2359,24 +2379,6 @@ html[data-theme="dark"] .sidebar .nav-item.active span {
 html[data-theme="dark"] .nav-item:hover {
   background: #20344a !important;
   color: #e5edf8 !important;
-}
-html[data-theme="dark"] .theme-toggle {
-  display: inline-grid;
-  place-items: center;
-  width: 38px;
-  height: 38px;
-  flex: 0 0 38px;
-  border: 1px solid #d6e0ec;
-  border-radius: 11px;
-  background: #f6f9fc;
-  color: #40536b;
-}
-html[data-theme="dark"] .theme-toggle:hover {
-  background: #eaf1f8;
-}
-html[data-theme="dark"] .theme-toggle span {
-  font-size: 19px;
-  line-height: 1;
 }
 html[data-theme="dark"] .notification-bell,
 html[data-theme="dark"] .install-trigger,
@@ -2505,7 +2507,6 @@ html[data-theme="dark"] .push-health-overview,
 html[data-theme="dark"] .push-health-batch,
 html[data-theme="dark"] .push-health-history {
   background-color: #1d3c37 !important;
-  background-image: none !important;
 }
 
 html[data-theme="dark"] .topbar,
@@ -2602,7 +2603,6 @@ html[data-theme="dark"] .push-health-card,
 html[data-theme="dark"] .push-health-batch-grid>div,
 html[data-theme="dark"] .push-health-history-grid>div {
   background-color: #1b2a3d !important;
-  background-image: none !important;
 }
 
 html[data-theme="dark"] .blue,
@@ -2678,7 +2678,6 @@ html[data-theme="dark"] .official-exam-meta span,
 html[data-theme="dark"] .discovery-chip-result,
 html[data-theme="dark"] .discovery-chip-pre_notice {
   background-color: #1d3553 !important;
-  background-image: none !important;
 }
 
 html[data-theme="dark"] .gold,
@@ -2699,7 +2698,6 @@ html[data-theme="dark"] .discovery-priority-medium,
 html[data-theme="dark"] .discovery-status-pending,
 html[data-theme="dark"] .push-health-overview.push-health-warning {
   background-color: #40351f !important;
-  background-image: none !important;
 }
 
 html[data-theme="dark"] .option.wrong,
@@ -2713,7 +2711,6 @@ html[data-theme="dark"] .question-meta .difficulty-avancada,
 html[data-theme="dark"] .push-health-overview.push-health-error,
 html[data-theme="dark"] .push-health-errors li {
   background-color: #402d34 !important;
-  background-image: none !important;
 }
 
 html[data-theme="dark"] .brand,
