@@ -9,8 +9,35 @@ RELEASE_READY="${RELEASE_READY:-false}"
 APP_VERSION="${APP_VERSION:-}"
 VERSION_CODE="${VERSION_CODE:-}"
 
-echo "Dispositivo conectado:"
-adb get-state
+# O runner pode iniciar o emulador antes do daemon ADB estar pronto.
+# Repetimos o bootstrap de forma limitada e reiniciamos o daemon se ele travar.
+ensure_adb_ready() {
+  local attempt state
+  for attempt in $(seq 1 5); do
+    echo "Preparando ADB (tentativa $attempt/5)..."
+    timeout 15 adb start-server >/dev/null 2>&1 || true
+    state="$(timeout 15 adb get-state 2>/dev/null || true)"
+    if [[ "$state" == "device" ]]; then
+      echo "ADB pronto e dispositivo em estado device."
+      adb devices -l
+      return 0
+    fi
+
+    if (( attempt == 2 || attempt == 4 )); then
+      echo "ADB ainda indisponível; reiniciando daemon..."
+      timeout 15 adb kill-server >/dev/null 2>&1 || true
+      sleep 2
+    fi
+    sleep 3
+  done
+
+  echo "Falha: ADB não conseguiu confirmar o emulador em estado device após 5 tentativas."
+  adb devices -l || true
+  return 1
+}
+
+echo "Verificando conexão do emulador:"
+ensure_adb_ready
 
 if [[ "$RELEASE_READY" == "true" ]]; then
   : "${APP_VERSION:?APP_VERSION é obrigatório para testar uma release assinada}"
