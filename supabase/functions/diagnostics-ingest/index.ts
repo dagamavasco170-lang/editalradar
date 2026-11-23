@@ -35,7 +35,16 @@ Deno.serve(async (req) => {
   if (!admin) return json({ error: "Diagnostic service unavailable" }, 503, origin);
   const apiKey = req.headers.get("apikey") ?? "";
   const configuredKeys = Deno.env.get("SUPABASE_PUBLISHABLE_KEYS") ?? "";
-  if (!apiKey || !configuredKeys.includes(apiKey)) return json({ error: "Invalid API key" }, 401, origin);
+  const allowedKeys = new Set<string>([Deno.env.get("SUPABASE_ANON_KEY") ?? ""]);
+  try {
+    const parsedKeys = JSON.parse(configuredKeys);
+    if (parsedKeys && typeof parsedKeys === "object") {
+      for (const key of Object.values(parsedKeys)) if (typeof key === "string") allowedKeys.add(key);
+    }
+  } catch {
+    for (const key of configuredKeys.split(/[;,\\s]+/)) if (key) allowedKeys.add(key);
+  }
+  if (!apiKey || !allowedKeys.has(apiKey)) return json({ error: "Invalid API key" }, 401, origin);
   if (Number(req.headers.get("content-length") || 0) > 12_000) return json({ error: "Payload too large" }, 413, origin);
 
   let payload: any;
