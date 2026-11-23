@@ -157,6 +157,10 @@ test("modo escuro é persistido no navegador e sincronizado com o tema nativo An
   assert.ok(android.includes("Theme_Material_Dialog_Alert"));
   assert.ok(android.includes("window.navigationBarColor = background"));
   assert.ok(android.includes("if (online) Color.rgb(27, 60, 55)"));
+  assert.ok(
+    (android.match(/setBackgroundColor\(if \(isDarkThemeEnabled\) Color\.rgb\(13, 22, 36\) else Color\.WHITE\)/g) || []).length >= 2,
+    "a WebView inicial e a recriada após falha precisam respeitar o tema escuro"
+  );
   assert.doesNotMatch(android, /AlertDialog\.Builder\(this\)/);
 });
 
