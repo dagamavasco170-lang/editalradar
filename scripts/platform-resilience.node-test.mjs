@@ -41,6 +41,17 @@ test("recuperação automática seleciona somente execuções da main", () => {
   assert.doesNotMatch(automationRecovery, /workflow_runs\.find\(item =>\s*\["schedule", "workflow_dispatch", "push"\]\.includes\(item\.event\)\s*\);\s*if \(!run\)/);
 });
 
+test("Android bloqueia regressões e divergências entre versionName, versionCode e release", () => {
+  assert.ok(androidWorkflow.includes("Validate Android version against latest published release"));
+  assert.ok(androidWorkflow.includes("git fetch --tags --force"));
+  assert.ok(androidWorkflow.includes('tag != "android-v" + previous_name'));
+  assert.ok(androidWorkflow.includes("current_code < previous_code"));
+  assert.ok(androidWorkflow.includes("current_code <= previous_code"));
+  assert.ok(androidWorkflow.includes("versionCode changed without a versionName change"));
+  assert.ok(androidWorkflow.includes("New versionName must also increase versionCode."));
+  assert.ok(androidWorkflow.includes('      - "scripts/platform-resilience.node-test.mjs"'));
+});
+
 test("workflow Android extrai versão do Gradle de forma consistente e docs apontam para versão estável", () => {
   assert.match(androidWorkflow, /lines = Path\("android\/app\/build\.gradle"\)\.read_text\(\)\.splitlines\(\)/);
   assert.match(androidWorkflow, /name_line = next\(\(line\.strip\(\) for line in lines/);
