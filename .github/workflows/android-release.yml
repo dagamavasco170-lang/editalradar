@@ -112,8 +112,12 @@ jobs:
             exit 0
           fi
           previous_gradle="$(git show "${latest_tag}:android/app/build.gradle")"
-          previous_name="$(python3 -c 'import re,sys; m=re.search(r"^\\s*versionName [\x27\\\"]([^\x27\\\"]+)[\x27\\\"]",sys.argv[1],re.M); print(m.group(1) if m else "")' "$previous_gradle")"
-          previous_code="$(python3 -c 'import re,sys; m=re.search(r"^\\s*versionCode (\\d+)",sys.argv[1],re.M); print(m.group(1) if m else "")' "$previous_gradle")"
+          previous_name="$(printf '%s\\n' "$previous_gradle" | grep -m1 -E '^[[:space:]]*versionName[[:space:]]+' | sed -E "s/.*versionName[[:space:]]+['\\\"]([^'\\\"]+)['\\\"].*/\\1/")"
+          previous_code="$(printf '%s\\n' "$previous_gradle" | grep -m1 -E '^[[:space:]]*versionCode[[:space:]]+' | sed -E 's/.*versionCode[[:space:]]+([0-9]+).*/\\1/')"
+          if [ -z "$previous_name" ] || [ -z "$previous_code" ]; then
+            echo "Unable to parse versionName/versionCode from latest Android release tag."
+            exit 1
+          fi
           test -n "$previous_name" && test -n "$previous_code"
           python3 - "$APP_VERSION" "$VERSION_CODE" "$latest_tag" "$previous_name" "$previous_code" <<'PY'
           import re, sys
