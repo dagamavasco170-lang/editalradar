@@ -108,6 +108,16 @@ test("Android desanexa a WebView e encerra callbacks antes de destruir a Activit
   assert.ok(destroyBlock.includes("appUpdateManager.close()"));
 });
 
+test("gerenciador de atualizações cancela callbacks ao ser encerrado", () => {
+  assert.ok(appUpdate.includes("private val closed = AtomicBoolean(false)"));
+  assert.ok(appUpdate.includes("if (closed.get()) return"));
+  assert.ok(appUpdate.includes("if (!closed.get()) onComplete(result)"));
+  assert.ok(appUpdate.includes("if (!closed.get()) onProgress(percentage)"));
+  assert.ok(appUpdate.includes("if (!closed.compareAndSet(false, true)) return"));
+  assert.ok(appUpdate.includes("worker.shutdownNow()"));
+  assert.ok(appUpdate.includes("mainHandler.removeCallbacksAndMessages(null)"));
+});
+
 test("download de atualização ignora callback tardio após Activity ser encerrada", () => {
   const callbackStart = android.indexOf("onComplete = { result ->");
   const callbackEnd = android.indexOf("\n            }\n        )", callbackStart);
