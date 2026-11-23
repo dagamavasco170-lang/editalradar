@@ -2254,3 +2254,1003 @@ textarea:disabled {
     scroll-behavior: auto !important;
   }
 }
+
+/* EditalRadar Dark Theme — preferência salva no navegador e sincronizada com Android. */
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --er-ink: #e5edf8;
+  --er-muted: #a7b7ca;
+  --er-line: #2a3b52;
+  --er-green: #55c99b;
+  --er-green-dark: #77ddb5;
+  --er-green-soft: #1d3a36;
+  --er-surface: #172538;
+  --er-canvas: #0d1624;
+  --er-shadow: 0 18px 44px rgba(0,0,0,.28);
+  --er-shadow-soft: 0 8px 24px rgba(0,0,0,.22);
+  background: #0d1624;
+}
+html[data-theme="dark"],
+html[data-theme="dark"] body,
+html[data-theme="dark"] #root,
+html[data-theme="dark"] .app-shell,
+html[data-theme="dark"] .main {
+  background-color: #0d1624 !important;
+  color: #e5edf8;
+}
+html[data-theme="dark"] .sidebar {
+  background: linear-gradient(180deg,#111d34 0%,#142744 57%,#172f50 100%) !important;
+  color: #d7e4f7 !important;
+}
+html[data-theme="dark"] .topbar {
+  background: #172538 !important;
+  border-color: #2a3b52 !important;
+  box-shadow: 0 3px 16px rgba(0,0,0,.18);
+}
+html[data-theme="dark"] .content,
+html[data-theme="dark"] footer {
+  background-color: transparent !important;
+}
+html[data-theme="dark"] .theme-toggle {
+  display: inline-grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  border: 1px solid #40536b;
+  border-radius: 11px;
+  background: #24364d;
+  color: #f6ce75;
+  box-shadow: 0 3px 10px rgba(0,0,0,.18);
+}
+html[data-theme="dark"] .theme-toggle:hover {
+  background: #304761;
+  border-color: #6483a5;
+}
+html[data-theme="dark"] .theme-toggle span {
+  color: #f6ce75 !important;
+  font-size: 19px;
+  line-height: 1;
+}
+html[data-theme="dark"] .hero-search,
+html[data-theme="dark"] .search-filter,
+html[data-theme="dark"] input,
+html[data-theme="dark"] select,
+html[data-theme="dark"] textarea {
+  background-color: #101c2c !important;
+  color: #e5edf8 !important;
+  border-color: #3a4d65 !important;
+}
+html[data-theme="dark"] input::placeholder,
+html[data-theme="dark"] textarea::placeholder {
+  color: #8fa2ba !important;
+  opacity: 1;
+}
+html[data-theme="dark"] option {
+  background: #172538;
+  color: #e5edf8;
+}
+html[data-theme="dark"] .hero-search input {
+  background: transparent !important;
+}
+html[data-theme="dark"] .hero,
+html[data-theme="dark"] .detail-hero {
+  color: #fff !important;
+}
+html[data-theme="dark"] .hero h1,
+html[data-theme="dark"] .hero p,
+html[data-theme="dark"] .detail-hero h1,
+html[data-theme="dark"] .detail-hero p,
+html[data-theme="dark"] .detail-hero strong,
+html[data-theme="dark"] .brand,
+html[data-theme="dark"] .sidebar .nav-item,
+html[data-theme="dark"] .sidebar .side-label {
+  color: inherit;
+}
+html[data-theme="dark"] .sidebar .nav-item.active {
+  background: #203b51 !important;
+  color: #a8d9ff !important;
+  border-color: #31516e !important;
+  box-shadow: inset 3px 0 0 #60a5fa;
+}
+html[data-theme="dark"] .sidebar .nav-item.active span {
+  color: #93c5fd !important;
+}
+html[data-theme="dark"] .nav-item:hover {
+  background: #20344a !important;
+  color: #e5edf8 !important;
+}
+html[data-theme="dark"] .theme-toggle {
+  display: inline-grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  border: 1px solid #d6e0ec;
+  border-radius: 11px;
+  background: #f6f9fc;
+  color: #40536b;
+}
+html[data-theme="dark"] .theme-toggle:hover {
+  background: #eaf1f8;
+}
+html[data-theme="dark"] .theme-toggle span {
+  font-size: 19px;
+  line-height: 1;
+}
+html[data-theme="dark"] .notification-bell,
+html[data-theme="dark"] .install-trigger,
+html[data-theme="dark"] .auth-trigger {
+  border-color: #3a4d65 !important;
+}
+html[data-theme="dark"] .primary-btn,
+html[data-theme="dark"] .hero-search button,
+html[data-theme="dark"] .pci-catalog-notice>a {
+  color: #fff !important;
+}
+html[data-theme="dark"] .modal-backdrop {
+  background: rgba(2,8,18,.78) !important;
+}
+html[data-theme="dark"] .modal {
+  background: #172538 !important;
+  border-color: #344861 !important;
+  color: #e5edf8 !important;
+}
+html[data-theme="dark"] .auth-form input,
+html[data-theme="dark"] .profile-form input,
+html[data-theme="dark"] .profile-form select,
+html[data-theme="dark"] .admin-form input,
+html[data-theme="dark"] .admin-form select,
+html[data-theme="dark"] .admin-form textarea {
+  background: #101c2c !important;
+  color: #e5edf8 !important;
+  border-color: #3a4d65 !important;
+}
+html[data-theme="dark"] table,
+html[data-theme="dark"] th,
+html[data-theme="dark"] td {
+  border-color: #34475f !important;
+}
+html[data-theme="dark"] ::selection {
+  background: #315a89;
+  color: #fff;
+}
+html[data-theme="dark"] .nav-item.active,
+html[data-theme="dark"] .nav-item b,
+html[data-theme="dark"] .help-card,
+html[data-theme="dark"] .avatar,
+html[data-theme="dark"] .mini-avatar,
+html[data-theme="dark"] .green,
+html[data-theme="dark"] .org-icon,
+html[data-theme="dark"] .status,
+html[data-theme="dark"] .soft-pill,
+html[data-theme="dark"] .question-tag,
+html[data-theme="dark"] .option.chosen,
+html[data-theme="dark"] .option.correct,
+html[data-theme="dark"] .answer.good,
+html[data-theme="dark"] .subject>span:first-child,
+html[data-theme="dark"] .source-notice,
+html[data-theme="dark"] .alerts-panel,
+html[data-theme="dark"] .auth-trigger:hover,
+html[data-theme="dark"] .auth-message.success,
+html[data-theme="dark"] .profile-edit:hover,
+html[data-theme="dark"] .recommendations-panel,
+html[data-theme="dark"] .recommendation-score,
+html[data-theme="dark"] .notification-count,
+html[data-theme="dark"] .notification-item,
+html[data-theme="dark"] .notification-item:hover,
+html[data-theme="dark"] .notification-bell:hover,
+html[data-theme="dark"] .notification-filter.active,
+html[data-theme="dark"] .install-trigger,
+html[data-theme="dark"] .install-trigger:hover,
+html[data-theme="dark"] .install-steps>div,
+html[data-theme="dark"] .discovery-status-pill,
+html[data-theme="dark"] .discovery-empty,
+html[data-theme="dark"] .dashboard-stat:hover,
+html[data-theme="dark"] .dashboard-stat-icon,
+html[data-theme="dark"] .dashboard-milestone time,
+html[data-theme="dark"] .dashboard-milestone-empty,
+html[data-theme="dark"] .dashboard-focus,
+html[data-theme="dark"] .nav-item:hover,
+html[data-theme="dark"] .clear-filters-btn,
+html[data-theme="dark"] .clear-filters-btn:hover,
+html[data-theme="dark"] .filter-shortcut.active,
+html[data-theme="dark"] .catalog-filter-panel .filters select,
+html[data-theme="dark"] .catalog-filter-panel .search-filter,
+html[data-theme="dark"] .catalog-filter-panel .filter-options,
+html[data-theme="dark"] .card-bottom .detail-btn,
+html[data-theme="dark"] .card-bottom .detail-btn:hover,
+html[data-theme="dark"] .detail-section-nav a:hover,
+html[data-theme="dark"] .detail-facts-grid>div,
+html[data-theme="dark"] .detail-description,
+html[data-theme="dark"] .detail-timeline-item:not(:last-child):before,
+html[data-theme="dark"] .detail-timeline-marker,
+html[data-theme="dark"] .detail-empty-state,
+html[data-theme="dark"] .detail-document-card,
+html[data-theme="dark"] .detail-document-icon,
+html[data-theme="dark"] .detail-study-card,
+html[data-theme="dark"] .detail-trust-card,
+html[data-theme="dark"] .study-target-card,
+html[data-theme="dark"] .compare-card-btn:hover,
+html[data-theme="dark"] .compare-card-btn.selected,
+html[data-theme="dark"] .compare-toolbar,
+html[data-theme="dark"] .compare-empty,
+html[data-theme="dark"] .compare-empty>span,
+html[data-theme="dark"] .compare-selected-preview,
+html[data-theme="dark"] .compare-table thead th,
+html[data-theme="dark"] .compare-status,
+html[data-theme="dark"] .study-session.completed,
+html[data-theme="dark"] .question-card,
+html[data-theme="dark"] .question-meta span,
+html[data-theme="dark"] .question-options .option.chosen,
+html[data-theme="dark"] .question-options .option.correct,
+html[data-theme="dark"] .card-facts>span,
+html[data-theme="dark"] .study-session:hover,
+html[data-theme="dark"] .question-options .option:hover:not(:disabled),
+html[data-theme="dark"] .status-open,
+html[data-theme="dark"] .question-collections button.active,
+html[data-theme="dark"] .question-collections button.active span,
+html[data-theme="dark"] .question-meta .difficulty-facil,
+html[data-theme="dark"] .simulator-size-options button.active,
+html[data-theme="dark"] .simulator-question-map button.answered,
+html[data-theme="dark"] .simulator-result-hero,
+html[data-theme="dark"] .question-ai-summary>div,
+html[data-theme="dark"] .question-ai-how,
+html[data-theme="dark"] .discovery-summary>div,
+html[data-theme="dark"] .discovery-chip,
+html[data-theme="dark"] .discovery-priority-high,
+html[data-theme="dark"] .discovery-status-published,
+html[data-theme="dark"] .detail-history-changes,
+html[data-theme="dark"] .push-health-overview,
+html[data-theme="dark"] .push-health-batch,
+html[data-theme="dark"] .push-health-history {
+  background-color: #1d3c37 !important;
+  background-image: none !important;
+}
+
+html[data-theme="dark"] .topbar,
+html[data-theme="dark"] .art-card,
+html[data-theme="dark"] .stat,
+html[data-theme="dark"] .filters select,
+html[data-theme="dark"] .search-filter,
+html[data-theme="dark"] .contest-card,
+html[data-theme="dark"] .detail-btn,
+html[data-theme="dark"] .empty,
+html[data-theme="dark"] .panel,
+html[data-theme="dark"] .progress-track,
+html[data-theme="dark"] .option,
+html[data-theme="dark"] .modal,
+html[data-theme="dark"] .modal-facts div,
+html[data-theme="dark"] .saved-alert,
+html[data-theme="dark"] .auth-trigger,
+html[data-theme="dark"] .auth-form input,
+html[data-theme="dark"] .filter-options,
+html[data-theme="dark"] .google-auth-btn,
+html[data-theme="dark"] .google-mark,
+html[data-theme="dark"] .auth-divider:before,
+html[data-theme="dark"] .auth-divider:after,
+html[data-theme="dark"] .profile-form input,
+html[data-theme="dark"] .profile-form select,
+html[data-theme="dark"] .recommendations-edit,
+html[data-theme="dark"] .recommendation-card,
+html[data-theme="dark"] .recommendation-open,
+html[data-theme="dark"] .notification-panel,
+html[data-theme="dark"] .notification-dismiss,
+html[data-theme="dark"] .notification-item.read,
+html[data-theme="dark"] .notification-item.read .notification-dot,
+html[data-theme="dark"] .notification-bell,
+html[data-theme="dark"] .notification-filter,
+html[data-theme="dark"] .admin-row,
+html[data-theme="dark"] .admin-form input,
+html[data-theme="dark"] .admin-form select,
+html[data-theme="dark"] .admin-form textarea,
+html[data-theme="dark"] .dashboard-stat,
+html[data-theme="dark"] .dashboard-milestones,
+html[data-theme="dark"] .dashboard-focus,
+html[data-theme="dark"] .dashboard-milestone-open,
+html[data-theme="dark"] .filter-shortcut,
+html[data-theme="dark"] .heart,
+html[data-theme="dark"] .card-facts>span,
+html[data-theme="dark"] .detail-favorite-btn,
+html[data-theme="dark"] .detail-section-nav a,
+html[data-theme="dark"] .detail-section,
+html[data-theme="dark"] .detail-trust-card,
+html[data-theme="dark"] .compare-card-btn,
+html[data-theme="dark"] .compare-summary,
+html[data-theme="dark"] .compare-table-wrap,
+html[data-theme="dark"] .compare-table tbody th,
+html[data-theme="dark"] .compare-remove,
+html[data-theme="dark"] .study-field select,
+html[data-theme="dark"] .question-filters select,
+html[data-theme="dark"] .study-session,
+html[data-theme="dark"] .question-options .option,
+html[data-theme="dark"] .install-trigger,
+html[data-theme="dark"] .section-title .results,
+html[data-theme="dark"] .catalog-filter-panel .filters select,
+html[data-theme="dark"] .catalog-filter-panel .search-filter,
+html[data-theme="dark"] .catalog-filter-panel,
+html[data-theme="dark"] .filters select:focus,
+html[data-theme="dark"] .search-filter:focus-within,
+html[data-theme="dark"] .recommendations-panel,
+html[data-theme="dark"] .catalog-view-toolbar,
+html[data-theme="dark"] .catalog-view-switch button.active,
+html[data-theme="dark"] .focus-timer-presets button,
+html[data-theme="dark"] .focus-timer-dial:before,
+html[data-theme="dark"] .question-search input,
+html[data-theme="dark"] .question-filter-field select,
+html[data-theme="dark"] .question-collections button,
+html[data-theme="dark"] .question-bookmark,
+html[data-theme="dark"] .simulator-time-field select,
+html[data-theme="dark"] .official-exams-toolbar input,
+html[data-theme="dark"] .official-exams-toolbar select,
+html[data-theme="dark"] .simulator-question-main,
+html[data-theme="dark"] .simulator-question-map button,
+html[data-theme="dark"] .official-exam-card,
+html[data-theme="dark"] .study-admin-grid input,
+html[data-theme="dark"] .study-admin-grid select,
+html[data-theme="dark"] .study-question-admin-form input,
+html[data-theme="dark"] .study-question-admin-form textarea,
+html[data-theme="dark"] .study-question-admin-form select,
+html[data-theme="dark"] .question-ai-form input,
+html[data-theme="dark"] .question-ai-form select,
+html[data-theme="dark"] .question-ai-form textarea,
+html[data-theme="dark"] .discovery-toolbar input,
+html[data-theme="dark"] .discovery-toolbar select,
+html[data-theme="dark"] .discovery-priority-low,
+html[data-theme="dark"] .discovery-status-dismissed,
+html[data-theme="dark"] .push-health-card,
+html[data-theme="dark"] .push-health-batch-grid>div,
+html[data-theme="dark"] .push-health-history-grid>div {
+  background-color: #1b2a3d !important;
+  background-image: none !important;
+}
+
+html[data-theme="dark"] .blue,
+html[data-theme="dark"] .subject,
+html[data-theme="dark"] .auth-message.info,
+html[data-theme="dark"] .google-auth-btn:hover,
+html[data-theme="dark"] .avatar,
+html[data-theme="dark"] .main,
+html[data-theme="dark"] .date-chip,
+html[data-theme="dark"] .install-trigger:hover,
+html[data-theme="dark"] .auth-trigger:hover,
+html[data-theme="dark"] .notification-bell:hover,
+html[data-theme="dark"] .recommendations-edit:hover,
+html[data-theme="dark"] .dashboard-stat-icon,
+html[data-theme="dark"] .dashboard-section-heading>span,
+html[data-theme="dark"] .dashboard-milestone time,
+html[data-theme="dark"] .clear-filters-btn,
+html[data-theme="dark"] .filter-shortcut,
+html[data-theme="dark"] .filter-shortcut:hover,
+html[data-theme="dark"] .filter-shortcut.active,
+html[data-theme="dark"] .filters select,
+html[data-theme="dark"] .search-filter,
+html[data-theme="dark"] .compare-toolbar,
+html[data-theme="dark"] .compare-card-btn,
+html[data-theme="dark"] .compare-card-btn:hover,
+html[data-theme="dark"] .compare-card-btn.selected,
+html[data-theme="dark"] .status,
+html[data-theme="dark"] .status-closed,
+html[data-theme="dark"] .status-stage,
+html[data-theme="dark"] .status-neutral,
+html[data-theme="dark"] .card-facts>span,
+html[data-theme="dark"] .card-bottom .detail-btn,
+html[data-theme="dark"] .card-bottom .detail-btn:hover,
+html[data-theme="dark"] .empty,
+html[data-theme="dark"] .notification-count,
+html[data-theme="dark"] .notification-filter.active,
+html[data-theme="dark"] .notification-item:hover,
+html[data-theme="dark"] .notification-item:not(.read),
+html[data-theme="dark"] .recommendation-card,
+html[data-theme="dark"] .recommendation-score,
+html[data-theme="dark"] .detail-section-nav a:hover,
+html[data-theme="dark"] .detail-side-card,
+html[data-theme="dark"] .detail-trust-card,
+html[data-theme="dark"] .soft-pill,
+html[data-theme="dark"] .question-tag,
+html[data-theme="dark"] .progress-track,
+html[data-theme="dark"] .study-session:hover,
+html[data-theme="dark"] .question-card,
+html[data-theme="dark"] .question-meta span,
+html[data-theme="dark"] .question-options .option.chosen,
+html[data-theme="dark"] .compare-empty,
+html[data-theme="dark"] .compare-empty>span,
+html[data-theme="dark"] .compare-summary,
+html[data-theme="dark"] .compare-selected-preview,
+html[data-theme="dark"] .compare-table th,
+html[data-theme="dark"] .admin-row,
+html[data-theme="dark"] .admin-row-actions .detail-btn,
+html[data-theme="dark"] .detail-btn:hover,
+html[data-theme="dark"] .catalog-sort select,
+html[data-theme="dark"] .catalog-view-switch,
+html[data-theme="dark"] .export-favorites-btn,
+html[data-theme="dark"] .export-favorites-btn:hover,
+html[data-theme="dark"] .focus-timer-presets button.active,
+html[data-theme="dark"] .question-stat,
+html[data-theme="dark"] .question-collections button span,
+html[data-theme="dark"] .question-empty,
+html[data-theme="dark"] .simulator-size-options button,
+html[data-theme="dark"] .simulator-clock,
+html[data-theme="dark"] .simulator-time-track,
+html[data-theme="dark"] .simulator-question-map,
+html[data-theme="dark"] .simulator-review-item,
+html[data-theme="dark"] .official-exam-meta span,
+html[data-theme="dark"] .discovery-chip-result,
+html[data-theme="dark"] .discovery-chip-pre_notice {
+  background-color: #1d3553 !important;
+  background-image: none !important;
+}
+
+html[data-theme="dark"] .gold,
+html[data-theme="dark"] .status.preliminary,
+html[data-theme="dark"] .notification-sync-hint,
+html[data-theme="dark"] .offline-status,
+html[data-theme="dark"] .detail-caution,
+html[data-theme="dark"] .compare-status.is-preliminary,
+html[data-theme="dark"] .status-upcoming,
+html[data-theme="dark"] .question-bookmark.saved,
+html[data-theme="dark"] .question-meta .question-difficulty,
+html[data-theme="dark"] .question-meta .difficulty-intermediaria,
+html[data-theme="dark"] .discovery-web-review-note,
+html[data-theme="dark"] .question-ai-review-item,
+html[data-theme="dark"] .discovery-chip-secondary,
+html[data-theme="dark"] .discovery-chip-retification,
+html[data-theme="dark"] .discovery-priority-medium,
+html[data-theme="dark"] .discovery-status-pending,
+html[data-theme="dark"] .push-health-overview.push-health-warning {
+  background-color: #40351f !important;
+  background-image: none !important;
+}
+
+html[data-theme="dark"] .option.wrong,
+html[data-theme="dark"] .answer.bad,
+html[data-theme="dark"] .auth-message.error,
+html[data-theme="dark"] .notification-dismiss:hover,
+html[data-theme="dark"] .heart:hover,
+html[data-theme="dark"] .heart.saved,
+html[data-theme="dark"] .question-options .option.wrong,
+html[data-theme="dark"] .question-meta .difficulty-avancada,
+html[data-theme="dark"] .push-health-overview.push-health-error,
+html[data-theme="dark"] .push-health-errors li {
+  background-color: #402d34 !important;
+  background-image: none !important;
+}
+
+html[data-theme="dark"] .brand,
+html[data-theme="dark"] .art-card,
+html[data-theme="dark"] .blue,
+html[data-theme="dark"] .card-bottom strong,
+html[data-theme="dark"] .alerts-intro strong,
+html[data-theme="dark"] .saved-alert-copy strong,
+html[data-theme="dark"] .auth-modal h2,
+html[data-theme="dark"] .auth-form input,
+html[data-theme="dark"] .google-mark,
+html[data-theme="dark"] .profile-form input,
+html[data-theme="dark"] .profile-form select,
+html[data-theme="dark"] .recommendations-heading h2,
+html[data-theme="dark"] .recommendation-info strong,
+html[data-theme="dark"] .notification-heading h2,
+html[data-theme="dark"] .notification-item,
+html[data-theme="dark"] .install-steps strong,
+html[data-theme="dark"] .admin-page h1,
+html[data-theme="dark"] .admin-panel-heading strong,
+html[data-theme="dark"] .admin-row-copy strong,
+html[data-theme="dark"] .admin-form input,
+html[data-theme="dark"] .admin-form select,
+html[data-theme="dark"] .admin-form textarea,
+html[data-theme="dark"] .discovery-row .admin-row-copy a,
+html[data-theme="dark"] .candidate-dashboard-heading h2,
+html[data-theme="dark"] .dashboard-stat,
+html[data-theme="dark"] .dashboard-stat-copy strong,
+html[data-theme="dark"] .dashboard-section-heading h3,
+html[data-theme="dark"] .dashboard-focus h3,
+html[data-theme="dark"] .dashboard-milestone-copy span,
+html[data-theme="dark"] .contest-card h3,
+html[data-theme="dark"] .card-facts>span strong,
+html[data-theme="dark"] .detail-section-heading h2,
+html[data-theme="dark"] .detail-facts-grid strong,
+html[data-theme="dark"] .detail-timeline-copy time,
+html[data-theme="dark"] .detail-document-card strong,
+html[data-theme="dark"] .detail-history-list strong,
+html[data-theme="dark"] .detail-study-card h2,
+html[data-theme="dark"] .detail-trust-card strong,
+html[data-theme="dark"] .study-target-card strong,
+html[data-theme="dark"] .compare-page-heading h1,
+html[data-theme="dark"] .compare-empty h2,
+html[data-theme="dark"] .compare-column-heading strong,
+html[data-theme="dark"] .compare-dates time,
+html[data-theme="dark"] .study-field select,
+html[data-theme="dark"] .question-filters select,
+html[data-theme="dark"] .study-session strong,
+html[data-theme="dark"] .question-card h3,
+html[data-theme="dark"] .stat strong,
+html[data-theme="dark"] .brand small,
+html[data-theme="dark"] .side-label,
+html[data-theme="dark"] .nav-item span,
+html[data-theme="dark"] .avatar,
+html[data-theme="dark"] .install-trigger,
+html[data-theme="dark"] .auth-trigger,
+html[data-theme="dark"] .notification-bell,
+html[data-theme="dark"] .notification-bell:hover,
+html[data-theme="dark"] .art-card span,
+html[data-theme="dark"] .candidate-dashboard .eyebrow,
+html[data-theme="dark"] .recommendations-edit,
+html[data-theme="dark"] .dashboard-stat-icon,
+html[data-theme="dark"] .dashboard-section-heading>span,
+html[data-theme="dark"] .dashboard-milestone time,
+html[data-theme="dark"] .dashboard-milestone-open,
+html[data-theme="dark"] .section-title h2,
+html[data-theme="dark"] .catalog-filter-heading strong,
+html[data-theme="dark"] .clear-filters-btn,
+html[data-theme="dark"] .filter-shortcut:hover,
+html[data-theme="dark"] .filter-shortcut.active,
+html[data-theme="dark"] .search-filter input,
+html[data-theme="dark"] .compare-toolbar>div>strong,
+html[data-theme="dark"] .org-icon,
+html[data-theme="dark"] .compare-card-btn:hover,
+html[data-theme="dark"] .compare-card-btn.selected,
+html[data-theme="dark"] .status,
+html[data-theme="dark"] .status-stage,
+html[data-theme="dark"] .card-bottom .detail-btn,
+html[data-theme="dark"] .notification-count,
+html[data-theme="dark"] .notification-filter.active,
+html[data-theme="dark"] .notification-copy strong,
+html[data-theme="dark"] .notification-feedback,
+html[data-theme="dark"] .recommendation-score,
+html[data-theme="dark"] .detail-back,
+html[data-theme="dark"] .detail-back:hover,
+html[data-theme="dark"] .detail-favorite-btn,
+html[data-theme="dark"] .detail-section-nav a:hover,
+html[data-theme="dark"] .detail-side-card strong,
+html[data-theme="dark"] .detail-trust-card a,
+html[data-theme="dark"] .study-page>h1,
+html[data-theme="dark"] .study-page>.eyebrow,
+html[data-theme="dark"] .panel-head h2,
+html[data-theme="dark"] .panel-head .eyebrow,
+html[data-theme="dark"] .soft-pill,
+html[data-theme="dark"] .question-tag,
+html[data-theme="dark"] .progress-number,
+html[data-theme="dark"] .task,
+html[data-theme="dark"] .question-meta span,
+html[data-theme="dark"] .question-options .option.chosen,
+html[data-theme="dark"] .compare-empty>span,
+html[data-theme="dark"] .compare-selected-preview,
+html[data-theme="dark"] .compare-table th,
+html[data-theme="dark"] .admin-row-actions .detail-btn,
+html[data-theme="dark"] .modal h2,
+html[data-theme="dark"] .detail-btn,
+html[data-theme="dark"] .source-notice strong,
+html[data-theme="dark"] .source-notice a,
+html[data-theme="dark"] .source-footnote a,
+html[data-theme="dark"] .catalog-sort select,
+html[data-theme="dark"] .catalog-view-switch button.active,
+html[data-theme="dark"] .export-favorites-btn,
+html[data-theme="dark"] .empty strong,
+html[data-theme="dark"] .focus-timer-copy h2,
+html[data-theme="dark"] .focus-timer-presets button.active,
+html[data-theme="dark"] .focus-timer-dial span,
+html[data-theme="dark"] .focus-timer-summary strong,
+html[data-theme="dark"] .question-stat strong,
+html[data-theme="dark"] .question-search input,
+html[data-theme="dark"] .question-filter-field select,
+html[data-theme="dark"] .question-empty strong,
+html[data-theme="dark"] .simulator-size-options button strong,
+html[data-theme="dark"] .simulator-time-field select,
+html[data-theme="dark"] .official-exams-toolbar input,
+html[data-theme="dark"] .official-exams-toolbar select,
+html[data-theme="dark"] .simulator-livebar strong,
+html[data-theme="dark"] .simulator-clock strong,
+html[data-theme="dark"] .simulator-question-main h3,
+html[data-theme="dark"] .simulator-question-map>strong,
+html[data-theme="dark"] .simulator-result-hero h3,
+html[data-theme="dark"] .simulator-discipline-results strong,
+html[data-theme="dark"] .simulator-review-item strong,
+html[data-theme="dark"] .simulator-history>strong,
+html[data-theme="dark"] .simulator-history article strong,
+html[data-theme="dark"] .official-exam-card h3,
+html[data-theme="dark"] .study-admin-grid input,
+html[data-theme="dark"] .study-admin-grid select,
+html[data-theme="dark"] .study-question-admin-form input,
+html[data-theme="dark"] .study-question-admin-form textarea,
+html[data-theme="dark"] .study-question-admin-form select,
+html[data-theme="dark"] .study-admin-options>strong,
+html[data-theme="dark"] .question-ai-how>strong,
+html[data-theme="dark"] .question-ai-form>div:first-child strong,
+html[data-theme="dark"] .question-ai-subheading strong,
+html[data-theme="dark"] .question-ai-form input,
+html[data-theme="dark"] .question-ai-form select,
+html[data-theme="dark"] .question-ai-form textarea,
+html[data-theme="dark"] .question-ai-topic>div:first-child strong,
+html[data-theme="dark"] .question-ai-review-head strong,
+html[data-theme="dark"] .question-ai-runs>strong,
+html[data-theme="dark"] .discovery-summary strong,
+html[data-theme="dark"] .discovery-toolbar input,
+html[data-theme="dark"] .discovery-toolbar select,
+html[data-theme="dark"] .pci-catalog-notice strong,
+html[data-theme="dark"] .push-health-card strong,
+html[data-theme="dark"] .push-health-errors>strong,
+html[data-theme="dark"] .push-health-batch-heading strong,
+html[data-theme="dark"] .push-health-batch-grid strong,
+html[data-theme="dark"] .push-health-history-heading strong {
+  color: #92bdff !important;
+}
+
+html[data-theme="dark"] .brand small,
+html[data-theme="dark"] .side-label,
+html[data-theme="dark"] .eyebrow,
+html[data-theme="dark"] .nav-item,
+html[data-theme="dark"] .help-card p,
+html[data-theme="dark"] .profile small,
+html[data-theme="dark"] .dots,
+html[data-theme="dark"] .breadcrumb,
+html[data-theme="dark"] .date-chip,
+html[data-theme="dark"] .art-card small,
+html[data-theme="dark"] .stat small,
+html[data-theme="dark"] .results,
+html[data-theme="dark"] .muted,
+html[data-theme="dark"] .filters select,
+html[data-theme="dark"] .search-filter,
+html[data-theme="dark"] .heart,
+html[data-theme="dark"] .org-name,
+html[data-theme="dark"] .card-meta,
+html[data-theme="dark"] .card-bottom small,
+html[data-theme="dark"] .disclaimer,
+html[data-theme="dark"] .empty,
+html[data-theme="dark"] .task small,
+html[data-theme="dark"] .task-done,
+html[data-theme="dark"] .option,
+html[data-theme="dark"] .subject small,
+html[data-theme="dark"] .subject-arrow,
+html[data-theme="dark"] .modal-close,
+html[data-theme="dark"] .modal-facts small,
+html[data-theme="dark"] .source-notice p,
+html[data-theme="dark"] .source-footnote,
+html[data-theme="dark"] .alerts-intro p,
+html[data-theme="dark"] .alerts-empty,
+html[data-theme="dark"] .saved-alert-copy span,
+html[data-theme="dark"] .alerts-note,
+html[data-theme="dark"] .auth-form label,
+html[data-theme="dark"] .auth-message.info,
+html[data-theme="dark"] .auth-setup p,
+html[data-theme="dark"] .auth-setup li,
+html[data-theme="dark"] .preliminary-toggle,
+html[data-theme="dark"] .auth-divider,
+html[data-theme="dark"] .profile-edit,
+html[data-theme="dark"] .recommendations-heading p,
+html[data-theme="dark"] .recommendation-info span,
+html[data-theme="dark"] .recommendation-info small,
+html[data-theme="dark"] .notification-heading p,
+html[data-theme="dark"] .notification-dismiss,
+html[data-theme="dark"] .notification-item.read,
+html[data-theme="dark"] .notification-copy small,
+html[data-theme="dark"] .notification-filter,
+html[data-theme="dark"] .install-steps p,
+html[data-theme="dark"] .admin-panel-heading small,
+html[data-theme="dark"] .admin-row-copy span,
+html[data-theme="dark"] .discovery-row .admin-row-copy small,
+html[data-theme="dark"] .discovery-empty,
+html[data-theme="dark"] .candidate-dashboard-heading p,
+html[data-theme="dark"] .dashboard-stat-copy small,
+html[data-theme="dark"] .dashboard-stat em,
+html[data-theme="dark"] .dashboard-section-heading>span,
+html[data-theme="dark"] .dashboard-milestone-copy small,
+html[data-theme="dark"] .dashboard-milestone-empty,
+html[data-theme="dark"] .dashboard-disclaimer,
+html[data-theme="dark"] .dashboard-focus p,
+html[data-theme="dark"] .filter-shortcut,
+html[data-theme="dark"] .card-area-tag,
+html[data-theme="dark"] .card-facts>span,
+html[data-theme="dark"] .card-facts>span small,
+html[data-theme="dark"] .detail-section-nav a,
+html[data-theme="dark"] .detail-section-heading>span,
+html[data-theme="dark"] .detail-facts-grid small,
+html[data-theme="dark"] .detail-description p,
+html[data-theme="dark"] .detail-timeline-copy p,
+html[data-theme="dark"] .detail-timeline-copy small,
+html[data-theme="dark"] .detail-data-note,
+html[data-theme="dark"] .detail-empty-state,
+html[data-theme="dark"] .detail-document-card p,
+html[data-theme="dark"] .detail-document-card small,
+html[data-theme="dark"] .detail-history-list small,
+html[data-theme="dark"] .detail-study-card p,
+html[data-theme="dark"] .detail-trust-card p,
+html[data-theme="dark"] .study-target-card p,
+html[data-theme="dark"] .study-target-card small,
+html[data-theme="dark"] .compare-card-btn,
+html[data-theme="dark"] .compare-toolbar span,
+html[data-theme="dark"] .compare-page-heading p,
+html[data-theme="dark"] .compare-empty p,
+html[data-theme="dark"] .compare-selected-preview,
+html[data-theme="dark"] .compare-summary span,
+html[data-theme="dark"] .compare-table tbody th,
+html[data-theme="dark"] .compare-table td,
+html[data-theme="dark"] .compare-column-heading span,
+html[data-theme="dark"] .compare-remove,
+html[data-theme="dark"] .compare-dates strong,
+html[data-theme="dark"] .compare-disclaimer,
+html[data-theme="dark"] .study-field,
+html[data-theme="dark"] .question-filters label,
+html[data-theme="dark"] .study-days>span,
+html[data-theme="dark"] .study-days label,
+html[data-theme="dark"] .study-session small,
+html[data-theme="dark"] .study-session.completed strong,
+html[data-theme="dark"] .study-disclaimer,
+html[data-theme="dark"] .question-meta span,
+html[data-theme="dark"] .question-options .option,
+html[data-theme="dark"] .section-title .results,
+html[data-theme="dark"] .section-title .eyebrow,
+html[data-theme="dark"] .catalog-filter-heading p,
+html[data-theme="dark"] .filter-options,
+html[data-theme="dark"] .filter-hint,
+html[data-theme="dark"] .compare-toolbar>div>span,
+html[data-theme="dark"] .status-closed,
+html[data-theme="dark"] .status-neutral,
+html[data-theme="dark"] .card-bottom strong,
+html[data-theme="dark"] .study-page>.subhead,
+html[data-theme="dark"] .study-plan-panel .study-field,
+html[data-theme="dark"] .study-days,
+html[data-theme="dark"] .catalog-sort,
+html[data-theme="dark"] .catalog-view-switch button,
+html[data-theme="dark"] .focus-timer-copy p,
+html[data-theme="dark"] .focus-timer-presets button,
+html[data-theme="dark"] .focus-timer-dial small,
+html[data-theme="dark"] .focus-timer-summary,
+html[data-theme="dark"] .question-bank-subtitle,
+html[data-theme="dark"] .question-stat span,
+html[data-theme="dark"] .question-search,
+html[data-theme="dark"] .question-filter-field,
+html[data-theme="dark"] .question-collections button,
+html[data-theme="dark"] .question-collections button span,
+html[data-theme="dark"] .question-bookmark,
+html[data-theme="dark"] .question-index,
+html[data-theme="dark"] .question-empty p,
+html[data-theme="dark"] .simulator-size-options button,
+html[data-theme="dark"] .simulator-time-field,
+html[data-theme="dark"] .official-exams-toolbar label,
+html[data-theme="dark"] .simulator-setup-footer p,
+html[data-theme="dark"] .simulator-livebar small,
+html[data-theme="dark"] .simulator-clock small,
+html[data-theme="dark"] .simulator-question-map button,
+html[data-theme="dark"] .simulator-question-map small,
+html[data-theme="dark"] .simulator-warning,
+html[data-theme="dark"] .simulator-result-hero p,
+html[data-theme="dark"] .simulator-score span,
+html[data-theme="dark"] .simulator-discipline-results span,
+html[data-theme="dark"] .simulator-review-item p,
+html[data-theme="dark"] .simulator-review-item small,
+html[data-theme="dark"] .simulator-history article span,
+html[data-theme="dark"] .simulator-history article small,
+html[data-theme="dark"] .question-sync-status,
+html[data-theme="dark"] .official-exam-meta span,
+html[data-theme="dark"] .official-exam-card p,
+html[data-theme="dark"] .official-exam-card>small,
+html[data-theme="dark"] .official-exam-actions .official-source-secondary,
+html[data-theme="dark"] .study-admin-grid label,
+html[data-theme="dark"] .study-question-admin-form>label,
+html[data-theme="dark"] .study-admin-options label>span,
+html[data-theme="dark"] .study-rights-confirm,
+html[data-theme="dark"] .study-admin-footer small,
+html[data-theme="dark"] .question-ai-summary span,
+html[data-theme="dark"] .question-ai-how p,
+html[data-theme="dark"] .question-ai-form small,
+html[data-theme="dark"] .question-ai-topic small,
+html[data-theme="dark"] .question-ai-runs small,
+html[data-theme="dark"] .question-ai-form label,
+html[data-theme="dark"] .question-ai-form-footer small,
+html[data-theme="dark"] .question-ai-subheading>span,
+html[data-theme="dark"] .question-ai-runs>div span,
+html[data-theme="dark"] .discovery-summary span,
+html[data-theme="dark"] .discovery-toolbar label,
+html[data-theme="dark"] .discovery-row-tags small,
+html[data-theme="dark"] .discovery-chip,
+html[data-theme="dark"] .discovery-chip-result,
+html[data-theme="dark"] .discovery-chip-pre_notice,
+html[data-theme="dark"] .discovery-priority-low,
+html[data-theme="dark"] .discovery-status-dismissed,
+html[data-theme="dark"] .discovery-history-note,
+html[data-theme="dark"] .admin-history-details,
+html[data-theme="dark"] .admin-history-details ol>li>strong,
+html[data-theme="dark"] .admin-history-details ol>li>span,
+html[data-theme="dark"] .admin-history-details ul,
+html[data-theme="dark"] .admin-history-details ul b,
+html[data-theme="dark"] .detail-history-changes,
+html[data-theme="dark"] .pci-catalog-notice p,
+html[data-theme="dark"] .pci-catalog-notice small,
+html[data-theme="dark"] .push-health-overview small,
+html[data-theme="dark"] .push-health-updated,
+html[data-theme="dark"] .push-health-card small,
+html[data-theme="dark"] .push-health-card span,
+html[data-theme="dark"] .push-health-footer,
+html[data-theme="dark"] .push-health-errors li span,
+html[data-theme="dark"] .push-health-errors li small,
+html[data-theme="dark"] .push-health-privacy,
+html[data-theme="dark"] .push-health-batch-heading small,
+html[data-theme="dark"] .push-health-batch-grid span,
+html[data-theme="dark"] .push-health-history-heading small,
+html[data-theme="dark"] .push-health-history-grid span,
+html[data-theme="dark"] .push-health-history-empty {
+  color: #aebed1 !important;
+}
+
+html[data-theme="dark"] .nav-item.active,
+html[data-theme="dark"] .help-icon,
+html[data-theme="dark"] .help-card button,
+html[data-theme="dark"] .avatar,
+html[data-theme="dark"] .mini-avatar,
+html[data-theme="dark"] .art-card span,
+html[data-theme="dark"] .green,
+html[data-theme="dark"] .org-icon,
+html[data-theme="dark"] .status,
+html[data-theme="dark"] .detail-btn,
+html[data-theme="dark"] .soft-pill,
+html[data-theme="dark"] .question-tag,
+html[data-theme="dark"] .progress-number,
+html[data-theme="dark"] .answer.good,
+html[data-theme="dark"] .subject>span:first-child,
+html[data-theme="dark"] .source-notice strong,
+html[data-theme="dark"] .source-notice a,
+html[data-theme="dark"] .source-footnote a,
+html[data-theme="dark"] .auth-trigger,
+html[data-theme="dark"] .auth-mode-toggle,
+html[data-theme="dark"] .auth-message.success,
+html[data-theme="dark"] .auth-setup a,
+html[data-theme="dark"] .filter-hint,
+html[data-theme="dark"] .profile-edit:hover,
+html[data-theme="dark"] .recommendations-edit,
+html[data-theme="dark"] .recommendation-score,
+html[data-theme="dark"] .recommendation-open,
+html[data-theme="dark"] .notification-count,
+html[data-theme="dark"] .notification-open,
+html[data-theme="dark"] .notification-feedback,
+html[data-theme="dark"] .notification-bell,
+html[data-theme="dark"] .notification-filter.active,
+html[data-theme="dark"] .install-trigger,
+html[data-theme="dark"] .discovery-status-pill,
+html[data-theme="dark"] .dashboard-stat-icon,
+html[data-theme="dark"] .dashboard-milestone time,
+html[data-theme="dark"] .dashboard-milestone-copy strong,
+html[data-theme="dark"] .dashboard-milestone-open,
+html[data-theme="dark"] .nav-item b,
+html[data-theme="dark"] .filter-shortcut:hover,
+html[data-theme="dark"] .filter-shortcut.active,
+html[data-theme="dark"] .detail-back,
+html[data-theme="dark"] .detail-favorite-btn,
+html[data-theme="dark"] .detail-section-nav a:hover,
+html[data-theme="dark"] .detail-description h3,
+html[data-theme="dark"] .detail-timeline-marker,
+html[data-theme="dark"] .detail-timeline-copy strong,
+html[data-theme="dark"] .detail-document-icon,
+html[data-theme="dark"] .detail-document-card>a,
+html[data-theme="dark"] .detail-trust-card a,
+html[data-theme="dark"] .compare-card-btn:hover,
+html[data-theme="dark"] .compare-card-btn.selected,
+html[data-theme="dark"] .compare-toolbar strong,
+html[data-theme="dark"] .compare-empty>span,
+html[data-theme="dark"] .compare-summary strong,
+html[data-theme="dark"] .compare-table thead th,
+html[data-theme="dark"] .compare-column-heading small,
+html[data-theme="dark"] .compare-status,
+html[data-theme="dark"] .compare-source-link,
+html[data-theme="dark"] .question-options .option.chosen,
+html[data-theme="dark"] .question-options .option.correct,
+html[data-theme="dark"] .card-facts>span strong,
+html[data-theme="dark"] .card-bottom .detail-btn,
+html[data-theme="dark"] .status-open,
+html[data-theme="dark"] .export-feedback,
+html[data-theme="dark"] .focus-timer-notice,
+html[data-theme="dark"] .question-collections button.active,
+html[data-theme="dark"] .question-collections button.active span,
+html[data-theme="dark"] .question-meta .difficulty-facil,
+html[data-theme="dark"] .simulator-size-options button.active,
+html[data-theme="dark"] .simulator-size-options button.active strong,
+html[data-theme="dark"] .simulator-question-map button.answered,
+html[data-theme="dark"] .simulator-score strong,
+html[data-theme="dark"] .review-correct,
+html[data-theme="dark"] .official-exam-actions a,
+html[data-theme="dark"] .pci-source-link,
+html[data-theme="dark"] .question-ai-summary strong,
+html[data-theme="dark"] .discovery-priority-high,
+html[data-theme="dark"] .discovery-status-published,
+html[data-theme="dark"] .admin-history-details summary,
+html[data-theme="dark"] .detail-history-changes b,
+html[data-theme="dark"] .detail-history-source,
+html[data-theme="dark"] .push-health-overview strong,
+html[data-theme="dark"] .push-health-history-grid strong {
+  color: #74d8b1 !important;
+}
+
+html[data-theme="dark"] .gold,
+html[data-theme="dark"] .status.preliminary,
+html[data-theme="dark"] .notification-sync-hint,
+html[data-theme="dark"] .offline-status,
+html[data-theme="dark"] .detail-caution,
+html[data-theme="dark"] .compare-status.is-preliminary,
+html[data-theme="dark"] .compare-caution,
+html[data-theme="dark"] .status-upcoming,
+html[data-theme="dark"] .question-bookmark.saved,
+html[data-theme="dark"] .question-meta .question-difficulty,
+html[data-theme="dark"] .question-meta .difficulty-intermediaria,
+html[data-theme="dark"] .discovery-web-review-note,
+html[data-theme="dark"] .question-ai-review-head span,
+html[data-theme="dark"] .question-ai-review-item ul,
+html[data-theme="dark"] .discovery-chip-secondary,
+html[data-theme="dark"] .discovery-chip-retification,
+html[data-theme="dark"] .discovery-priority-medium,
+html[data-theme="dark"] .discovery-status-pending,
+html[data-theme="dark"] .push-health-overview.push-health-warning strong {
+  color: #edc27d !important;
+}
+
+html[data-theme="dark"] .heart.saved,
+html[data-theme="dark"] .answer.bad,
+html[data-theme="dark"] .alert-remove,
+html[data-theme="dark"] .auth-message.error,
+html[data-theme="dark"] .notification-dismiss:hover,
+html[data-theme="dark"] .question-options .option.wrong,
+html[data-theme="dark"] .heart:hover,
+html[data-theme="dark"] .question-meta .difficulty-avancada,
+html[data-theme="dark"] .review-wrong,
+html[data-theme="dark"] .push-health-overview.push-health-error strong,
+html[data-theme="dark"] .push-health-errors li b {
+  color: #ff9fa8 !important;
+}
+
+html[data-theme="dark"] .google-auth-btn,
+html[data-theme="dark"] .question-ai-review-item p {
+  color: #e1eaf5 !important;
+}
+
+/* Regras comuns para superfícies inseridas pelos módulos de estudos e administração. */
+html[data-theme="dark"] :is(
+  .panel,.study-session,.question-card,.question-options,.simulator-card,
+  .study-plan-card,.study-question-bank,.candidate-dashboard,.dashboard-milestones,
+  .dashboard-focus,.push-health-panel,.push-health-card,.push-health-history,
+  .push-health-batch,.push-health-overview,.compare-summary,.compare-table-wrap,
+  .detail-section,.detail-trust-card,.detail-document-card,.notification-panel,
+  .notification-item,.notification-filter,.notification-sync-hint,.admin-row,
+  .admin-form,.alerts-panel,.saved-alert,.recommendations-panel,.recommendation-card
+) {
+  border-color: #30435a !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,.16);
+}
+html[data-theme="dark"] .offline-status {
+  background: #3b321f !important;
+  color: #f1d49a !important;
+  border-color: #66522d !important;
+}
+html[data-theme="dark"] .status-open,
+html[data-theme="dark"] .discovery-status-published,
+html[data-theme="dark"] .answer.good,
+html[data-theme="dark"] .question-options .option.correct {
+  background: #193c34 !important;
+  color: #8fe0b9 !important;
+  border-color: #2b735a !important;
+}
+html[data-theme="dark"] .status-closed,
+html[data-theme="dark"] .auth-message.error,
+html[data-theme="dark"] .question-options .option.wrong {
+  background: #40272e !important;
+  color: #ffabb1 !important;
+  border-color: #75404a !important;
+}
+html[data-theme="dark"] .status-upcoming,
+html[data-theme="dark"] .status-stage,
+html[data-theme="dark"] .status-neutral {
+  color: #a9c9f7 !important;
+}
+html[data-theme="dark"] .help-card,
+html[data-theme="dark"] .notification-panel,
+html[data-theme="dark"] .modal,
+html[data-theme="dark"] .empty,
+html[data-theme="dark"] .contest-card,
+html[data-theme="dark"] .stat,
+html[data-theme="dark"] .panel {
+  color: #e5edf8;
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme="dark"] *,
+  html[data-theme="dark"] *::before,
+  html[data-theme="dark"] *::after {
+    transition-duration: .01ms !important;
+  }
+}
