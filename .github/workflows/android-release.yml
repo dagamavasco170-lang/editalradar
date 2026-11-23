@@ -113,8 +113,8 @@ jobs:
             exit 0
           fi
           previous_gradle="$(git show "${latest_tag}:android/app/build.gradle")"
-          previous_name="$(printf '%s\n' "$previous_gradle" | sed -n "s/^[[:space:]]*versionName ['\\"]\\([^'\\"]*\\)['\\"].*/\\1/p" | head -n 1)"
-          previous_code="$(printf '%s\n' "$previous_gradle" | sed -n 's/^[[:space:]]*versionCode \([0-9][0-9]*\).*/\1/p' | head -n 1)"
+          previous_name="$(python3 -c 'import re,sys; m=re.search(r"^\\s*versionName [\x27\\\"]([^\x27\\\"]+)[\x27\\\"]",sys.argv[1],re.M); print(m.group(1) if m else "")' "$previous_gradle")"
+          previous_code="$(python3 -c 'import re,sys; m=re.search(r"^\\s*versionCode (\\d+)",sys.argv[1],re.M); print(m.group(1) if m else "")' "$previous_gradle")"
           test -n "$previous_name" && test -n "$previous_code"
           python3 - "$APP_VERSION" "$VERSION_CODE" "$latest_tag" "$previous_name" "$previous_code" <<'PY'
           import re, sys
