@@ -25,12 +25,17 @@ jobs:
             const endpoint = process.env.SUPABASE_URL.replace(/\/$/, "") +
               "/rest/v1/app_diagnostics?select=event,platform,created_at&level=eq.error&created_at=gte." +
               encodeURIComponent(since) + "&order=created_at.desc&limit=500";
-            const response = await fetch(endpoint, {
-              headers: {
-                apikey: process.env.SUPABASE_SERVICE_ROLE_KEY,
-                Accept: "application/json"
-              }
-            });
+            const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+            // New sb_secret_* keys authenticate via apikey only; legacy service_role JWTs
+            // also require Authorization: Bearer for compatibility with older projects.
+            const headers = {
+              apikey: supabaseKey,
+              Accept: "application/json"
+            };
+            if (!supabaseKey.startsWith("sb_secret_")) {
+              headers.Authorization = "Bearer " + supabaseKey;
+            }
+            const response = await fetch(endpoint, { headers });
             if (!response.ok) throw new Error("Supabase diagnostics query failed: HTTP " + response.status);
             const logs = await response.json();
             if (!logs.length) {
