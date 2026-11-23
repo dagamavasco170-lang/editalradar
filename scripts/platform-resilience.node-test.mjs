@@ -130,7 +130,7 @@ test("callbacks nativos assíncronos só chegam à WebView oficial e pronta", ()
   assert.ok(android.includes("targetWebView !== webView || !isTrustedWebPageReady()"));
   assert.ok(android.includes("retryFcmTokenDelivery: Boolean = false"));
   assert.ok(android.includes("pendingFcmTokenDelivery = true"));
-  assert.ok(android.includes("if (webPageReady && pendingFcmTokenDelivery) requestFcmToken()"));
+  assert.ok(android.includes("if (pendingFcmTokenDelivery) requestFcmToken()"));
   const permissionStart = android.indexOf("private fun dispatchNativeNotificationPermission(");
   const permissionEnd = android.indexOf("private fun configureNotifications()", permissionStart);
   assert.ok(permissionStart >= 0 && permissionEnd > permissionStart);
