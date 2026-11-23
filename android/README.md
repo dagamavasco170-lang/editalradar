@@ -8,7 +8,6 @@ Aplicativo Android com interface do EditalRadar e recursos nativos em Kotlin.
 - Progresso do atualizador limitado a mudanças reais de percentual, deixando downloads grandes mais suaves e evitando sobrecarregar a fila da interface.
 
 - Interface do produto existente, com favoritos, conta, histórico e catálogo sincronizado pelo Supabase.
-- Barra superior com altura adaptável a fontes ampliadas, limites de linhas e alvos de toque de pelo menos 48 dp.
 - Modo claro/escuro com alternância na barra superior; a escolha é salva no navegador e no armazenamento nativo, aplica as cores às barras do sistema e mantém diálogos Android coerentes com o tema.
 - Cache do app configurado antes da primeira navegação, para favorecer a abertura com conteúdo já carregado mesmo quando o Android reinicia o processo sem conexão.
 - Controles nativos com alvos de toque de pelo menos 48 dp, facilitando o uso em celulares e com recursos de acessibilidade.
@@ -55,7 +54,7 @@ Os avisos locais existentes continuam funcionando quando o aplicativo está aber
 
 ## Pacotes publicados
 
-- **Versão estável publicada: 1.3.11 (versionCode 24).** [Baixar APK](https://github.com/dagamavasco170-lang/editalradar/releases/download/android-v1.3.11/EditalRadar-Android-v1.3.11.apk) · [Baixar AAB](https://github.com/dagamavasco170-lang/editalradar/releases/download/android-v1.3.11/EditalRadar-Android-v1.3.11.aab) · [Checksums SHA-256](https://github.com/dagamavasco170-lang/editalradar/releases/download/android-v1.3.11/SHA256SUMS.txt). A instalação/atualização assinada e a abertura real do catálogo foram aprovadas no Android 10. A permissão de instalação de atualizações usa a Activity Result API, sem callback legado.
+- **Versão em validação: 1.3.12 (versionCode 25).** A publicação depende da aprovação do build assinado, da atualização sobre a versão anterior e da abertura do catálogo no emulador Android 10. Esta versão melhora a adaptação da barra nativa a fontes ampliadas e reduz atualizações redundantes da interface durante downloads.
 - O APK é o pacote para instalação direta. O AAB fica disponível para uma eventual distribuição pela Play Store; a publicação na loja não é automática.
 - Builds debug são usados somente para verificação de CI quando a assinatura de produção não está disponível e não substituem a versão estável.
 
