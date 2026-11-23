@@ -11,6 +11,7 @@ Aplicativo Android com interface do EditalRadar e recursos nativos em Kotlin.
 - Recuperação automática da tela quando o Android encerra o processo interno da WebView; a aplicação recria a visualização e retorna à página inicial sem apagar a sessão salva.
 - Gesto de voltar integrado ao AndroidX: volta pelo histórico da WebView e deixa o Android fechar o app quando não há página anterior.
 - Compatibilidade preparada para Android 16 (API 36), incluindo áreas seguras de tela e navegação preditiva.
+- O frontend é transpilado para Chrome 70, evitando sintaxe JavaScript que WebViews antigas do Android 10 não conseguem interpretar; o teste em emulador confirma que o catálogo React aparece antes de aprovar uma atualização.
 - Indicador nativo de conexão; toque nele para tentar atualizar a página.
 - Canal de notificações Android. Quando o app detectar novos concursos ou mudanças em favoritos durante uma sincronização, poderá exibir avisos do sistema.
 - Retorno OAuth via esquema `editalradar://auth-callback`, mantendo a verificação PKCE no WebView.
