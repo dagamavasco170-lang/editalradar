@@ -90,11 +90,15 @@ internal class AppUpdateManager(context: Context) {
             worker.execute {
                 val result = runCatching { downloadReleaseApk(release, onProgress) }
                 busy.set(false)
-                mainHandler.post { onComplete(result) }
+                if (!closed.get()) mainHandler.post {
+                    if (!closed.get()) onComplete(result)
+                }
             }
         } catch (error: RejectedExecutionException) {
             busy.set(false)
-            mainHandler.post { onComplete(Result.failure(error)) }
+            if (!closed.get()) mainHandler.post {
+                if (!closed.get()) onComplete(Result.failure(error))
+            }
         }
     }
 
@@ -277,7 +281,9 @@ internal class AppUpdateManager(context: Context) {
                 temporaryFile.copyTo(completedFile, overwrite = true)
                 temporaryFile.delete()
             }
-            mainHandler.post { onProgress(100) }
+            if (!closed.get()) mainHandler.post {
+                if (!closed.get()) onProgress(100)
+            }
             return completedFile
         } catch (error: Exception) {
             temporaryFile.delete()
