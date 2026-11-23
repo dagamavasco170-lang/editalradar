@@ -240,7 +240,9 @@ test("release Android só publica depois de instalação e atualização real em
   assert.ok(androidSmokeScript.includes("/releases?per_page=50"));
   assert.ok(androidSmokeScript.includes('release.get("draft")'));
   assert.ok(androidSmokeScript.includes('release.get("prerelease")'));
-  assert.ok(androidSmokeScript.includes('re.fullmatch(r"android-v'));
+  assert.ok(androidSmokeScript.split("\n").some((line) =>
+    line.includes("re.fullmatch") && line.includes("android-v(") && line.includes("\\d+")
+  ));
   assert.ok(androidSmokeScript.includes("max(previous_candidates"));
   assert.ok(androidSmokeScript.includes('adb install "$PREVIOUS_APK"'));
   assert.ok(androidSmokeScript.includes('adb install -r "$CURRENT_APK"'));
