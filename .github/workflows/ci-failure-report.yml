@@ -1,0 +1,54 @@
+name: Relatório automático de falhas do GitHub
+on:
+  workflow_run:
+    workflows:
+      - "Test, build and deploy EditalRadar"
+      - "Build and publish EditalRadar Android release"
+      - "Android emulator smoke test"
+      - "Análise de segurança CodeQL"
+      - "Monitorar e recuperar automações"
+    types: [completed]
+permissions:
+  actions: read
+  issues: write
+jobs:
+  report:
+    if: github.event.workflow_run.conclusion == 'failure'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Abrir issue para investigar falha
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const run = context.payload.workflow_run;
+            const title = `[CI falhou] ${run.name} — ${run.head_branch} (${run.head_sha.slice(0, 7)})`;
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: "open",
+              labels: ["ci-failure"],
+              per_page: 100
+            });
+            if (issues.some(issue => issue.title === title)) {
+              core.info("Issue já existe; evitando duplicação.");
+              return;
+            }
+            const body = [
+              "## Falha automatizada detectada",
+              "",
+              "- **Workflow:** " + run.name,
+              "- **Branch:** " + run.head_branch,
+              "- **Commit:** " + run.head_sha,
+              "- **Conclusão:** " + run.conclusion,
+              "- **Executado em:** " + run.updated_at,
+              "- **Link da execução:** " + run.html_url,
+              "",
+              "Os logs completos ficam na aba Actions. Investigue, corrija e encerre esta issue após validar a solução."
+            ].join("\n");
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body,
+              labels: ["ci-failure"]
+            });
