@@ -204,7 +204,12 @@ const brazilianStates = [
 
 export default function App({ authClient = supabase, authConfigured = isSupabaseConfigured } = {}) {
   const [page, setPage] = useState("concursos");
-  const [theme, setTheme] = useState(() => readStore("er-theme", "light") === "dark" ? "dark" : "light");
+  const [theme, setTheme] = useState(() => {
+    const storedTheme = safeGetItem("er-theme");
+    // Migra o valor simples "dark" gravado pelas versões anteriores.
+    if (storedTheme === "dark" || storedTheme === JSON.stringify("dark")) return "dark";
+    return "light";
+  });
   const [query, setQuery] = useState("");
   const [nivel, setNivel] = useState("Todos os níveis");
   const [esfera, setEsfera] = useState("Todas as esferas");
