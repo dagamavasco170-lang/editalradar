@@ -94,6 +94,15 @@ export function initializeDiagnostics() {
     }));
   }, true);
 
+  window.addEventListener("editalradar-native-diagnostic", (event) => {
+    const detail = event.detail || {};
+    enqueue(createDiagnosticEntry({
+      level: detail.level || "error",
+      event: detail.event || "native_webview_diagnostic",
+      message: detail.message || "Native diagnostic event",
+    }));
+  });
+
   window.addEventListener("unhandledrejection", (event) => {
     enqueue(createDiagnosticEntry({
       event: "unhandled_promise_rejection",
@@ -118,7 +127,6 @@ export function initializeDiagnostics() {
     // Best-effort flush; no beacon or raw payload is persisted locally.
     void flushDiagnostics();
   });
-  enqueue(createDiagnosticEntry({ level: "info", event: "diagnostics_started", message: "Diagnostics initialized" }));
   void flushDiagnostics();
 }
 
