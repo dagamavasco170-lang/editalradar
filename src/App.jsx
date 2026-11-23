@@ -6,6 +6,7 @@ import { detectCatalogNotifications, dismissNotificationById, dismissNotificatio
 import { applyCatalogOverrides } from "./lib/catalog";
 import { isTrustedOfficialUrl, officialSourceLabel, parseHttpsUrl } from "./lib/official-sources.js";
 import { getUpcomingMilestones } from "./lib/dashboard";
+import { classifyRecommendationPriority } from "./lib/recommendation-priority.js";
 import { parseBrazilianNumber } from "./lib/brazilian-numbers.js";
 import { buildCsv } from "./lib/csv-export.js";
 import { buildContestChangeHistory, describeContestHistoryEntry, formatContestHistoryDate } from "./lib/admin-history.js";
@@ -2097,7 +2098,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                 <div className="recommendations-heading"><div><div className="eyebrow">PARA O SEU PERFIL</div><h2>Concursos recomendados</h2><p>Prioridade calculada com sua área de interesse, escolaridade e localização informadas.</p></div><button className="recommendations-edit" onClick={openProfileEditor}>Atualizar perfil</button></div>
                 <div className="recommendations-list">{profileRecommendations.map(({item,score})=>(
                   <article className="recommendation-card" key={item.id}>
-                    <div className="recommendation-score"><strong>{score}%</strong><small>compatibilidade</small></div>
+                    <div className="recommendation-score"><strong>{score}%</strong><small>compatibilidade</small><span className="recommendation-priority">{classifyRecommendationPriority(item,score)}</span></div>
                     <div className="recommendation-info"><strong>{item.cargo}</strong><span>{item.orgao} · {item.estado||"Brasil"}</span><small>{item.status}</small><div className="recommendation-reasons" aria-label="Motivos da recomendação">{getRecommendationReasons(item,recommendationProfile).map(reason=><span key={reason}>{reason}</span>)}</div></div>
                     <button className="recommendation-open" onClick={()=>openContestDetails(item)}>Ver detalhes</button>
                   </article>
