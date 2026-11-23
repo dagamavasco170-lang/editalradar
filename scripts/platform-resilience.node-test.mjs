@@ -61,7 +61,7 @@ test("WebView recria uma instância nova quando o renderizador Android é encerr
   assert.match(android, /private lateinit var contentRoot: LinearLayout/);
   assert.ok(android.includes("override fun onRenderProcessGone("));
   assert.ok(android.includes("private fun recoverFromRendererTermination("));
-  assert.ok(android.includes("container.removeView(goneView)"));
+  assert.ok(android.includes("container?.removeView(goneView)"));
   assert.ok(android.includes("goneView.destroy()"));
   assert.ok(android.includes("webView = replacement"));
   assert.ok(android.includes("configureWebView()"));
