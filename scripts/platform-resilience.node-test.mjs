@@ -100,6 +100,7 @@ test("WebView só fica pronta após a interface React montar", () => {
   assert.ok(android.includes("React app shell was not mounted after 10 checks"));
   assert.ok(android.includes("O aplicativo não conseguiu iniciar. Toque aqui para tentar novamente."));
   assert.ok(android.includes("if (pendingFcmTokenDelivery) requestFcmToken()"));
+  assert.ok(android.includes('statusText.text = if (online) "EditalRadar • pronto" else "EditalRadar • disponível offline"'));
 });
 
 test("Android atualiza o token FCM ao retomar a página confiável", () => {
