@@ -4,6 +4,12 @@ on:
   schedule:
     - cron: "20 5 * * 1"
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/dependency-autofix.yml"
 
 permissions:
   contents: write
