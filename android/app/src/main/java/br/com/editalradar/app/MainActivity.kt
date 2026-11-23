@@ -507,7 +507,26 @@ class MainActivity : ComponentActivity() {
             override fun onConsoleMessage(consoleMessage: ConsoleMessage): Boolean {
                 if (consoleMessage.messageLevel() == ConsoleMessage.MessageLevel.ERROR) {
                     val source = consoleMessage.sourceId().substringAfterLast('/').take(100)
-                    Log.w("EditalRadarWebView", "JavaScript error in $source:${consoleMessage.lineNumber()}")
+                    val debugBuild = applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
+                    val safeDetails = if (debugBuild) {
+                        consoleMessage.message()
+                            .substringBefore('\n')
+                            .replace(
+                                Regex("(?i)(access_token|refresh_token|api[_-]?key|authorization)\\s*[:=]\\s*[^,\\s;]+"),
+                                "$1=[redacted]"
+                            )
+                            .replace(
+                                Regex("eyJ[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{10,}"),
+                                "[redacted-token]"
+                            )
+                            .take(180)
+                    } else {
+                        "JavaScript error"
+                    }
+                    Log.w(
+                        "EditalRadarWebView",
+                        "$safeDetails in $source:${consoleMessage.lineNumber()}"
+                    )
                 }
                 return true
             }
