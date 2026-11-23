@@ -25,6 +25,25 @@ test("abre a versão de produção e não gera erros JavaScript", async ({ page 
   expect(failedAssets, "arquivos JavaScript/CSS que não carregaram").toEqual([]);
 });
 
+test("alterna o modo escuro e mantém a preferência após recarregar", async ({ page }) => {
+  await page.goto("./");
+  const themeToggle = page.getByRole("button", { name: "Ativar modo escuro" });
+  await expect(themeToggle).toHaveAttribute("aria-pressed", "false");
+  await themeToggle.click();
+
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await expect(page.locator(".topbar")).toHaveCSS("background-color", "rgb(23, 37, 56)");
+  await expect(page.getByRole("button", { name: "Ativar modo claro" })).toHaveAttribute("aria-pressed", "true");
+
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await expect(page.getByRole("button", { name: "Ativar modo claro" })).toHaveAttribute("aria-pressed", "true");
+
+  await page.getByRole("button", { name: "Ativar modo claro" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await expect(page.getByRole("button", { name: "Ativar modo escuro" })).toHaveAttribute("aria-pressed", "false");
+});
+
 test("pesquisa concursos pelo nome do órgão no navegador", async ({ page }) => {
   await page.goto("./");
   const search = page.getByPlaceholder("Buscar cargo ou órgão...");
