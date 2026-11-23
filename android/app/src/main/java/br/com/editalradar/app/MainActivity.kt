@@ -586,6 +586,7 @@ class MainActivity : ComponentActivity() {
                 statusText.setBackgroundColor(Color.rgb(154, 65, 45))
             }
 
+            @android.annotation.TargetApi(Build.VERSION_CODES.O)
             override fun onRenderProcessGone(
                 view: WebView,
                 detail: RenderProcessGoneDetail
