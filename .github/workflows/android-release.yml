@@ -398,7 +398,7 @@ jobs:
       - name: Skip already published version
         id: tag_check
         env:
-          GH_TOKEN: ${GITHUB_TOKEN}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION_NAME: ${{ needs.android-build.outputs.version_name }}
         shell: bash
         run: |
