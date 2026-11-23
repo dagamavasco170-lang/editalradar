@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildContestChangeHistory, formatContestHistoryDate } from "./admin-history.js";
+import { buildContestChangeHistory, describeContestHistoryEntry, formatContestHistoryDate } from "./admin-history.js";
 
 describe("histórico de alterações do catálogo", () => {
   it("registra somente campos que realmente mudaram", () => {
@@ -13,7 +13,7 @@ describe("histórico de alterações do catálogo", () => {
     expect(history[0]).toMatchObject({
       at: "2026-11-22T12:00:00.000Z",
       actor: "admin@example.com",
-      summary: "2 campo(s) alterado(s)"
+      summary: "Vagas: 10 → 20 · Situação: Edital publicado → Inscrições abertas"
     });
     expect(history[0].changes).toEqual([
       { field: "vagas", label: "Vagas", from: "10", to: "20" },
@@ -21,7 +21,18 @@ describe("histórico de alterações do catálogo", () => {
     ]);
   });
 
-  it("não cria eventos quando os dados não mudaram e preserva histórico antigo", () => {
+
+  it("resume alterações em linguagem simples e substitui resumo genérico antigo", () => {
+    expect(describeContestHistoryEntry({
+      summary: "3 campo(s) alterado(s)",
+      changes: [
+        { label: "Vagas", from: "10", to: "20" },
+        { label: "Situação", from: "Em preparação", to: "Inscrições abertas" },
+        { label: "Prazo", from: "Não informado", to: "30/11" }
+      ]
+    })).toBe("Vagas: 10 → 20 · Situação: Em preparação → Inscrições abertas · +1 outra(s) alteração(ões)");
+  });
+\n  it("não cria eventos quando os dados não mudaram e preserva histórico antigo", () => {
     const history = [{ id: "old", at: "2026-11-20T10:00:00Z", changes: [] }];
     expect(buildContestChangeHistory(
       { cargo: "Analista", historicoAtualizacoes: history },
