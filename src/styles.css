@@ -3315,3 +3315,6 @@ html[data-theme="dark"] .contest-card {
 
 .recommendation-reasons{display:flex;flex-wrap:wrap;gap:4px;margin-top:3px}.recommendation-reasons span{display:inline-flex;border:1px solid #d9e7f5;background:#eef5fc;color:#365f8c;border-radius:99px;padding:3px 6px;font-size:8px;font-weight:700;line-height:1.3}.recommendation-reasons span{overflow-wrap:normal!important}
 html[data-theme="dark"] .recommendation-reasons span{background:#20374d!important;border-color:#39546d!important;color:#b6d6f4!important}
+
+.recommendation-priority{display:block;max-width:78px;text-align:center;font-size:8px;line-height:1.25;font-weight:700;color:#4b6470;margin-top:3px;overflow-wrap:anywhere}
+[data-theme="dark"] .recommendation-priority{color:#c5d7e0}
