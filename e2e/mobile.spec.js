@@ -55,4 +55,27 @@ test.describe("Experiência móvel do EditalRadar", () => {
     await notificationButton.tap();
     await expect(page.getByRole("region", { name: "Notificações do EditalRadar" })).toBeVisible();
   });
+
+  test("mantém o catálogo disponível após a conexão cair, usando o cache do app", async ({ page, context }) => {
+    await page.goto("./");
+    await expect(page.getByRole("heading", { name: /Encontre concursos/ })).toBeVisible();
+
+    const controlledByServiceWorker = await page.evaluate(async () => {
+      if (!("serviceWorker" in navigator)) return false;
+      const registration = await navigator.serviceWorker.ready;
+      if (!registration.active) return false;
+
+      if (!navigator.serviceWorker.controller) {
+        await new Promise((resolve) => {
+          navigator.serviceWorker.addEventListener("controllerchange", resolve, { once: true });
+        });
+      }
+      return Boolean(navigator.serviceWorker.controller);
+    });
+    expect(controlledByServiceWorker).toBe(true);
+
+    await context.setOffline(true);
+    await page.reload();
+    await expect(page.getByRole("heading", { name: /Encontre concursos/ })).toBeVisible();
+  });
 });
