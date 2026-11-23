@@ -16,14 +16,20 @@ const [android, serviceWorker, styles, androidGradle, androidWorkflow, appUpdate
   readProjectFile("../src/lib/android-bridge.js"),
   readProjectFile("../src/App.jsx")
 ]);
-const [androidProjectGradle, androidApkWorkflow, androidReadme, androidSmokeScript, viteConfig, androidSmokeWorkflow] = await Promise.all([
+const [androidProjectGradle, androidApkWorkflow, androidReadme, androidSmokeScript, viteConfig, androidSmokeWorkflow, automationRecovery] = await Promise.all([
   readProjectFile("../android/build.gradle"),
   readProjectFile("../.github/workflows/android-apk.yml"),
   readProjectFile("../android/README.md"),
   readProjectFile("../scripts/android-emulator-smoke.sh"),
   readProjectFile("../vite.config.js"),
-  readProjectFile("../.github/workflows/android-emulator-smoke.yml")
+  readProjectFile("../.github/workflows/android-emulator-smoke.yml"),
+  readProjectFile("../.github/workflows/automation-recovery.yml")
 ]);
+
+test("recuperação automática seleciona somente execuções da main", () => {
+  assert.match(automationRecovery, /workflow_runs\.find\(item =>\s*item\.head_branch === "main" &&\s*\["schedule", "workflow_dispatch", "push"\]\.includes\(item\.event\)/);
+  assert.doesNotMatch(automationRecovery, /workflow_runs\.find\(item =>\s*\["schedule", "workflow_dispatch", "push"\]\.includes\(item\.event\)\s*\);\s*if \(!run\)/);
+});
 
 test("workflow Android extrai versão do Gradle de forma consistente e docs apontam para versão estável", () => {
   assert.match(androidWorkflow, /lines = Path\("android\/app\/build\.gradle"\)\.read_text\(\)\.splitlines\(\)/);
