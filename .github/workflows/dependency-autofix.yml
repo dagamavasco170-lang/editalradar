@@ -36,7 +36,8 @@ jobs:
       - name: Instalar dependências existentes
         run: npm ci --no-audit --no-fund
       - name: Aplicar apenas correções compatíveis indicadas pelo npm
-        run: npm audit fix --package-lock-only --ignore-scripts --no-fund
+        run: |
+          npm audit fix --package-lock-only --ignore-scripts --no-fund || echo "::warning::Há vulnerabilidades sem correção compatível automática; seguindo com validação das alterações seguras."
       - name: Reinstalar a árvore corrigida
         run: npm ci --no-audit --no-fund
       - name: Testar
