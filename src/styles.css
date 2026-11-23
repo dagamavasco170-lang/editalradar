@@ -3444,3 +3444,47 @@ html[data-theme="dark"] .search-clear:hover{background:#34546b}
     font-size:11px;line-height:1.3;white-space:normal;
   }
 }
+
+
+/* UX mobile: administração sem cartões excessivamente altos nem áreas vazias. */
+@media(max-width:560px){
+  .admin-page{min-width:0;overflow-x:hidden}
+  .admin-page .admin-panel{margin-top:12px;padding:12px;max-width:100%;min-width:0}
+  .admin-panel-heading{gap:9px;margin-bottom:10px}
+  .admin-panel-heading strong{font-size:13px;line-height:1.4}
+  .admin-panel-heading small{line-height:1.5;overflow-wrap:anywhere}
+  .admin-list,.discovery-list{max-height:none;overflow:visible}
+  .admin-row{display:grid;grid-template-columns:minmax(0,1fr);gap:9px;padding:12px;align-items:stretch}
+  .admin-row-copy{width:100%;min-width:0;gap:6px}
+  .admin-row-copy strong{font-size:12px;line-height:1.45}
+  .admin-row-copy span,.admin-row-copy small,.admin-row-copy a{overflow-wrap:anywhere;word-break:break-word}
+  .admin-row-actions{display:flex;width:100%;justify-content:flex-end;align-items:center;gap:8px;flex-wrap:wrap}
+  .admin-row-actions button{min-height:42px}
+  .admin-row-actions .detail-btn{min-width:76px}
+  .admin-row-actions .alert-remove{padding:10px 9px}
+  .discovery-row{gap:10px}
+  .discovery-row .admin-row-copy{flex:initial}
+  .discovery-row .admin-row-actions{max-width:none;justify-content:stretch}
+  .discovery-row .admin-row-actions button{flex:1;min-width:0}
+  .discovery-web-review-note,.discovery-history-note{font-size:10px;line-height:1.5;overflow-wrap:anywhere}
+  .discovery-summary{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+  .discovery-summary>div{padding:9px}
+  .discovery-toolbar{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .discovery-toolbar label{font-size:10px;min-width:0}
+  .discovery-toolbar input,.discovery-toolbar select{min-height:42px}
+  .question-ai-summary{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+  .question-ai-summary>div{padding:10px;min-width:0}
+  .question-ai-summary strong{font-size:19px}
+  .question-ai-form,.question-ai-how{min-width:0}
+  .question-ai-form input,.question-ai-form select,.question-ai-form textarea{min-width:0;max-width:100%}
+  .study-admin-grid{grid-template-columns:minmax(0,1fr)}
+  .study-admin-grid>*{min-width:0}
+  .admin-form-grid{grid-template-columns:minmax(0,1fr)}
+}
+@media(max-width:380px){
+  .admin-panel-heading .primary-btn{font-size:11px;padding:11px 12px}
+  .discovery-toolbar{grid-template-columns:minmax(0,1fr)}
+  .discovery-summary strong{font-size:17px}
+  .admin-row-actions{justify-content:stretch}
+  .admin-row-actions button{flex:1}
+}
