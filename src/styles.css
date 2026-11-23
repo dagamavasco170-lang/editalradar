@@ -2295,7 +2295,7 @@ html[data-theme="dark"] body,
 html[data-theme="dark"] #root,
 html[data-theme="dark"] .app-shell,
 html[data-theme="dark"] .main {
-  background-color: #0d1624 !important;
+  background: #0d1624 !important;
   color: #e5edf8;
 }
 html[data-theme="dark"] .sidebar {
