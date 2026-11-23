@@ -2,6 +2,7 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.jsx";
 import "./styles.css";
+import { initializeDiagnostics } from "./lib/telemetry.js";
 
 class AppErrorBoundary extends React.Component {
   constructor(props) {
@@ -32,6 +33,8 @@ class AppErrorBoundary extends React.Component {
     return this.props.children;
   }
 }
+
+initializeDiagnostics();
 
 const rootElement = document.getElementById("root");
 if (!rootElement) {
