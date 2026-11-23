@@ -516,6 +516,7 @@ class MainActivity : ComponentActivity() {
             override fun onConsoleMessage(consoleMessage: ConsoleMessage): Boolean {
                 if (consoleMessage.messageLevel() == ConsoleMessage.MessageLevel.ERROR) {
                     val source = consoleMessage.sourceId().substringAfterLast('/').take(100)
+                    dispatchWebDiagnostic("error", "android_webview_console_error", "JavaScript error in $source:${consoleMessage.lineNumber()}")
                     val debugBuild = applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
                     val safeDetails = if (debugBuild) {
                         consoleMessage.message()
@@ -650,6 +651,7 @@ class MainActivity : ComponentActivity() {
                         "EditalRadarWebView",
                         "Resource load error ${error?.errorCode} at $failedPath; mainFrame=${request.isForMainFrame}"
                     )
+                    dispatchWebDiagnostic("warn", "android_webview_load_error", "WebView load error ${error?.errorCode}; mainFrame=${request.isForMainFrame}")
                 }
                 if (request?.isForMainFrame == true) {
                     if (!isInternetAvailable()) {
@@ -674,6 +676,7 @@ class MainActivity : ComponentActivity() {
                 ) {
                     val failedPath = request.url.path?.take(120).orEmpty()
                     Log.w("EditalRadarWebView", "HTTP ${errorResponse.statusCode} at $failedPath")
+                    dispatchWebDiagnostic("warn", "android_webview_http_error", "HTTP ${errorResponse.statusCode} on trusted page")
                 }
                 if (request?.isForMainFrame == true &&
                     errorResponse != null &&
@@ -690,6 +693,7 @@ class MainActivity : ComponentActivity() {
             ) {
                 // Nunca permite ignorar certificado inválido ou conexão TLS adulterada.
                 handler?.cancel()
+                dispatchWebDiagnostic("error", "android_webview_ssl_error", "SSL certificate validation failed; connection blocked")
                 setStatusWarning("Não foi possível estabelecer uma conexão segura. Tente novamente mais tarde.", severe = true)
             }
 
@@ -698,6 +702,7 @@ class MainActivity : ComponentActivity() {
                 view: WebView,
                 detail: RenderProcessGoneDetail
             ): Boolean {
+                dispatchWebDiagnostic("error", "android_webview_renderer_gone", "WebView renderer terminated; crashed=${detail.didCrash()}")
                 return recoverFromRendererTermination(view, detail.didCrash())
             }
         }
@@ -820,6 +825,22 @@ class MainActivity : ComponentActivity() {
             uri.encodedUserInfo == null
     }
 
+    private fun dispatchWebDiagnostic(level: String, event: String, message: String) {
+        if (!::webView.isInitialized || isFinishing || isDestroyed) return
+        val payload = JSONObject().apply {
+            put("level", level)
+            put("event", event)
+            put("message", message.take(240))
+        }
+        runOnUiThread {
+            runCatching {
+                webView.evaluateJavascript(
+                    "window.dispatchEvent(new CustomEvent('editalradar-native-diagnostic',{detail:${JSONObject.quote(payload.toString())}}))",
+                    null
+                )
+            }
+        }
+    }
     private fun handleNativeBridgeMessage(rawMessage: String) {
         val message = try {
             JSONObject(rawMessage)
