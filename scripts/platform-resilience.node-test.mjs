@@ -112,6 +112,11 @@ test("navegação de retorno WebView usa o dispatcher AndroidX", () => {
   assert.ok(android.includes("override fun doUpdateVisitedHistory("));
   assert.ok(android.includes("updateWebViewBackNavigation(view.canGoBack())"));
   assert.doesNotMatch(android, /override fun onBackPressed\(/);
+  assert.ok(android.includes("ActivityResultContracts.RequestPermission()"));
+  assert.ok(android.includes("registerForActivityResult("));
+  assert.ok(android.includes("notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)"));
+  assert.ok(android.includes("notificationPermissionRequestPending = false"));
+  assert.doesNotMatch(android, /override fun onRequestPermissionsResult\(/);
   assert.ok(androidManifest.includes('android:enableOnBackInvokedCallback="true"'));
 });
 
