@@ -28,11 +28,14 @@ jobs:
     steps:
       - name: Limpeza segura de execuções e artifacts
         uses: actions/github-script@v8
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
         with:
           script: |
-            const dryRun = context.eventName === "workflow_dispatch" && inputs.dry_run !== false && inputs.dry_run !== "false";
-            const cutoffRuns = Date.now() - 5 * 24 * 60 * 60 * 1000;
-            const cutoffArtifacts = Date.now() - 5 * 24 * 60 * 60 * 1000;
+            // Scheduled runs perform cleanup; manual runs are dry-run unless explicitly disabled.
+            const dryRun = context.eventName === "workflow_dispatch" && process.env.DRY_RUN !== "false";
+            const retentionMs = 5 * 24 * 60 * 60 * 1000;
+            const cutoff = Date.now() - retentionMs;
             const keepPerWorkflow = 12;
             const runs = await github.paginate(github.rest.actions.listWorkflowRunsForRepo, {
               owner: context.repo.owner,
@@ -42,6 +45,7 @@ jobs:
             const completedRuns = runs
               .filter(run => run.status === "completed")
               .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+            const activeRunIds = new Set(runs.filter(run => run.status !== "completed").map(run => run.id));
             const keptByWorkflow = new Map();
             const deleteRuns = [];
             for (const run of completedRuns) {
@@ -51,15 +55,12 @@ jobs:
                 keptByWorkflow.set(key, kept + 1);
                 continue;
               }
-              if (new Date(run.created_at).getTime() < cutoffRuns) {
-                deleteRuns.push(run);
-              }
+              if (new Date(run.created_at).getTime() < cutoff) deleteRuns.push(run);
             }
             let deletedRuns = 0;
             for (const run of deleteRuns) {
-              // Guard rails: never delete active runs, keep the latest 12 per workflow,
-              // and only delete completed runs older than 45 days.
-              if (run.status !== "completed" || new Date(run.created_at).getTime() >= cutoffRuns) continue;
+              // Guard rails: only completed runs older than 5 days; preserve latest 12 per workflow.
+              if (run.status !== "completed" || new Date(run.created_at).getTime() >= cutoff) continue;
               if (dryRun) continue;
               await github.rest.actions.deleteWorkflowRun({
                 owner: context.repo.owner,
@@ -74,9 +75,15 @@ jobs:
               per_page: 100
             });
             let deletedArtifacts = 0;
+            let skippedActiveArtifacts = 0;
             for (const artifact of artifacts) {
-              if (artifact.expired || new Date(artifact.created_at).getTime() >= cutoffArtifacts) continue;
-              // Artifacts are independent of active workflow runs; only age-based cleanup.
+              if (artifact.expired || new Date(artifact.created_at).getTime() >= cutoff) continue;
+              // Avoid deleting artifacts attached to currently active workflow runs.
+              const linkedRunId = artifact.workflow_run?.id;
+              if (linkedRunId && activeRunIds.has(linkedRunId)) {
+                skippedActiveArtifacts++;
+                continue;
+              }
               if (dryRun) continue;
               await github.rest.actions.deleteArtifact({
                 owner: context.repo.owner,
@@ -91,8 +98,9 @@ jobs:
               "- Modo: **" + (dryRun ? "simulação (nenhum item apagado)" : "execução real") + "**",
               "- Execuções concluídas removidas (mais de 5 dias, mantendo 12 mais recentes por workflow): **" + deletedRuns + "**",
               "- Artifacts removidos (mais de 5 dias): **" + deletedArtifacts + "**",
+              "- Artifacts vinculados a execuções ativas ignorados: **" + skippedActiveArtifacts + "**",
               "- Execuções em andamento não foram tocadas.",
-              "- Limite de retenção: 45 dias para runs; 30 dias para artifacts."
-            ].join("\n");
+              "- Retenção: 5 dias para runs e artifacts."
+            ].join("\\n");
             await core.summary.addRaw(summary).write();
             core.info(summary);
