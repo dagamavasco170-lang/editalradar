@@ -50,7 +50,6 @@ test("monitor de saúde considera somente execuções schedule/manual e fecha al
 test("recuperação automática seleciona somente falhas recentes elegíveis da main", () => {
   assert.match(automationRecovery, /item\.head_branch === "main"/);
   assert.match(automationRecovery, /response\.data\.workflow_runs\s+\.filter\(item =>/);
-  assert.match(automationRecovery, /item\\.head_branch === "main"/);
   assert.match(automationRecovery, /\["schedule", "workflow_dispatch", "push"\]\.includes\(item\.event\)/);
   assert.match(automationRecovery, /item\.status === "completed"/);
   assert.match(automationRecovery, /item\.conclusion !== "success"/);
