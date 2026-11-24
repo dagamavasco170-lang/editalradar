@@ -32,6 +32,11 @@ jobs:
           node-version: 22
       - name: Resolver dependências e gerar lockfile
         run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Validar árvore de dependências, testes e build
+        run: |
+          npm ci --no-audit --no-fund
+          npm test
+          npm run build
       - name: Registrar lockfile no Git
         run: |
           git add package-lock.json
