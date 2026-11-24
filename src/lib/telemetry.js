@@ -47,6 +47,18 @@ export function createDiagnosticEntry({ level = "error", event = "client_error",
   };
 }
 
+export function sanitizeResourceTarget(value, baseUrl = typeof location !== "undefined" ? location.href : undefined) {
+  if (typeof value !== "string" || !value.trim()) return "resource";
+  try {
+    const url = baseUrl ? new URL(value, baseUrl) : new URL(value);
+    // Keep only the origin: resource paths, query strings and fragments can contain
+    // identifiers or secrets. The tag name is logged separately for diagnosis.
+    return url.origin;
+  } catch {
+    return "resource";
+  }
+}
+
 function enqueue(entry) {
   if (!supabase || !entry.message) return;
   if (queue.length >= MAX_QUEUE) queue.shift();
@@ -85,11 +97,11 @@ export function initializeDiagnostics() {
   window.addEventListener("error", (event) => {
     const isResourceError = event.target && event.target !== window;
     const target = isResourceError
-      ? event.target?.src || event.target?.href || event.target?.tagName || "resource"
+      ? sanitizeResourceTarget(event.target?.src || event.target?.href)
       : "";
     enqueue(createDiagnosticEntry({
       event: isResourceError ? "resource_load_error" : "uncaught_error",
-      message: isResourceError ? `Resource failed to load: ${target}` : event.message || "Uncaught browser error",
+      message: isResourceError ? `Resource failed to load: ${target} (${event.target?.tagName || "resource"})` : event.message || "Uncaught browser error",
       stack: event.error?.stack || "",
     }));
   }, true);
