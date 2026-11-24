@@ -36,6 +36,35 @@ jobs:
             const now = Date.now();
             const problems = [];
             const healthy = [];
+            // Workflows triggered by pushes/manual runs have no expected schedule.
+            // Monitor recent main-branch failures without imposing a freshness SLA.
+            const failureOnlyWorkflows = [
+              { file: "build.yml", label: "CI, build e publicação do site" },
+              { file: "android-emulator-smoke.yml", label: "Smoke test Android" },
+              { file: "android-apk.yml", label: "Build do APK Android" }
+            ];
+            for (const workflow of failureOnlyWorkflows) {
+              const response = await github.rest.actions.listWorkflowRuns({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: workflow.file,
+                branch: "main",
+                per_page: 10
+              });
+              const recentFailures = response.data.workflow_runs
+                .filter(run =>
+                  run.head_branch === "main" &&
+                  ["push", "workflow_dispatch", "schedule"].includes(run.event) &&
+                  run.status === "completed" &&
+                  run.conclusion !== "success" &&
+                  (now - new Date(run.created_at).getTime()) / 3600000 <= 24
+                )
+                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+              if (recentFailures.length) {
+                const latest = recentFailures[0];
+                problems.push("**" + workflow.label + "**: falha recente (" + (latest.conclusion || "unknown") + "). [Ver execução](" + latest.html_url + ")");
+              }
+            }
             for (const workflow of workflows) {
               // Filtrar por evento na API antes de paginar. Filtrar depois de
               // buscar apenas cinco execuções permite que pushes ocultem os crons.
