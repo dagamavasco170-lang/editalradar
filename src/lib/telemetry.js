@@ -59,17 +59,6 @@ export function sanitizeResourceTarget(value, baseUrl = typeof location !== "und
   }
 }
 
-export function sanitizeResourceTarget(value, baseUrl = typeof location !== "undefined" ? location.href : undefined) {
-  if (typeof value !== "string" || !value.trim()) return "resource";
-  try {
-    const url = baseUrl ? new URL(value, baseUrl) : new URL(value);
-    // Resource paths, query strings and fragments may contain identifiers or secrets.
-    // Keep only the origin and log the element type separately.
-    return url.origin;
-  } catch {
-    return "resource";
-  }
-}
 
 function enqueue(entry) {
   if (!supabase || !entry.message) return;
