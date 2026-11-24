@@ -37,13 +37,28 @@ jobs:
             const problems = [];
             const healthy = [];
             for (const workflow of workflows) {
-              const response = await github.rest.actions.listWorkflowRuns({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                workflow_id: workflow.file,
-                per_page: 5
-              });
-              const runs = response.data.workflow_runs.filter(run => run.event === "schedule" || run.event === "workflow_dispatch");
+              // Filtrar por evento na API antes de paginar. Filtrar depois de
+              // buscar apenas cinco execuções permite que pushes ocultem os crons.
+              const [scheduledResponse, manualResponse] = await Promise.all([
+                github.rest.actions.listWorkflowRuns({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  workflow_id: workflow.file,
+                  event: "schedule",
+                  per_page: 5
+                }),
+                github.rest.actions.listWorkflowRuns({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  workflow_id: workflow.file,
+                  event: "workflow_dispatch",
+                  per_page: 5
+                })
+              ]);
+              const runs = [
+                ...scheduledResponse.data.workflow_runs,
+                ...manualResponse.data.workflow_runs
+              ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
               const latest = runs[0];
               if (!latest) {
                 // A automação pode ter sido criada depois da última janela do cron.
