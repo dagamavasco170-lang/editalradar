@@ -218,7 +218,10 @@ async function fetchStudyText(sourceUrl) {
 }
 
 function getJwtRole(value) {
-  const parts = String(value || "").split(".");
+  const key = String(value || "");
+  if (key.startsWith("sb_secret_")) return "secret";
+  if (key.startsWith("sb_publishable_")) return "publishable";
+  const parts = key.split(".");
   if (parts.length !== 3) return "unknown";
   try {
     const payload = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8"));
@@ -236,7 +239,7 @@ async function main() {
   if (credentialRole !== "service_role") {
     throw new Error(
       "SUPABASE_SERVICE_ROLE_KEY precisa ser a chave JWT legada com role=service_role. " +
-      "A credencial configurada resolve para role=" + credentialRole + "; a automação agendada não aceitará uma chave anon/publishable."
+      "A credencial configurada foi classificada como " + credentialRole + "; a automação exige a chave JWT legada de servidor com role=service_role. Chaves anon, publishable e sb_secret não são aceitas por este handshake interno."
     );
   }
   console.log("Etapa 1/4: expandindo automaticamente o catálogo de matérias e assuntos.");
