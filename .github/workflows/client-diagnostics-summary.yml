@@ -27,16 +27,16 @@ jobs:
               encodeURIComponent(since) + "&order=created_at.desc&limit=500";
             const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
             const jwtParts = supabaseKey.split(".");
-            let credentialRole = "unknown";
+            let credentialRole = supabaseKey.startsWith("sb_secret_") ? "secret" : supabaseKey.startsWith("sb_publishable_") ? "publishable" : "unknown";
             if (jwtParts.length === 3) {
               try {
                 const payload = JSON.parse(Buffer.from(jwtParts[1], "base64url").toString("utf8"));
                 credentialRole = typeof payload.role === "string" ? payload.role : "unknown";
               } catch { /* A chave não é um JWT legível; nunca registrar seu conteúdo. */ }
             }
-            if (!supabaseKey.startsWith("sb_secret_") && credentialRole === "anon") {
+            if (credentialRole === "anon" || credentialRole === "publishable") {
               throw new Error(
-                "SUPABASE_SERVICE_ROLE_KEY está configurada como chave anon. Atualize o secret no GitHub com a chave service_role do mesmo projeto; não libere acesso público à tabela de diagnósticos."
+                "SUPABASE_SERVICE_ROLE_KEY está configurada como credencial pública (" + credentialRole + "). Atualize o secret no GitHub com a chave service_role do mesmo projeto; não libere acesso público à tabela de diagnósticos."
               );
             }
             // New sb_secret_* keys authenticate via apikey only; legacy service_role JWTs
