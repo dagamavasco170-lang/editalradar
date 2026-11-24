@@ -46,6 +46,11 @@ test("recuperação automática seleciona somente execuções da main", () => {
   assert.doesNotMatch(automationRecovery, /workflow_runs\.find\(item =>\s*\["schedule", "workflow_dispatch", "push"\]\.includes\(item\.event\)\s*\);\s*if \(!run\)/);
 });
 
+test("recuperação automática usa endpoint REST válido para reexecutar falhas", () => {
+  assert.match(automationRecovery, /POST \/repos\/\{owner\}\/\{repo\}\/actions\/runs\/\{run_id\}\/rerun-failed-jobs/);
+  assert.doesNotMatch(automationRecovery, /github\.rest\.actions\.reRunFailedJobs/);
+});
+
 test("Android bloqueia regressões e divergências entre versionName, versionCode e release", () => {
   assert.ok(androidWorkflow.includes("Validate Android version against latest published release"));
   assert.ok(androidWorkflow.includes("git fetch --tags --force"));
