@@ -75,6 +75,13 @@ test("automação de questões agendada exige credencial service_role", () => {
   assert.match(questionFactory, /const maxAttempts = 2/);
   assert.match(questionFactory, /transientStatuses = new Set\(\[429, 500, 502, 503, 504\]\)/);
   assert.match(questionFactory, /Gemini HTTP .* repetindo uma única vez após espera curta/);
+  assert.match(questionFactory, /retry-after/);
+  assert.match(questionFactory, /function isTransientGeminiAvailabilityFailure/);
+  assert.match(questionFactory, /if \\(isTransientGeminiAvailabilityFailure\\(error\\)\\)/);
+  assert.match(questionFactory, /status: "deferred"/);
+  assert.match(questionFactory, /deferred,/);
+  assert.match(questionFactory, /Disjuntor do Gemini ativado/);
+  assert.match(questionAutomationScript, /Assuntos adiados por indisponibilidade temporária/);
   assert.match(questionFactory, /Nenhum provedor alternativo será acionado/);
 });
 
