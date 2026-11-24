@@ -219,6 +219,9 @@ Deno.serve(async (req: Request) => {
     if (error instanceof PayloadTooLargeError) return json({ error: "Payload muito grande." }, 413);
     return json({ error: "JSON inválido." }, 400);
   }
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return json({ error: "Corpo da requisição inválido." }, 400);
+  }
 
   let context: Awaited<ReturnType<typeof authenticate>>;
   try {
