@@ -477,7 +477,7 @@ test("workflow de release Android depende de alterações nativas, não do teste
   assert.ok(releasePathFilters.includes('"android/app/src/**"'));
   assert.ok(releasePathFilters.includes('".github/workflows/android-release.yml"'));
   assert.ok(androidWorkflow.includes('      - "scripts/android-emulator-smoke.sh"') === false);
-  assert.ok(androidWorkflow.includes('      - "scripts/platform-resilience.node-test.mjs"'));
+  assert.match(androidWorkflow, /run: node --test scripts\/platform-resilience\.node-test\.mjs/);
   assert.match(androidSmokeWorkflow, /scripts\/android-emulator-smoke\.sh/);
 });
 
