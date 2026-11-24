@@ -1156,6 +1156,31 @@ export function isClearlyUnrelatedAdministrativeDiscovery(item = {}) {
   return UNRELATED_ADMINISTRATIVE_TITLE_PATTERNS.some(pattern => pattern.test(text));
 }
 
+const GENERIC_OFFICIAL_LANDING_SEGMENTS = new Set([
+  "home", "inicio", "index", "index.html", "index.htm", "index.php",
+  "portal", "site", "principal", "v1", "v2", "v3",
+  "concursos", "concursos-publicos", "editais", "processos-seletivos",
+  "selecao", "seletivos", "inscricoes", "abertos", "em-andamento"
+]);
+
+export function isGenericOfficialLandingPage(value) {
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:" || url.username || url.password) return true;
+    const segments = decodeURIComponent(url.pathname)
+      .split("/")
+      .filter(Boolean)
+      .map(segment => segment.toLowerCase());
+    if (segments.length === 0) return true;
+    if (segments.length > 2) return false;
+    return segments.every(segment =>
+      GENERIC_OFFICIAL_LANDING_SEGMENTS.has(segment) || /^v\\d+$/.test(segment)
+    );
+  } catch {
+    return true;
+  }
+}
+
 export async function prepareDiscoveryDocument(item, request = fetch, options = {}) {
   if (isClearlyUnrelatedAdministrativeDiscovery(item)) {
     return {
@@ -1245,6 +1270,12 @@ export async function prepareDiscoveryDocument(item, request = fetch, options = 
   }
 
   const candidateUrl = candidate.toString();
+  if (isGenericOfficialLandingPage(candidateUrl)) {
+    return {
+      stage: "review",
+      reason: "O endereço oficial aponta para uma página inicial, índice ou listagem genérica, não para um edital ou página específica de concurso. A pista permanece pendente para revisão humana."
+    };
+  }
   if (/^\/concursos\/status\/(?:novos|inscricoes-abertas|em-andamento|resultados-disponiveis|finalizados)\/?$/i.test(candidate.pathname)) {
     return { stage: "dismiss", reason: "Página geral de categoria da banca; aguardando links diretos de cada concurso, não uma ficha de edital." };
   }
@@ -1281,6 +1312,12 @@ export async function prepareDiscoveryDocument(item, request = fetch, options = 
   }
   if (!isTrustedOfficialHost(finalHost)) {
     return { stage: "review", reason: "O link redirecionou para um domínio que não está na lista de fontes oficiais autorizadas." };
+  }
+  if (isGenericOfficialLandingPage(finalUrl)) {
+    return {
+      stage: "review",
+      reason: "A publicação redirecionou para uma página inicial ou listagem genérica, sem apontar ao documento específico do concurso. A pista continua pendente para revisão humana."
+    };
   }
   if (!isPdf && !/(text\/html|application\/xhtml\+xml|text\/plain)/i.test(contentType)) {
     return {
