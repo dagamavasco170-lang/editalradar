@@ -247,6 +247,7 @@ async function main() {
       "A credencial configurada foi classificada como " + credentialRole + "; chaves anon e publishable não são aceitas."
     );
   }
+  console.log("Autenticação Supabase: " + (isModernSecretKey ? "chave secreta atual via apikey" : "service_role legado via Authorization") + ".");
   console.log("Etapa 1/4: expandindo automaticamente o catálogo de matérias e assuntos.");
   const seed = await callQuestionFactory({ mode: "scheduled", seed_only: true });
   console.log(`Catálogo disponível: ${seed.topics_available || 0} assuntos.`);
