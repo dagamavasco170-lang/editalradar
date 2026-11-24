@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { PayloadTooLargeError, readBoundedJsonBody } from "./payload-limit.js";
 
 const url = Deno.env.get("SUPABASE_URL") ?? "";
 const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -45,12 +46,16 @@ Deno.serve(async (req) => {
     for (const key of configuredKeys.split(/[;,\\s]+/)) if (key) allowedKeys.add(key);
   }
   if (!apiKey || !allowedKeys.has(apiKey)) return json({ error: "Invalid API key" }, 401, origin);
-  if (Number(req.headers.get("content-length") || 0) > 12_000) return json({ error: "Payload too large" }, 413, origin);
-
   let payload: any;
-  try { payload = await req.json(); } catch { return json({ error: "Invalid JSON" }, 400, origin); }
+  try {
+    payload = await readBoundedJsonBody(req);
+  } catch (error) {
+    if (error instanceof PayloadTooLargeError) return json({ error: "Payload too large" }, 413, origin);
+    return json({ error: "Invalid JSON" }, 400, origin);
+  }
   if (!payload || typeof payload.client_id !== "string" || !/^[a-zA-Z0-9_-]{16,64}$/.test(payload.client_id) ||
-      !Array.isArray(payload.logs) || payload.logs.length < 1 || payload.logs.length > 5) {
+      !Array.isArray(payload.logs) || payload.logs.length < 1 || payload.logs.length > 5 ||
+      payload.logs.some((item: unknown) => !item || typeof item !== "object" || Array.isArray(item))) {
     return json({ error: "Invalid diagnostic payload" }, 400, origin);
   }
   const clientId = payload.client_id;
