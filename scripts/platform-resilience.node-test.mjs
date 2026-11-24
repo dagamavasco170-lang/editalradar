@@ -51,6 +51,13 @@ test("recuperação automática usa endpoint REST válido para reexecutar falhas
   assert.doesNotMatch(automationRecovery, /github\.rest\.actions\.reRunFailedJobs/);
 });
 
+test("fila administrativa limita renderização inicial e permite carregar mais registros", () => {
+  assert.match(app, /discoveryVisibleLimit, setDiscoveryVisibleLimit\] = useState\(15\)/);
+  assert.match(app, /filteredDiscoveryItems\.slice\(0, discoveryVisibleLimit\)/);
+  assert.match(app, /visibleDiscoveryItems\.length < filteredDiscoveryItems\.length/);
+  assert.match(app, /Carregar mais 15/);
+});
+
 test("Android bloqueia regressões e divergências entre versionName, versionCode e release", () => {
   assert.ok(androidWorkflow.includes("Validate Android version against latest published release"));
   assert.ok(androidWorkflow.includes("git fetch --tags --force"));
