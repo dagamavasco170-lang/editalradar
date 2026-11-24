@@ -16,7 +16,7 @@ const [android, serviceWorker, styles, androidGradle, androidWorkflow, appUpdate
   readProjectFile("../src/lib/android-bridge.js"),
   readProjectFile("../src/App.jsx")
 ]);
-const [androidProjectGradle, androidApkWorkflow, androidReadme, androidSmokeScript, viteConfig, androidSmokeWorkflow, automationRecovery, automationHealth, clientTelemetry, diagnosticsFunction, diagnosticsMigration, failureReporter, clientDiagnosticsSummary, questionAutomationScript] = await Promise.all([
+const [androidProjectGradle, androidApkWorkflow, androidReadme, androidSmokeScript, viteConfig, androidSmokeWorkflow, automationRecovery, automationHealth, clientTelemetry, diagnosticsFunction, diagnosticsMigration, failureReporter, clientDiagnosticsSummary, questionAutomationScript, questionFactory] = await Promise.all([
   readProjectFile("../android/build.gradle"),
   readProjectFile("../.github/workflows/android-apk.yml"),
   readProjectFile("../android/README.md"),
@@ -30,7 +30,8 @@ const [androidProjectGradle, androidApkWorkflow, androidReadme, androidSmokeScri
   readProjectFile("../supabase/migrations/20261123170000_app_diagnostics_log_sink.sql"),
   readProjectFile("../.github/workflows/ci-failure-report.yml"),
   readProjectFile("../.github/workflows/client-diagnostics-summary.yml"),
-  readProjectFile("../.github/scripts/question-automation.mjs")
+  readProjectFile("../.github/scripts/question-automation.mjs"),
+  readProjectFile("../supabase/functions/question-factory/index.ts")
 ]);
 
 test("monitor de saúde considera somente execuções schedule/manual e fecha alertas recuperados", () => {
@@ -65,8 +66,12 @@ test("fila administrativa limita renderização inicial e permite carregar mais 
 });
 
 test("automação de questões agendada exige credencial service_role", () => {
-  assert.match(questionAutomationScript, /credentialRole !== "service_role"/);
-  assert.match(questionAutomationScript, /chave JWT legada com role=service_role/);
+  assert.match(questionAutomationScript, /credentialRole !== "service_role" && !isModernSecretKey/);
+  assert.match(questionAutomationScript, /sb_secret_/);
+  assert.match(questionAutomationScript, /if \(!SERVICE_KEY\.startsWith\("sb_secret_"\)\) \{/);
+  assert.match(questionFactory, /async function verifyLegacyServiceRoleToken/);
+  assert.match(questionFactory, /payload\?\.role !== "service_role"/);
+  assert.match(questionFactory, /study_question_automation_topics\?select=id&limit=0/);
 });
 
 test("resumo de diagnósticos identifica chave anon sem abrir permissões públicas", () => {
