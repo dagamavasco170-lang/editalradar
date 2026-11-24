@@ -361,6 +361,35 @@ function getConfiguredSecretKeys(): string[] {
   }
 }
 
+async function verifyLegacyServiceRoleToken(token: string): Promise<boolean> {
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return false;
+
+    const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const payload = JSON.parse(atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, "=")));
+    if (payload?.role !== "service_role" || payload?.iss !== "supabase") return false;
+
+    // Ask this project's PostgREST to verify the JWT signature and service_role
+    // privileges. limit=0 returns no table rows; RLS keeps this table admin-only.
+    const probe = await fetch(
+      supabaseUrl + "/rest/v1/study_question_automation_topics?select=id&limit=0",
+      {
+        method: "GET",
+        headers: {
+          apikey: token,
+          Authorization: "Bearer " + token,
+          Accept: "application/json"
+        },
+        signal: AbortSignal.timeout(10000)
+      }
+    );
+    return probe.ok;
+  } catch {
+    return false;
+  }
+}
+
 async function authenticate(req: Request, mode: string) {
   const authorization = req.headers.get("Authorization") || "";
   const token = authorization.startsWith("Bearer ") ? authorization.slice(7).trim() : "";
@@ -374,6 +403,13 @@ async function authenticate(req: Request, mode: string) {
       return { userId: null, scheduled: true };
     }
     if (apiKey && getConfiguredSecretKeys().includes(apiKey)) {
+      return { userId: null, scheduled: true };
+    }
+    // GitHub Actions may hold a rotated legacy service_role JWT while the
+    // platform-injected Edge Function variable still points to another key.
+    // Validate the presented JWT against this project's REST API, not by
+    // trusting the decoded role claim or comparing secrets across runtimes.
+    if (token && await verifyLegacyServiceRoleToken(token)) {
       return { userId: null, scheduled: true };
     }
   }
