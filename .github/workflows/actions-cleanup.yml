@@ -31,8 +31,8 @@ jobs:
         with:
           script: |
             const dryRun = context.eventName === "workflow_dispatch" && inputs.dry_run !== false && inputs.dry_run !== "false";
-            const cutoffRuns = Date.now() - 45 * 24 * 60 * 60 * 1000;
-            const cutoffArtifacts = Date.now() - 30 * 24 * 60 * 60 * 1000;
+            const cutoffRuns = Date.now() - 5 * 24 * 60 * 60 * 1000;
+            const cutoffArtifacts = Date.now() - 5 * 24 * 60 * 60 * 1000;
             const keepPerWorkflow = 12;
             const runs = await github.paginate(github.rest.actions.listWorkflowRunsForRepo, {
               owner: context.repo.owner,
@@ -89,8 +89,8 @@ jobs:
               "## Limpeza automática de Actions",
               "",
               "- Modo: **" + (dryRun ? "simulação (nenhum item apagado)" : "execução real") + "**",
-              "- Execuções concluídas removidas (mais de 45 dias, mantendo 12 mais recentes por workflow): **" + deletedRuns + "**",
-              "- Artifacts removidos (mais de 30 dias): **" + deletedArtifacts + "**",
+              "- Execuções concluídas removidas (mais de 5 dias, mantendo 12 mais recentes por workflow): **" + deletedRuns + "**",
+              "- Artifacts removidos (mais de 5 dias): **" + deletedArtifacts + "**",
               "- Execuções em andamento não foram tocadas.",
               "- Limite de retenção: 45 dias para runs; 30 dias para artifacts."
             ].join("\n");
