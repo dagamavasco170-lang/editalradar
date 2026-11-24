@@ -38,21 +38,22 @@ jobs:
             const issues = await github.paginate(github.rest.issues.listForRepo, {
               owner, repo, state: "all", per_page: 100
             });
-            const existing = issues.find(issue => !issue.pull_request && issue.title === title);
+            const matching = issues.filter(issue => !issue.pull_request && issue.title === title);
+            const openMatches = matching.filter(issue => issue.state === "open");
             const url = run.html_url;
             if (run.conclusion === "success") {
-              if (existing && existing.state === "open") {
+              for (const issue of openMatches) {
                 await github.rest.issues.createComment({
-                  owner, repo, issue_number: existing.number,
+                  owner, repo, issue_number: issue.number,
                   body: "A automação foi recuperada e terminou com sucesso. Execução: " + url
                 });
                 await github.rest.issues.update({
-                  owner, repo, issue_number: existing.number, state: "closed", state_reason: "completed"
+                  owner, repo, issue_number: issue.number, state: "closed", state_reason: "completed"
                 });
-                core.info("Alerta fechado após recuperação confirmada.");
-              } else {
-                core.info("Execução concluída com sucesso; nenhum alerta aberto.");
               }
+              core.info(openMatches.length
+                ? openMatches.length + " alerta(s) encerrado(s) após recuperação confirmada."
+                : "Execução concluída com sucesso; nenhum alerta aberto.");
               return;
             }
             if (run.conclusion !== "failure" && run.conclusion !== "cancelled" && run.conclusion !== "timed_out") {
@@ -72,7 +73,8 @@ jobs:
               "",
               "[Abrir logs desta execução](" + url + ")"
             ].join("\n");
-            if (existing && existing.state === "open") {
+            if (openMatches.length) {
+              const existing = openMatches[0];
               await github.rest.issues.createComment({ owner, repo, issue_number: existing.number, body });
               core.warning("Falha registrada na issue #" + existing.number);
             } else {
