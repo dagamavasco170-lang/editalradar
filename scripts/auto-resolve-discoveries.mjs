@@ -1176,7 +1176,7 @@ export function isGenericOfficialLandingPage(value) {
     if (segments.length === 0) return true;
 
     const isGenericSegment = segment =>
-      GENERIC_OFFICIAL_LANDING_SEGMENTS.has(segment) || /^v\\d+$/.test(segment);
+      GENERIC_OFFICIAL_LANDING_SEGMENTS.has(segment) || /^v\d+$/.test(segment);
     const lastSegment = segments[segments.length - 1];
 
     // A página pode ser profunda (por exemplo /acesso-a-informacao/concursos/concursos-publicos),
