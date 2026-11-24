@@ -52,7 +52,12 @@ export function isTrustedPrivateStudySourceUrl(value) {
   const url = parseHttpsUrl(value);
   if (!url || !isTrustedPrivateStudySourceHostname(url.hostname)) return false;
   const host = url.hostname.toLowerCase();
-  const path = decodeURIComponent(url.pathname).toLowerCase();
+  let path;
+  try {
+    path = decodeURIComponent(url.pathname).toLowerCase();
+  } catch {
+    return false;
+  }
   if ((host === "www.postgresql.org" || host === "postgresql.org") && !path.startsWith("/docs/")) return false;
   if (host === "kubernetes.io" && !path.startsWith("/docs/")) return false;
   if (host === "developer.mozilla.org" && !path.includes("/docs/")) return false;
