@@ -163,6 +163,24 @@ test("mantém pistas externas pendentes quando o publisher resolve para uma pág
   assert.equal(prepared.stage, "review");
   assert.match(prepared.reason, /página inicial|listagem genérica/i);
   assert.equal(fetchCalls, 0);
+
+  const deepListing = await prepareDiscoveryDocument({
+    ...discovery,
+    discovery_type: "web_search_lead",
+    title: "[Notícia para conferir] Concurso citado por notícia secundária",
+    candidate_url: "https://www.gov.br/cgu/pt-br/acesso-a-informacao/concursos/concursos-publicos/",
+    context: "Endereço informado para a fonte: https://www.gov.br/cgu/"
+  }, async () => {
+    fetchCalls += 1;
+    return new Response("<h1>Concurso público</h1>", {
+      status: 200,
+      headers: { "Content-Type": "text/html" }
+    });
+  });
+
+  assert.equal(deepListing.stage, "review");
+  assert.match(deepListing.reason, /página inicial|listagem genérica/i);
+  assert.equal(fetchCalls, 0);
 });
 
 test("identifica órgão público explicitamente declarado", () => {
