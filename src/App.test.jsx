@@ -294,6 +294,11 @@ describe("EditalRadar", () => {
     expect(screen.getAllByText("Controladoria-Geral da União").length).toBeGreaterThan(0);
   });
 
+  it("anuncia a quantidade de resultados do catálogo para tecnologias assistivas", () => {
+    render(<App authClient={null} authConfigured={false} />);
+    expect(screen.getByRole("status")).toHaveTextContent("39 registros");
+  });
+
   it("filtra concursos pelo nome do órgão", () => {
     render(<App />);
 
