@@ -1,0 +1,106 @@
+name: Limpeza automática do GitHub Actions
+
+on:
+  schedule:
+    # Horário fora do início da hora para reduzir atraso do cron.
+    - cron: "37 4 * * 1"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Simular limpeza sem apagar nada (recomendado para teste)"
+        type: boolean
+        required: false
+        default: true
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: actions-cleanup
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    name: Remover runs e artifacts antigos
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Limpeza segura de execuções e artifacts
+        uses: actions/github-script@v8
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
+        with:
+          script: |
+            // Scheduled runs perform cleanup; manual runs are dry-run unless explicitly disabled.
+            const dryRun = context.eventName === "workflow_dispatch" && process.env.DRY_RUN !== "false";
+            const retentionMs = 5 * 24 * 60 * 60 * 1000;
+            const cutoff = Date.now() - retentionMs;
+            const keepPerWorkflow = 12;
+            const runs = await github.paginate(github.rest.actions.listWorkflowRunsForRepo, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100
+            });
+            const completedRuns = runs
+              .filter(run => run.status === "completed")
+              .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+            const activeRunIds = new Set(runs.filter(run => run.status !== "completed").map(run => run.id));
+            const keptByWorkflow = new Map();
+            const deleteRuns = [];
+            for (const run of completedRuns) {
+              const key = String(run.workflow_id);
+              const kept = keptByWorkflow.get(key) || 0;
+              if (kept < keepPerWorkflow) {
+                keptByWorkflow.set(key, kept + 1);
+                continue;
+              }
+              if (new Date(run.created_at).getTime() < cutoff) deleteRuns.push(run);
+            }
+            let deletedRuns = 0;
+            for (const run of deleteRuns) {
+              // Guard rails: only completed runs older than 5 days; preserve latest 12 per workflow.
+              if (run.status !== "completed" || new Date(run.created_at).getTime() >= cutoff) continue;
+              if (dryRun) continue;
+              await github.rest.actions.deleteWorkflowRun({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                run_id: run.id
+              });
+              deletedRuns++;
+            }
+            const artifacts = await github.paginate(github.rest.actions.listArtifactsForRepo, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100
+            });
+            let deletedArtifacts = 0;
+            let skippedActiveArtifacts = 0;
+            for (const artifact of artifacts) {
+              if (artifact.expired || new Date(artifact.created_at).getTime() >= cutoff) continue;
+              // Avoid deleting artifacts attached to currently active workflow runs.
+              const linkedRunId = artifact.workflow_run?.id;
+              if (linkedRunId && activeRunIds.has(linkedRunId)) {
+                skippedActiveArtifacts++;
+                continue;
+              }
+              if (dryRun) continue;
+              await github.rest.actions.deleteArtifact({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                artifact_id: artifact.id
+              });
+              deletedArtifacts++;
+            }
+            const summary = [
+              "## Limpeza automática de Actions",
+              "",
+              "- Modo: **" + (dryRun ? "simulação (nenhum item apagado)" : "execução real") + "**",
+              "- Execuções concluídas removidas (mais de 5 dias, mantendo 12 mais recentes por workflow): **" + deletedRuns + "**",
+              "- Artifacts removidos (mais de 5 dias): **" + deletedArtifacts + "**",
+              "- Artifacts vinculados a execuções ativas ignorados: **" + skippedActiveArtifacts + "**",
+              "- Execuções em andamento não foram tocadas.",
+              "- Retenção: 5 dias para runs e artifacts."
+            ].join("\n");
+            await core.summary.addRaw(summary).write();
+            core.info(summary);
