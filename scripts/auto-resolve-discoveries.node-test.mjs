@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { appendContext, buildPendingDiscoveriesUrl, buildNonActionablePendingDiscoveriesUrl, dismissNonActionablePendingDiscoveries, buildRetificationUpdate, classifyDiscovery, extractDocumentText, extractRoleNamesFromText, extractVacancyDetails, fetchCandidateWithRetry, findMatchingContestForRetification, inferOrganization, mapWithConcurrency, normalizeContestIdentity, prepareDiscoveryDocument, isGenericOfficialLandingPage, countPendingDiscoveries, requestJson, summarizeFetchError, assessNoticeFreshness, extractDeclaredPublisherUrl, resolveGoogleNewsArticleUrl, prioritizePendingDiscoveries, selectDiscoveriesForTriage, isClearlyUnrelatedAdministrativeDiscovery, isTrustedSecondaryNewsHost, extractOfficialReferenceLinks, fetchSecondaryNewsArticle } from "./auto-resolve-discoveries.mjs";
+import { appendContext, buildPendingDiscoveriesUrl, buildNonActionablePendingDiscoveriesUrl, dismissNonActionablePendingDiscoveries, buildRetificationUpdate, classifyDiscovery, extractDocumentText, extractRoleNamesFromText, extractVacancyDetails, fetchCandidateWithRetry, findMatchingContestForRetification, inferOrganization, mapWithConcurrency, normalizeContestIdentity, prepareDiscoveryDocument, isGenericOfficialLandingPage, countPendingDiscoveries, requestJson, summarizeFetchError, assessNoticeFreshness, extractDeclaredPublisherUrl, resolveGoogleNewsArticleUrl, prioritizePendingDiscoveries, selectDiscoveriesForTriage, isClearlyUnrelatedAdministrativeDiscovery, isTrustedSecondaryNewsHost, extractOfficialReferenceLinks, fetchSecondaryNewsArticle, autoResolvePending } from "./auto-resolve-discoveries.mjs";
 
 const discovery = {
   id: 1,
@@ -587,6 +587,24 @@ test("limita a concorrência e mantém a ordem dos resultados", async () => {
 
   assert.deepEqual(results, [10, 20, 30, 40, 50, 60]);
   assert.equal(peak, 3);
+});
+
+test("a triagem rejeita chaves anon e desconhecidas antes de acessar o Supabase", async () => {
+  let fetchCalled = false;
+  for (const serviceRoleKey of [
+    "header." + Buffer.from(JSON.stringify({ role: "anon" })).toString("base64url") + ".signature",
+    "not-a-jwt"
+  ]) {
+    await assert.rejects(() => autoResolvePending({
+      supabaseUrl: "https://example.supabase.co",
+      serviceRoleKey,
+      fetchImpl: async () => {
+        fetchCalled = true;
+        throw new Error("A credencial inválida não deveria alcançar o Supabase");
+      }
+    }), /credencial (pública|desconhecida)/);
+  }
+  assert.equal(fetchCalled, false);
 });
 
 test("a URL da fila de manutenção seleciona apenas linhas de base pendentes", () => {
