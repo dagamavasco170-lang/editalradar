@@ -16,7 +16,7 @@ const [android, serviceWorker, styles, androidGradle, androidWorkflow, appUpdate
   readProjectFile("../src/lib/android-bridge.js"),
   readProjectFile("../src/App.jsx")
 ]);
-const [androidProjectGradle, androidApkWorkflow, androidReadme, androidSmokeScript, viteConfig, androidSmokeWorkflow, automationRecovery, automationHealth, clientTelemetry, diagnosticsFunction, diagnosticsMigration, failureReporter, clientDiagnosticsSummary] = await Promise.all([
+const [androidProjectGradle, androidApkWorkflow, androidReadme, androidSmokeScript, viteConfig, androidSmokeWorkflow, automationRecovery, automationHealth, clientTelemetry, diagnosticsFunction, diagnosticsMigration, failureReporter, clientDiagnosticsSummary, questionAutomationScript] = await Promise.all([
   readProjectFile("../android/build.gradle"),
   readProjectFile("../.github/workflows/android-apk.yml"),
   readProjectFile("../android/README.md"),
@@ -29,7 +29,8 @@ const [androidProjectGradle, androidApkWorkflow, androidReadme, androidSmokeScri
   readProjectFile("../supabase/functions/diagnostics-ingest/index.ts"),
   readProjectFile("../supabase/migrations/20261123170000_app_diagnostics_log_sink.sql"),
   readProjectFile("../.github/workflows/ci-failure-report.yml"),
-  readProjectFile("../.github/workflows/client-diagnostics-summary.yml")
+  readProjectFile("../.github/workflows/client-diagnostics-summary.yml"),
+  readProjectFile("../.github/scripts/question-automation.mjs")
 ]);
 
 test("monitor de saúde considera somente execuções schedule/manual e fecha alertas recuperados", () => {
@@ -56,6 +57,16 @@ test("fila administrativa limita renderização inicial e permite carregar mais 
   assert.match(app, /filteredDiscoveryItems\.slice\(0, discoveryVisibleLimit\)/);
   assert.match(app, /visibleDiscoveryItems\.length < filteredDiscoveryItems\.length/);
   assert.match(app, /Carregar mais 15/);
+});
+
+test("automação de questões agendada exige credencial service_role", () => {
+  assert.match(questionAutomationScript, /credentialRole !== "service_role"/);
+  assert.match(questionAutomationScript, /chave JWT legada com role=service_role/);
+});
+
+test("resumo de diagnósticos identifica chave anon sem abrir permissões públicas", () => {
+  assert.match(clientDiagnosticsSummary, /credentialRole === "anon"/);
+  assert.match(clientDiagnosticsSummary, /não libere acesso público à tabela de diagnósticos/);
 });
 
 test("Android bloqueia regressões e divergências entre versionName, versionCode e release", () => {
