@@ -144,6 +144,27 @@ test("exige revisão quando a página não informa ano nem situação", () => {
   assert.equal(result.decision,"review");
 });
 
+test("mantém pistas externas pendentes quando o publisher resolve para uma página inicial genérica", async () => {
+  let fetchCalls = 0;
+  const prepared = await prepareDiscoveryDocument({
+    ...discovery,
+    discovery_type: "web_search_lead",
+    title: "[Notícia para conferir] UFMS anuncia concurso — Prefeitura Municipal de Ponta Porã",
+    candidate_url: "https://pontapora.ms.gov.br/v2/",
+    context: "Endereço informado para a fonte: https://pontapora.ms.gov.br"
+  }, async () => {
+    fetchCalls += 1;
+    return new Response("<h1>Concurso público</h1>", {
+      status: 200,
+      headers: { "Content-Type": "text/html" }
+    });
+  });
+
+  assert.equal(prepared.stage, "review");
+  assert.match(prepared.reason, /página inicial|listagem genérica/i);
+  assert.equal(fetchCalls, 0);
+});
+
 test("identifica órgão público explicitamente declarado", () => {
   assert.equal(inferOrganization("Concurso público da Prefeitura Municipal de Igaci"), "Prefeitura Municipal de Igaci");
 });
