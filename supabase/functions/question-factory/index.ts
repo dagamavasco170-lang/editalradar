@@ -350,15 +350,35 @@ function reviewPrompts(topic: any, questions: GeneratedQuestion[], sourceExcerpt
   return { system, user };
 }
 
+function getConfiguredSecretKeys(): string[] {
+  const raw = Deno.env.get("SUPABASE_SECRET_KEYS") || "";
+  try {
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return [];
+    return Object.values(parsed).filter((value): value is string => typeof value === "string");
+  } catch {
+    return [];
+  }
+}
+
 async function authenticate(req: Request, mode: string) {
   const authorization = req.headers.get("Authorization") || "";
   const token = authorization.startsWith("Bearer ") ? authorization.slice(7).trim() : "";
-  if (!token) throw new Error("Autenticação obrigatória.");
+  const apiKey = req.headers.get("apikey") || "";
 
-  if (mode === "scheduled" && serviceKey && token === serviceKey) {
-    return { userId: null, scheduled: true };
+  // Scheduled server-to-server calls may authenticate with the legacy service_role
+  // JWT, or with any active secret API key configured in this Supabase project.
+  // The API secret is checked only in the apikey header; it is never treated as a JWT.
+  if (mode === "scheduled") {
+    if (serviceKey && token && token === serviceKey) {
+      return { userId: null, scheduled: true };
+    }
+    if (apiKey && getConfiguredSecretKeys().includes(apiKey)) {
+      return { userId: null, scheduled: true };
+    }
   }
 
+  if (!token) throw new Error("Autenticação obrigatória.");
   if (!anonKey) throw new Error("A chave pública do Supabase não está disponível na função.");
   const userClient = createClient(supabaseUrl, anonKey, {
     global: { headers: { Authorization: "Bearer " + token } },
