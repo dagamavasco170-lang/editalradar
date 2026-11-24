@@ -10,9 +10,13 @@ const MAX_SOURCE_BYTES = 5 * 1024 * 1024;
 
 const authHeaders = {
   apikey: SERVICE_KEY,
-  Authorization: `Bearer ${SERVICE_KEY}`,
   "Content-Type": "application/json"
 };
+// Modern Supabase secret keys are API keys, not JWTs: send them only as apikey.
+// Legacy service_role JWTs continue to use both headers for compatibility.
+if (!SERVICE_KEY.startsWith("sb_secret_")) {
+  authHeaders.Authorization = `Bearer ${SERVICE_KEY}`;
+}
 
 async function supabaseRest(path, init = {}) {
   const response = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
@@ -236,10 +240,11 @@ async function main() {
     throw new Error("Configure SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY nos GitHub Actions Secrets.");
   }
   const credentialRole = getJwtRole(SERVICE_KEY);
-  if (credentialRole !== "service_role") {
+  const isModernSecretKey = SERVICE_KEY.startsWith("sb_secret_");
+  if (credentialRole !== "service_role" && !isModernSecretKey) {
     throw new Error(
-      "SUPABASE_SERVICE_ROLE_KEY precisa ser a chave JWT legada com role=service_role. " +
-      "A credencial configurada foi classificada como " + credentialRole + "; a automação exige a chave JWT legada de servidor com role=service_role. Chaves anon, publishable e sb_secret não são aceitas por este handshake interno."
+      "SUPABASE_SERVICE_ROLE_KEY precisa ser uma chave privada de servidor: service_role (JWT legado) ou sb_secret_ (chave secreta atual). " +
+      "A credencial configurada foi classificada como " + credentialRole + "; chaves anon e publishable não são aceitas."
     );
   }
   console.log("Etapa 1/4: expandindo automaticamente o catálogo de matérias e assuntos.");
