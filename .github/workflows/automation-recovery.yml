@@ -46,24 +46,40 @@ jobs:
                     item.head_branch === "main" &&
                     ["schedule", "workflow_dispatch", "push"].includes(item.event) &&
                     item.status === "completed" &&
-                    item.conclusion !== "success" &&
+                    ["timed_out", "cancelled"].includes(item.conclusion) &&
                     item.run_attempt < 2 &&
                     (now - new Date(item.created_at).getTime()) / 3600000 <= 2
                   )
                   .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
                 if (!run) {
-                  core.info(target.label + ": nenhuma falha recente elegível para reexecução.");
+                  core.info(target.label + ": nenhuma execução interrompida/timeout recente elegível; falhas determinísticas não são reexecutadas automaticamente.");
                   continue;
                 }
-                await github.request(
-                  "POST /repos/{owner}/{repo}/actions/runs/{run_id}/rerun-failed-jobs",
-                  {
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    run_id: run.id
-                  }
+                const jobsResponse = await github.rest.actions.listJobsForWorkflowRun({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  run_id: run.id,
+                  per_page: 100
+                });
+                const retryableJobs = jobsResponse.data.jobs.filter(job =>
+                  job.status === "completed" &&
+                  ["timed_out", "cancelled"].includes(job.conclusion)
                 );
-                core.warning(target.label + ": reexecução de falhas iniciada para run #" + run.id + ".");
+                if (!retryableJobs.length) {
+                  core.info(target.label + ": run #" + run.id + " sem jobs interrompidos/timeout; sem retry.");
+                  continue;
+                }
+                for (const job of retryableJobs) {
+                  await github.request(
+                    "POST /repos/{owner}/{repo}/actions/jobs/{job_id}/rerun",
+                    {
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      job_id: job.id
+                    }
+                  );
+                  core.warning(target.label + ": retry somente do job " + job.name + " (#" + job.id + ") em run #" + run.id + ".");
+                }
               } catch (error) {
                 const message = String(error?.message || error).slice(0, 200);
                 const status = error?.status || error?.response?.status;
