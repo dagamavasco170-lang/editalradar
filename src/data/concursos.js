@@ -779,7 +779,7 @@ export const concursos = [
     "vagasTotais": 570,
     "vagasImediatas": 570,
     "atoOficial": "Concurso Público nº 002/2026 — edital e retificações no Instituto AOCP",
-    "status": "Inscrições abertas até 23/11/2026 às 14h",
+    "status": "Inscrições encerradas em 23/11/2026 às 14h",
     "area": "Estadual",
     "estado": "Pernambuco",
     "localidade": "Pernambuco",
