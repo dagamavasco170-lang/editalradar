@@ -35,7 +35,11 @@ const [androidProjectGradle, androidApkWorkflow, androidReadme, androidSmokeScri
 ]);
 
 test("monitor de saúde considera somente execuções schedule/manual e fecha alertas recuperados", () => {
-  assert.match(automationHealth, /run\.event === "schedule" \|\| run\.event === "workflow_dispatch"/);
+  assert.match(automationHealth, /event: "schedule"/);
+  assert.match(automationHealth, /event: "workflow_dispatch"/);
+  assert.match(automationHealth, /scheduledResponse\\.data\\.workflow_runs/);
+  assert.match(automationHealth, /manualResponse\\.data\\.workflow_runs/);
+  assert.match(automationHealth, /\\.sort\\(\\(a, b\\) => new Date\\(b\\.created_at\\) - new Date\\(a\\.created_at\\)\\)/);
   assert.match(automationHealth, /maxAgeHours: 12/);
   assert.match(automationHealth, /maxAgeHours: 36/);
   assert.match(automationHealth, /maxAgeHours: 192/);
@@ -45,7 +49,9 @@ test("monitor de saúde considera somente execuções schedule/manual e fecha al
 
 test("recuperação automática seleciona somente falhas recentes elegíveis da main", () => {
   assert.match(automationRecovery, /item\.head_branch === "main"/);
-  assert.match(automationRecovery, /\["schedule", "workflow_dispatch", "push"\]\.includes\(item\.event\)/);
+  assert.match(automationRecovery, /response\\.data\\.workflow_runs\\s+\\.filter\\(item =>/);
+  assert.match(automationRecovery, /item\\.head_branch === "main"/);
+  assert.match(automationRecovery, /\\["schedule", "workflow_dispatch", "push"\\]\\.includes\\(item\\.event\\)/);
   assert.match(automationRecovery, /item\.status === "completed"/);
   assert.match(automationRecovery, /item\.conclusion !== "success"/);
   assert.match(automationRecovery, /item\.run_attempt < 2/);
