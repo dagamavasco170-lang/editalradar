@@ -827,7 +827,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   const cidadesDisponiveis = estado === "Todos os estados"
     ? cidades
     : [...new Set(catalog.filter((item) => item.estado === estado || item.estado === "Brasil")
-      .map((item) => item.localidade || "Brasil")].sort();
+      .map((item) => item.localidade || "Brasil"))].sort();
   const updateEstado = (nextEstado) => {
     setEstado(nextEstado);
     if (localidade !== "Todas as cidades" && nextEstado !== "Todos os estados") {
