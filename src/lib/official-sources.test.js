@@ -24,6 +24,7 @@ describe("fontes de estudo privadas e fontes de prova", () => {
     expect(isTrustedPrivateStudySourceUrl("https://escolhalivre.org.br/en/about/")).toBe(false);
     expect(isTrustedPrivateStudySourceUrl("https://pt.wikisource.org/wiki/Obra_aleatoria")).toBe(false);
     expect(isTrustedPrivateStudySourceUrl("https://www.gapminder.org/data/")).toBe(false);
+    expect(isTrustedPrivateStudySourceUrl("https://developer.mozilla.org/docs/%E0%A4%A")).toBe(false);
   });
 
   it("não aceita órgãos públicos como fontes para a geração automática", () => {
