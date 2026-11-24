@@ -641,6 +641,25 @@ async function runTopic(topic: any, triggerMode: "manual" | "scheduled", userId:
   if (!isTrustedPrivateStudySourceUrl(topic.source_url) || !sourceLicense) {
     return { topicId: topic.id, status: "skipped", reason: "A fonte não tem uma licença aberta ou permissão de reutilização aprovada." };
   }
+  // Persist the same approved metadata used by generation so newly added topics
+  // remain auditable without relying only on runtime inference.
+  const currentSourceLicense = String(topic.source_license || "").trim();
+  const currentSourceAttribution = String(topic.source_attribution || "").trim();
+  const currentContentLicense = String(topic.content_license || "").trim();
+  if (!currentSourceLicense || !currentSourceAttribution || !currentContentLicense) {
+    const { error: metadataSyncError } = await adminDb
+      .from("study_question_automation_topics")
+      .update({
+        source_license: currentSourceLicense || sourceLicense.source_license,
+        source_attribution: currentSourceAttribution || sourceLicense.source_attribution,
+        content_license: currentContentLicense || sourceLicense.content_license,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", topic.id);
+    if (metadataSyncError) {
+      throw new Error("Não foi possível registrar os metadados da fonte: " + metadataSyncError.message);
+    }
+  }
   const configuredExcerpt = String(topic.source_excerpt || "").trim();
   if (configuredExcerpt && (configuredExcerpt.length < 200 || configuredExcerpt.length > 12000)) {
     return { topicId: topic.id, status: "skipped", reason: "O trecho manual precisa ter entre 200 e 12.000 caracteres." };
