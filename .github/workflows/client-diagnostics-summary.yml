@@ -58,7 +58,7 @@ jobs:
                 .slice(0, 500);
               core.error("Supabase REST rejected the request (HTTP " + response.status + "). Key format: " +
                 (supabaseKey.startsWith("sb_secret_") ? "new secret key" : supabaseKey.startsWith("eyJ") ? "legacy JWT" : "unknown") +
-                "; project ref in URL: " + (process.env.SUPABASE_URL.match(/https://([^.]+)\\.supabase\\.co/)?.[1] || "unrecognized") +
+                "; project ref in URL: " + (new URL(process.env.SUPABASE_URL).hostname.split(".")[0] || "unrecognized") +
                 "; response: " + safeDetails);
               throw new Error("Supabase diagnostics query failed: HTTP " + response.status);
             }
