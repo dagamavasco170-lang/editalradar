@@ -1,4 +1,5 @@
 import { pathToFileURL } from "node:url";
+import { assertSupabaseServiceCredential } from "./supabase-credentials.mjs";
 import { appendFile, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { execFile, execFileSync } from "node:child_process";
 import { promisify } from "node:util";
@@ -1482,6 +1483,7 @@ export async function autoResolvePending(options = {}) {
   const key = String(options.serviceRoleKey || process.env.SUPABASE_SERVICE_ROLE_KEY || "");
   if (!baseUrl || !key) throw new Error("Configure SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY antes da triagem automática.");
   if (new URL(baseUrl).protocol !== "https:") throw new Error("SUPABASE_URL precisa usar HTTPS.");
+  assertSupabaseServiceCredential(key, "SUPABASE_SERVICE_ROLE_KEY (triagem automática)");
 
   const request = options.fetchImpl || fetch;
   const now = options.now instanceof Date ? options.now : new Date();
