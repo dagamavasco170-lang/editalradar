@@ -255,7 +255,9 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   const [discoveryPriority, setDiscoveryPriority] = useState("all");
   const [discoveryStatus, setDiscoveryStatus] = useState("pending");
   const [discoveryPeriod, setDiscoveryPeriod] = useState("all");
+  const [discoveryVisibleLimit, setDiscoveryVisibleLimit] = useState(15);
   const [discoveryDraftId, setDiscoveryDraftId] = useState(null);
+  useEffect(() => { setDiscoveryVisibleLimit(15); }, [discoveryQuery, discoveryKind, discoveryTopic, discoveryPriority, discoveryStatus, discoveryPeriod]);
   const [adminDraft, setAdminDraft] = useState(null);
   const [adminEditingId, setAdminEditingId] = useState(null);
   const [adminBusy, setAdminBusy] = useState(false);
@@ -1498,6 +1500,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     status: discoveryStatus,
     period: discoveryPeriod
   })), [discoveryItems, discoveryQuery, discoveryKind, discoveryTopic, discoveryPriority, discoveryStatus, discoveryPeriod]);
+  const visibleDiscoveryItems = useMemo(() => filteredDiscoveryItems.slice(0, discoveryVisibleLimit), [filteredDiscoveryItems, discoveryVisibleLimit]);
 
   return (
     <div className="app-shell" data-page={page}>
@@ -1881,7 +1884,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                 <div className="discovery-empty">Nenhum registro corresponde aos filtros selecionados. Experimente ampliar a pesquisa ou o período.</div>
               ) : (
                 <div className="admin-list discovery-list" aria-live="polite">
-                  {filteredDiscoveryItems.map(item => {
+                  {visibleDiscoveryItems.map(item => {
                     const kind = classifyDiscoveryKind(item);
                     const linkedContest = item.published_catalog_id == null
                       ? null
@@ -1922,6 +1925,10 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                   })}
                 </div>
               )}
+              {filteredDiscoveryItems.length > 0 && <div className="discovery-list-footer">
+                <small>Mostrando {Math.min(visibleDiscoveryItems.length, filteredDiscoveryItems.length)} de {filteredDiscoveryItems.length} registro(s)</small>
+                {visibleDiscoveryItems.length < filteredDiscoveryItems.length && <button className="detail-btn" type="button" onClick={() => setDiscoveryVisibleLimit(current => current + 15)}>Carregar mais 15</button>}
+              </div>}
               {adminMessage && <p className={`auth-message ${adminMessageType}`} role="status">{adminMessage}</p>}
             </div>
             <React.Suspense fallback={<div className="panel admin-panel"><p className="muted">Carregando gestão do banco de questões…</p></div>}>
