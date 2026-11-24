@@ -824,6 +824,18 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
 
   const estados = [...new Set(catalog.map((item) => item.estado || "Brasil"))].sort();
   const cidades = [...new Set(catalog.map((item) => item.localidade || "Brasil"))].sort();
+  const cidadesDisponiveis = estado === "Todos os estados"
+    ? cidades
+    : [...new Set(catalog.filter((item) => item.estado === estado || item.estado === "Brasil")
+      .map((item) => item.localidade || "Brasil")].sort();
+  const updateEstado = (nextEstado) => {
+    setEstado(nextEstado);
+    if (localidade !== "Todas as cidades" && nextEstado !== "Todos os estados") {
+      const availableCities = catalog.filter((item) => item.estado === nextEstado || item.estado === "Brasil")
+        .map((item) => item.localidade || "Brasil");
+      if (!availableCities.includes(localidade)) setLocalidade("Todas as cidades");
+    }
+  };
 
   const recommendationProfile=authUser?.user_metadata||{};
   const profileRecommendations=useMemo(()=>{
@@ -2151,8 +2163,8 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
               <div className="filters">
               <div className="search-filter"><span aria-hidden="true">⌕</span><input type="search" aria-label="Buscar concurso por cargo ou órgão" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar cargo ou órgão..." />{query && <button className="search-clear" type="button" onClick={() => setQuery("")} aria-label="Limpar busca">×</button>}</div>
               <select aria-label="Esfera" value={esfera} onChange={(e) => setEsfera(e.target.value)}><option>Todas as esferas</option>{["Federal", "Estadual", "Municipal"].map(x => <option key={x}>{x}</option>)}</select>
-              <select aria-label="Estado" value={estado} onChange={(e) => setEstado(e.target.value)}><option>Todos os estados</option>{estados.map(x => <option key={x}>{x}</option>)}</select>
-              <select aria-label="Cidade" value={localidade} onChange={(e) => setLocalidade(e.target.value)}><option>Todas as cidades</option>{cidades.map(x => <option key={x}>{x}</option>)}</select>
+              <select aria-label="Estado" value={estado} onChange={(e) => updateEstado(e.target.value)}><option>Todos os estados</option>{estados.map(x => <option key={x}>{x}</option>)}</select>
+              <select aria-label="Cidade" value={localidade} onChange={(e) => setLocalidade(e.target.value)}><option>Todas as cidades</option>{cidadesDisponiveis.map(x => <option key={x}>{x}</option>)}</select>
               <select aria-label="Escolaridade" value={nivel} onChange={(e) => setNivel(e.target.value)}><option>Todos os níveis</option>{[...new Set(catalog.map(c => c.nivel))].sort().map(x => <option key={x}>{x}</option>)}</select>
               <select aria-label="Situação" value={situacao} onChange={(e) => setSituacao(e.target.value)}><option>Todas as situações</option>{["Pré-edital / anunciado", "Inscrições abertas", "Inscrições encerradas", "Provas / resultados"].map(x => <option key={x}>{x}</option>)}</select>
             </div>
