@@ -258,6 +258,27 @@ function extractMessage(payload: any): string {
   return message.content;
 }
 
+function geminiRetryDelayMs(response: Response | null, attempt: number): number {
+  const retryAfter = response?.headers.get("retry-after")?.trim() || "";
+  if (retryAfter) {
+    const seconds = Number(retryAfter);
+    const retryAt = Date.parse(retryAfter);
+    const requestedDelay = Number.isFinite(seconds) && seconds >= 0
+      ? seconds * 1000
+      : Number.isFinite(retryAt) ? retryAt - Date.now() : NaN;
+    if (Number.isFinite(requestedDelay) && requestedDelay > 0) {
+      return Math.min(8000, Math.max(1000, requestedDelay));
+    }
+  }
+  return Math.min(8000, 3000 * Math.pow(2, Math.max(0, attempt - 1)));
+}
+
+function isTransientGeminiAvailabilityFailure(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error || "");
+  return /Gemini API HTTP (?:429|500|502|503|504)\b/i.test(message)
+    || /Gemini falha de rede em .+ após \d+ tentativas:/i.test(message);
+}
+
 async function callStructuredModel(schemaName: string, schema: unknown, systemPrompt: string, userPrompt: string) {
   if (!geminiKey) throw new Error("GEMINI_API_KEY ainda não está configurada em Supabase → Edge Functions → Secrets.");
   const structuredPrompt = userPrompt + "\n\nRetorne exclusivamente JSON válido que obedeça a este esquema (sem markdown):\n" + JSON.stringify(schema);
@@ -282,7 +303,7 @@ async function callStructuredModel(schemaName: string, schema: unknown, systemPr
       lastError = String(error?.message || error).slice(0, 300);
       if (attempt < maxAttempts) {
         console.warn("Gemini falha de rede em " + schemaName + "; tentativa " + (attempt + 1) + "/" + maxAttempts + " após espera curta.");
-        await new Promise((resolve) => setTimeout(resolve, 2000));
+        await new Promise((resolve) => setTimeout(resolve, geminiRetryDelayMs(null, attempt)));
         continue;
       }
       throw new Error("Gemini falha de rede em " + schemaName + " após " + maxAttempts + " tentativas: " + lastError + ".");
@@ -292,7 +313,7 @@ async function callStructuredModel(schemaName: string, schema: unknown, systemPr
       lastError = String(payload?.error?.message || "Falha ao consultar o modelo de IA").slice(0, 500);
       if (transientStatuses.has(response.status) && attempt < maxAttempts) {
         console.warn("Gemini HTTP " + response.status + " em " + schemaName + "; repetindo uma única vez após espera curta.");
-        await new Promise((resolve) => setTimeout(resolve, 2000));
+        await new Promise((resolve) => setTimeout(resolve, geminiRetryDelayMs(response, attempt)));
         continue;
       }
       throw new Error("Gemini API HTTP " + response.status + " em " + schemaName + ": " + lastError + ". Nenhum provedor alternativo será acionado.");
@@ -963,20 +984,40 @@ Deno.serve(async (req: Request) => {
   const fairDue = orderTopicsFairly(dueCandidates, recentRuns || [], now, topics || []);
   const due = fairDue.slice(0, remainingDailyRuns);
   const sourceExcerpts = body?.sourceExcerpts && typeof body.sourceExcerpts === "object" ? body.sourceExcerpts : {};
-  const results = [];
-  for (const topic of due) {
+  const results: any[] = [];
+  let processed = 0;
+  let deferred = 0;
+  for (let index = 0; index < due.length; index += 1) {
+    const topic = due[index];
     try {
       results.push(await runTopic(topic, "scheduled", null, sourceExcerpts[topic.id]));
+      processed += 1;
     } catch (error) {
-      results.push({ topicId: topic.id, status: "failed", reason: String(error?.message || error).slice(0, 500) });
+      const reason = String(error?.message || error).slice(0, 500);
+      results.push({ topicId: topic.id, status: "failed", reason });
+      processed += 1;
+      if (isTransientGeminiAvailabilityFailure(error)) {
+        const deferredTopics = due.slice(index + 1);
+        deferred = deferredTopics.length;
+        for (const deferredTopic of deferredTopics) {
+          results.push({
+            topicId: deferredTopic.id,
+            status: "deferred",
+            reason: "Pausa automática: Gemini indisponível. Este assunto permanece na fila para uma próxima execução."
+          });
+        }
+        console.warn("Disjuntor do Gemini ativado após falha transitória; " + deferred + " assunto(s) foram adiados sem consumir tentativas.");
+        break;
+      }
     }
   }
   return json({
     ok: true,
     catalog_seeded: autonomousCatalog?.seeded || false,
     topics_available: autonomousCatalog?.topics || (topics || []).length,
-    processed: due.length,
-    skipped: due.length === 0,
+    processed,
+    deferred,
+    skipped: processed === 0,
     results
   });
 });
