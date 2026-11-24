@@ -261,27 +261,50 @@ function extractMessage(payload: any): string {
 async function callStructuredModel(schemaName: string, schema: unknown, systemPrompt: string, userPrompt: string) {
   if (!geminiKey) throw new Error("GEMINI_API_KEY ainda não está configurada em Supabase → Edge Functions → Secrets.");
   const structuredPrompt = userPrompt + "\n\nRetorne exclusivamente JSON válido que obedeça a este esquema (sem markdown):\n" + JSON.stringify(schema);
-  const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent", {
-    method: "POST",
-    headers: { "x-goog-api-key": geminiKey, "Content-Type": "application/json" },
-    signal: AbortSignal.timeout(65000),
-    body: JSON.stringify({
-      systemInstruction: { parts: [{ text: systemPrompt }] },
-      contents: [{ role: "user", parts: [{ text: structuredPrompt }] }],
-      generationConfig: { responseMimeType: "application/json", maxOutputTokens: 8192 }
-    })
+  const requestBody = JSON.stringify({
+    systemInstruction: { parts: [{ text: systemPrompt }] },
+    contents: [{ role: "user", parts: [{ text: structuredPrompt }] }],
+    generationConfig: { responseMimeType: "application/json", maxOutputTokens: 8192 }
   });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const message = String(payload?.error?.message || "Falha ao consultar o modelo de IA").slice(0, 500);
-    throw new Error("Gemini API HTTP " + response.status + " em " + schemaName + ": " + message + ". Nenhum provedor alternativo será acionado.");
+  const transientStatuses = new Set([429, 500, 502, 503, 504]);
+  const maxAttempts = 2; // one bounded retry; never switch model/provider or increase paid usage unexpectedly
+  let lastError = "Falha ao consultar o modelo de IA";
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    let response: Response;
+    try {
+      response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent", {
+        method: "POST",
+        headers: { "x-goog-api-key": geminiKey, "Content-Type": "application/json" },
+        signal: AbortSignal.timeout(65000),
+        body: requestBody
+      });
+    } catch (error) {
+      lastError = String(error?.message || error).slice(0, 300);
+      if (attempt < maxAttempts) {
+        console.warn("Gemini falha de rede em " + schemaName + "; tentativa " + (attempt + 1) + "/" + maxAttempts + " após espera curta.");
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        continue;
+      }
+      throw new Error("Gemini falha de rede em " + schemaName + " após " + maxAttempts + " tentativas: " + lastError + ".");
+    }
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      lastError = String(payload?.error?.message || "Falha ao consultar o modelo de IA").slice(0, 500);
+      if (transientStatuses.has(response.status) && attempt < maxAttempts) {
+        console.warn("Gemini HTTP " + response.status + " em " + schemaName + "; repetindo uma única vez após espera curta.");
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        continue;
+      }
+      throw new Error("Gemini API HTTP " + response.status + " em " + schemaName + ": " + lastError + ". Nenhum provedor alternativo será acionado.");
+    }
+    const candidate = payload?.candidates?.[0];
+    if (candidate?.finishReason === "MAX_TOKENS") throw new Error("Gemini atingiu o limite de tokens antes de concluir " + schemaName + ".");
+    if (candidate?.finishReason === "SAFETY") throw new Error("Gemini bloqueou a resposta de " + schemaName + " pelos filtros de segurança.");
+    const modelContent = (candidate?.content?.parts || []).map((part: any) => typeof part?.text === "string" ? part.text : "").join("").trim();
+    if (!modelContent) throw new Error("Gemini não retornou conteúdo JSON para " + schemaName + ".");
+    try { return JSON.parse(modelContent); } catch { throw new Error("Gemini retornou JSON inválido para " + schemaName + "."); }
   }
-  const candidate = payload?.candidates?.[0];
-  if (candidate?.finishReason === "MAX_TOKENS") throw new Error("Gemini atingiu o limite de tokens antes de concluir " + schemaName + ".");
-  if (candidate?.finishReason === "SAFETY") throw new Error("Gemini bloqueou a resposta de " + schemaName + " pelos filtros de segurança.");
-  const content = (candidate?.content?.parts || []).map((part: any) => typeof part?.text === "string" ? part.text : "").join("").trim();
-  if (!content) throw new Error("Gemini não retornou conteúdo JSON para " + schemaName + ".");
-  try { return JSON.parse(content); } catch { throw new Error("Gemini retornou JSON inválido para " + schemaName + "."); }
+  throw new Error("Gemini falhou em " + schemaName + ": " + lastError);
 }
 
 function generationPrompts(
