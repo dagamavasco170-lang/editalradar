@@ -1158,9 +1158,11 @@ export function isClearlyUnrelatedAdministrativeDiscovery(item = {}) {
 
 const GENERIC_OFFICIAL_LANDING_SEGMENTS = new Set([
   "home", "inicio", "index", "index.html", "index.htm", "index.php",
-  "portal", "site", "principal", "v1", "v2", "v3",
-  "concursos", "concursos-publicos", "editais", "processos-seletivos",
-  "selecao", "seletivos", "inscricoes", "abertos", "em-andamento"
+  "portal", "site", "principal",
+  "concursos", "concursos-publicos", "concursos-abertos",
+  "editais", "processos-seletivos", "selecao", "seletivos",
+  "inscricoes", "inscricoes-abertas", "abertos",
+  "em-andamento", "resultados", "resultados-disponiveis"
 ]);
 
 export function isGenericOfficialLandingPage(value) {
@@ -1172,10 +1174,14 @@ export function isGenericOfficialLandingPage(value) {
       .filter(Boolean)
       .map(segment => segment.toLowerCase());
     if (segments.length === 0) return true;
-    if (segments.length > 2) return false;
-    return segments.every(segment =>
-      GENERIC_OFFICIAL_LANDING_SEGMENTS.has(segment) || /^v\\d+$/.test(segment)
-    );
+
+    const isGenericSegment = segment =>
+      GENERIC_OFFICIAL_LANDING_SEGMENTS.has(segment) || /^v\\d+$/.test(segment);
+    const lastSegment = segments[segments.length - 1];
+
+    // A página pode ser profunda (por exemplo /acesso-a-informacao/concursos/concursos-publicos),
+    // mas se termina numa listagem genérica, não identifica um certame específico.
+    return segments.every(isGenericSegment) || isGenericSegment(lastSegment);
   } catch {
     return true;
   }
