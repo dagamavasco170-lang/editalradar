@@ -42,9 +42,14 @@ test("monitor de saúde considera somente execuções schedule/manual e fecha al
   assert.ok(automationHealth.includes('issues.update({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, state: "closed", state_reason: "completed" })'));
 });
 
-test("recuperação automática seleciona somente execuções da main", () => {
-  assert.match(automationRecovery, /workflow_runs\.find\(item =>\s*item\.head_branch === "main" &&\s*\["schedule", "workflow_dispatch", "push"\]\.includes\(item\.event\)/);
-  assert.doesNotMatch(automationRecovery, /workflow_runs\.find\(item =>\s*\["schedule", "workflow_dispatch", "push"\]\.includes\(item\.event\)\s*\);\s*if \(!run\)/);
+test("recuperação automática seleciona somente falhas recentes elegíveis da main", () => {
+  assert.match(automationRecovery, /item\.head_branch === "main"/);
+  assert.match(automationRecovery, /\["schedule", "workflow_dispatch", "push"\]\.includes\(item\.event\)/);
+  assert.match(automationRecovery, /item\.status === "completed"/);
+  assert.match(automationRecovery, /item\.conclusion !== "success"/);
+  assert.match(automationRecovery, /item\.run_attempt < 2/);
+  assert.match(automationRecovery, /sort\(\(a, b\) => new Date\(b\.created_at\) - new Date\(a\.created_at\)\)/);
+  assert.match(automationRecovery, /catch \(error\)/);
 });
 
 test("recuperação automática usa endpoint REST válido para reexecutar falhas", () => {
@@ -77,14 +82,19 @@ test("Android bloqueia regressões e divergências entre versionName, versionCod
   assert.ok(androidWorkflow.includes("current_code <= previous_code"));
   assert.ok(androidWorkflow.includes("versionCode changed without a versionName change"));
   assert.ok(androidWorkflow.includes("New versionName must also increase versionCode."));
-  assert.doesNotMatch(androidWorkflow, /scripts\/platform-resilience\.node-test\.mjs/);
-  assert.match(androidWorkflow, /android\/app\/src/);
-  assert.match(androidWorkflow, /android\/app\/build\.gradle/);
+  const releasePathFilters = [...androidWorkflow.matchAll(/^ {4}paths:\s*\n((?:^ {6}- .*\n)+)/gm)]
+    .map(match => match[1]).join("\n");
+  assert.match(releasePathFilters, /android\/app\/src/);
+  assert.match(releasePathFilters, /android\/app\/build\.gradle/);
+  assert.match(releasePathFilters, /android\/gradle\.properties/);
+  assert.doesNotMatch(releasePathFilters, /platform-resilience|android-emulator-smoke|android\/README/);
 });
 
 test("mudanças compartilhadas do site e testes web não disparam publicação Android assinada", () => {
-  assert.doesNotMatch(androidWorkflow, /src\/\*\*/);
-  assert.doesNotMatch(androidWorkflow, /scripts\/platform-resilience\.node-test\.mjs/);
+  const releasePathFilters = [...androidWorkflow.matchAll(/^ {4}paths:\s*\n((?:^ {6}- .*\n)+)/gm)]
+    .map(match => match[1]).join("\n");
+  assert.doesNotMatch(releasePathFilters, /^\s+- "src\/\*\*"/m);
+  assert.doesNotMatch(releasePathFilters, /scripts\/platform-resilience\.node-test\.mjs/);
   assert.match(androidSmokeWorkflow, /src\/\*\*/);
 });
 
@@ -461,10 +471,14 @@ test("smoke test Android tolera falhas transitórias do UIAutomator sem aceitar 
   assert.ok(androidSmokeScript.includes('grep -Eiq "Encontre concursos"'));
 });
 
-test("workflow de release Android roda novamente quando o teste de emulador muda", () => {
-  assert.ok(androidWorkflow.includes('      - "scripts/android-emulator-smoke.sh"'));
+test("workflow de release Android depende de alterações nativas, não do teste do emulador", () => {
+  const releasePathFilters = [...androidWorkflow.matchAll(/^ {4}paths:\s*\n((?:^ {6}- .*\n)+)/gm)]
+    .map(match => match[1]).join("\n");
+  assert.ok(releasePathFilters.includes('"android/app/src/**"'));
+  assert.ok(releasePathFilters.includes('".github/workflows/android-release.yml"'));
+  assert.ok(androidWorkflow.includes('      - "scripts/android-emulator-smoke.sh"') === false);
   assert.ok(androidWorkflow.includes('      - "scripts/platform-resilience.node-test.mjs"'));
-  assert.ok(androidWorkflow.includes('      - ".github/workflows/android-release.yml"'));
+  assert.match(androidSmokeWorkflow, /scripts\/android-emulator-smoke\.sh/);
 });
 
 test("Android tenta novamente automaticamente quando a conectividade validada retorna", () => {
