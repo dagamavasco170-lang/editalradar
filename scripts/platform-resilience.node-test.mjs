@@ -52,14 +52,19 @@ test("recuperação automática seleciona somente falhas recentes elegíveis da 
   assert.match(automationRecovery, /response\.data\.workflow_runs\s+\.filter\(item =>/);
   assert.match(automationRecovery, /\["schedule", "workflow_dispatch", "push"\]\.includes\(item\.event\)/);
   assert.match(automationRecovery, /item\.status === "completed"/);
-  assert.match(automationRecovery, /item\.conclusion !== "success"/);
+  assert.match(automationRecovery, /\["timed_out", "cancelled"\]\.includes\(item\.conclusion\)/);
+  assert.match(automationRecovery, /item\.run_attempt < 2/);
+  assert.match(automationRecovery, /listJobsForWorkflowRun/);
+  assert.match(automationRecovery, /job\.status === "completed"/);
+  assert.match(automationRecovery, /\["timed_out", "cancelled"\]\.includes\(job\.conclusion\)/);
+  assert.match(automationRecovery, /falhas determinísticas não são reexecutadas automaticamente/);
   assert.match(automationRecovery, /item\.run_attempt < 2/);
   assert.match(automationRecovery, /sort\(\(a, b\) => new Date\(b\.created_at\) - new Date\(a\.created_at\)\)/);
   assert.match(automationRecovery, /catch \(error\)/);
 });
 
 test("recuperação automática usa endpoint REST válido para reexecutar falhas", () => {
-  assert.match(automationRecovery, /POST \/repos\/\{owner\}\/\{repo\}\/actions\/runs\/\{run_id\}\/rerun-failed-jobs/);
+  assert.match(automationRecovery, /POST \/repos\/\{owner\}\/\{repo\}\/actions\/jobs\/\{job_id\}\/rerun/);
   assert.doesNotMatch(automationRecovery, /github\.rest\.actions\.reRunFailedJobs/);
 });
 
