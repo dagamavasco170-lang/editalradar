@@ -77,7 +77,15 @@ test("Android bloqueia regressões e divergências entre versionName, versionCod
   assert.ok(androidWorkflow.includes("current_code <= previous_code"));
   assert.ok(androidWorkflow.includes("versionCode changed without a versionName change"));
   assert.ok(androidWorkflow.includes("New versionName must also increase versionCode."));
-  assert.ok(androidWorkflow.includes('      - "scripts/platform-resilience.node-test.mjs"'));
+  assert.doesNotMatch(androidWorkflow, /scripts\/platform-resilience\.node-test\.mjs/);
+  assert.match(androidWorkflow, /android\/app\/src/);
+  assert.match(androidWorkflow, /android\/app\/build\.gradle/);
+});
+
+test("mudanças compartilhadas do site e testes web não disparam publicação Android assinada", () => {
+  assert.doesNotMatch(androidWorkflow, /src\/\*\*/);
+  assert.doesNotMatch(androidWorkflow, /scripts\/platform-resilience\.node-test\.mjs/);
+  assert.match(androidSmokeWorkflow, /src\/\*\*/);
 });
 
 test("workflow Android extrai versão do Gradle de forma consistente e docs apontam para versão estável", () => {
