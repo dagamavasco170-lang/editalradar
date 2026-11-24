@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { PayloadTooLargeError, readBoundedJsonBody } from "./request-limit.js";
 import {
   canScheduleFcmRetryBeforeExpiry,
   classifyFcmFailure,
@@ -213,9 +214,13 @@ Deno.serve(async (req: Request) => {
 
   let body: Record<string, unknown>;
   try {
-    body = await req.json();
-  } catch {
+    body = await readBoundedJsonBody(req);
+  } catch (error) {
+    if (error instanceof PayloadTooLargeError) return json({ error: "Payload muito grande." }, 413);
     return json({ error: "JSON inválido." }, 400);
+  }
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return json({ error: "Corpo da requisição inválido." }, 400);
   }
 
   let context: Awaited<ReturnType<typeof authenticate>>;
