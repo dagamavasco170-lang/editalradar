@@ -5,6 +5,7 @@ import { pathToFileURL } from "node:url";
 export function getSupabaseCredentialRole(value = "") {
   const key = String(value || "");
   if (key.startsWith("sb_secret_")) return "secret";
+  if (key.startsWith("sb_publishable_")) return "publishable";
   const parts = key.split(".");
   if (parts.length !== 3) return "unknown";
   try {
@@ -57,9 +58,9 @@ export async function publishDiscoveries(discoveries, options = {}) {
   }
 
   const credentialRole = getSupabaseCredentialRole(serviceRoleKey);
-  if (credentialRole === "anon") {
+  if (credentialRole === "anon" || credentialRole === "publishable") {
     throw new Error(
-      "SUPABASE_SERVICE_ROLE_KEY está autenticando como papel 'anon', sem privilégios de serviço. " +
+      "SUPABASE_SERVICE_ROLE_KEY está configurada como credencial pública (papel 'anon' ou publishable), sem privilégios de serviço. " +
       "Atualize esse secret no GitHub com a chave JWT legada 'service_role' do mesmo projeto Supabase. " +
       "Não conceda INSERT/SELECT ao papel anon: a fila administrativa deve continuar protegida."
     );
