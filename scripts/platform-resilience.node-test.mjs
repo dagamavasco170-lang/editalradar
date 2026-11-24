@@ -755,6 +755,8 @@ test("relatório Supabase suporta secret keys novas e JWT service_role legado", 
   assert.match(clientDiagnosticsSummary, /startsWith\("sb_secret_"\)/);
   assert.match(clientDiagnosticsSummary, /headers\.Authorization = "Bearer " \+ supabaseKey/);
   assert.match(clientDiagnosticsSummary, /legacy service_role JWTs/);
+  assert.match(clientDiagnosticsSummary, /new URL\(process\.env\.SUPABASE_URL\)\.hostname\.split\("\."\)/);
+  assert.doesNotMatch(clientDiagnosticsSummary, /match\(\/https:\/\/\(\[\.\^\]\+\)/);
 });
 
 test("GitHub recebe apenas métricas agregadas dos logs de cliente", () => {
