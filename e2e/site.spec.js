@@ -235,10 +235,10 @@ test("mostra o concurso PMESP aberto e sua remuneração oficial", async ({ page
 });
 
 
-test("apresenta PMPE e CBMPE com prorrogação de inscrição e faixas salariais por carreira", async ({ page }) => {
+test("apresenta PMPE e CBMPE com inscrições encerradas e faixas salariais por carreira", async ({ page }) => {
   await page.goto("./");
   await page.getByPlaceholder("Buscar cargo ou órgão...").fill("Pernambuco");
-  await expect(page.getByText("Inscrições abertas até 23/11/2026 às 14h").first()).toBeVisible();
+  await expect(page.getByText("Inscrições encerradas em 23/11/2026 às 14h").first()).toBeVisible();
   await expect(page.getByText("1.320").first()).toBeVisible();
   await expect(page.getByText("570").first()).toBeVisible();
 });
