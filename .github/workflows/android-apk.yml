@@ -1,18 +1,6 @@
 name: Build EditalRadar Android APK
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "android/app/src/**"
-      - "android/app/build.gradle"
-      - "android/build.gradle"
-      - "android/settings.gradle"
-      - "android/gradle.properties"
-      - "android/gradle/**"
-      - "android/gradlew"
-      - "android/gradlew.bat"
-      - ".github/workflows/android-apk.yml"
   workflow_dispatch:
 
 permissions:

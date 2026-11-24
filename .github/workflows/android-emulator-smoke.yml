@@ -95,6 +95,15 @@ jobs:
           emulator-boot-timeout: 900
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
           script: bash "$GITHUB_WORKSPACE/scripts/android-emulator-smoke.sh"
+      - name: Upload APK debug para instalação manual
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: EditalRadar-Android-APK
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 30
+
       - name: Upload Android lint and failure diagnostics
         if: always()
         uses: actions/upload-artifact@v7
