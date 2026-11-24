@@ -22,7 +22,24 @@ test("identifica o papel real da chave JWT sem expor a credencial", () => {
   assert.equal(getSupabaseCredentialRole(token("service_role")), "service_role");
   assert.equal(getSupabaseCredentialRole(token("anon")), "anon");
   assert.equal(getSupabaseCredentialRole("sb_secret_example"), "secret");
+  assert.equal(getSupabaseCredentialRole("sb_publishable_example"), "publishable");
   assert.equal(getSupabaseCredentialRole("not-a-jwt"), "unknown");
+});
+
+test("bloqueia chave publishable antes de tentar gravar a fila protegida", async () => {
+  const publishableKey = "sb_publishable_public-example";
+  await assert.rejects(() => publishDiscoveries([{
+    source_url: "https://orgao.gov.br/concursos",
+    candidate_url: "https://orgao.gov.br/edital.pdf",
+    discovery_key: "link:https://orgao.gov.br/edital.pdf",
+    title: "Edital novo",
+    context: "Página oficial",
+    discovery_type: "new_link"
+  }], {
+    supabaseUrl: "https://project.supabase.co",
+    serviceRoleKey: publishableKey,
+    fetchImpl: async () => { throw new Error("Não deveria enviar com chave pública"); }
+  }), /credencial pública/);
 });
 
 test("bloqueia credencial anon antes de tentar gravar a fila protegida", async () => {
@@ -39,7 +56,7 @@ test("bloqueia credencial anon antes de tentar gravar a fila protegida", async (
     supabaseUrl: "https://project.supabase.co",
     serviceRoleKey: anonKey,
     fetchImpl: async () => { called = true; throw new Error("Não deveria enviar com chave anon"); }
-  }), /autenticando como papel 'anon'/);
+  }), /credencial pública/);
   assert.equal(called, false);
 });
 
