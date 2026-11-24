@@ -1276,14 +1276,14 @@ export async function prepareDiscoveryDocument(item, request = fetch, options = 
   }
 
   const candidateUrl = candidate.toString();
+  if (/^\/concursos\/status\/(?:novos|inscricoes-abertas|em-andamento|resultados-disponiveis|finalizados)\/?$/i.test(candidate.pathname)) {
+    return { stage: "dismiss", reason: "Página geral de categoria da banca; aguardando links diretos de cada concurso, não uma ficha de edital." };
+  }
   if (isGenericOfficialLandingPage(candidateUrl)) {
     return {
       stage: "review",
       reason: "O endereço oficial aponta para uma página inicial, índice ou listagem genérica, não para um edital ou página específica de concurso. A pista permanece pendente para revisão humana."
     };
-  }
-  if (/^\/concursos\/status\/(?:novos|inscricoes-abertas|em-andamento|resultados-disponiveis|finalizados)\/?$/i.test(candidate.pathname)) {
-    return { stage: "dismiss", reason: "Página geral de categoria da banca; aguardando links diretos de cada concurso, não uma ficha de edital." };
   }
   let response;
   try {
