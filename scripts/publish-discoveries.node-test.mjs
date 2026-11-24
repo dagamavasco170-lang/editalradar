@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildDiscoveryRows, getSupabaseCredentialRole, publishDiscoveries } from "./publish-discoveries.mjs";
+import { assertSupabaseServiceCredential, buildDiscoveryRows, getSupabaseCredentialRole, publishDiscoveries } from "./publish-discoveries.mjs";
 
 test("prepara somente descobertas HTTPS válidas e elimina duplicatas", () => {
   const item = {
@@ -26,6 +26,15 @@ test("identifica o papel real da chave JWT sem expor a credencial", () => {
   assert.equal(getSupabaseCredentialRole("not-a-jwt"), "unknown");
 });
 
+test("aceita somente credencial service_role ou chave secreta", () => {
+  const token = role => "header." + Buffer.from(JSON.stringify({ role })).toString("base64url") + ".signature";
+  assert.equal(assertSupabaseServiceCredential(token("service_role")), "service_role");
+  assert.equal(assertSupabaseServiceCredential("sb_secret_test-example"), "secret");
+  assert.throws(() => assertSupabaseServiceCredential(token("anon")), /credencial pública/);
+  assert.throws(() => assertSupabaseServiceCredential("sb_publishable_test"), /credencial pública/);
+  assert.throws(() => assertSupabaseServiceCredential("not-a-jwt"), /credencial desconhecida/);
+});
+
 test("bloqueia chave publishable antes de tentar gravar a fila protegida", async () => {
   const publishableKey = "sb_publishable_public-example";
   await assert.rejects(() => publishDiscoveries([{
@@ -40,6 +49,23 @@ test("bloqueia chave publishable antes de tentar gravar a fila protegida", async
     serviceRoleKey: publishableKey,
     fetchImpl: async () => { throw new Error("Não deveria enviar com chave pública"); }
   }), /credencial pública/);
+});
+
+test("bloqueia credencial desconhecida antes de tentar gravar a fila protegida", async () => {
+  let called = false;
+  await assert.rejects(() => publishDiscoveries([{
+    source_url: "https://orgao.gov.br/concursos",
+    candidate_url: "https://orgao.gov.br/edital.pdf",
+    discovery_key: "link:https://orgao.gov.br/edital.pdf",
+    title: "Edital novo",
+    context: "Página oficial",
+    discovery_type: "new_link"
+  }], {
+    supabaseUrl: "https://project.supabase.co",
+    serviceRoleKey: "not-a-jwt",
+    fetchImpl: async () => { called = true; throw new Error("Não deveria enviar com credencial desconhecida"); }
+  }), /credencial desconhecida/);
+  assert.equal(called, false);
 });
 
 test("bloqueia credencial anon antes de tentar gravar a fila protegida", async () => {
@@ -80,7 +106,7 @@ test("envia descobertas para PostgREST usando conflito idempotente", async () =>
     discovery_type: "new_link"
   }], {
     supabaseUrl: "https://project.supabase.co/",
-    serviceRoleKey: "secret-test",
+    serviceRoleKey: "sb_secret_example",
     fetchImpl: async (url, options) => {
       request = { url, options };
       return { ok: true };
@@ -88,7 +114,8 @@ test("envia descobertas para PostgREST usando conflito idempotente", async () =>
   });
   assert.equal(result.published, 1);
   assert.match(request.url, /contest_discoveries\?on_conflict=/);
-  assert.equal(request.options.headers.Authorization, "Bearer secret-test");
+  assert.equal(request.options.headers.apikey, "sb_secret_example");
+  assert.equal(request.options.headers.Authorization, undefined);
   assert.equal(JSON.parse(request.options.body)[0].status, "pending");
 });
 
