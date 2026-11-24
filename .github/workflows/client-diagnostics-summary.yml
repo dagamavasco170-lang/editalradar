@@ -3,6 +3,10 @@ on:
   schedule:
     - cron: "15 9 * * *"
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/client-diagnostics-summary.yml"
 permissions:
   issues: write
 jobs:
