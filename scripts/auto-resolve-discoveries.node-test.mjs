@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { appendContext, buildPendingDiscoveriesUrl, buildNonActionablePendingDiscoveriesUrl, dismissNonActionablePendingDiscoveries, buildRetificationUpdate, classifyDiscovery, extractDocumentText, extractRoleNamesFromText, extractVacancyDetails, fetchCandidateWithRetry, findMatchingContestForRetification, inferOrganization, mapWithConcurrency, normalizeContestIdentity, prepareDiscoveryDocument, countPendingDiscoveries, requestJson, summarizeFetchError, assessNoticeFreshness, extractDeclaredPublisherUrl, resolveGoogleNewsArticleUrl, prioritizePendingDiscoveries, selectDiscoveriesForTriage, isClearlyUnrelatedAdministrativeDiscovery, isTrustedSecondaryNewsHost, extractOfficialReferenceLinks, fetchSecondaryNewsArticle } from "./auto-resolve-discoveries.mjs";
+import { appendContext, buildPendingDiscoveriesUrl, buildNonActionablePendingDiscoveriesUrl, dismissNonActionablePendingDiscoveries, buildRetificationUpdate, classifyDiscovery, extractDocumentText, extractRoleNamesFromText, extractVacancyDetails, fetchCandidateWithRetry, findMatchingContestForRetification, inferOrganization, mapWithConcurrency, normalizeContestIdentity, prepareDiscoveryDocument, isGenericOfficialLandingPage, countPendingDiscoveries, requestJson, summarizeFetchError, assessNoticeFreshness, extractDeclaredPublisherUrl, resolveGoogleNewsArticleUrl, prioritizePendingDiscoveries, selectDiscoveriesForTriage, isClearlyUnrelatedAdministrativeDiscovery, isTrustedSecondaryNewsHost, extractOfficialReferenceLinks, fetchSecondaryNewsArticle } from "./auto-resolve-discoveries.mjs";
 
 const discovery = {
   id: 1,
@@ -145,13 +145,19 @@ test("exige revisão quando a página não informa ano nem situação", () => {
 });
 
 test("mantém pistas externas pendentes quando o publisher resolve para uma página inicial genérica", async () => {
+  assert.equal(isGenericOfficialLandingPage("https://pontapora.ms.gov.br/v2/"), true);
+  assert.equal(
+    isGenericOfficialLandingPage("https://www.gov.br/cgu/pt-br/acesso-a-informacao/concursos/concursos-publicos/"),
+    true
+  );
+
   let fetchCalls = 0;
   const prepared = await prepareDiscoveryDocument({
     ...discovery,
     discovery_type: "web_search_lead",
-    title: "[Notícia para conferir] UFMS anuncia concurso — Prefeitura Municipal de Ponta Porã",
-    candidate_url: "https://pontapora.ms.gov.br/v2/",
-    context: "Endereço informado para a fonte: https://pontapora.ms.gov.br"
+    title: "[Notícia para conferir] Concurso citado em listagem ampla",
+    candidate_url: "https://www.cebraspe.org.br/concursos/inscricoes-abertas",
+    context: "Endereço informado para a fonte: https://www.cebraspe.org.br"
   }, async () => {
     fetchCalls += 1;
     return new Response("<h1>Concurso público</h1>", {
@@ -162,24 +168,6 @@ test("mantém pistas externas pendentes quando o publisher resolve para uma pág
 
   assert.equal(prepared.stage, "review");
   assert.match(prepared.reason, /página inicial|listagem genérica/i);
-  assert.equal(fetchCalls, 0);
-
-  const deepListing = await prepareDiscoveryDocument({
-    ...discovery,
-    discovery_type: "web_search_lead",
-    title: "[Notícia para conferir] Concurso citado por notícia secundária",
-    candidate_url: "https://www.gov.br/cgu/pt-br/acesso-a-informacao/concursos/concursos-publicos/",
-    context: "Endereço informado para a fonte: https://www.gov.br/cgu/"
-  }, async () => {
-    fetchCalls += 1;
-    return new Response("<h1>Concurso público</h1>", {
-      status: 200,
-      headers: { "Content-Type": "text/html" }
-    });
-  });
-
-  assert.equal(deepListing.stage, "review");
-  assert.match(deepListing.reason, /página inicial|listagem genérica/i);
   assert.equal(fetchCalls, 0);
 });
 
