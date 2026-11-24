@@ -31,6 +31,6 @@ describe("sanitizeResourceTarget", () => {
 
   it("uses a generic value for missing or invalid URLs", () => {
     expect(sanitizeResourceTarget("")).toBe("resource");
-    expect(sanitizeResourceTarget("not a valid url", undefined)).toBe("resource");
+    expect(sanitizeResourceTarget("not a valid url", null)).toBe("resource");
   });
 });
