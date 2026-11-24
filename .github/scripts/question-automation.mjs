@@ -376,6 +376,7 @@ async function main() {
   }, { generated: 0, approved: 0, manualReview: 0, rejected: 0 });
   console.log("Etapa 4/4: relatório");
   console.log(`Assuntos processados: ${result.processed || 0}`);
+  console.log(`Assuntos adiados por indisponibilidade temporária: ${result.deferred || 0}`);
   console.log(`Questões geradas: ${totals.generated}`);
   console.log(`Aprovadas automaticamente: ${totals.approved}`);
   console.log(`Retidas para revisão: ${totals.manualReview}`);
