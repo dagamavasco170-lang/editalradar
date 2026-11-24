@@ -324,6 +324,18 @@ describe("EditalRadar", () => {
     expect(screen.queryByText("Banco Central do Brasil")).not.toBeInTheDocument();
   });
 
+  it("limita as cidades ao estado escolhido e limpa cidade incompatível", () => {
+    render(<App />);
+    const citySelect = screen.getByLabelText("Cidade");
+    fireEvent.change(citySelect, { target: { value: "Paripueira" } });
+    fireEvent.change(screen.getByLabelText("Estado"), { target: { value: "Alagoas" } });
+    expect(citySelect).toHaveValue("Paripueira");
+    expect(screen.getByRole("option", { name: "Paripueira" })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Estado"), { target: { value: "Paraíba" } });
+    expect(citySelect).toHaveValue("Todas as cidades");
+    expect(screen.queryByRole("option", { name: "Paripueira" })).not.toBeInTheDocument();
+  });
+
   it("filtra por cidade e mostra oportunidades de Paripueira", () => {
     render(<App />);
 
