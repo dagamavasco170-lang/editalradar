@@ -1,5 +1,5 @@
 export const sourceUrl = "https://www.gov.br/gestao/pt-br/acesso-a-informacao/servidores/concursos-publicos/autorizacoes-e-provimentos";
-export const sourceUpdated = "Verificado em 21/11/2026";
+export const sourceUpdated = "Atualizado em 24/11/2026";
 export const fetchedAt = "2026-11-21T00:00:00-03:00";
 export const concursos = [
   {
@@ -751,7 +751,7 @@ export const concursos = [
     "vagasTotais": 1320,
     "vagasImediatas": 1320,
     "atoOficial": "Concurso Público nº 001/2026 — edital e retificações no Instituto AOCP",
-    "status": "Inscrições abertas até 23/11/2026 às 14h",
+    "status": "Inscrições encerradas em 23/11/2026 às 14h",
     "area": "Estadual",
     "estado": "Pernambuco",
     "localidade": "Pernambuco",
@@ -766,7 +766,7 @@ export const concursos = [
       "sourceLabel": "Instituto AOCP — prorrogação das inscrições PMPE e CBMPE",
       "verificadoEm": "2026-11-21"
     },
-    "observacao": "São 1.250 vagas para Soldado (nível médio) e 70 vagas para Oficiais, incluindo Oficial QOPM e Oficiais da Saúde. O salário inicial divulgado é de R$ 5.617,92 para Soldado e R$ 12.937,33 para Oficial. Prova objetiva prevista para 21/02/2027. Inscrições prorrogadas até 23/11/2026 às 14h, horário de Brasília."
+    "observacao": "São 1.250 vagas para Soldado (nível médio) e 70 vagas para Oficiais, incluindo Oficial QOPM e Oficiais da Saúde. O salário inicial divulgado é de R$ 5.617,92 para Soldado e R$ 12.937,33 para Oficial. Prova objetiva prevista para 21/02/2027. O prazo de inscrições informado pelo Instituto AOCP encerrou em 23/11/2026 às 14h, horário de Brasília. Acompanhe as próximas etapas no portal da organizadora."
   },
   {
     "id": 518,
@@ -794,7 +794,7 @@ export const concursos = [
       "sourceLabel": "Instituto AOCP — prorrogação das inscrições PMPE e CBMPE",
       "verificadoEm": "2026-11-21"
     },
-    "observacao": "São 510 vagas para Soldado (nível médio) e 60 vagas para Oficial Combatente (nível superior). O salário inicial divulgado é de R$ 5.617,92 para Soldado e R$ 12.937,33 para Oficial. Prova objetiva prevista para 28/02/2027. Inscrições prorrogadas até 23/11/2026 às 14h, horário de Brasília."
+    "observacao": "São 510 vagas para Soldado (nível médio) e 60 vagas para Oficial Combatente (nível superior). O salário inicial divulgado é de R$ 5.617,92 para Soldado e R$ 12.937,33 para Oficial. Prova objetiva prevista para 28/02/2027. A listagem de inscrições abertas do Instituto AOCP informava prazo até 23/11/2026 às 14h, já encerrado. Acompanhe as próximas etapas na página específica do certame e na área do candidato."
   }
 ];
 
