@@ -101,6 +101,6 @@ jobs:
               "- Artifacts vinculados a execuções ativas ignorados: **" + skippedActiveArtifacts + "**",
               "- Execuções em andamento não foram tocadas.",
               "- Retenção: 5 dias para runs e artifacts."
-            ].join("\\n");
+            ].join("\n");
             await core.summary.addRaw(summary).write();
             core.info(summary);
