@@ -217,9 +217,27 @@ async function fetchStudyText(sourceUrl) {
   throw new Error(String(lastError?.message || lastError || "Falha ao baixar material de estudo licenciado."));
 }
 
+function getJwtRole(value) {
+  const parts = String(value || "").split(".");
+  if (parts.length !== 3) return "unknown";
+  try {
+    const payload = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8"));
+    return typeof payload.role === "string" ? payload.role : "unknown";
+  } catch {
+    return "unknown";
+  }
+}
+
 async function main() {
   if (!SUPABASE_URL || !SERVICE_KEY) {
     throw new Error("Configure SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY nos GitHub Actions Secrets.");
+  }
+  const credentialRole = getJwtRole(SERVICE_KEY);
+  if (credentialRole !== "service_role") {
+    throw new Error(
+      "SUPABASE_SERVICE_ROLE_KEY precisa ser a chave JWT legada com role=service_role. " +
+      "A credencial configurada resolve para role=" + credentialRole + "; a automação agendada não aceitará uma chave anon/publishable."
+    );
   }
   console.log("Etapa 1/4: expandindo automaticamente o catálogo de matérias e assuntos.");
   const seed = await callQuestionFactory({ mode: "scheduled", seed_only: true });
