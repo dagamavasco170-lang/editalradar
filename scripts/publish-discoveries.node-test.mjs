@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildDiscoveryRows, publishDiscoveries } from "./publish-discoveries.mjs";
+import { buildDiscoveryRows, getSupabaseCredentialRole, publishDiscoveries } from "./publish-discoveries.mjs";
 
 test("prepara somente descobertas HTTPS válidas e elimina duplicatas", () => {
   const item = {
@@ -15,6 +15,32 @@ test("prepara somente descobertas HTTPS válidas e elimina duplicatas", () => {
   assert.equal(rows.length, 1);
   assert.equal(rows[0].status, "pending");
   assert.equal(rows[0].title, "Edital 2026");
+});
+
+test("identifica o papel real da chave JWT sem expor a credencial", () => {
+  const token = role => "header." + Buffer.from(JSON.stringify({ role })).toString("base64url") + ".signature";
+  assert.equal(getSupabaseCredentialRole(token("service_role")), "service_role");
+  assert.equal(getSupabaseCredentialRole(token("anon")), "anon");
+  assert.equal(getSupabaseCredentialRole("sb_secret_example"), "secret");
+  assert.equal(getSupabaseCredentialRole("not-a-jwt"), "unknown");
+});
+
+test("bloqueia credencial anon antes de tentar gravar a fila protegida", async () => {
+  let called = false;
+  const anonKey = "header." + Buffer.from(JSON.stringify({ role: "anon" })).toString("base64url") + ".signature";
+  await assert.rejects(() => publishDiscoveries([{
+    source_url: "https://orgao.gov.br/concursos",
+    candidate_url: "https://orgao.gov.br/edital.pdf",
+    discovery_key: "link:https://orgao.gov.br/edital.pdf",
+    title: "Edital novo",
+    context: "Página oficial",
+    discovery_type: "new_link"
+  }], {
+    supabaseUrl: "https://project.supabase.co",
+    serviceRoleKey: anonKey,
+    fetchImpl: async () => { called = true; throw new Error("Não deveria enviar com chave anon"); }
+  }), /autenticando como papel 'anon'/);
+  assert.equal(called, false);
 });
 
 test("não envia registros quando não há descobertas válidas", async () => {
