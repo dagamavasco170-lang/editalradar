@@ -38,9 +38,14 @@ jobs:
                 credentialRole = typeof payload.role === "string" ? payload.role : "unknown";
               } catch { /* A chave não é um JWT legível; nunca registrar seu conteúdo. */ }
             }
-            if (credentialRole === "anon" || credentialRole === "publishable") {
+            if (credentialRole !== "service_role" && credentialRole !== "secret") {
+              const classification = credentialRole === "anon" || credentialRole === "publishable"
+                ? "credencial pública"
+                : "credencial desconhecida ou sem papel de serviço";
               throw new Error(
-                "SUPABASE_SERVICE_ROLE_KEY está configurada como credencial pública (" + credentialRole + "). Atualize o secret no GitHub com a chave service_role do mesmo projeto; não libere acesso público à tabela de diagnósticos."
+                "SUPABASE_SERVICE_ROLE_KEY está configurada como " + classification + " (" + credentialRole + "). " +
+                "Configure uma chave secreta sb_secret_* ou uma JWT legada com papel service_role do mesmo projeto; " +
+                "não libere acesso público à tabela de diagnósticos."
               );
             }
             // New sb_secret_* keys authenticate via apikey only; legacy service_role JWTs
