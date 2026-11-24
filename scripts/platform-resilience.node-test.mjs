@@ -72,6 +72,10 @@ test("automação de questões agendada exige credencial service_role", () => {
   assert.match(questionFactory, /async function verifyLegacyServiceRoleToken/);
   assert.match(questionFactory, /payload\?\.role !== "service_role"/);
   assert.match(questionFactory, /study_question_automation_topics\?select=id&limit=0/);
+  assert.match(questionFactory, /const maxAttempts = 2/);
+  assert.match(questionFactory, /transientStatuses = new Set\(\[429, 500, 502, 503, 504\]\)/);
+  assert.match(questionFactory, /Gemini HTTP .* repetindo uma única vez após espera curta/);
+  assert.match(questionFactory, /Nenhum provedor alternativo será acionado/);
 });
 
 test("resumo de diagnósticos identifica chave anon sem abrir permissões públicas", () => {
