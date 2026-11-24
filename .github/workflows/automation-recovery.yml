@@ -60,10 +60,13 @@ jobs:
                 core.info(target.label + ": limite de uma reexecução já atingido.");
                 continue;
               }
-              await github.rest.actions.reRunFailedJobs({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                run_id: run.id
-              });
+              await github.request(
+                "POST /repos/{owner}/{repo}/actions/runs/{run_id}/rerun-failed-jobs",
+                {
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  run_id: run.id
+                }
+              );
               core.warning(target.label + ": reexecução de falhas iniciada para run #" + run.id + ".");
             }
