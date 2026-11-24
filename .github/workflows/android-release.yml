@@ -433,17 +433,51 @@ jobs:
     steps:
       - name: Skip already published version
         id: tag_check
+        uses: actions/github-script@v8
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION_NAME: ${{ needs.android-build.outputs.version_name }}
-        shell: bash
-        run: |
-          if gh release view "android-v${VERSION_NAME}" >/dev/null 2>&1; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-            echo "::notice::A versão android-v${VERSION_NAME} já existe; não será sobrescrita."
-          else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-          fi
+        with:
+          script: |
+            const version = String(process.env.VERSION_NAME || "").trim();
+            if (!version) throw new Error("Não foi possível identificar a versão Android para publicar.");
+            const tag = "android-v" + version;
+            let release;
+            try {
+              const response = await github.rest.repos.getReleaseByTag({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag
+              });
+              release = response.data;
+            } catch (error) {
+              if (error.status === 404) {
+                core.setOutput("exists", "false");
+                core.info("Nenhuma release existente para " + tag + "; publicação poderá continuar.");
+                return;
+              }
+              throw error;
+            }
+
+            const expectedAssets = [
+              "EditalRadar-Android-v" + version + ".apk",
+              "EditalRadar-Android-v" + version + ".aab",
+              "SHA256SUMS.txt"
+            ];
+            const uploadedAssets = new Set((release.assets || [])
+              .filter(asset => asset.state === "uploaded")
+              .map(asset => asset.name));
+            const complete = !release.draft
+              && expectedAssets.every(name => uploadedAssets.has(name));
+
+            if (!complete) {
+              throw new Error(
+                "A release " + tag + " já existe, mas está em rascunho ou sem APK/AAB/SHA256 completos. " +
+                "Publicação automática interrompida para evitar sobrescrever ou corromper artefatos existentes."
+              );
+            }
+
+            core.setOutput("exists", "true");
+            core.notice("A release pública " + tag + " já contém APK, AAB e SHA256; publicação duplicada ignorada.");
 
       - name: Download signed release assets
         if: steps.tag_check.outputs.exists != 'true'
@@ -489,6 +523,7 @@ jobs:
         if: steps.tag_check.outputs.exists != 'true'
         uses: softprops/action-gh-release@v3
         with:
+          token: ${{ github.token }}
           tag_name: android-v${{ needs.android-build.outputs.version_name }}
           name: EditalRadar Android v${{ needs.android-build.outputs.version_name }}
           target_commitish: ${{ github.sha }}
