@@ -46,7 +46,26 @@ jobs:
               const runs = response.data.workflow_runs.filter(run => run.event === "schedule" || run.event === "workflow_dispatch");
               const latest = runs[0];
               if (!latest) {
-                problems.push("**" + workflow.label + "**: nenhuma execução agendada/manual encontrada.");
+                // A automação pode ter sido criada depois da última janela do cron.
+                // Só alertamos pela ausência de histórico após uma janela completa.
+                const metadata = await github.rest.actions.getWorkflow({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  workflow_id: workflow.file
+                });
+                const createdAt = metadata.data.created_at || metadata.data.updated_at;
+                const ageSinceCreationHours = createdAt
+                  ? (now - new Date(createdAt).getTime()) / 3600000
+                  : Number.POSITIVE_INFINITY;
+                if (ageSinceCreationHours <= workflow.maxAgeHours) {
+                  healthy.push("**" + workflow.label + "**: aguardando primeira execução agendada/manual (" +
+                    ageSinceCreationHours.toFixed(1) + "h desde a criação; janela inicial " +
+                    workflow.maxAgeHours + "h).");
+                } else {
+                  problems.push("**" + workflow.label + "**: nenhuma execução agendada/manual após " +
+                    ageSinceCreationHours.toFixed(1) + "h desde a criação (limite " +
+                    workflow.maxAgeHours + "h).");
+                }
                 continue;
               }
               const ageHours = (now - new Date(latest.created_at).getTime()) / 3600000;
