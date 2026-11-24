@@ -2,6 +2,19 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
+export function getSupabaseCredentialRole(value = "") {
+  const key = String(value || "");
+  if (key.startsWith("sb_secret_")) return "secret";
+  const parts = key.split(".");
+  if (parts.length !== 3) return "unknown";
+  try {
+    const payload = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8"));
+    return typeof payload.role === "string" ? payload.role : "unknown";
+  } catch {
+    return "unknown";
+  }
+}
+
 export function buildDiscoveryRows(discoveries = []) {
   const unique = new Map();
   for (const item of discoveries) {
@@ -41,6 +54,15 @@ export async function publishDiscoveries(discoveries, options = {}) {
   }
   if (new URL(supabaseUrl).protocol !== "https:") {
     throw new Error("SUPABASE_URL precisa usar HTTPS.");
+  }
+
+  const credentialRole = getSupabaseCredentialRole(serviceRoleKey);
+  if (credentialRole === "anon") {
+    throw new Error(
+      "SUPABASE_SERVICE_ROLE_KEY está autenticando como papel 'anon', sem privilégios de serviço. " +
+      "Atualize esse secret no GitHub com a chave JWT legada 'service_role' do mesmo projeto Supabase. " +
+      "Não conceda INSERT/SELECT ao papel anon: a fila administrativa deve continuar protegida."
+    );
   }
 
   const request = options.fetchImpl || fetch;
