@@ -1,12 +1,12 @@
 name: Relatório automático de falhas do GitHub
 on:
   workflow_run:
+    # The newer automation-failure-alert.yml already handles build, emulator,
+    # source-monitor, question automation, health and recovery workflows.
+    # Keep this reporter only for Android release and CodeQL, which it uniquely covers.
     workflows:
-      - "Test, build and deploy EditalRadar"
       - "Build and publish EditalRadar Android release"
-      - "Android emulator smoke test"
       - "Análise de segurança CodeQL"
-      - "Monitorar e recuperar automações"
     types: [completed]
 permissions:
   actions: read
