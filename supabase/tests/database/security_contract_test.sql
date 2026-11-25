@@ -2,7 +2,7 @@
 -- Catalog-only assertions: no production data is read or modified.
 begin;
 
-select plan(41);
+select plan(43);
 
 select ok(
   not has_schema_privilege('anon', 'pgmq', 'USAGE'),
