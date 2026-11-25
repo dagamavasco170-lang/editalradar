@@ -440,6 +440,26 @@ describe("EditalRadar", () => {
     expect(screen.queryByText(/Supabase|SQL Editor|VITE_SUPABASE|GitHub Actions/)).not.toBeInTheDocument();
   });
 
+  it("mantém o foco dentro do diálogo, fecha com Escape e devolve o foco ao acionador", () => {
+    render(<App />);
+    const trigger = screen.getByRole("button", { name: "Como instalar" });
+    fireEvent.click(trigger);
+
+    const dialog = screen.getByRole("dialog", { name: "Instale o EditalRadar" });
+    const confirmButton = within(dialog).getByRole("button", { name: "Entendi" });
+    const closeButton = within(dialog).getByRole("button", { name: "Fechar instruções de instalação" });
+    expect(document.activeElement).toBe(confirmButton);
+
+    fireEvent.keyDown(confirmButton, { key: "Tab" });
+    expect(document.activeElement).toBe(closeButton);
+    fireEvent.keyDown(closeButton, { key: "Tab", shiftKey: true });
+    expect(document.activeElement).toBe(confirmButton);
+
+    fireEvent.keyDown(confirmButton, { key: "Escape" });
+    expect(screen.queryByRole("dialog", { name: "Instale o EditalRadar" })).not.toBeInTheDocument();
+    expect(document.activeElement).toBe(trigger);
+  });
+
   it("fecha o modal de autenticação pelo botão de fechar", () => {
     render(<App />);
 
@@ -555,6 +575,19 @@ describe("EditalRadar", () => {
       .toHaveAttribute("href", "https://inbraedem.selecao.net.br/area-candidato/concurso/4/inscricao");
     expect(screen.getByRole("link", { name: /Acessar fonte oficial/ }))
       .toHaveAttribute("href", "https://inbraedem.selecao.net.br/informacoes/4/");
+  });
+
+  it("move o foco para o título dos detalhes e o restaura ao botão que abriu a ficha", () => {
+    render(<App />);
+    const trigger = screen.getAllByRole("button", { name: /Ver detalhes/ })[0];
+    const returnKey = trigger.getAttribute("data-detail-focus-return");
+    fireEvent.click(trigger);
+
+    const heading = screen.getByRole("heading", { level: 1, name: "Auditor — Carreira de Especialista" });
+    expect(document.activeElement).toBe(heading);
+
+    fireEvent.click(screen.getByRole("button", { name: /Voltar para concursos/ }));
+    expect(document.activeElement).toHaveAttribute("data-detail-focus-return", returnKey);
   });
 
   it("compara duas oportunidades lado a lado e informa quando a remuneração não está cadastrada", () => {
