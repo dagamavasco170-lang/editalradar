@@ -112,6 +112,38 @@ describe("Atualização temporal do catálogo", () => {
     expect(contest.observacao).toMatch(/não representa vagas efetivas adicionais/);
   });
 
+
+  it("mantém TJPB no catálogo como inscrições encerradas e preserva benefícios separados", () => {
+    const contest = concursos.find((item) => item.id === 526);
+    expect(contest).toBeDefined();
+    expect(contest.vagas).toBe(50);
+    expect(contest.status).toMatch(/encerradas em 18\/11\/2026/);
+    expect(contest.remuneracao.valor).toBe(7526.14);
+    expect(contest.remuneracao.observacao).toContain("auxílio-alimentação");
+    expect(contest.documentos[0].url).toContain("edital-retificado-tjpb");
+  });
+
+  it("mantém TRF5 com 11 vagas e prazo encerrado, sem inferir cadastro reserva numérico", () => {
+    const contest = concursos.find((item) => item.id === 527);
+    expect(contest).toBeDefined();
+    expect(contest.vagas).toBe(11);
+    expect(contest.status).toMatch(/encerradas em 28\/09\/2026/);
+    expect(contest.remuneracao.valor).toBe(37765.55);
+    expect(contest.observacao).toContain("ENAM");
+    expect(contest.cadastroReserva).toBeUndefined();
+  });
+
+  it("cadastra Salvador Guarda Municipal com 50 vagas e prova futura", () => {
+    const contest = concursos.find((item) => item.id === 528);
+    expect(contest).toBeDefined();
+    expect(contest.estado).toBe("Bahia");
+    expect(contest.vagas).toBe(50);
+    expect(contest.status).toMatch(/encerradas em 30\/10\/2026/);
+    expect(contest.observacao).toMatch(/17\/01\/2027/);
+    expect(contest.remuneracao.valor).toBe(3546.42);
+    expect(contest.remuneracao.observacao).toContain("R$ 1.773,21");
+  });
+
   it("registra a data da atualização do conjunto estático", () => {
     expect(sourceUpdated).toBe("Atualizado em 25/11/2026");
   });
