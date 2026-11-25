@@ -2,7 +2,16 @@
 -- Catalog-only assertions: no production data is read or modified.
 begin;
 
-select plan(38);
+select plan(40);
+
+select ok(
+  not has_schema_privilege('anon', 'pgmq', 'USAGE'),
+  'anon cannot use pgmq schema'
+);
+select ok(
+  not has_schema_privilege('authenticated', 'pgmq', 'USAGE'),
+  'authenticated cannot use pgmq schema'
+);
 
 select ok(
   (select relrowsecurity from pg_class where oid = 'pgmq.q_push_delivery_retries'::regclass),
