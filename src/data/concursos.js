@@ -717,17 +717,34 @@ export const concursos = [
     "sigla": "PMESP",
     "cargo": "Aluno-Soldado PM do Quadro de Praças",
     "orgao": "Polícia Militar do Estado de São Paulo",
-    "vinculo": "Concurso público PMES2603",
+    "vinculo": "Concurso público PMES2603 · Edital DP-4/321/26",
     "nivel": "Médio",
     "vagas": 2000,
     "vagasTotais": 2000,
     "vagasImediatas": 2000,
-    "atoOficial": "Concurso PMES2603 — edital e documentos na Fundação Vunesp",
+    "atoOficial": "Edital DP-4/321/26 — Concurso para Aluno-Soldado PM (PMES2603)",
     "status": "Inscrições abertas até 22/12/2026",
+    "periodoInscricao": {
+      "inicio": "2026-11-09",
+      "fim": "2026-12-22",
+      "inicioHoraLocal": "10:00",
+      "fimHoraLocal": "23:59",
+      "fonteUrl": "https://portaldenoticias.policiamilitar.sp.gov.br/pmesp-abre-concurso-com-2-mil-vagas-para-aluno-soldado/",
+      "fonteDescricao": "Portal oficial de notícias da PMESP · comunicado de 05/11/2026",
+      "verificadoEm": "2026-11-25"
+    },
     "area": "Estadual",
     "estado": "São Paulo",
     "localidade": "São Paulo e demais cidades de aplicação indicadas pela Vunesp",
-    "sourceUrl": "https://www.vunesp.com.br/PMES2603",
+    "sourceUrl": "https://concursos.policiamilitar.sp.gov.br/concursos/edital-dp-4-321-26-concurso-para-aluno-soldado-pm/",
+    "inscricaoUrl": "https://www.vunesp.com.br/PMES2603",
+    "documentos": [
+      {
+        "title": "Comunicado oficial sobre inscrições e prova — PMESP, 05/11/2026",
+        "url": "https://portaldenoticias.policiamilitar.sp.gov.br/pmesp-abre-concurso-com-2-mil-vagas-para-aluno-soldado/",
+        "description": "Confirma o período de inscrição de 09/11/2026 às 10h a 22/12/2026 às 23h59 e prova prevista para 28/02/2027."
+      }
+    ],
     "remuneracao": {
       "valor": 5482.51,
       "moeda": "BRL",
@@ -738,7 +755,7 @@ export const concursos = [
       "sourceLabel": "Fundação Vunesp — concurso PMES2603",
       "verificadoEm": "2026-11-21"
     },
-    "observacao": "A Fundação Vunesp informa 2.000 vagas para Aluno-Soldado PM, inscrições de 09/11 a 22/12/2026 e exames de conhecimentos previstos para 28/02/2027. A ficha deve ser atualizada quando houver novas retificações."
+    "observacao": "São 2.000 cargos de Aluno-Soldado PM. O portal oficial da PMESP lista o Edital DP-4/321/26 em andamento. Inscrições de 09/11/2026 às 10h a 22/12/2026 às 23h59 (horário de Brasília). Exame de conhecimentos previsto para 28/02/2027. A taxa é R$ 110; consulte o edital e a Vunesp para requisitos e atualizações."
   },
   {
     "id": 517,
@@ -1199,6 +1216,120 @@ export const concursos = [
     },
     "observacao": "Concurso para 50 vagas imediatas de Guarda Civil Municipal de Salvador, com formação de cadastro de reserva. Inscrições encerradas em 30/10/2026; o prazo de pagamento do boleto terminou em 20/11/2026. Prova objetiva prevista para 17/01/2027. A retificação de 18/11/2026 e os resultados recentes devem ser acompanhados no portal oficial da FGV."
   },
+  {
+    "id": 529,
+    "sigla": "ITUPEVA-004",
+    "cargo": "Diversos cargos — Edital nº 004/2026",
+    "orgao": "Prefeitura Municipal de Itupeva",
+    "vinculo": "Concurso público · Edital nº 004/2026",
+    "nivel": "Fundamental, Médio, Técnico e Superior",
+    "vagas": 72,
+    "vagasTotais": 72,
+    "vagasImediatas": 72,
+    "atoOficial": "Concurso Público nº 004/2026 — Prefeitura de Itupeva",
+    "status": "Edital publicado · inscrições começam em 30/11/2026",
+    "periodoInscricao": {
+      "inicio": "2026-11-30",
+      "fim": "2026-12-27",
+      "inicioHoraLocal": null,
+      "fimHoraLocal": null,
+      "fonteUrl": "https://www.itupeva.sp.gov.br/noticias/prefeitura-de-itupeva-abre-concurso-publico-com-79-vagas-e-salarios-de-ate-r-132-mil",
+      "fonteDescricao": "Prefeitura de Itupeva · comunicado oficial de 23/11/2026",
+      "verificadoEm": "2026-11-25"
+    },
+    "area": "Municipal",
+    "estado": "São Paulo",
+    "localidade": "Itupeva",
+    "sourceUrl": "https://www.itupeva.sp.gov.br/noticias/prefeitura-de-itupeva-abre-concurso-publico-com-79-vagas-e-salarios-de-ate-r-132-mil",
+    "documentos": [
+      {
+        "title": "Comunicado oficial — concursos 004/2026 e 005/2026",
+        "url": "https://www.itupeva.sp.gov.br/noticias/prefeitura-de-itupeva-abre-concurso-publico-com-79-vagas-e-salarios-de-ate-r-132-mil",
+        "description": "A Prefeitura confirma 79 vagas efetivas nos dois editais, início e fim das inscrições e conteúdo geral dos cargos."
+      }
+    ],
+    "observacao": "O edital 004/2026 reúne cargos de serviços gerais, administração, segurança do trabalho, obras, agrimensura, meio ambiente, saúde, assistência social, educação e áreas técnicas/superiores. A Prefeitura informa 79 vagas efetivas somadas nos editais 004 e 005; o edital 005 tem sete vagas imediatas explicitamente identificadas, portanto este registro atribui 72 ao edital 004 por diferença. Há cadastro reserva além das vagas imediatas, sem quantitativo divulgado. Inscrições de 30/11 a 27/12/2026; o comunicado não especifica horários de abertura/encerramento."
+  },
+  {
+    "id": 530,
+    "sigla": "ITUPEVA-005",
+    "cargo": "Condutor de Veículos de Urgência, Motorista de Veículos Leves e Pesados e Operador de Empilhadeira",
+    "orgao": "Prefeitura Municipal de Itupeva",
+    "vinculo": "Concurso público · Edital nº 005/2026",
+    "nivel": "Consultar edital",
+    "vagas": 7,
+    "vagasTotais": 7,
+    "vagasImediatas": 7,
+    "atoOficial": "Concurso Público nº 005/2026 — Prefeitura de Itupeva",
+    "status": "Edital publicado · inscrições começam em 30/11/2026",
+    "periodoInscricao": {
+      "inicio": "2026-11-30",
+      "fim": "2026-12-27",
+      "inicioHoraLocal": null,
+      "fimHoraLocal": null,
+      "fonteUrl": "https://www.itupeva.sp.gov.br/noticias/prefeitura-de-itupeva-abre-concurso-publico-com-79-vagas-e-salarios-de-ate-r-132-mil",
+      "fonteDescricao": "Prefeitura de Itupeva · comunicado oficial de 23/11/2026",
+      "verificadoEm": "2026-11-25"
+    },
+    "area": "Municipal",
+    "estado": "São Paulo",
+    "localidade": "Itupeva",
+    "sourceUrl": "https://www.itupeva.sp.gov.br/noticias/prefeitura-de-itupeva-abre-concurso-publico-com-79-vagas-e-salarios-de-ate-r-132-mil",
+    "documentos": [
+      {
+        "title": "Comunicado oficial — concursos 004/2026 e 005/2026",
+        "url": "https://www.itupeva.sp.gov.br/noticias/prefeitura-de-itupeva-abre-concurso-publico-com-79-vagas-e-salarios-de-ate-r-132-mil",
+        "description": "A Prefeitura identifica sete vagas imediatas no edital 005/2026 e cronograma de inscrição compartilhado."
+      }
+    ],
+    "observacao": "O edital 005/2026 oferece sete vagas imediatas para condutor de veículos de urgência, motoristas de veículos leves e pesados e operador de empilhadeira, além de cadastro reserva. Inscrições de 30/11 a 27/12/2026. O comunicado municipal não detalha a distribuição das sete vagas entre os cargos nem os horários de abertura e encerramento; consulte o edital completo no portal do IDCAP."
+  },
+  {
+    "id": 531,
+    "sigla": "COFEN",
+    "cargo": "13 cargos efetivos previstos — nível superior (quantitativo de vagas a divulgar)",
+    "orgao": "Conselho Federal de Enfermagem",
+    "vinculo": "Concurso público · banca Quadrix definida",
+    "nivel": "Superior",
+    "vagas": null,
+    "atoOficial": "Cofen confirmou o Instituto Quadrix como banca em 27/10/2025",
+    "status": "Pré-edital · banca Quadrix; inscrições não disponíveis",
+    "area": "Federal",
+    "estado": "Distrito Federal",
+    "localidade": "Brasília",
+    "sourceUrl": "https://quadrix.org.br/informacoes/3002/",
+    "documentos": [
+      {
+        "title": "Cofen confirma o Instituto Quadrix como banca organizadora",
+        "url": "https://www.cofen.gov.br/cofen-confirma-instituto-quadrix-como-banca-organizadora-de-novo-concurso-publico/",
+        "description": "Comunicado oficial do Cofen lista 13 cargos previstos e informa que vagas, edital e cronograma seriam divulgados posteriormente."
+      }
+    ],
+    "observacao": "Registro preliminar, não é edital publicado nem inscrição aberta. O Cofen confirmou a Quadrix como banca e listou 13 cargos de nível superior em comunicado oficial de 27/10/2025. Em 25/11/2026, a página oficial da Quadrix ainda classifica o concurso como Em breve, sem inscrições ou quantitativo de vagas disponível. Não há prazo de inscrição confirmado."
+  },
+  {
+    "id": 532,
+    "sigla": "COREN-SP",
+    "cargo": "Nove cargos efetivos autorizados — quantitativo de vagas a divulgar",
+    "orgao": "Conselho Regional de Enfermagem de São Paulo",
+    "vinculo": "Concurso público · autorização e comissão organizadora",
+    "nivel": "Médio e Superior",
+    "vagas": null,
+    "atoOficial": "Autorização e comissão organizadora publicadas no DOU em 18/08/2026",
+    "status": "Autorizado · pré-edital; banca Quadrix informa Em breve",
+    "area": "Federal",
+    "estado": "São Paulo",
+    "localidade": "São Paulo",
+    "sourceUrl": "https://quadrix.org.br/informacoes/3075/",
+    "documentos": [
+      {
+        "title": "Ato de autorização do concurso e constituição da comissão — DOU, 18/08/2026",
+        "url": "https://ouvidoria.cofen.gov.br/uploads/625067-portaria-ple-25-2.pdf",
+        "description": "Publicação no Diário Oficial da União autoriza o concurso, lista nove cargos efetivos e cria a comissão organizadora interna."
+      }
+    ],
+    "observacao": "Registro de pré-edital. O DOU de 18/08/2026 autoriza o concurso para nove cargos efetivos: assistente administrativo, contador, analista de ciência de dados e IA, analista de desenvolvimento de sistemas, analista de suporte à gestão, analista técnico, auditor, enfermeiro de apoio às atividades finalísticas e enfermeiro fiscal. O ato cria a comissão organizadora. A página oficial da Quadrix informa situação Em breve; não há número de vagas, edital de abertura nem prazo de inscrição confirmado."
+  }
 
 ]; 
 
