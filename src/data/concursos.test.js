@@ -96,6 +96,22 @@ describe("Atualização temporal do catálogo", () => {
     expect(contest.remuneracao.observacao).toContain("R$ 10.318,93");
   });
 
+
+  it("cadastra SEDUC-SP com apenas as 5.000 vagas efetivas e inscrição futura", () => {
+    const contest = concursos.find((item) => item.id === 525);
+    expect(contest).toBeDefined();
+    expect(contest.orgao).toBe("Secretaria da Educação do Estado de São Paulo");
+    expect(contest.vagas).toBe(5000);
+    expect(contest.vagasTotais).toBe(5000);
+    expect(contest.status).toMatch(/inscrições começam em 26\/11\/2026 às 16h/i);
+    expect(contest.sourceUrl).toBe("https://conhecimento.fgv.br/concursos/concursoseducsp27");
+    expect(contest.documentos[0].url).toBe("https://conhecimento.fgv.br/sites/default/files/concursos/edital_pefm_2027_retificado.pdf");
+    expect(contest.remuneracao.natureza).toContain("R$ 3.478,13");
+    expect(contest.remuneracao.natureza).toContain("R$ 5.565,00");
+    expect(contest.observacao).toMatch(/lista separada para contratação temporária/);
+    expect(contest.observacao).toMatch(/não representa vagas efetivas adicionais/);
+  });
+
   it("registra a data da atualização do conjunto estático", () => {
     expect(sourceUpdated).toBe("Atualizado em 25/11/2026");
   });
