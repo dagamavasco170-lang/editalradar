@@ -6,7 +6,7 @@ import { scoreRecommendation, getRecommendationReasons } from "./App.jsx";
 import { buildCatalogSnapshot, getVisibleNotifications } from "./lib/notifications";
 
 const catalogResultCount = concursos.length;
-const nonPreliminaryResultCount = concursos.filter((item) => !/concurso listado\\s*·\\s*verificar/i.test(item.status || "")).length;
+const nonPreliminaryResultCount = concursos.filter((item) => !/concurso listado\s*·\s*verificar/i.test(item.status || "")).length;
 
 describe("EditalRadar", () => {
   it("migra a preferência de modo escuro gravada pelas versões anteriores", () => {
