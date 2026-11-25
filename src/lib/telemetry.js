@@ -35,10 +35,10 @@ function safeText(value, limit = 1000) {
     }
   }
   return String(text ?? "")
-    .replace(/[\\w.+-]+@[\\w.-]+\\.[A-Za-z]{2,}/g, "[email]")
-    .replace(/Bearer\\s+[A-Za-z0-9._~-]+/gi, "Bearer [redacted]")
-    .replace(/(token|password|secret|apikey|api_key|authorization|private_key)\\s*[:=]\\s*[^\\s,;]+/gi, "$1=[redacted]")
-    .replace(/https?:\\/\\/[^\\s<>"']+/gi, (value) => {
+    .replace(/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/g, "[email]")
+    .replace(/Bearer\s+[A-Za-z0-9._~-]+/gi, "Bearer [redacted]")
+    .replace(/(token|password|secret|apikey|api_key|authorization|private_key)\s*[:=]\s*[^\s,;]+/gi, "$1=[redacted]")
+    .replace(/https?:\/\/[^\s<>"']+/gi, (value) => {
       try {
         const url = new URL(value);
         return url.origin + url.pathname;
@@ -46,11 +46,10 @@ function safeText(value, limit = 1000) {
         return "[url]";
       }
     })
-    .replace(/\\b[A-Za-z0-9_-]{20,}\\.[A-Za-z0-9_-]{20,}\\.[A-Za-z0-9_-]{20,}\\b/g, "[jwt]")
-    .replace(/\\b(?:[A-Fa-f0-9_-]{32,})\\b/g, "[token]")
+    .replace(/\b[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\b/g, "[jwt]")
+    .replace(/\b(?:[A-Fa-f0-9_-]{32,})\b/g, "[token]")
     .slice(0, limit);
 }
-
 export function createDiagnosticEntry({ level = "error", event = "client_error", message = "", stack = "" } = {}) {
   const isNative = isAndroidApp();
   return {
