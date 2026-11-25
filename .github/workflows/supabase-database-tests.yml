@@ -18,19 +18,22 @@ concurrency:
 jobs:
   migration-replay-and-pgtap:
     name: Replay migrations and run pgTAP
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Set up Supabase CLI
-        uses: supabase/setup-cli@v1
+        uses: supabase/setup-cli@v3
         with:
-          version: latest
+          version: 3.4.0
 
-      # The repository intentionally has no committed Supabase config.toml yet.
-      # Generate an ephemeral default config in this disposable GitHub runner.
+      - name: Show Supabase CLI version
+        run: supabase --version
+
+      # CLI v3.4.0 creates an ephemeral config.jsonc in this disposable runner.
+      # The job is intentionally unlinked and uses only the local stack.
       - name: Initialize ephemeral local Supabase config
         run: supabase init
 
