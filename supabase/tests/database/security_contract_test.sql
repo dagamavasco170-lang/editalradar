@@ -2,7 +2,7 @@
 -- Catalog-only assertions: no production data is read or modified.
 begin;
 
-select plan(17);
+select plan(19);
 
 select ok(
   (select relrowsecurity from pg_class where oid = 'public.study_question_answers'::regclass),
@@ -105,6 +105,31 @@ select ok(
   position('original_content' in lower(pg_get_functiondef('public.check_study_question_answer(bigint,text)'::regprocedure))) > 0
   and position('review_status' in lower(pg_get_functiondef('public.check_study_question_answer(bigint,text)'::regprocedure))) > 0,
   'answer-check RPC only allows reviewed original AI content'
+);
+select ok(
+  exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'study_questions'
+      and policyname = 'Read published licensed questions or admin review'
+      and cmd = 'SELECT'
+      and position('license_proof_url' in lower(qual)) > 0
+      and position('review_status' in lower(qual)) > 0
+  ),
+  'public question SELECT policy enforces proof and reviewed-AI eligibility'
+);
+select ok(
+  exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'study_questions'
+      and policyname = 'Admins can insert study questions'
+      and cmd = 'INSERT'
+      and position('created_by' in lower(with_check)) > 0
+      and position('auth.uid()' in lower(with_check)) > 0
+      and position('app_metadata' in lower(with_check)) > 0
+  ),
+  'question insertion requires admin app_metadata and creator identity'
 );
 select ok(
   not has_column('public', 'study_questions', 'answer'),
