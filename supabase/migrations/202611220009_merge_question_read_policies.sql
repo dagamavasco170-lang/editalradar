@@ -5,9 +5,17 @@ create policy "Read published licensed questions or admin review"
   on public.study_questions for select to anon, authenticated
   using (
     (
-      published = true
-      and license_status in ('permission_granted','public_domain','cc_by','cc_by_sa')
-      and (license_status = 'public_domain' or license_proof_url is not null)
+      published = true and (
+        (
+          license_status in ('permission_granted','public_domain','cc_by','cc_by_sa')
+          and (license_status = 'public_domain' or license_proof_url is not null)
+        )
+        or (
+          license_status = 'original_content'
+          and origin = 'ai_generated'
+          and review_status in ('auto_approved','admin_approved')
+        )
+      )
     )
     or coalesce(((select auth.jwt()) -> 'app_metadata' ->> 'role'), '') = 'admin'
   );
