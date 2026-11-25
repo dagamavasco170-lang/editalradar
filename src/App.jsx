@@ -85,11 +85,11 @@ const describeAlert = (filters) => {
 
 const isPreliminary = (item) => /concurso listado\s*·\s*verificar/i.test(item?.status || "");
 const isTemporarySelection = (item) => /processo seletivo simplificado|contratação temporária/i.test([item?.vinculo, item?.atoOficial].filter(Boolean).join(" "));
-const getStatusTone = (value = "") => {
+export const getStatusTone = (value = "") => {
   const status = String(value).toLocaleLowerCase("pt-BR");
-  if (/inscri.{0,18}abertas|edital publicado/.test(status)) return "status-open";
-  if (/pré.?edital|autorizad|anunciad|previst|comissão formada/.test(status)) return "status-upcoming";
+  if (/inscri.{0,24}(?:abertas|em andamento)/.test(status)) return "status-open";
   if (/encerrad|finalizad|homologad|cancelad|suspens/.test(status)) return "status-closed";
+  if (/pré.?edital|autorizad|anunciad|previst|comissão formada|edital publicado|inscri.{0,24}(?:começam|iniciam|a partir)/.test(status)) return "status-upcoming";
   if (/prova|resultado|convoca|classifica/.test(status)) return "status-stage";
   return "status-neutral";
 };

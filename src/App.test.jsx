@@ -2,7 +2,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import App from "./App.jsx";
 import { concursos } from "./data/concursos.js";
-import { scoreRecommendation, getRecommendationReasons } from "./App.jsx";
+import { getStatusTone, scoreRecommendation, getRecommendationReasons } from "./App.jsx";
 import { buildCatalogSnapshot, getVisibleNotifications } from "./lib/notifications";
 
 const catalogResultCount = concursos.length;
@@ -651,3 +651,18 @@ describe("EditalRadar", () => {
 });
 
 describe("recomendações personalizadas",()=>{it("pontua melhor concursos alinhados à área fiscal e escolaridade superior",()=>{const profile={interest_area:"Fiscal e controle",education_level:"Superior completo",state:"Alagoas"};const aligned=concursos.find(item=>/auditor/i.test(item.cargo)&&/Brasil|Alagoas/.test(item.estado||""));const unrelated=concursos.find(item=>/professor/i.test(item.cargo));expect(scoreRecommendation(aligned,profile)).toBeGreaterThan(scoreRecommendation(unrelated,profile));});it("explica a compatibilidade com etiquetas legíveis",()=>{const item={cargo:"Auditor Fiscal",orgao:"Receita",estado:"Alagoas",localidade:"Maceió",nivel:"Superior",status:"Inscrições abertas"};const reasons=getRecommendationReasons(item,{interest_area:"Fiscal e controle",education_level:"Superior completo",state:"Alagoas",city:"Maceió"});expect(reasons).toEqual(["Área de interesse","Escolaridade","Estado/local","Cidade/local","Oportunidade ativa"]);});it("não inventa compatibilidades de área ou status",()=>{const item={cargo:"Professor",orgao:"Escola",estado:"São Paulo",localidade:"São Paulo",nivel:"Médio",status:"Inscrições encerradas"};const reasons=getRecommendationReasons(item,{interest_area:"Fiscal e controle",education_level:"Superior completo",state:"Alagoas",city:"Maceió"});expect(reasons).not.toContain("Área de interesse");expect(reasons).not.toContain("Oportunidade ativa");});});
+
+
+describe("classificação temporal do status do edital", () => {
+  it("não apresenta inscrição futura como aberta só porque o edital foi publicado", () => {
+    expect(getStatusTone("Edital publicado · inscrições começam em 30/11/2026 às 16h")).toBe("status-upcoming");
+  });
+
+  it("prioriza inscrições efetivamente abertas quando o edital também está publicado", () => {
+    expect(getStatusTone("Edital publicado · inscrições abertas até 18/12/2026")).toBe("status-open");
+  });
+
+  it("não classifica inscrições encerradas como abertas ou próximas", () => {
+    expect(getStatusTone("Edital publicado · inscrições encerradas em 24/11/2026")).toBe("status-closed");
+  });
+});

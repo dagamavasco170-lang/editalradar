@@ -3,7 +3,7 @@ const APPROVED_PROVIDERS = [
   "cebraspe.org.br", "igeduc.selecao.net.br", "igeduc.org.br", "ibfc.org.br",
   "quadrix.org.br", "fundacaolasalle.org.br", "fgv.br", "concursosfcc.com.br",
   "vunesp.com.br", "institutoaocp.org.br", "cesgranrio.org.br",
-  "inbraedem.selecao.net.br", "anexos-r2.selecao.net.br"
+  "inbraedem.selecao.net.br", "anexos-r2.selecao.net.br", "ifg.edu.br"
 ];
 
 const PRIVATE_STUDY_SOURCE_DOMAINS = [

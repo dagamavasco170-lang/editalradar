@@ -1,6 +1,6 @@
 export const sourceUrl = "https://www.gov.br/gestao/pt-br/acesso-a-informacao/servidores/concursos-publicos/autorizacoes-e-provimentos";
-export const sourceUpdated = "Atualizado em 24/11/2026";
-export const fetchedAt = "2026-11-21T00:00:00-03:00";
+export const sourceUpdated = "Atualizado em 25/11/2026";
+export const fetchedAt = "2026-11-25T07:45:00-03:00";
 export const concursos = [
   {
     "id": 101,
@@ -870,7 +870,292 @@ export const concursos = [
     "observacao": "Concurso público para provimento de cargos efetivos do Município de São Miguel dos Milagres/AL, com 232 vagas distribuídas em 82 cargos e escolaridade fundamental, média, técnica e superior. Inscrições de 23/11 a 23/12/2026; prova objetiva prevista para 31/01/2027. O quadro de vencimentos do Anexo II varia de R$ 1.621,00 a R$ 10.000,00 conforme a função. Consulte o edital integral para conferir atribuições, requisitos, jornada, remuneração e eventuais adicionais do cargo escolhido."
   },
 
-];
+
+  {
+    "id": 521,
+    "sigla": "CRO-PR",
+    "cargo": "Auxiliar Administrativo, Fiscal, Técnico de Informática, Analista de RH, Analista de Conteúdo e IA, Contador e Procurador Jurídico",
+    "orgao": "Conselho Regional de Odontologia do Paraná",
+    "vinculo": "Concurso público · Edital nº 01/2026",
+    "nivel": "Médio e Superior",
+    "vagas": 12,
+    "vagasTotais": 12,
+    "vagasImediatas": 12,
+    "atoOficial": "Edital nº 01/2026, publicado em 23/11/2026",
+    "status": "Edital publicado · inscrições começam em 30/11/2026 às 16h",
+    "area": "Federal",
+    "estado": "Paraná",
+    "localidade": "Curitiba, Foz do Iguaçu, Cascavel e Londrina",
+    "sourceUrl": "https://conhecimento.fgv.br/concursos/cropr",
+    "inscricaoUrl": "https://conhecimento.fgv.br/concursos/cropr",
+    "documentos": [
+      {
+        "title": "Edital nº 01/2026 — PDF integral",
+        "url": "https://conhecimento.fgv.br/sites/default/files/concursos/edital-cro-pr.pdf",
+        "description": "Edital oficial com os sete cargos, distribuição das 12 vagas, requisitos, remuneração e cronograma."
+      }
+    ],
+    "remuneracao": {
+      "valor": 4300.26,
+      "moeda": "BRL",
+      "periodicidade": "mensal",
+      "natureza": "Faixa inicial por cargo: R$ 4.300,26 a R$ 14.318,45",
+      "observacao": "A remuneração varia conforme o cargo. O edital prevê valores iniciais de R$ 4.300,26 para Auxiliar Administrativo e até R$ 14.318,45 para Procurador Jurídico, além dos benefícios previstos no instrumento.",
+      "sourceUrl": "https://conhecimento.fgv.br/sites/default/files/concursos/edital-cro-pr.pdf",
+      "sourceLabel": "FGV Conhecimento — Edital CRO/PR nº 01/2026",
+      "verificadoEm": "2026-11-25"
+    },
+    "observacao": "Concurso do Conselho Regional de Odontologia do Paraná com 12 vagas distribuídas em sete cargos. As oportunidades abrangem Curitiba, Foz do Iguaçu, Cascavel e Londrina. Inscrições de 30/11/2026 às 16h até 29/12/2026 às 16h. A abertura ainda não ocorreu em 25/11/2026; o edital já foi publicado. Confira no edital os requisitos e a remuneração específica do cargo."
+  },
+  {
+    "id": 522,
+    "sigla": "CUSTÓDIA-PE",
+    "cargo": "Diversos cargos efetivos (55 cargos)",
+    "orgao": "Prefeitura Municipal de Custódia",
+    "vinculo": "Concurso público · Edital nº 002/2026",
+    "nivel": "Diversos níveis",
+    "vagas": 384,
+    "vagasTotais": 1203,
+    "vagasImediatas": 384,
+    "cadastroReserva": 819,
+    "atoOficial": "Edital nº 002/2026, de 17/11/2026",
+    "status": "Inscrições abertas até 18/12/2026",
+    "area": "Municipal",
+    "estado": "Pernambuco",
+    "localidade": "Custódia",
+    "sourceUrl": "https://www.igeduc.org.br/informacoes/192/",
+    "inscricaoUrl": "https://www.igeduc.org.br/informacoes/192/",
+    "documentos": [
+      {
+        "title": "Edital nº 002/2026 — PDF integral e atualizações",
+        "url": "https://anexos-r2.selecao.net.br/uploads/797/concursos/192/anexos/dda41dc8-0fac-4368-9894-1baf8a5456d3.pdf",
+        "description": "Edital oficial do concurso de Custódia/PE. Conferir anexos, cargos, requisitos e eventuais retificações no portal da banca."
+      }
+    ],
+    "observacao": "Concurso público para provimento de cargos efetivos da Prefeitura de Custódia/PE. São 384 vagas imediatas e 819 oportunidades em cadastro reserva, totalizando 1.203 posições em 55 cargos. Inscrições de 18/11 a 18/12/2026. A remuneração e os requisitos variam entre os cargos; consulte o edital integral e os avisos oficiais da banca."
+  },
+  {
+    "id": 523,
+    "sigla": "SÃO CAETANO-PE",
+    "cargo": "Agente Comunitário de Saúde, Agente de Combate às Endemias, Assistente Social, Biomédico, Farmacêutico e Procurador",
+    "orgao": "Prefeitura Municipal de São Caetano",
+    "vinculo": "Concurso público · Edital nº 001/2026",
+    "nivel": "Médio e Superior",
+    "vagas": 46,
+    "vagasTotais": 46,
+    "vagasImediatas": 46,
+    "atoOficial": "Edital nº 001/2026, de 29/10/2026",
+    "status": "Inscrições abertas até 10/12/2026",
+    "area": "Municipal",
+    "estado": "Pernambuco",
+    "localidade": "São Caetano",
+    "sourceUrl": "https://www.igeduc.org.br/informacoes/153/",
+    "inscricaoUrl": "https://www.igeduc.org.br/informacoes/153/",
+    "documentos": [
+      {
+        "title": "Edital nº 001/2026 — PDF integral",
+        "url": "https://anexos-r2.selecao.net.br/uploads/797/concursos/153/anexos/4b62d198-9402-4b6d-8401-45716a13fb5d.pdf",
+        "description": "Edital oficial com seis cargos, distribuição de vagas, requisitos e remuneração."
+      }
+    ],
+    "remuneracao": {
+      "valor": 2051.03,
+      "moeda": "BRL",
+      "periodicidade": "mensal",
+      "natureza": "Faixa inicial informada no edital: R$ 2.051,03 a R$ 3.242,00",
+      "observacao": "A remuneração varia conforme o cargo e a jornada. Consulte o quadro de vencimentos do edital para o valor aplicável à função escolhida.",
+      "sourceUrl": "https://anexos-r2.selecao.net.br/uploads/797/concursos/153/anexos/4b62d198-9402-4b6d-8401-45716a13fb5d.pdf",
+      "sourceLabel": "IGEDUC — Edital nº 001/2026 de São Caetano/PE",
+      "verificadoEm": "2026-11-25"
+    },
+    "observacao": "Concurso público municipal com 46 vagas em seis cargos: Agente Comunitário de Saúde, Agente de Combate às Endemias, Assistente Social, Biomédico, Farmacêutico e Procurador. Inscrições de 30/10 a 10/12/2026. Confira no edital a escolaridade, os requisitos e a remuneração específicos de cada cargo."
+  },
+  {
+    "id": 524,
+    "sigla": "IFG",
+    "cargo": "Técnico-Administrativos em Educação (TAE), níveis C, D e E",
+    "orgao": "Instituto Federal de Goiás",
+    "vinculo": "Concurso público · Edital nº 001/2026",
+    "nivel": "Médio, Técnico e Superior",
+    "vagas": 36,
+    "vagasTotais": 36,
+    "vagasImediatas": 36,
+    "atoOficial": "Edital nº 001/2026",
+    "status": "Inscrições abertas até 23/12/2026",
+    "area": "Federal",
+    "estado": "Goiás",
+    "localidade": "12 câmpus do IFG em Goiás",
+    "sourceUrl": "https://www.ifg.edu.br/institucional/17-ifg/ultimas-noticias/48695-concurso-tae-ifg-26",
+    "inscricaoUrl": "https://www.institutoaocp.org.br/concursos/724",
+    "documentos": [
+      {
+        "title": "Concurso TAE IFG 2026 — página da organizadora",
+        "url": "https://www.institutoaocp.org.br/concursos/724",
+        "description": "Página oficial da organizadora com edital, inscrições e comunicados do concurso."
+      }
+    ],
+    "remuneracao": {
+      "valor": 2607.70,
+      "moeda": "BRL",
+      "periodicidade": "mensal",
+      "natureza": "Vencimento básico de R$ 2.607,70 a R$ 5.215,39, conforme o nível; benefícios e incentivos podem elevar a remuneração total.",
+      "observacao": "O IFG informa vencimento básico entre R$ 2.607,70 e R$ 5.215,39. A remuneração total pode alcançar R$ 10.318,93 com benefícios e incentivos aplicáveis; esse valor máximo não corresponde ao vencimento básico.",
+      "sourceUrl": "https://www.ifg.edu.br/institucional/17-ifg/ultimas-noticias/48695-concurso-tae-ifg-26",
+      "sourceLabel": "Instituto Federal de Goiás — notícia oficial sobre o Edital nº 001/2026",
+      "verificadoEm": "2026-11-25"
+    },
+    "observacao": "Concurso para 36 vagas de Técnico-Administrativos em Educação no IFG: três vagas de nível C, 25 de nível D e oito de nível E. Inscrições até 23/12/2026; prova objetiva prevista para 14/02/2027. São 12 câmpus em Goiás. A remuneração básica varia conforme o nível e não deve ser confundida com o total possível após benefícios e incentivos."
+  },
+
+
+  {
+    "id": 525,
+    "sigla": "SEDUC-SP",
+    "cargo": "Professor de Ensino Fundamental e Médio (PEFM)",
+    "orgao": "Secretaria da Educação do Estado de São Paulo",
+    "vinculo": "Concurso público · Edital de abertura nº 01/2026",
+    "nivel": "Superior",
+    "vagas": 5000,
+    "vagasTotais": 5000,
+    "vagasImediatas": 5000,
+    "atoOficial": "Edital de abertura de inscrições nº 01/2026, retificado em 23/11/2026",
+    "status": "Edital publicado · inscrições começam em 26/11/2026 às 16h",
+    "area": "Estadual",
+    "estado": "São Paulo",
+    "localidade": "Diversas regiões do Estado de São Paulo",
+    "sourceUrl": "https://conhecimento.fgv.br/concursos/concursoseducsp27",
+    "inscricaoUrl": "https://conhecimento.fgv.br/concursos/concursoseducsp27",
+    "documentos": [
+      {
+        "title": "Edital nº 01/2026 — versão retificada em 23/11/2026",
+        "url": "https://conhecimento.fgv.br/sites/default/files/concursos/edital_pefm_2027_retificado.pdf",
+        "description": "Edital oficial com 5.000 cargos efetivos, distribuição por jornada e região, requisitos e cronograma."
+      }
+    ],
+    "remuneracao": {
+      "valor": 3478.13,
+      "moeda": "BRL",
+      "periodicidade": "mensal",
+      "natureza": "Subsídio inicial de R$ 3.478,13 para 25 horas semanais ou R$ 5.565,00 para 40 horas semanais.",
+      "observacao": "Os valores são subsídios iniciais por jornada, para formação em Licenciatura Plena. O edital também prevê uma modalidade PSS para lista de classificação destinada a contratações temporárias; as vagas efetivas do concurso são 5.000 e não incluem vagas extras do PSS.",
+      "sourceUrl": "https://conhecimento.fgv.br/sites/default/files/concursos/edital_pefm_2027_retificado.pdf",
+      "sourceLabel": "FGV Conhecimento — Edital SEDUC-SP nº 01/2026",
+      "verificadoEm": "2026-11-25"
+    },
+    "observacao": "Concurso para provimento de 5.000 cargos efetivos de Professor de Ensino Fundamental e Médio na rede estadual de São Paulo: 2.000 cargos com jornada de 25 horas semanais e 3.000 com jornada de 40 horas semanais. As inscrições começam em 26/11/2026 às 16h e terminam em 15/02/2027 às 16h. O edital também organiza uma lista separada para contratação temporária (PSS); essa lista não representa vagas efetivas adicionais. Consulte os anexos para a distribuição por componente curricular, área e região."
+  },
+
+
+  {
+    "id": 526,
+    "sigla": "TJPB",
+    "cargo": "Analista Judiciário — Judiciária, TI e Contabilidade",
+    "orgao": "Tribunal de Justiça do Estado da Paraíba",
+    "vinculo": "Concurso público · Edital nº 01/2026",
+    "nivel": "Superior",
+    "vagas": 50,
+    "vagasTotais": 50,
+    "vagasImediatas": 50,
+    "atoOficial": "Edital nº 01/2026, retificado em 12/11/2026",
+    "status": "Inscrições encerradas em 18/11/2026",
+    "area": "Estadual",
+    "estado": "Paraíba",
+    "localidade": "Paraíba",
+    "sourceUrl": "https://conhecimento.fgv.br/concursos/tjpb26",
+    "inscricaoUrl": "https://conhecimento.fgv.br/concursos/tjpb26",
+    "documentos": [
+      {
+        "title": "Edital nº 01/2026 — versão retificada em 12/11/2026",
+        "url": "https://conhecimento.fgv.br/sites/default/files/concursos/edital-retificado-tjpb_11.11.pdf",
+        "description": "Edital oficial com 50 vagas, áreas de atuação, vencimento e cronograma."
+      }
+    ],
+    "remuneracao": {
+      "valor": 7526.14,
+      "moeda": "BRL",
+      "periodicidade": "mensal",
+      "natureza": "Vencimento de R$ 7.526,14, além de auxílio-alimentação de R$ 2.200,00 e auxílio-saúde de R$ 1.800,00, conforme o edital.",
+      "observacao": "O edital informa vencimento de R$ 7.526,14 para jornada de 30 horas semanais e verbas indenizatórias de auxílio-alimentação e auxílio-saúde. Esses benefícios são apresentados separadamente do vencimento.",
+      "sourceUrl": "https://conhecimento.fgv.br/sites/default/files/concursos/edital-retificado-tjpb_11.11.pdf",
+      "sourceLabel": "FGV Conhecimento — Edital TJPB nº 01/2026",
+      "verificadoEm": "2026-11-25"
+    },
+    "observacao": "Concurso para 50 cargos efetivos de Analista Judiciário do TJPB, nas especialidades Judiciária (Direito), Tecnologia da Informação e Contabilidade. Jornada de 30 horas semanais. Inscrições encerradas em 18/11/2026. A página oficial da FGV já publica retificações e resultados da análise de isenção; acompanhe as próximas etapas no portal da organizadora."
+  },
+  {
+    "id": 527,
+    "sigla": "TRF5",
+    "cargo": "Juiz Federal Substituto da 5ª Região",
+    "orgao": "Tribunal Regional Federal da 5ª Região",
+    "vinculo": "Concurso público · Edital nº 01/2026",
+    "nivel": "Superior",
+    "vagas": 11,
+    "vagasTotais": 11,
+    "vagasImediatas": 11,
+    "atoOficial": "Edital nº 01/2026, retificado em 17/09/2026",
+    "status": "Inscrições encerradas em 28/09/2026",
+    "area": "Federal",
+    "estado": "Brasil",
+    "localidade": "5ª Região da Justiça Federal",
+    "sourceUrl": "https://conhecimento.fgv.br/concursos/trf5juiz26",
+    "inscricaoUrl": "https://conhecimento.fgv.br/concursos/trf5juiz26",
+    "documentos": [
+      {
+        "title": "Edital nº 01/2026 — versão retificada em 17/09/2026",
+        "url": "https://conhecimento.fgv.br/sites/default/files/concursos/edital-01-de-2026-xvi-concurso-juiz-federal-retificado.pdf",
+        "description": "Edital oficial com 11 vagas para Juiz Federal Substituto e formação de cadastro de reserva."
+      }
+    ],
+    "remuneracao": {
+      "valor": 37765.55,
+      "moeda": "BRL",
+      "periodicidade": "mensal",
+      "natureza": "Subsídio do cargo de Juiz Federal Substituto informado no edital: R$ 37.765,55.",
+      "observacao": "Subsídio previsto no edital publicado em 2026, sujeito às regras remuneratórias e atualizações legais aplicáveis.",
+      "sourceUrl": "https://conhecimento.fgv.br/sites/default/files/concursos/edital-01-de-2026-xvi-concurso-juiz-federal-retificado.pdf",
+      "sourceLabel": "FGV Conhecimento — Edital TRF5 nº 01/2026",
+      "verificadoEm": "2026-11-25"
+    },
+    "observacao": "Concurso para 11 vagas de Juiz Federal Substituto da 5ª Região, com formação de cadastro de reserva. Inscrições encerradas em 28/09/2026. O edital exige comprovação do Exame Nacional da Magistratura (ENAM); consulte o texto integral para requisitos e etapas da seleção. A FGV publicou atualizações de acompanhamento em novembro de 2026."
+  },
+  {
+    "id": 528,
+    "sigla": "GCM-SALVADOR",
+    "cargo": "Guarda Civil Municipal — 3ª Classe",
+    "orgao": "Prefeitura Municipal do Salvador",
+    "vinculo": "Concurso público · Edital nº 02/2026",
+    "nivel": "Médio",
+    "vagas": 50,
+    "vagasTotais": 50,
+    "vagasImediatas": 50,
+    "atoOficial": "Edital nº 02/2026, de 17/09/2026, retificado em 18/11/2026",
+    "status": "Inscrições encerradas em 30/10/2026",
+    "area": "Municipal",
+    "estado": "Bahia",
+    "localidade": "Salvador",
+    "sourceUrl": "https://conhecimento.fgv.br/concursos/pmsguarda2026",
+    "inscricaoUrl": "https://conhecimento.fgv.br/concursos/pmsguarda2026",
+    "documentos": [
+      {
+        "title": "Edital nº 02/2026 — versão retificada em 18/11/2026",
+        "url": "https://conhecimento.fgv.br/sites/default/files/concursos/edital-prefeitura-de-salvador-2026-guarda-retificado-2.pdf",
+        "description": "Edital oficial com 50 vagas imediatas, cadastro de reserva, remuneração e cronograma da prova."
+      }
+    ],
+    "remuneracao": {
+      "valor": 3546.42,
+      "moeda": "BRL",
+      "periodicidade": "mensal",
+      "natureza": "Remuneração prevista de R$ 3.546,42, composta por vencimento inicial de R$ 1.773,21 e gratificações indicadas no edital.",
+      "observacao": "O edital discrimina vencimento inicial de R$ 1.773,21 e remuneração de R$ 3.546,42 com gratificação por avanço de competências e gratificação por Regime Especial de Trabalho (RET). A prova objetiva está prevista para 17/01/2027.",
+      "sourceUrl": "https://conhecimento.fgv.br/sites/default/files/concursos/edital-prefeitura-de-salvador-2026-guarda-retificado-2.pdf",
+      "sourceLabel": "FGV Conhecimento — Edital Salvador Guarda Municipal nº 02/2026",
+      "verificadoEm": "2026-11-25"
+    },
+    "observacao": "Concurso para 50 vagas imediatas de Guarda Civil Municipal de Salvador, com formação de cadastro de reserva. Inscrições encerradas em 30/10/2026; o prazo de pagamento do boleto terminou em 20/11/2026. Prova objetiva prevista para 17/01/2027. A retificação de 18/11/2026 e os resultados recentes devem ser acompanhados no portal oficial da FGV."
+  },
+
+]; 
 
 export const sourceRegistry = [
   { label: "Cebraspe — concursos com inscrições abertas", sourceUrl: "https://www.cebraspe.org.br/concursos/inscricoes-abertas" },
@@ -881,6 +1166,7 @@ export const sourceRegistry = [
   { label: "Instituto AOCP — concursos em andamento", sourceUrl: "https://www.institutoaocp.org.br/concursos/status/em-andamento" },
   { label: "IBFC — concursos abertos", sourceUrl: "https://concursos.ibfc.org.br/index/abertos/" },
   { label: "IGEDUC — concursos abertos", sourceUrl: "https://www.igeduc.org.br/index/abertos/" },
+  { label: "Instituto Federal de Goiás — concursos e seleções", sourceUrl: "https://www.ifg.edu.br/institucional/17-ifg/ultimas-noticias/48695-concurso-tae-ifg-26" },
   { label: "Instituto Quadrix — todos os concursos", sourceUrl: "https://quadrix.org.br/index/todos/" },
   { label: "Fundação La Salle — concursos em andamento", sourceUrl: "https://fundacaolasalle.org.br/concursos/?filtro=em-andamento" }
 ];
