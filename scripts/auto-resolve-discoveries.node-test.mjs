@@ -93,6 +93,78 @@ test("descarta título claramente administrativo sem descartar caso ambíguo de 
   assert.equal(ambiguous.decision, "review");
 });
 
+test("descarta cadernos e variantes de prova da FGV em vez de cadastrá-los como novos concursos", () => {
+  const artifacts = [
+    {
+      title: "Tipo 1",
+      url: "https://conhecimento.fgv.br/sites/default/files/concursos/cns201-agente-de-policia-judiciaria-cns201-tipo-1.pdf"
+    },
+    {
+      title: "Tipo 2",
+      url: "https://conhecimento.fgv.br/sites/default/files/concursos/cns201-agente-de-policia-judiciaria-cns201-tipo-2.pdf"
+    },
+    {
+      title: "Tipo 3",
+      url: "https://conhecimento.fgv.br/sites/default/files/concursos/cns201-agente-de-policia-judiciaria-cns201-tipo-3.pdf"
+    },
+    {
+      title: "Tipo 4",
+      url: "https://conhecimento.fgv.br/sites/default/files/concursos/cns201-agente-de-policia-judiciaria-cns201-tipo-4.pdf"
+    },
+    {
+      title: "Tipo 2",
+      url: "https://conhecimento.fgv.br/sites/default/files/concursos/cns301-papiloscopista-policial-cns301-tipo-2.pdf"
+    }
+  ];
+  const misleadingDocument = {
+    title: "Concurso público da Polícia Civil do Paraná — Edital 01/2026",
+    heading: "Concurso público",
+    text: "Polícia Civil do Estado do Paraná. Concurso público. Edital nº 01/2026. Cargo: Agente de Polícia Judiciária e Papiloscopista Policial. Consulte o edital oficial."
+  };
+
+  for (const artifact of artifacts) {
+    const result = classifyDiscovery(
+      { ...discovery, discovery_type: "new_link", title: artifact.title },
+      misleadingDocument,
+      artifact.url
+    );
+    assert.equal(result.decision, "dismiss", artifact.url);
+    assert.match(result.reason, /material auxiliar de avaliação/i);
+  }
+});
+
+test("rejeita caderno de prova antes de baixar ou processar o PDF", async () => {
+  let requests = 0;
+  const result = await prepareDiscoveryDocument({
+    ...discovery,
+    discovery_type: "new_link",
+    title: "Tipo 1",
+    candidate_url: "https://conhecimento.fgv.br/sites/default/files/concursos/cns201-agente-de-policia-judiciaria-cns201-tipo-1.pdf"
+  }, async () => {
+    requests += 1;
+    throw new Error("O download não deveria acontecer.");
+  });
+
+  assert.equal(result.stage, "dismiss");
+  assert.match(result.reason, /material auxiliar de avaliação/i);
+  assert.equal(requests, 0);
+});
+
+test("não descarta a página oficial do concurso PCPR só por ela mencionar prova", () => {
+  const result = classifyDiscovery(
+    { ...discovery, discovery_type: "new_link", title: "Concurso público PCPR 2026" },
+    {
+      title: "Concurso público da Polícia Civil do Estado do Paraná — Edital 01/2026",
+      heading: "Edital de abertura do concurso público",
+      text: "A Polícia Civil do Estado do Paraná abre concurso público para provimento de cargos. Edital nº 01/2026. Cargo: Agente de Polícia Judiciária. O concurso terá prova objetiva e prova discursiva. Inscrições abertas."
+    },
+    "https://conhecimento.fgv.br/concursos/pcpr26"
+  );
+  assert.equal(result.decision, "publish");
+  assert.equal(result.data.orgao, "Polícia Civil do Estado do Paraná");
+  assert.equal(result.data.cargo, "Agente de Polícia Judiciária");
+});
+
 test("descarta editais históricos sem sinal oficial de vigência", () => {
   const result = assessNoticeFreshness({
     candidateUrl:"https://conhecimento.fgv.br/concursos/tjmsjuiz23",
