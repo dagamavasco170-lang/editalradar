@@ -1369,4 +1369,94 @@ export const materias = [
     "icon": "⌘"
   },
 
+
+  {
+    "id": 533,
+    "sigla": "PMS-SALVADOR-EDUCACAO",
+    "cargo": "Professor Municipal I e Coordenador Pedagógico I",
+    "orgao": "Prefeitura Municipal do Salvador — Secretaria Municipal da Educação",
+    "vinculo": "Concurso público · Edital nº 01/2026",
+    "nivel": "Superior",
+    "vagas": 190,
+    "vagasTotais": 190,
+    "vagasImediatas": 190,
+    "atoOficial": "Edital nº 01/2026, de 09/07/2026, retificado em 14/09/2026",
+    "status": "Provas / resultados · relação de candidatos com prova discursiva corrigida publicada em 18/11/2026",
+    "periodoInscricao": {
+      "inicio": "2026-07-09",
+      "fim": "2026-08-07",
+      "inicioHoraLocal": null,
+      "fimHoraLocal": null,
+      "fonteUrl": "https://conhecimento.fgv.br/sites/default/files/concursos/edital-preliminar-pref-salvador-prof-e-coordenador-academico-01.2026-ret3.pdf",
+      "fonteDescricao": "Edital nº 01/2026 da Prefeitura de Salvador · cronograma, Anexo VI",
+      "verificadoEm": "2026-11-25"
+    },
+    "area": "Municipal",
+    "estado": "Bahia",
+    "localidade": "Salvador",
+    "sourceUrl": "https://conhecimento.fgv.br/concursos/pms2026",
+    "inscricaoUrl": "https://conhecimento.fgv.br/concursos/pms2026",
+    "documentos": [
+      {
+        "title": "Edital nº 01/2026 — versão retificada em 14/09/2026",
+        "url": "https://conhecimento.fgv.br/sites/default/files/concursos/edital-preliminar-pref-salvador-prof-e-coordenador-academico-01.2026-ret3.pdf",
+        "description": "Edital oficial com 190 vagas imediatas: 130 para Professor Municipal e 60 para Coordenador Pedagógico, além de cadastro de reserva."
+      }
+    ],
+    "remuneracao": {
+      "valor": "3.078,38 a 6.156,76",
+      "moeda": "BRL",
+      "periodicidade": "mensal",
+      "natureza": "Remuneração varia conforme cargo, jornada e lotação; inclui gratificações previstas no edital.",
+      "observacao": "O edital informa R$ 3.078,38 para Professor Municipal I de 20h na sede, R$ 4.361,04 para Professor de 20h nas ilhas e até R$ 6.156,76 para jornadas/cargos de 40h, incluindo as gratificações indicadas. O valor não é único para todos os cargos.",
+      "sourceUrl": "https://conhecimento.fgv.br/sites/default/files/concursos/edital-preliminar-pref-salvador-prof-e-coordenador-academico-01.2026-ret3.pdf",
+      "sourceLabel": "FGV Conhecimento — Edital nº 01/2026 da Prefeitura de Salvador",
+      "verificadoEm": "2026-11-25"
+    },
+    "observacao": "Concurso da Prefeitura de Salvador para 190 vagas imediatas de nível superior: 130 para Professor Municipal I e 60 para Coordenador Pedagógico I, além de cadastro de reserva. As inscrições ocorreram de 09/07 a 07/08/2026. A FGV publicou o resultado definitivo da prova objetiva em 16/11/2026 e a relação de candidatos com prova discursiva corrigida em 18/11/2026. A remuneração varia conforme o cargo, a jornada e a lotação; confira os quadros do edital."
+  },
+  {
+    "id": 534,
+    "sigla": "PCPR",
+    "cargo": "Delegado de Polícia, Agente de Polícia Judiciária e Papiloscopista Policial",
+    "orgao": "Polícia Civil do Estado do Paraná",
+    "vinculo": "Concurso público · Edital nº 01/2026 · exclusivamente cadastro de reserva",
+    "nivel": "Superior",
+    "vagas": null,
+    "vagasImediatas": null,
+    "atoOficial": "Edital nº 01/2026 da Polícia Civil do Paraná",
+    "status": "Provas / resultados · resultado preliminar da prova objetiva publicado em 13/11/2026",
+    "periodoInscricao": {
+      "inicio": "2026-07-14",
+      "fim": "2026-08-12",
+      "inicioHoraLocal": "16:00",
+      "fimHoraLocal": "16:00",
+      "fonteUrl": "https://conhecimento.fgv.br/sites/default/files/concursos/copia-1-de-edital-01-2026-pcpr-publicacao.docx.pdf",
+      "fonteDescricao": "Edital nº 01/2026 da PCPR · item 4.1, horário de Brasília",
+      "verificadoEm": "2026-11-25"
+    },
+    "area": "Estadual",
+    "estado": "Paraná",
+    "localidade": "Paraná · macrorregiões de concorrência definidas no edital",
+    "sourceUrl": "https://conhecimento.fgv.br/concursos/pcpr26",
+    "inscricaoUrl": "https://conhecimento.fgv.br/concursos/pcpr26",
+    "documentos": [
+      {
+        "title": "Edital nº 01/2026 — PDF integral",
+        "url": "https://conhecimento.fgv.br/sites/default/files/concursos/copia-1-de-edital-01-2026-pcpr-publicacao.docx.pdf",
+        "description": "Edital oficial para formação exclusiva de cadastro de reserva nos cargos de Delegado, Agente de Polícia Judiciária e Papiloscopista Policial."
+      }
+    ],
+    "remuneracao": {
+      "valor": "9.007,67 a 26.876,48",
+      "moeda": "BRL",
+      "periodicidade": "mensal",
+      "natureza": "Valores totais iniciais indicados no edital, incluindo auxílio-alimentação indenizatório de R$ 876,48.",
+      "observacao": "O edital informa R$ 9.007,67 para Agente de Polícia Judiciária e Papiloscopista Policial, e R$ 26.876,48 para Delegado de Polícia. Os valores incluem auxílio-alimentação indenizatório de R$ 876,48; os subsídios-base são, respectivamente, R$ 8.131,19 e R$ 26.000,00.",
+      "sourceUrl": "https://conhecimento.fgv.br/sites/default/files/concursos/copia-1-de-edital-01-2026-pcpr-publicacao.docx.pdf",
+      "sourceLabel": "FGV Conhecimento — Edital nº 01/2026 da PCPR",
+      "verificadoEm": "2026-11-25"
+    },
+    "observacao": "Concurso exclusivamente para formação de cadastro de reserva, sem quantitativo de vagas imediatas divulgado e sem garantia de nomeação. Abrange os cargos de Delegado de Polícia, Agente de Polícia Judiciária e Papiloscopista Policial, com distribuição por macrorregião conforme o edital. Inscrições de 14/07/2026 às 16h até 12/08/2026 às 16h. A prova objetiva ocorreu em 11/10/2026 e a FGV publicou o resultado preliminar em 13/11/2026; recursos foram previstos até 16/11/2026."
+  },
 ];
