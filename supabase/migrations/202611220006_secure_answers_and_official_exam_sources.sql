@@ -21,6 +21,8 @@ create policy "Admins can manage study question answers"
   using (coalesce((select auth.jwt() -> 'app_metadata' ->> 'role'), '') = 'admin')
   with check (coalesce((select auth.jwt() -> 'app_metadata' ->> 'role'), '') = 'admin');
 grant select, insert, update, delete on public.study_question_answers to authenticated;
+-- Supabase default grants may expose new public tables to anon; remove inherited access.
+revoke all on table public.study_question_answers from anon, public;
 
 create or replace function public.check_study_question_answer(
   p_question_id bigint,
