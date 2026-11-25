@@ -883,6 +883,15 @@ export const concursos = [
     "vagasImediatas": 12,
     "atoOficial": "Edital nº 01/2026, publicado em 23/11/2026",
     "status": "Edital publicado · inscrições começam em 30/11/2026 às 16h",
+    "periodoInscricao": {
+      "inicio": "2026-11-30",
+      "fim": "2026-12-29",
+      "inicioHoraLocal": "16:00",
+      "fimHoraLocal": "16:00",
+      "fonteUrl": "https://conhecimento.fgv.br/sites/default/files/concursos/edital-cro-pr.pdf",
+      "fonteDescricao": "Edital CRO/PR nº 01/2026 · item 4.1, p. 4",
+      "verificadoEm": "2026-11-25"
+    },
     "area": "Federal",
     "estado": "Paraná",
     "localidade": "Curitiba, Foz do Iguaçu, Cascavel e Londrina",
@@ -920,6 +929,15 @@ export const concursos = [
     "cadastroReserva": 819,
     "atoOficial": "Edital nº 002/2026, de 17/11/2026",
     "status": "Inscrições abertas até 18/12/2026",
+    "periodoInscricao": {
+      "inicio": "2026-11-18",
+      "fim": "2026-12-18",
+      "inicioHoraLocal": "00:00",
+      "fimHoraLocal": "23:59",
+      "fonteUrl": "https://www.igeduc.org.br/informacoes/192/",
+      "fonteDescricao": "Página oficial IGEDUC · informações gerais",
+      "verificadoEm": "2026-11-25"
+    },
     "area": "Municipal",
     "estado": "Pernambuco",
     "localidade": "Custódia",
@@ -946,6 +964,15 @@ export const concursos = [
     "vagasImediatas": 46,
     "atoOficial": "Edital nº 001/2026, de 29/10/2026",
     "status": "Inscrições abertas até 10/12/2026",
+    "periodoInscricao": {
+      "inicio": "2026-10-30",
+      "fim": "2026-12-10",
+      "inicioHoraLocal": "00:00",
+      "fimHoraLocal": "23:59",
+      "fonteUrl": "https://www.igeduc.org.br/informacoes/153/",
+      "fonteDescricao": "Página oficial IGEDUC · informações gerais",
+      "verificadoEm": "2026-11-25"
+    },
     "area": "Municipal",
     "estado": "Pernambuco",
     "localidade": "São Caetano",
@@ -982,10 +1009,19 @@ export const concursos = [
     "vagasImediatas": 36,
     "atoOficial": "Edital nº 001/2026",
     "status": "Inscrições abertas até 23/12/2026",
+    "periodoInscricao": {
+      "inicio": null,
+      "fim": "2026-12-23",
+      "inicioHoraLocal": null,
+      "fimHoraLocal": null,
+      "fonteUrl": "https://www.ifg.edu.br/aluno/161-ifg/campus/goiania/noticias-campus-goiania/48699-concurso-tae-26",
+      "fonteDescricao": "IFG · notícia oficial do concurso TAE 2026",
+      "verificadoEm": "2026-11-25"
+    },
     "area": "Federal",
     "estado": "Goiás",
     "localidade": "12 câmpus do IFG em Goiás",
-    "sourceUrl": "https://www.ifg.edu.br/institucional/17-ifg/ultimas-noticias/48695-concurso-tae-ifg-26",
+    "sourceUrl": "https://www.ifg.edu.br/aluno/161-ifg/campus/goiania/noticias-campus-goiania/48699-concurso-tae-26",
     "inscricaoUrl": "https://www.institutoaocp.org.br/concursos/724",
     "documentos": [
       {
@@ -1000,7 +1036,7 @@ export const concursos = [
       "periodicidade": "mensal",
       "natureza": "Vencimento básico de R$ 2.607,70 a R$ 5.215,39, conforme o nível; benefícios e incentivos podem elevar a remuneração total.",
       "observacao": "O IFG informa vencimento básico entre R$ 2.607,70 e R$ 5.215,39. A remuneração total pode alcançar R$ 10.318,93 com benefícios e incentivos aplicáveis; esse valor máximo não corresponde ao vencimento básico.",
-      "sourceUrl": "https://www.ifg.edu.br/institucional/17-ifg/ultimas-noticias/48695-concurso-tae-ifg-26",
+      "sourceUrl": "https://www.ifg.edu.br/aluno/161-ifg/campus/goiania/noticias-campus-goiania/48699-concurso-tae-26",
       "sourceLabel": "Instituto Federal de Goiás — notícia oficial sobre o Edital nº 001/2026",
       "verificadoEm": "2026-11-25"
     },
@@ -1020,6 +1056,15 @@ export const concursos = [
     "vagasImediatas": 5000,
     "atoOficial": "Edital de abertura de inscrições nº 01/2026, retificado em 23/11/2026",
     "status": "Edital publicado · inscrições começam em 26/11/2026 às 16h",
+    "periodoInscricao": {
+      "inicio": "2026-11-26",
+      "fim": "2027-02-15",
+      "inicioHoraLocal": "16:00",
+      "fimHoraLocal": "16:00",
+      "fonteUrl": "https://conhecimento.fgv.br/sites/default/files/concursos/edital_pefm_2027_retificado.pdf",
+      "fonteDescricao": "Edital SEDUC-SP nº 01/2026 · Capítulo 4, item 1, p. 8",
+      "verificadoEm": "2026-11-25"
+    },
     "area": "Estadual",
     "estado": "São Paulo",
     "localidade": "Diversas regiões do Estado de São Paulo",

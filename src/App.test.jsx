@@ -2,7 +2,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import App from "./App.jsx";
 import { concursos } from "./data/concursos.js";
-import { getStatusTone, scoreRecommendation, getRecommendationReasons } from "./App.jsx";
+import { getStatusTone, getVerifiedRegistrationDeadline, sortContestsByOfficialDeadline, scoreRecommendation, getRecommendationReasons } from "./App.jsx";
 import { buildCatalogSnapshot, getVisibleNotifications } from "./lib/notifications";
 
 const catalogResultCount = concursos.length;
@@ -666,3 +666,154 @@ describe("classificação temporal do status do edital", () => {
     expect(getStatusTone("Edital publicado · inscrições encerradas em 24/11/2026")).toBe("status-closed");
   });
 });
+
+describe("ranking por prazos oficiais de inscrição", () => {
+  const now = new Date("2026-11-25T15:00:00.000Z");
+  const sourceUrl = "https://www.igeduc.org.br/informacoes/192/";
+  const buildContest = (overrides = {}) => {
+    const base = {
+      id: 9001,
+      cargo: "Concurso de teste",
+      status: "Inscrições abertas até 18/12/2026",
+      sourceUrl,
+      periodoInscricao: {
+        inicio: "2026-11-18",
+        fim: "2026-12-18",
+        fonteUrl: sourceUrl,
+        fonteDescricao: "Página oficial IGEDUC",
+        verificadoEm: "2026-11-25"
+      }
+    };
+    return {
+      ...base,
+      ...overrides,
+      periodoInscricao: { ...base.periodoInscricao, ...(overrides.periodoInscricao || {}) }
+    };
+  };
+
+  it("calcula dias restantes com datas e fonte oficial confirmadas", () => {
+    const result = getVerifiedRegistrationDeadline(buildContest(), now);
+    expect(result).toMatchObject({ state: "open", daysRemaining: 23, endDate: "2026-12-18", sourceUrl });
+  });
+
+  it("trata o último dia como prazo vigente até o fim do dia local", () => {
+    const result = getVerifiedRegistrationDeadline(buildContest({
+      status: "Inscrições abertas até 25/11/2026",
+      periodoInscricao: { fim: "2026-11-25" }
+    }), now);
+    expect(result).toMatchObject({ state: "open", daysRemaining: 0 });
+  });
+
+  it("classifica início futuro como próximo, sem chamar de inscrição aberta", () => {
+    const result = getVerifiedRegistrationDeadline(buildContest({
+      status: "Edital publicado · inscrições começam em 26/11/2026 às 16h",
+      periodoInscricao: { inicio: "2026-11-26", fim: "2027-02-15" }
+    }), now);
+    expect(result).toMatchObject({ state: "upcoming", daysUntilOpen: 1, daysRemaining: 82 });
+  });
+
+  it("classifica prazo vencido como encerrado e não como aberto", () => {
+    const result = getVerifiedRegistrationDeadline(buildContest({
+      status: "Inscrições encerradas em 24/11/2026",
+      periodoInscricao: { fim: "2026-11-24" }
+    }), now);
+    expect(result).toMatchObject({ state: "closed", daysRemaining: -1 });
+  });
+
+  it("usa a data de Brasília nas viradas de dia UTC", () => {
+    const beforeMidnightInBrazil = getVerifiedRegistrationDeadline(buildContest({
+      periodoInscricao: { fim: "2026-11-26" }
+    }), new Date("2026-11-26T02:30:00.000Z"));
+    const afterMidnightInBrazil = getVerifiedRegistrationDeadline(buildContest({
+      periodoInscricao: { fim: "2026-11-26" }
+    }), new Date("2026-11-26T03:30:00.000Z"));
+    expect(beforeMidnightInBrazil.daysRemaining).toBe(1);
+    expect(afterMidnightInBrazil.daysRemaining).toBe(0);
+  });
+
+  it("não gera contagem quando o prazo ou o metadado está ausente", () => {
+    expect(getVerifiedRegistrationDeadline({ sourceUrl }, now)).toBeNull();
+    expect(getVerifiedRegistrationDeadline(buildContest({
+      periodoInscricao: { fim: null }
+    }), now)).toMatchObject({ state: "review" });
+  });
+
+  it("retira da contagem quando status e datas oficiais se contradizem", () => {
+    const result = getVerifiedRegistrationDeadline(buildContest({
+      periodoInscricao: { inicio: "2026-11-26" }
+    }), now);
+    expect(result).toMatchObject({ state: "review" });
+  });
+
+  it("retira da contagem quando a fonte não pertence ao domínio oficial vinculado", () => {
+    const result = getVerifiedRegistrationDeadline(buildContest({
+      periodoInscricao: { fonteUrl: "https://noticias.example.com/edital" }
+    }), now);
+    expect(result).toMatchObject({ state: "review", sourceUrl: null });
+  });
+
+  it("retira da contagem quando a conferência está vencida", () => {
+    const result = getVerifiedRegistrationDeadline(buildContest({
+      periodoInscricao: { verificadoEm: "2026-11-01" }
+    }), now);
+    expect(result).toMatchObject({ state: "review" });
+  });
+
+  it("ordena prazos abertos pelo encerramento, depois próximos e encerrados", () => {
+    const later = buildContest({ id: 1, cargo: "Prazo mais distante", periodoInscricao: { fim: "2026-12-18" } });
+    const earlier = buildContest({ id: 2, cargo: "Prazo mais próximo", periodoInscricao: { fim: "2026-12-10" } });
+    const upcoming = buildContest({
+      id: 3,
+      cargo: "Prazo futuro",
+      status: "Edital publicado · inscrições começam em 26/11/2026",
+      periodoInscricao: { inicio: "2026-11-26", fim: "2027-02-15" }
+    });
+    const closed = buildContest({
+      id: 4,
+      cargo: "Prazo encerrado",
+      status: "Inscrições encerradas",
+      periodoInscricao: { fim: "2026-11-24" }
+    });
+    const unverified = { id: 5, cargo: "Sem prazo", status: "Pré-edital" };
+    const original = [later, unverified, closed, upcoming, earlier];
+    const sorted = sortContestsByOfficialDeadline(original, now);
+    expect(sorted.map((item) => item.id)).toEqual([2, 1, 3, 4, 5]);
+    expect(original[0].id).toBe(1);
+  });
+
+  it("aceita o domínio institucional específico do IFG e não inventa a data inicial", () => {
+    const ifgUrl = "https://www.ifg.edu.br/institucional/17-ifg/campus/goiania/noticias-campus-goiania/48699-concurso-tae-26";
+    const result = getVerifiedRegistrationDeadline({
+      sourceUrl: ifgUrl,
+      status: "Inscrições abertas até 23/12/2026",
+      periodoInscricao: {
+        inicio: null,
+        fim: "2026-12-23",
+        fonteUrl: ifgUrl,
+        fonteDescricao: "IFG · notícia oficial do concurso TAE 2026",
+        verificadoEm: "2026-11-25"
+      }
+    }, now);
+    expect(result).toMatchObject({ state: "open", startDate: null, endDate: "2026-12-23" });
+  });
+
+  it("respeita o horário oficial de encerramento no fuso de Brasília", () => {
+    const contest = buildContest({
+      status: "Inscrições abertas até 25/11/2026",
+      periodoInscricao: { fim: "2026-11-25", fimHoraLocal: "16:00" }
+    });
+    const beforeDeadline = getVerifiedRegistrationDeadline(contest, new Date("2026-11-25T18:59:00.000Z"));
+    const afterDeadline = getVerifiedRegistrationDeadline(contest, new Date("2026-11-25T19:01:00.000Z"));
+    expect(beforeDeadline).toMatchObject({ state: "open", daysRemaining: 0, endTime: "16:00" });
+    expect(afterDeadline).toMatchObject({ state: "closed", daysRemaining: 0, endTime: "16:00" });
+  });
+
+  it("informa abertura no mesmo dia quando ainda não chegou o horário oficial", () => {
+    const result = getVerifiedRegistrationDeadline(buildContest({
+      status: "Edital publicado · inscrições começam em 25/11/2026 às 16h",
+      periodoInscricao: { inicio: "2026-11-25", inicioHoraLocal: "16:00" }
+    }), new Date("2026-11-25T18:59:00.000Z"));
+    expect(result).toMatchObject({ state: "upcoming", daysUntilOpen: 0, startTime: "16:00" });
+  });
+});
+

@@ -204,6 +204,179 @@ const getStatusPriority = (item) => ({
   "status-closed": 4
 }[getStatusTone(item?.status)] ?? 5);
 
+const BRAZIL_DATE_TIME_ZONE = "America/Sao_Paulo";
+const DAY_IN_MILLISECONDS = 24 * 60 * 60 * 1000;
+
+const parseDateOnly = (value) => {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const [year, month, day] = value.split("-").map(Number);
+  const timestamp = Date.UTC(year, month - 1, day);
+  const date = new Date(timestamp);
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return null;
+  return Math.floor(timestamp / DAY_IN_MILLISECONDS);
+};
+
+const getBrazilDateTimeParts = (value) => {
+  if (!(value instanceof Date) || Number.isNaN(value.getTime())) return null;
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: BRAZIL_DATE_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23"
+  }).formatToParts(value);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  if (!values.year || !values.month || !values.day || !values.hour || !values.minute) return null;
+  return {
+    date: values.year + "-" + values.month + "-" + values.day,
+    minutes: Number(values.hour) * 60 + Number(values.minute)
+  };
+};
+
+const parseLocalTime = (value) => {
+  if (typeof value !== "string" || !/^([01]\d|2[0-3]):[0-5]\d$/.test(value)) return null;
+  const [hour, minute] = value.split(":").map(Number);
+  return hour * 60 + minute;
+};
+
+const formatRegistrationDate = (value) => {
+  if (parseDateOnly(value) == null) return "";
+  const [year, month, day] = value.split("-");
+  return day + "/" + month + "/" + year;
+};
+
+const formatRegistrationTime = (value) => parseLocalTime(value) == null ? "" : value;
+
+export const getVerifiedRegistrationDeadline = (item, now = new Date()) => {
+  const period = item?.periodoInscricao;
+  if (!period || typeof period !== "object") return null;
+
+  const sourceUrl = typeof period.fonteUrl === "string" ? period.fonteUrl : "";
+  const linkedOfficialSources = [
+    item?.sourceUrl,
+    item?.inscricaoUrl,
+    ...(Array.isArray(item?.documentos) ? item.documentos.map((document) => typeof document === "string" ? document : document?.url || document?.href) : [])
+  ].filter(Boolean);
+  const sourceIsLinkedAndOfficial = isTrustedOfficialUrl(sourceUrl) && linkedOfficialSources.includes(sourceUrl);
+  const review = () => ({
+    state: "review",
+    endDate: period.fim || null,
+    sourceUrl: sourceIsLinkedAndOfficial ? sourceUrl : null,
+    sourceDescription: sourceIsLinkedAndOfficial ? String(period.fonteDescricao || "Fonte oficial") : "",
+    verifiedAt: period.verificadoEm || null
+  });
+
+  const brazilNow = getBrazilDateTimeParts(now);
+  const todayNumber = parseDateOnly(brazilNow?.date);
+  const endNumber = parseDateOnly(period.fim);
+  const startNumber = period.inicio == null || period.inicio === "" ? null : parseDateOnly(period.inicio);
+  const verifiedNumber = parseDateOnly(period.verificadoEm);
+  const startTimeMinutes = period.inicioHoraLocal == null || period.inicioHoraLocal === ""
+    ? null : parseLocalTime(period.inicioHoraLocal);
+  const endTimeMinutes = period.fimHoraLocal == null || period.fimHoraLocal === ""
+    ? null : parseLocalTime(period.fimHoraLocal);
+  const invalidStartTime = period.inicioHoraLocal != null && period.inicioHoraLocal !== "" && startTimeMinutes == null;
+  const invalidEndTime = period.fimHoraLocal != null && period.fimHoraLocal !== "" && endTimeMinutes == null;
+
+  if (!sourceIsLinkedAndOfficial || todayNumber == null || endNumber == null || verifiedNumber == null || invalidStartTime || invalidEndTime) return review();
+  if (period.inicio != null && period.inicio !== "" && startNumber == null) return review();
+  if (startNumber != null && startNumber > endNumber) return review();
+
+  const verificationAge = todayNumber - verifiedNumber;
+  if (verificationAge < 0 || verificationAge > 14) return review();
+
+  const status = String(item?.status || "").toLocaleLowerCase("pt-BR");
+  const claimsOpen = /inscri.{0,20}(?:abertas|em andamento)/i.test(status);
+  const claimsClosed = /inscri.{0,20}(?:encerradas|finalizadas)|prazo\s+(?:de\s+)?inscri.{0,10}encerrado/i.test(status);
+  const cancelledOrSuspended = /cancelad|suspens/i.test(status);
+  const daysRemaining = endNumber - todayNumber;
+  const daysUntilOpen = startNumber == null ? null : startNumber - todayNumber;
+
+  const endTimeReached = endNumber === todayNumber
+    && endTimeMinutes != null
+    && brazilNow.minutes >= endTimeMinutes;
+  const deadlineExpired = endNumber < todayNumber || endTimeReached;
+  const openingIsFuture = startNumber != null && (
+    startNumber > todayNumber
+    || (startNumber === todayNumber && startTimeMinutes != null && brazilNow.minutes < startTimeMinutes)
+  );
+  const registrationHasStarted = startNumber == null
+    ? claimsOpen
+    : startNumber < todayNumber
+      || (startNumber === todayNumber && (startTimeMinutes == null ? claimsOpen : brazilNow.minutes >= startTimeMinutes));
+
+  if ((claimsOpen && openingIsFuture) || (claimsClosed && !deadlineExpired) || (cancelledOrSuspended && !deadlineExpired)) return review();
+  if (deadlineExpired || claimsClosed || cancelledOrSuspended) {
+    return {
+      state: "closed",
+      startDate: period.inicio || null,
+      endDate: period.fim,
+      endTime: period.fimHoraLocal || null,
+      daysRemaining,
+      sourceUrl,
+      sourceDescription: String(period.fonteDescricao || "Fonte oficial"),
+      verifiedAt: period.verificadoEm
+    };
+  }
+  if (openingIsFuture) {
+    return {
+      state: "upcoming",
+      startDate: period.inicio || null,
+      startTime: period.inicioHoraLocal || null,
+      endDate: period.fim,
+      endTime: period.fimHoraLocal || null,
+      daysRemaining,
+      daysUntilOpen,
+      sourceUrl,
+      sourceDescription: String(period.fonteDescricao || "Fonte oficial"),
+      verifiedAt: period.verificadoEm
+    };
+  }
+  if (!registrationHasStarted || (daysRemaining === 0 && endTimeMinutes == null && !claimsOpen)) return review();
+
+  return {
+    state: "open",
+    startDate: period.inicio || null,
+    startTime: period.inicioHoraLocal || null,
+    endDate: period.fim,
+    endTime: period.fimHoraLocal || null,
+    daysRemaining,
+    daysUntilOpen,
+    sourceUrl,
+    sourceDescription: String(period.fonteDescricao || "Fonte oficial"),
+    verifiedAt: period.verificadoEm
+  };
+};
+
+export const sortContestsByOfficialDeadline = (items, now = new Date()) => {
+  const urgencyRank = { open: 0, upcoming: 1, closed: 2, review: 3 };
+  return (Array.isArray(items) ? items : [])
+    .map((item) => ({ item, urgency: getVerifiedRegistrationDeadline(item, now) }))
+    .sort((a, b) => {
+      const aRank = a.urgency ? urgencyRank[a.urgency.state] ?? 4 : 4;
+      const bRank = b.urgency ? urgencyRank[b.urgency.state] ?? 4 : 4;
+      if (aRank !== bRank) return aRank - bRank;
+      if (a.urgency?.state === "open" && b.urgency?.state === "open") {
+        const byClosingDate = a.urgency.daysRemaining - b.urgency.daysRemaining;
+        if (byClosingDate) return byClosingDate;
+      }
+      if (a.urgency?.state === "upcoming" && b.urgency?.state === "upcoming") {
+        const byOpeningDate = a.urgency.daysUntilOpen - b.urgency.daysUntilOpen;
+        if (byOpeningDate) return byOpeningDate;
+      }
+      if (a.urgency?.state === "closed" && b.urgency?.state === "closed") {
+        const byRecentClosure = String(b.urgency.endDate).localeCompare(String(a.urgency.endDate));
+        if (byRecentClosure) return byRecentClosure;
+      }
+      return String(a.item?.cargo || "").localeCompare(String(b.item?.cargo || ""), "pt-BR")
+        || String(a.item?.id || "").localeCompare(String(b.item?.id || ""));
+    })
+    .map(({ item }) => item);
+};
+
+
 
 const brazilianStates = [
   "Acre", "Alagoas", "Amapá", "Amazonas", "Bahia", "Ceará", "Distrito Federal",
@@ -969,6 +1142,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
       ? filtered.filter((item) => favorites.includes(item.id))
       : filtered;
     if (sortMode === "catalog") return items;
+    if (sortMode === "deadline") return sortContestsByOfficialDeadline(items);
     return [...items].sort((a, b) => {
       if (sortMode === "salary") {
         const aValue = getSalaryAmount(a), bValue = getSalaryAmount(b);
@@ -2241,6 +2415,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                   <option value="salary">Maior remuneração</option>
                   <option value="vacancies">Maior número de vagas</option>
                   <option value="status">Situação da inscrição</option>
+                  <option value="deadline">Prazo das inscrições (oficial)</option>
                   <option value="name">Nome do cargo (A–Z)</option>
                 </select>
               </label>
@@ -2333,6 +2508,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
             )}
             <div className={"cards " + (catalogView === "list" ? "cards-list" : "cards-grid")} data-view={catalogView}>
               {visibleCatalog.map((item) => {
+                const registrationDeadline = sortMode === "deadline" ? getVerifiedRegistrationDeadline(item) : null;
                 const isComparing = comparisonItems.some((entry) => String(entry.id) === String(item.id));
                 const compareLimitReached = comparisonItems.length >= 3 && !isComparing;
                 return <article className="contest-card" key={item.id}>
@@ -2342,6 +2518,24 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                   <span className="card-area-tag">{item.area || "Federal"} · {item.estado || "Brasil"}</span>
                   {isTemporarySelection(item) && <span className="card-type-tag" aria-label="Processo seletivo temporário">PSS temporário</span>}
                 </div>
+                {sortMode === "deadline" && <div className={`registration-deadline registration-deadline-${registrationDeadline?.state || "unverified"}`}>
+                  {registrationDeadline?.state === "open" && <>
+                    <strong>{registrationDeadline.daysRemaining === 0
+                      ? (registrationDeadline.endTime ? `Encerra hoje às ${formatRegistrationTime(registrationDeadline.endTime)}` : "Último dia informado · confira o horário no edital")
+                      : `Encerra em ${registrationDeadline.daysRemaining} ${registrationDeadline.daysRemaining === 1 ? "dia" : "dias"}`}</strong>
+                    <span>Prazo final confirmado: {formatRegistrationDate(registrationDeadline.endDate)}{registrationDeadline.endTime ? ` às ${formatRegistrationTime(registrationDeadline.endTime)}` : ""}</span>
+                  </>}
+                  {registrationDeadline?.state === "upcoming" && <>
+                    <strong>{registrationDeadline.daysUntilOpen === 0
+                      ? (registrationDeadline.startTime ? `Abre hoje às ${formatRegistrationTime(registrationDeadline.startTime)}` : "Abertura prevista para hoje · confira o horário")
+                      : registrationDeadline.daysUntilOpen === 1 ? "Abre amanhã" : `Abre em ${registrationDeadline.daysUntilOpen} dias`}</strong>
+                    <span>Inscrições até {formatRegistrationDate(registrationDeadline.endDate)}{registrationDeadline.endTime ? ` às ${formatRegistrationTime(registrationDeadline.endTime)}` : ""}</span>
+                  </>}
+                  {registrationDeadline?.state === "closed" && <strong>Inscrições encerradas · {formatRegistrationDate(registrationDeadline.endDate)}{registrationDeadline.endTime ? ` às ${formatRegistrationTime(registrationDeadline.endTime)}` : ""}</strong>}
+                  {registrationDeadline?.state === "review" && <strong>Prazo em revisão · sem contagem regressiva</strong>}
+                  {!registrationDeadline && <strong>Prazo oficial não confirmado · sem contagem regressiva</strong>}
+                  {registrationDeadline?.sourceUrl && <a href={registrationDeadline.sourceUrl} target="_blank" rel="noopener noreferrer">{registrationDeadline.sourceDescription} · conferida em {formatRegistrationDate(registrationDeadline.verifiedAt)}</a>}
+                </div>}
                 <h3>{item.cargo}</h3><p className="org-name">{item.orgao}</p>
                 <div className="card-meta card-facts">
                   <span><small>VAGAS</small><strong>{item.vagas == null ? "A divulgar" : new Intl.NumberFormat("pt-BR").format(item.vagas)}</strong></span>
