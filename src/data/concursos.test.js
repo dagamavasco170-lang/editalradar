@@ -32,6 +32,25 @@ describe("Atualização temporal do catálogo", () => {
     expect(selection.documentos).toHaveLength(1);
   });
 
+  it("cadastra o concurso efetivo de São Miguel dos Milagres com a fonte oficial e a faixa contextualizada", () => {
+    const contest = concursos.find((item) => item.id === 520);
+    expect(contest).toBeDefined();
+    expect(contest.orgao).toBe("Prefeitura Municipal de São Miguel dos Milagres");
+    expect(contest.vinculo).toMatch(/concurso público municipal/i);
+    expect(contest.area).toBe("Municipal");
+    expect(contest.estado).toBe("Alagoas");
+    expect(contest.localidade).toBe("São Miguel dos Milagres");
+    expect(contest.nivel).toBe("Diversos níveis");
+    expect(contest.vagas).toBe(232);
+    expect(contest.cargo).toMatch(/82 cargos/);
+    expect(contest.status).toMatch(/inscrições abertas até 23\/12\/2026/i);
+    expect(contest.sourceUrl).toBe("https://inbraedem.selecao.net.br/informacoes/4/");
+    expect(contest.inscricaoUrl).toBe("https://inbraedem.selecao.net.br/area-candidato/concurso/4/inscricao");
+    expect(contest.documentos[0].url).toBe("https://anexos-r2.selecao.net.br/uploads/875/concursos/4/anexos/77cdccb3-3cc7-45b9-8c81-c58081cbd4b2.pdf");
+    expect(contest.remuneracao.valor).toBe(1621);
+    expect(contest.remuneracao.natureza).toMatch(/até R\$ 10\.000,00/);
+  });
+
   it("registra a data da atualização do conjunto estático", () => {
     expect(sourceUpdated).toBe("Atualizado em 24/11/2026");
   });
