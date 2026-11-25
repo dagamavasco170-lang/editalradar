@@ -66,6 +66,11 @@ create table if not exists public.study_question_automation_topics (
   constraint study_question_automation_topics_source_excerpt_check
     check (source_excerpt is null or char_length(btrim(source_excerpt)) between 200 and 12000)
 );
+alter table public.study_question_automation_topics alter column source_excerpt drop not null;
+alter table public.study_question_automation_topics drop constraint if exists study_question_automation_topics_source_excerpt_check;
+alter table public.study_question_automation_topics add constraint study_question_automation_topics_source_excerpt_check
+  check (source_excerpt is null or char_length(btrim(source_excerpt)) between 200 and 12000);
+
 create index if not exists study_question_automation_topics_due_idx on public.study_question_automation_topics(active,last_run_at);
 create index if not exists study_question_automation_topics_created_by_idx on public.study_question_automation_topics(created_by);
 alter table public.study_question_automation_topics enable row level security;
@@ -154,7 +159,3 @@ $$;
 revoke all on function public.check_study_question_answer(bigint, text) from public, anon;
 grant execute on function public.check_study_question_answer(bigint, text) to authenticated;
 
-create index if not exists study_question_automation_runs_topic_id_idx
-  on public.study_question_automation_runs(topic_id);
-create index if not exists study_question_automation_topics_created_by_idx
-  on public.study_question_automation_topics(created_by);
