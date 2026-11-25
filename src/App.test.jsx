@@ -5,6 +5,9 @@ import { concursos } from "./data/concursos.js";
 import { scoreRecommendation, getRecommendationReasons } from "./App.jsx";
 import { buildCatalogSnapshot, getVisibleNotifications } from "./lib/notifications";
 
+const catalogResultCount = concursos.length;
+const nonPreliminaryResultCount = concursos.filter((item) => !/concurso listado\\s*·\\s*verificar/i.test(item.status || "")).length;
+
 describe("EditalRadar", () => {
   it("migra a preferência de modo escuro gravada pelas versões anteriores", () => {
     localStorage.clear();
@@ -296,7 +299,7 @@ describe("EditalRadar", () => {
 
   it("anuncia a quantidade de resultados do catálogo para tecnologias assistivas", () => {
     render(<App authClient={null} authConfigured={false} />);
-    expect(screen.getByRole("status")).toHaveTextContent("40 registros");
+    expect(screen.getByRole("status")).toHaveTextContent(`${catalogResultCount} registros`);
   });
 
   it("destaca visualmente inscrições abertas e pré-edital nos cards", () => {
@@ -480,10 +483,10 @@ describe("EditalRadar", () => {
   it("oculta os registros preliminares e atualiza a quantidade exibida", () => {
     render(<App />);
 
-    expect(screen.getByText("40 registros")).toBeInTheDocument();
+    expect(screen.getByText(`${catalogResultCount} registros`)).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText("Ocultar registros preliminares"));
 
-    expect(screen.getByText("29 registros")).toBeInTheDocument();
+    expect(screen.getByText(`${nonPreliminaryResultCount} registros`)).toBeInTheDocument();
     expect(screen.getByLabelText("Ocultar registros preliminares")).toBeChecked();
   });
 
@@ -494,7 +497,7 @@ describe("EditalRadar", () => {
     fireEvent.click(screen.getByRole("button", { name: /Salvar alerta/ }));
 
     expect(screen.getByText(/Somente fichas não preliminares/)).toBeInTheDocument();
-    expect(screen.getByText("29 oportunidade(s) correspondente(s)")).toBeInTheDocument();
+    expect(screen.getByText(`${nonPreliminaryResultCount} oportunidade(s) correspondente(s)`)).toBeInTheDocument();
     expect(JSON.parse(localStorage.getItem("er-alerts"))[0].filters.ocultarPreliminares).toBe(true);
   });
 
