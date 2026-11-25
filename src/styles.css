@@ -313,7 +313,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .heart:hover,.heart.saved{background:#fff5f5;border-color:#f0d7d8}
 .card-status-row{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;flex-wrap:wrap;min-height:29px}
 .contest-card .status{max-width:100%;white-space:normal;line-height:1.4}
-.card-area-tag{color:#7d8e94;font-size:8px;font-weight:800;letter-spacing:.45px;text-transform:uppercase;padding:5px 0}
+.card-area-tag{color:#7d8e94;font-size:8px;font-weight:800;letter-spacing:.45px;text-transform:uppercase;padding:5px 0}.card-type-tag{display:inline-flex;align-items:center;padding:4px 7px;border:1px solid #e5e7eb;border-radius:999px;background:#f3f4f6;color:#475569;font-size:8px;font-weight:850;letter-spacing:.25px;text-transform:uppercase;white-space:nowrap}
 .contest-card h3{font-size:15px;line-height:1.42;letter-spacing:-.2px;margin:10px 0 5px;color:#1b3b4d}
 .org-name{font-size:10px;line-height:1.5;min-height:30px}
 .card-meta.card-facts{
