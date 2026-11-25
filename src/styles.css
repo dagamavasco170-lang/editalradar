@@ -3501,3 +3501,12 @@ html[data-theme="dark"] .search-clear:hover{background:#34546b}
 }
 html[data-theme="dark"] .discovery-list-footer{border-top-color:#30435a}
 html[data-theme="dark"] .discovery-list-footer small{color:#aebed1}
+
+/* Active catalog filters: removable, touch-friendly chips. */
+.active-filter-summary{display:flex;flex-wrap:wrap;align-items:center;gap:7px;margin:0 0 14px;padding:10px 12px;border:1px solid #e4ece8;background:#f8fbf9;border-radius:9px}
+.active-filter-label{font-size:10px;font-weight:700;color:#71827d}
+.active-filter-chip{border:1px solid #d6e8df;background:#fff;color:#256b55;border-radius:999px;padding:6px 10px;font-size:10px;display:inline-flex;align-items:center;gap:6px;max-width:100%;overflow-wrap:anywhere}
+.active-filter-chip span{font-size:14px;line-height:1;color:#6b9283}
+.active-filter-chip:hover{background:#edf7f2;border-color:#b7d8c9}
+.active-filter-clear{border:0;background:transparent;color:#a05b52;font-size:10px;font-weight:700;padding:6px 8px}
+@media(max-width:480px){.active-filter-summary{gap:6px;padding:9px}.active-filter-chip{padding:7px 9px;font-size:10px}}

@@ -2284,6 +2284,19 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
               {ocultarPreliminares && <span className="filter-hint">Exibindo apenas fichas não preliminares</span>}
               </div>
             </div>
+            {activeFilterCount > 0 && (
+              <div className="active-filter-summary" role="group" aria-label="Filtros aplicados">
+                <span className="active-filter-label">Aplicados:</span>
+                {query.trim() && <button type="button" className="active-filter-chip" aria-label="Remover filtro de busca" onClick={() => setQuery("")}>Busca: {query.trim()} <span aria-hidden="true">×</span></button>}
+                {esfera !== "Todas as esferas" && <button type="button" className="active-filter-chip" aria-label="Remover filtro de esfera" onClick={() => setEsfera("Todas as esferas")}>Esfera: {esfera} <span aria-hidden="true">×</span></button>}
+                {estado !== "Todos os estados" && <button type="button" className="active-filter-chip" aria-label="Remover filtro de estado" onClick={() => updateEstado("Todos os estados")}>Estado: {estado} <span aria-hidden="true">×</span></button>}
+                {localidade !== "Todas as cidades" && <button type="button" className="active-filter-chip" aria-label="Remover filtro de cidade" onClick={() => setLocalidade("Todas as cidades")}>Cidade: {localidade} <span aria-hidden="true">×</span></button>}
+                {nivel !== "Todos os níveis" && <button type="button" className="active-filter-chip" aria-label="Remover filtro de escolaridade" onClick={() => setNivel("Todos os níveis")}>Escolaridade: {nivel} <span aria-hidden="true">×</span></button>}
+                {situacao !== "Todas as situações" && <button type="button" className="active-filter-chip" aria-label="Remover filtro de situação" onClick={() => setSituacao("Todas as situações")}>Situação: {situacao} <span aria-hidden="true">×</span></button>}
+                {ocultarPreliminares && <button type="button" className="active-filter-chip" aria-label="Remover filtro de preliminares" onClick={() => setOcultarPreliminares(false)}>Sem preliminares <span aria-hidden="true">×</span></button>}
+                <button type="button" className="active-filter-clear" onClick={clearCatalogFilters}>Limpar tudo</button>
+              </div>
+            )}
             <section className="alerts-panel" aria-label="Alertas personalizados">
               <div className="alerts-intro">
                 <div>

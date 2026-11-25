@@ -635,6 +635,19 @@ describe("EditalRadar", () => {
     expect(task).toBeChecked();
     expect(screen.getByText("25%")).toBeInTheDocument();
   });
+  it("permite remover um filtro aplicado individualmente no catálogo", () => {
+    localStorage.clear();
+    render(<App authClient={null} authConfigured={false} />);
+    const search = screen.getByRole("searchbox", { name: "Buscar concurso por cargo ou órgão" });
+    fireEvent.change(search, { target: { value: "termo sem resultados xyz" } });
+    expect(screen.getByRole("group", { name: "Filtros aplicados" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Remover filtro de busca" })).toBeInTheDocument();
+    expect(screen.getByText("0 registros")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Remover filtro de busca" }));
+    expect(screen.queryByRole("group", { name: "Filtros aplicados" })).not.toBeInTheDocument();
+    expect(screen.getByText(new RegExp(catalogResultCount + " registros"))).toBeInTheDocument();
+  });
+
 });
 
 describe("recomendações personalizadas",()=>{it("pontua melhor concursos alinhados à área fiscal e escolaridade superior",()=>{const profile={interest_area:"Fiscal e controle",education_level:"Superior completo",state:"Alagoas"};const aligned=concursos.find(item=>/auditor/i.test(item.cargo)&&/Brasil|Alagoas/.test(item.estado||""));const unrelated=concursos.find(item=>/professor/i.test(item.cargo));expect(scoreRecommendation(aligned,profile)).toBeGreaterThan(scoreRecommendation(unrelated,profile));});it("explica a compatibilidade com etiquetas legíveis",()=>{const item={cargo:"Auditor Fiscal",orgao:"Receita",estado:"Alagoas",localidade:"Maceió",nivel:"Superior",status:"Inscrições abertas"};const reasons=getRecommendationReasons(item,{interest_area:"Fiscal e controle",education_level:"Superior completo",state:"Alagoas",city:"Maceió"});expect(reasons).toEqual(["Área de interesse","Escolaridade","Estado/local","Cidade/local","Oportunidade ativa"]);});it("não inventa compatibilidades de área ou status",()=>{const item={cargo:"Professor",orgao:"Escola",estado:"São Paulo",localidade:"São Paulo",nivel:"Médio",status:"Inscrições encerradas"};const reasons=getRecommendationReasons(item,{interest_area:"Fiscal e controle",education_level:"Superior completo",state:"Alagoas",city:"Maceió"});expect(reasons).not.toContain("Área de interesse");expect(reasons).not.toContain("Oportunidade ativa");});});
