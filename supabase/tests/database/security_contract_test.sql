@@ -66,9 +66,12 @@ select ok(
   exists (
     select 1 from pg_proc
     where oid = 'public.check_study_question_answer(bigint,text)'::regprocedure
-      and proconfig @> array['search_path=pg_catalog, public']::text[]
+      and (
+        proconfig @> array['search_path=pg_catalog, public']::text[]
+        or proconfig @> array['search_path=""']::text[]
+      )
   ),
-  'answer-check RPC pins search_path'
+  'answer-check RPC pins search_path or disables implicit schema lookup'
 );
 select ok(
   not exists (
