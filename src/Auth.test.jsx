@@ -574,7 +574,12 @@ describe("Autenticação EditalRadar", () => {
     fireEvent.change(screen.getByPlaceholderText("Buscar cargo ou órgão..."), {
       target: { value: "Polícia Civil" }
     });
-    fireEvent.click(screen.getByRole("button", { name: /Ver detalhes/ }));
+    const alagoasContestCard = screen.getByRole("heading", {
+      level: 3,
+      name: "Agente e Escrivão de Polícia Civil"
+    }).closest(".contest-card");
+    expect(alagoasContestCard).not.toBeNull();
+    fireEvent.click(within(alagoasContestCard).getByRole("button", { name: /Ver detalhes/ }));
 
     expect(await screen.findByRole("heading", { level: 1, name: "Agente e Escrivão de Polícia Civil" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Cronograma e etapas" })).toBeInTheDocument();

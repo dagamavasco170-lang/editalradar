@@ -863,3 +863,54 @@ describe("segunda leva de oportunidades oficiais e pré-editais", () => {
   });
 });
 
+
+describe("terceira leva de concursos oficiais FGV", () => {
+  const now = new Date("2026-11-25T15:00:00.000Z");
+
+  it("cadastra o concurso de Educação de Salvador com 190 vagas imediatas e fase atual de resultados", () => {
+    const contest = concursos.find((item) => item.id === 533);
+    expect(contest).toMatchObject({
+      sigla: "PMS-SALVADOR-EDUCACAO",
+      vagas: 190,
+      vagasImediatas: 190,
+      status: "Provas / resultados · relação de candidatos com prova discursiva corrigida publicada em 18/11/2026",
+      periodoInscricao: {
+        inicio: "2026-07-09",
+        fim: "2026-08-07",
+        verificadoEm: "2026-11-25"
+      }
+    });
+    expect(contest.documentos[0].url).toContain("edital-preliminar-pref-salvador");
+    expect(contest.observacao).toMatch(/130.*Professor.*60.*Coordenador/);
+    expect(getVerifiedRegistrationDeadline(contest, now)).toMatchObject({
+      state: "closed",
+      endDate: "2026-08-07"
+    });
+  });
+
+  it("registra a PCPR como exclusivamente cadastro de reserva, sem inventar vagas", () => {
+    const contest = concursos.find((item) => item.id === 534);
+    expect(contest).toMatchObject({
+      sigla: "PCPR",
+      vagas: null,
+      vagasImediatas: null,
+      status: "Provas / resultados · resultado preliminar da prova objetiva publicado em 13/11/2026",
+      periodoInscricao: {
+        inicio: "2026-07-14",
+        fim: "2026-08-12",
+        inicioHoraLocal: "16:00",
+        fimHoraLocal: "16:00",
+        verificadoEm: "2026-11-25"
+      }
+    });
+    expect(contest.vagasTotais).toBeUndefined();
+    expect(contest.vinculo).toMatch(/exclusivamente cadastro de reserva/);
+    expect(contest.observacao).toMatch(/sem quantitativo de vagas imediatas/);
+    expect(contest.documentos[0].url).toContain("pcpr-publicacao.docx.pdf");
+    expect(getVerifiedRegistrationDeadline(contest, now)).toMatchObject({
+      state: "closed",
+      endDate: "2026-08-12",
+      endTime: "16:00"
+    });
+  });
+});

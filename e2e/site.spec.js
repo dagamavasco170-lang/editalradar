@@ -143,7 +143,9 @@ test("oferece acesso ao banco de provas original do PCI Concursos", async ({ pag
 test("abre a página individual de um concurso com cronograma e fonte oficial", async ({ page }) => {
   await page.goto("./");
   await page.getByPlaceholder("Buscar cargo ou órgão...").fill("Polícia Civil");
-  await page.getByRole("button", { name: /Ver detalhes/ }).click();
+  const alagoasPoliceCard = page.locator(".contest-card").filter({ hasText: "Agente e Escrivão de Polícia Civil" });
+  await expect(alagoasPoliceCard).toHaveCount(1);
+  await alagoasPoliceCard.getByRole("button", { name: /Ver detalhes/ }).click();
 
   await expect(page.getByRole("heading", { name: "Agente e Escrivão de Polícia Civil" })).toBeVisible();
   await expect(page.getByText(/5.318,63/).first()).toBeVisible();
