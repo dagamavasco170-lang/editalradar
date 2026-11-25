@@ -24,11 +24,13 @@ describe("client diagnostics payload", () => {
     expect(entry.message).toContain("[email]");
     expect(entry.message).toContain("Bearer [redacted]");
     expect(entry.message).toContain("api_key=[redacted]");
-    expect(entry.message).toContain("https://app.example.com");\n    expect(entry.message).not.toContain("/path");
+    expect(entry.message).toContain("https://app.example.com");
+    expect(entry.message).not.toContain("/path");
     expect(entry.message).not.toContain("access_token=secret");
     expect(entry.message).not.toContain("0123456789abcdef0123456789abcdef");
     expect(entry.stack).toContain("password=[redacted]");
-    expect(entry.stack).toContain("https://example.org");\n    expect(entry.stack).not.toContain("/error");
+    expect(entry.stack).toContain("https://example.org");
+    expect(entry.stack).not.toContain("/error");
     expect(entry.stack).not.toContain("private@example.org");
   });
 });
