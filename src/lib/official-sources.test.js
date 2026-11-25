@@ -49,6 +49,8 @@ describe("fontes de estudo privadas e fontes de prova", () => {
     expect(isTrustedOfficialUrl("https://www.gov.br/concursos")).toBe(true);
     expect(isTrustedOfficialUrl("https://www.cebraspe.org.br/concursos")).toBe(true);
     expect(isTrustedOfficialUrl("https://conhecimento.fgv.br/concursos")).toBe(true);
+    expect(isTrustedOfficialUrl("https://www.cesgranrio.org.br/concurso/ibge-2026/")).toBe(true);
+    expect(isTrustedOfficialUrl("https://concursos.cesgranrio.org.br/portal/avaliacoes/33")).toBe(true);
     expect(isTrustedOfficialUrl("https://brasilescola.uol.com.br/gramatica")).toBe(false);
   });
 

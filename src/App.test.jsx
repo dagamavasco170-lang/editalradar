@@ -5,6 +5,9 @@ import { concursos } from "./data/concursos.js";
 import { scoreRecommendation, getRecommendationReasons } from "./App.jsx";
 import { buildCatalogSnapshot, getVisibleNotifications } from "./lib/notifications";
 
+const catalogResultCount = concursos.length;
+const nonPreliminaryResultCount = concursos.filter((item) => !/concurso listado\s*·\s*verificar/i.test(item.status || "")).length;
+
 describe("EditalRadar", () => {
   it("migra a preferência de modo escuro gravada pelas versões anteriores", () => {
     localStorage.clear();
@@ -296,7 +299,7 @@ describe("EditalRadar", () => {
 
   it("anuncia a quantidade de resultados do catálogo para tecnologias assistivas", () => {
     render(<App authClient={null} authConfigured={false} />);
-    expect(screen.getByRole("status")).toHaveTextContent("39 registros");
+    expect(screen.getByRole("status")).toHaveTextContent(`${catalogResultCount} registros`);
   });
 
   it("destaca visualmente inscrições abertas e pré-edital nos cards", () => {
@@ -480,10 +483,10 @@ describe("EditalRadar", () => {
   it("oculta os registros preliminares e atualiza a quantidade exibida", () => {
     render(<App />);
 
-    expect(screen.getByText("39 registros")).toBeInTheDocument();
+    expect(screen.getByText(`${catalogResultCount} registros`)).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText("Ocultar registros preliminares"));
 
-    expect(screen.getByText("28 registros")).toBeInTheDocument();
+    expect(screen.getByText(`${nonPreliminaryResultCount} registros`)).toBeInTheDocument();
     expect(screen.getByLabelText("Ocultar registros preliminares")).toBeChecked();
   });
 
@@ -494,7 +497,7 @@ describe("EditalRadar", () => {
     fireEvent.click(screen.getByRole("button", { name: /Salvar alerta/ }));
 
     expect(screen.getByText(/Somente fichas não preliminares/)).toBeInTheDocument();
-    expect(screen.getByText("28 oportunidade(s) correspondente(s)")).toBeInTheDocument();
+    expect(screen.getByText(`${nonPreliminaryResultCount} oportunidade(s) correspondente(s)`)).toBeInTheDocument();
     expect(JSON.parse(localStorage.getItem("er-alerts"))[0].filters.ocultarPreliminares).toBe(true);
   });
 
@@ -519,6 +522,22 @@ describe("EditalRadar", () => {
     expect(screen.getByRole("heading", { name: "Cronograma e etapas" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Acessar fonte oficial/ }))
       .toHaveAttribute("href", "https://www.bcb.gov.br/acessoinformacao/concursospublicos");
+  });
+
+  it("exibe o atalho de inscrição oficial do PSS temporário do IBGE em Alagoas", () => {
+    render(<App />);
+    fireEvent.change(screen.getByPlaceholderText("Buscar cargo ou órgão..."), {
+      target: { value: "Recenseador" }
+    });
+    expect(screen.getByRole("heading", { level: 3, name: "Recenseador — 12º Censo Agropecuário" })).toBeInTheDocument();
+    expect(screen.getByText("PSS temporário")).toBeInTheDocument();
+    expect(screen.getByText("Inscrições abertas até 25/11/2026 às 23h59")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Ver detalhes/ }));
+    expect(screen.getByRole("heading", { level: 1, name: "Recenseador — 12º Censo Agropecuário" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Inscrever-se pela organizadora/ }))
+      .toHaveAttribute("href", "https://concursos.cesgranrio.org.br/portal/avaliacoes/33");
+    expect(screen.getByRole("link", { name: /Acessar fonte oficial/ }))
+      .toHaveAttribute("href", "https://ftp.ibge.gov.br/edital/PSS_Censo_Agro/2026_03/EDITAL_03_2026_PSS_RECENSEADOR_IBGE.pdf");
   });
 
   it("compara duas oportunidades lado a lado e informa quando a remuneração não está cadastrada", () => {

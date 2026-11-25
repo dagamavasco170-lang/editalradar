@@ -2,7 +2,7 @@ const OFFICIAL_SUFFIXES = [".gov.br", ".jus.br", ".leg.br", ".mp.br", ".mil.br",
 const APPROVED_PROVIDERS = [
   "cebraspe.org.br", "igeduc.selecao.net.br", "igeduc.org.br", "ibfc.org.br",
   "quadrix.org.br", "fundacaolasalle.org.br", "fgv.br", "concursosfcc.com.br",
-  "vunesp.com.br", "institutoaocp.org.br"
+  "vunesp.com.br", "institutoaocp.org.br", "cesgranrio.org.br"
 ];
 
 const PRIVATE_STUDY_SOURCE_DOMAINS = [

@@ -313,7 +313,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .heart:hover,.heart.saved{background:#fff5f5;border-color:#f0d7d8}
 .card-status-row{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;flex-wrap:wrap;min-height:29px}
 .contest-card .status{max-width:100%;white-space:normal;line-height:1.4}
-.card-area-tag{color:#7d8e94;font-size:8px;font-weight:800;letter-spacing:.45px;text-transform:uppercase;padding:5px 0}
+.card-area-tag{color:#7d8e94;font-size:8px;font-weight:800;letter-spacing:.45px;text-transform:uppercase;padding:5px 0}.card-type-tag{display:inline-flex;align-items:center;padding:4px 7px;border:1px solid #e5e7eb;border-radius:999px;background:#f3f4f6;color:#475569;font-size:8px;font-weight:850;letter-spacing:.25px;text-transform:uppercase;white-space:nowrap}
 .contest-card h3{font-size:15px;line-height:1.42;letter-spacing:-.2px;margin:10px 0 5px;color:#1b3b4d}
 .org-name{font-size:10px;line-height:1.5;min-height:30px}
 .card-meta.card-facts{
@@ -412,7 +412,7 @@ footer{background:#fff}
 .detail-hero-actions{display:grid;gap:8px;min-width:190px}
 .detail-favorite-btn,.detail-source-btn{display:flex;align-items:center;justify-content:center;min-height:40px;padding:9px 12px;border-radius:8px;font-size:10px;font-weight:800;text-align:center;text-decoration:none}
 .detail-favorite-btn{border:1px solid rgba(255,255,255,.35);background:#fff;color:#176f59}
-.detail-source-btn{border:1px solid rgba(255,255,255,.28);background:rgba(255,255,255,.08);color:#fff}
+.detail-source-btn{border:1px solid rgba(255,255,255,.28);background:rgba(255,255,255,.08);color:#fff}.detail-registration-btn{display:flex;align-items:center;justify-content:center;min-height:40px;padding:9px 12px;border:1px solid #38c49a;border-radius:8px;background:#168a6a;color:#fff;font-size:10px;font-weight:850;text-align:center;text-decoration:none}.detail-registration-btn:hover{background:#117557}
 .detail-favorite-btn:disabled{opacity:.6;cursor:not-allowed}
 .detail-section-nav{display:flex;gap:7px;overflow-x:auto;padding:13px 0;margin:0 0 2px;scrollbar-width:thin}
 .detail-section-nav a{flex:0 0 auto;padding:8px 11px;border:1px solid #e1ebe6;border-radius:999px;background:#fff;color:#50706e;text-decoration:none;font-size:10px;font-weight:700}
