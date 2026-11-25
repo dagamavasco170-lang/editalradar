@@ -540,6 +540,23 @@ describe("EditalRadar", () => {
       .toHaveAttribute("href", "https://ftp.ibge.gov.br/edital/PSS_Censo_Agro/2026_03/EDITAL_03_2026_PSS_RECENSEADOR_IBGE.pdf");
   });
 
+  it("mostra o concurso efetivo de São Miguel dos Milagres e o acesso oficial à inscrição", () => {
+    render(<App />);
+    fireEvent.change(screen.getByPlaceholderText("Buscar cargo ou órgão..."), {
+      target: { value: "São Miguel dos Milagres" }
+    });
+    expect(screen.getByRole("heading", { level: 3, name: "Diversos cargos efetivos (82 cargos)" })).toBeInTheDocument();
+    expect(screen.getByText("232")).toBeInTheDocument();
+    expect(screen.getByText(/R\$ 1\.621,00/)).toBeInTheDocument();
+    expect(screen.getByText(/R\$ 10\.000,00/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Ver detalhes/ }));
+    expect(screen.getByRole("heading", { level: 1, name: "Diversos cargos efetivos (82 cargos)" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Inscrever-se pela organizadora/ }))
+      .toHaveAttribute("href", "https://inbraedem.selecao.net.br/area-candidato/concurso/4/inscricao");
+    expect(screen.getByRole("link", { name: /Acessar fonte oficial/ }))
+      .toHaveAttribute("href", "https://inbraedem.selecao.net.br/informacoes/4/");
+  });
+
   it("compara duas oportunidades lado a lado e informa quando a remuneração não está cadastrada", () => {
     localStorage.removeItem("er-comparison:visitor");
     render(<App />);
