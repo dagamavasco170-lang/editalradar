@@ -832,7 +832,6 @@ export const concursos = [
     },
     "observacao": "Esta ficha é de processo seletivo simplificado para contratação temporária, não de cargo efetivo. O edital oferece 27.279 vagas no país; em Alagoas, são 421 vagas distribuídas em 30 municípios/localidades. O quadro oficial registra 13 vagas em Arapiraca e 13 em Igaci. Inscrições de 06 a 25/11/2026, taxa de R$ 70,00 e prova objetiva prevista para 31/01/2027. A duração inicial estimada do contrato é de até seis meses, conforme o edital. Consulte o quadro de vagas e as regras antes de se inscrever."
   },
-,
 
   {
     "id": 520,
