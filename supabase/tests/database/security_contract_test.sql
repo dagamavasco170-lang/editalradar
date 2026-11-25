@@ -2,7 +2,7 @@
 -- Catalog-only assertions: no production data is read or modified.
 begin;
 
-select plan(19);
+select plan(21);
 
 select ok(
   (select relrowsecurity from pg_class where oid = 'public.study_question_answers'::regclass),
@@ -142,5 +142,37 @@ select ok(
   'answer is not stored on the public study_questions table'
 );
 
+select ok(
+  not exists (
+    select 1
+    from pg_class c
+    join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = 'public'
+      and c.relkind in ('r','p')
+      and (
+        has_table_privilege('anon', c.oid, 'TRUNCATE')
+        or has_table_privilege('authenticated', c.oid, 'TRUNCATE')
+        or has_table_privilege('anon', c.oid, 'REFERENCES')
+        or has_table_privilege('authenticated', c.oid, 'REFERENCES')
+        or has_table_privilege('anon', c.oid, 'TRIGGER')
+        or has_table_privilege('authenticated', c.oid, 'TRIGGER')
+      )
+  ),
+  'client roles have no destructive or maintenance table privileges in public'
+);
+select ok(
+  not exists (
+    select 1
+    from pg_default_acl d
+    cross join lateral aclexplode(d.defaclacl) a
+    join pg_namespace n on n.oid = d.defaclnamespace
+    where n.nspname = 'public'
+      and d.defaclobjtype = 'r'
+      and d.defaclrole in ('postgres'::regrole, 'supabase_admin'::regrole)
+      and a.grantee in ('anon'::regrole, 'authenticated'::regrole)
+      and a.privilege_type in ('TRUNCATE','REFERENCES','TRIGGER')
+  ),
+  'migration owners do not default-grant maintenance privileges to client roles'
+);
 select * from finish();
 rollback;
