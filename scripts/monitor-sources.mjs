@@ -223,7 +223,11 @@ export function collectSourceUrls(items = concursos, additionalSources = sourceR
     ...(Array.isArray(items) ? items : []),
     ...(Array.isArray(additionalSources) ? additionalSources : [])
   ];
-  return [...new Set(sourceItems.map((item) => item?.sourceUrl).filter((value) => {
+  const candidateUrls = sourceItems.flatMap((item) => [
+    item?.sourceUrl,
+    item?.periodoInscricao?.fonteUrl
+  ]);
+  return [...new Set(candidateUrls.filter((value) => {
     try {
       const url = new URL(value);
       return url.protocol === "https:" && isTrustedOfficialHost(url.hostname);
