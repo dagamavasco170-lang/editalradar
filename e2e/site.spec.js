@@ -110,12 +110,12 @@ test("salva um concurso nos favoritos no navegador", async ({ page }) => {
 
 test("filtra concursos estaduais e municipais por estado e cidade", async ({ page }) => {
   await page.goto("./");
-  await page.getByLabel("Esfera").selectOption("Estadual");
+  await page.getByLabel("Esfera", { exact: true }).selectOption("Estadual");
   await expect(page.getByText("Polícia Civil do Estado de Alagoas").first()).toBeVisible();
   await expect(page.getByText("Banco Central do Brasil")).toHaveCount(0);
 
-  await page.getByLabel("Esfera").selectOption("Todas as esferas");
-  await page.getByLabel("Cidade").selectOption("Paripueira");
+  await page.getByLabel("Esfera", { exact: true }).selectOption("Todas as esferas");
+  await page.getByLabel("Cidade", { exact: true }).selectOption("Paripueira");
   await expect(page.getByText("Cargos efetivos a definir")).toBeVisible();
   await expect(page.locator(".cards").getByText("Professor — Matemática (lotação em Paripueira)")).toBeVisible();
 });
