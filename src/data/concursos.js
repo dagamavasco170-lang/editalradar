@@ -832,6 +832,44 @@ export const concursos = [
     },
     "observacao": "Esta ficha é de processo seletivo simplificado para contratação temporária, não de cargo efetivo. O edital oferece 27.279 vagas no país; em Alagoas, são 421 vagas distribuídas em 30 municípios/localidades. O quadro oficial registra 13 vagas em Arapiraca e 13 em Igaci. Inscrições de 06 a 25/11/2026, taxa de R$ 70,00 e prova objetiva prevista para 31/01/2027. A duração inicial estimada do contrato é de até seis meses, conforme o edital. Consulte o quadro de vagas e as regras antes de se inscrever."
   },
+,
+
+  {
+    "id": 520,
+    "sigla": "SMM",
+    "cargo": "Diversos cargos efetivos (82 cargos)",
+    "orgao": "Prefeitura Municipal de São Miguel dos Milagres",
+    "vinculo": "Concurso público municipal — Edital nº 001/2026",
+    "nivel": "Diversos níveis",
+    "vagas": 232,
+    "vagasTotais": 232,
+    "vagasImediatas": 232,
+    "atoOficial": "Concurso Público — Edital nº 001/2026, de 23/11/2026",
+    "status": "Inscrições abertas até 23/12/2026",
+    "area": "Municipal",
+    "estado": "Alagoas",
+    "localidade": "São Miguel dos Milagres",
+    "sourceUrl": "https://inbraedem.selecao.net.br/informacoes/4/",
+    "inscricaoUrl": "https://inbraedem.selecao.net.br/area-candidato/concurso/4/inscricao",
+    "documentos": [
+      {
+        "title": "Edital nº 001/2026 — PDF integral",
+        "url": "https://anexos-r2.selecao.net.br/uploads/875/concursos/4/anexos/77cdccb3-3cc7-45b9-8c81-c58081cbd4b2.pdf",
+        "description": "Edital oficial do concurso público municipal, com requisitos, quadro de vagas, remuneração e cronograma."
+      }
+    ],
+    "remuneracao": {
+      "valor": 1621,
+      "moeda": "BRL",
+      "periodicidade": "mensal",
+      "natureza": "Piso base; os vencimentos variam conforme o cargo e chegam a R$ 10.000,00",
+      "observacao": "O Anexo II apresenta vencimentos-base de R$ 1.621,00 a R$ 10.000,00, conforme o cargo. Não se trata de uma remuneração única; alguns cargos também possuem adicionais específicos previstos no edital.",
+      "sourceUrl": "https://anexos-r2.selecao.net.br/uploads/875/concursos/4/anexos/77cdccb3-3cc7-45b9-8c81-c58081cbd4b2.pdf",
+      "sourceLabel": "INBRAEDEM — Edital oficial nº 001/2026",
+      "verificadoEm": "2026-11-24"
+    },
+    "observacao": "Concurso público para provimento de cargos efetivos do Município de São Miguel dos Milagres/AL, com 232 vagas distribuídas em 82 cargos e escolaridade fundamental, média, técnica e superior. Inscrições de 23/11 a 23/12/2026; prova objetiva prevista para 31/01/2027. O quadro de vencimentos do Anexo II varia de R$ 1.621,00 a R$ 10.000,00 conforme a função. Consulte o edital integral para conferir atribuições, requisitos, jornada, remuneração e eventuais adicionais do cargo escolhido."
+  },
 
 ];
 
