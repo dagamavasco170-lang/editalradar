@@ -796,5 +796,24 @@ describe("ranking por prazos oficiais de inscrição", () => {
     }, now);
     expect(result).toMatchObject({ state: "open", startDate: null, endDate: "2026-12-23" });
   });
+
+  it("respeita o horário oficial de encerramento no fuso de Brasília", () => {
+    const contest = buildContest({
+      status: "Inscrições abertas até 25/11/2026",
+      periodoInscricao: { fim: "2026-11-25", fimHoraLocal: "16:00" }
+    });
+    const beforeDeadline = getVerifiedRegistrationDeadline(contest, new Date("2026-11-25T18:59:00.000Z"));
+    const afterDeadline = getVerifiedRegistrationDeadline(contest, new Date("2026-11-25T19:01:00.000Z"));
+    expect(beforeDeadline).toMatchObject({ state: "open", daysRemaining: 0, endTime: "16:00" });
+    expect(afterDeadline).toMatchObject({ state: "closed", daysRemaining: 0, endTime: "16:00" });
+  });
+
+  it("informa abertura no mesmo dia quando ainda não chegou o horário oficial", () => {
+    const result = getVerifiedRegistrationDeadline(buildContest({
+      status: "Edital publicado · inscrições começam em 25/11/2026 às 16h",
+      periodoInscricao: { inicio: "2026-11-25", inicioHoraLocal: "16:00" }
+    }), new Date("2026-11-25T18:59:00.000Z"));
+    expect(result).toMatchObject({ state: "upcoming", daysUntilOpen: 0, startTime: "16:00" });
+  });
 });
 
