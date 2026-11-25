@@ -2,7 +2,7 @@
 -- Catalog-only assertions: no production data is read or modified.
 begin;
 
-select plan(43);
+select plan(45);
 
 select ok(
   not has_schema_privilege('anon', 'pgmq', 'USAGE'),
@@ -321,6 +321,34 @@ select ok(
       and p.oid <> 'public.check_study_question_answer(bigint,text)'::regprocedure
   ),
   'authenticated cannot execute unexpected public SECURITY DEFINER functions'
+);
+
+-- PGMQ extension routines are not directly executable by API client roles.
+select ok(
+  not exists (
+    select 1 from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'pgmq'
+      and (
+        has_function_privilege('anon', p.oid, 'EXECUTE')
+        or has_function_privilege('authenticated', p.oid, 'EXECUTE')
+      )
+  ),
+  'anon and authenticated cannot execute pgmq functions'
+);
+select ok(
+  not exists (
+    select 1
+    from pg_default_acl d
+    cross join lateral aclexplode(d.defaclacl) a
+    join pg_namespace n on n.oid = d.defaclnamespace
+    where n.nspname = 'pgmq'
+      and d.defaclobjtype = 'f'
+      and d.defaclrole = 'postgres'::regrole
+      and (a.grantee in ('anon'::regrole, 'authenticated'::regrole) or a.grantee = 0)
+      and a.privilege_type = 'EXECUTE'
+  ),
+  'postgres does not default-grant pgmq function EXECUTE to clients or PUBLIC'
 );
 
 -- Behavioral RLS/RPC checks with transaction-local fixtures. All rows roll back below.
