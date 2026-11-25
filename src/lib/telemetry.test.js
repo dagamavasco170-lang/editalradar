@@ -60,6 +60,6 @@ describe("sanitizePagePath", () => {
 
   it("rejects invalid paths and bounds static segments", () => {
     expect(sanitizePagePath("https://example.com/user/123")).toBe("");
-    expect(sanitizePagePath("/" + "x".repeat(100))).toHaveLength(81);
+    expect(sanitizePagePath("/" + "x".repeat(100))).toBe("/:id");
   });
 });
