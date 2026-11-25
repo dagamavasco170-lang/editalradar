@@ -2,7 +2,32 @@
 -- Catalog-only assertions: no production data is read or modified.
 begin;
 
-select plan(32);
+select plan(36);
+
+select ok(
+  (select relrowsecurity from pg_class where oid = 'pgmq.q_push_delivery_retries'::regclass),
+  'push retry queue has RLS enabled'
+);
+select ok(
+  (select relrowsecurity from pg_class where oid = 'pgmq.a_push_delivery_retries'::regclass),
+  'push retry archive has RLS enabled'
+);
+select ok(
+  not exists (
+    select 1 from pg_policies
+    where schemaname = 'pgmq'
+      and tablename in ('q_push_delivery_retries', 'a_push_delivery_retries')
+      and roles && array['anon','authenticated']::name[]
+  ),
+  'queue tables have no client-role policies'
+);
+select ok(
+  not has_table_privilege('anon', 'pgmq.q_push_delivery_retries', 'SELECT')
+  and not has_table_privilege('authenticated', 'pgmq.q_push_delivery_retries', 'SELECT')
+  and not has_table_privilege('anon', 'pgmq.a_push_delivery_retries', 'SELECT')
+  and not has_table_privilege('authenticated', 'pgmq.a_push_delivery_retries', 'SELECT'),
+  'client roles cannot SELECT queue or archive directly'
+);
 
 select ok(
   (select relrowsecurity from pg_class where oid = 'public.study_question_answers'::regclass),
