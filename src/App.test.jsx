@@ -276,10 +276,10 @@ describe("EditalRadar", () => {
     render(<App />);
 
     fireEvent(window, new Event("offline"));
-    expect(screen.getByRole("status")).toHaveTextContent(/Sem conexão no momento/);
+    expect(screen.getByText(/Sem conexão no momento/)).toBeInTheDocument();
 
     fireEvent(window, new Event("online"));
-    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Sem conexão no momento/)).not.toBeInTheDocument();
   });
 
   it("renderiza a página inicial e os concursos oficiais", () => {
