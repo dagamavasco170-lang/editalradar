@@ -7,7 +7,7 @@ create table if not exists public.contest_catalog (
 );
 alter table public.contest_catalog enable row level security;
 
-do $
+do $$
 begin
   if not exists (select 1 from pg_policies where schemaname='public' and tablename='contest_catalog' and policyname='Catalog is readable by everyone') then
     create policy "Catalog is readable by everyone" on public.contest_catalog
@@ -30,7 +30,7 @@ begin
       using (coalesce((select auth.jwt() -> 'app_metadata' ->> 'role'), '') = 'admin');
   end if;
 end
-$;
+$$;
 
 grant select on public.contest_catalog to anon, authenticated;
 grant insert, update, delete on public.contest_catalog to authenticated;
