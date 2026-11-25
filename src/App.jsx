@@ -208,7 +208,7 @@ const BRAZIL_DATE_TIME_ZONE = "America/Sao_Paulo";
 const DAY_IN_MILLISECONDS = 24 * 60 * 60 * 1000;
 
 const parseDateOnly = (value) => {
-  if (typeof value !== "string" || !/^\\d{4}-\\d{2}-\\d{2}$/.test(value)) return null;
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
   const [year, month, day] = value.split("-").map(Number);
   const timestamp = Date.UTC(year, month - 1, day);
   const date = new Date(timestamp);
@@ -231,7 +231,7 @@ const getBrazilDateOnly = (value) => {
 };
 
 const formatRegistrationDate = (value) => {
-  if (typeof value !== "string" || !/^\\d{4}-\\d{2}-\\d{2}$/.test(value)) return "";
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return "";
   const [year, month, day] = value.split("-");
   return day + "/" + month + "/" + year;
 };
@@ -269,7 +269,7 @@ export const getVerifiedRegistrationDeadline = (item, now = new Date()) => {
 
   const status = String(item?.status || "").toLocaleLowerCase("pt-BR");
   const claimsOpen = /inscri.{0,20}(?:abertas|em andamento)/i.test(status);
-  const claimsClosed = /inscri.{0,20}(?:encerradas|finalizadas)|prazo\\s+(?:de\\s+)?inscri.{0,10}encerrado/i.test(status);
+  const claimsClosed = /inscri.{0,20}(?:encerradas|finalizadas)|prazo\s+(?:de\s+)?inscri.{0,10}encerrado/i.test(status);
   const cancelledOrSuspended = /cancelad|suspens/i.test(status);
   const daysRemaining = endNumber - todayNumber;
   const daysUntilOpen = startNumber == null ? null : startNumber - todayNumber;
