@@ -1045,6 +1045,116 @@ export const concursos = [
     "observacao": "Concurso para provimento de 5.000 cargos efetivos de Professor de Ensino Fundamental e Médio na rede estadual de São Paulo: 2.000 cargos com jornada de 25 horas semanais e 3.000 com jornada de 40 horas semanais. As inscrições começam em 26/11/2026 às 16h e terminam em 15/02/2027 às 16h. O edital também organiza uma lista separada para contratação temporária (PSS); essa lista não representa vagas efetivas adicionais. Consulte os anexos para a distribuição por componente curricular, área e região."
   },
 
+
+  {
+    "id": 526,
+    "sigla": "TJPB",
+    "cargo": "Analista Judiciário — Judiciária, TI e Contabilidade",
+    "orgao": "Tribunal de Justiça do Estado da Paraíba",
+    "vinculo": "Concurso público · Edital nº 01/2026",
+    "nivel": "Superior",
+    "vagas": 50,
+    "vagasTotais": 50,
+    "vagasImediatas": 50,
+    "atoOficial": "Edital nº 01/2026, retificado em 12/11/2026",
+    "status": "Inscrições encerradas em 18/11/2026",
+    "area": "Estadual",
+    "estado": "Paraíba",
+    "localidade": "Paraíba",
+    "sourceUrl": "https://conhecimento.fgv.br/concursos/tjpb26",
+    "inscricaoUrl": "https://conhecimento.fgv.br/concursos/tjpb26",
+    "documentos": [
+      {
+        "title": "Edital nº 01/2026 — versão retificada em 12/11/2026",
+        "url": "https://conhecimento.fgv.br/sites/default/files/concursos/edital-retificado-tjpb_11.11.pdf",
+        "description": "Edital oficial com 50 vagas, áreas de atuação, vencimento e cronograma."
+      }
+    ],
+    "remuneracao": {
+      "valor": 7526.14,
+      "moeda": "BRL",
+      "periodicidade": "mensal",
+      "natureza": "Vencimento de R$ 7.526,14, além de auxílio-alimentação de R$ 2.200,00 e auxílio-saúde de R$ 1.800,00, conforme o edital.",
+      "observacao": "O edital informa vencimento de R$ 7.526,14 para jornada de 30 horas semanais e verbas indenizatórias de auxílio-alimentação e auxílio-saúde. Esses benefícios são apresentados separadamente do vencimento.",
+      "sourceUrl": "https://conhecimento.fgv.br/sites/default/files/concursos/edital-retificado-tjpb_11.11.pdf",
+      "sourceLabel": "FGV Conhecimento — Edital TJPB nº 01/2026",
+      "verificadoEm": "2026-11-25"
+    },
+    "observacao": "Concurso para 50 cargos efetivos de Analista Judiciário do TJPB, nas especialidades Judiciária (Direito), Tecnologia da Informação e Contabilidade. Jornada de 30 horas semanais. Inscrições encerradas em 18/11/2026. A página oficial da FGV já publica retificações e resultados da análise de isenção; acompanhe as próximas etapas no portal da organizadora."
+  },
+  {
+    "id": 527,
+    "sigla": "TRF5",
+    "cargo": "Juiz Federal Substituto da 5ª Região",
+    "orgao": "Tribunal Regional Federal da 5ª Região",
+    "vinculo": "Concurso público · Edital nº 01/2026",
+    "nivel": "Superior",
+    "vagas": 11,
+    "vagasTotais": 11,
+    "vagasImediatas": 11,
+    "atoOficial": "Edital nº 01/2026, retificado em 17/09/2026",
+    "status": "Inscrições encerradas em 28/09/2026",
+    "area": "Federal",
+    "estado": "Brasil",
+    "localidade": "5ª Região da Justiça Federal",
+    "sourceUrl": "https://conhecimento.fgv.br/concursos/trf5juiz26",
+    "inscricaoUrl": "https://conhecimento.fgv.br/concursos/trf5juiz26",
+    "documentos": [
+      {
+        "title": "Edital nº 01/2026 — versão retificada em 17/09/2026",
+        "url": "https://conhecimento.fgv.br/sites/default/files/concursos/edital-01-de-2026-xvi-concurso-juiz-federal-retificado.pdf",
+        "description": "Edital oficial com 11 vagas para Juiz Federal Substituto e formação de cadastro de reserva."
+      }
+    ],
+    "remuneracao": {
+      "valor": 37765.55,
+      "moeda": "BRL",
+      "periodicidade": "mensal",
+      "natureza": "Subsídio do cargo de Juiz Federal Substituto informado no edital: R$ 37.765,55.",
+      "observacao": "Subsídio previsto no edital publicado em 2026, sujeito às regras remuneratórias e atualizações legais aplicáveis.",
+      "sourceUrl": "https://conhecimento.fgv.br/sites/default/files/concursos/edital-01-de-2026-xvi-concurso-juiz-federal-retificado.pdf",
+      "sourceLabel": "FGV Conhecimento — Edital TRF5 nº 01/2026",
+      "verificadoEm": "2026-11-25"
+    },
+    "observacao": "Concurso para 11 vagas de Juiz Federal Substituto da 5ª Região, com formação de cadastro de reserva. Inscrições encerradas em 28/09/2026. O edital exige comprovação do Exame Nacional da Magistratura (ENAM); consulte o texto integral para requisitos e etapas da seleção. A FGV publicou atualizações de acompanhamento em novembro de 2026."
+  },
+  {
+    "id": 528,
+    "sigla": "GCM-SALVADOR",
+    "cargo": "Guarda Civil Municipal — 3ª Classe",
+    "orgao": "Prefeitura Municipal do Salvador",
+    "vinculo": "Concurso público · Edital nº 02/2026",
+    "nivel": "Médio",
+    "vagas": 50,
+    "vagasTotais": 50,
+    "vagasImediatas": 50,
+    "atoOficial": "Edital nº 02/2026, de 17/09/2026, retificado em 18/11/2026",
+    "status": "Inscrições encerradas em 30/10/2026",
+    "area": "Municipal",
+    "estado": "Bahia",
+    "localidade": "Salvador",
+    "sourceUrl": "https://conhecimento.fgv.br/concursos/pmsguarda2026",
+    "inscricaoUrl": "https://conhecimento.fgv.br/concursos/pmsguarda2026",
+    "documentos": [
+      {
+        "title": "Edital nº 02/2026 — versão retificada em 18/11/2026",
+        "url": "https://conhecimento.fgv.br/sites/default/files/concursos/edital-prefeitura-de-salvador-2026-guarda-retificado-2.pdf",
+        "description": "Edital oficial com 50 vagas imediatas, cadastro de reserva, remuneração e cronograma da prova."
+      }
+    ],
+    "remuneracao": {
+      "valor": 3546.42,
+      "moeda": "BRL",
+      "periodicidade": "mensal",
+      "natureza": "Remuneração prevista de R$ 3.546,42, composta por vencimento inicial de R$ 1.773,21 e gratificações indicadas no edital.",
+      "observacao": "O edital discrimina vencimento inicial de R$ 1.773,21 e remuneração de R$ 3.546,42 com gratificação por avanço de competências e gratificação por Regime Especial de Trabalho (RET). A prova objetiva está prevista para 17/01/2027.",
+      "sourceUrl": "https://conhecimento.fgv.br/sites/default/files/concursos/edital-prefeitura-de-salvador-2026-guarda-retificado-2.pdf",
+      "sourceLabel": "FGV Conhecimento — Edital Salvador Guarda Municipal nº 02/2026",
+      "verificadoEm": "2026-11-25"
+    },
+    "observacao": "Concurso para 50 vagas imediatas de Guarda Civil Municipal de Salvador, com formação de cadastro de reserva. Inscrições encerradas em 30/10/2026; o prazo de pagamento do boleto terminou em 20/11/2026. Prova objetiva prevista para 17/01/2027. A retificação de 18/11/2026 e os resultados recentes devem ser acompanhados no portal oficial da FGV."
+  },
+
 ]; 
 
 export const sourceRegistry = [
