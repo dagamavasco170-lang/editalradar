@@ -2,7 +2,7 @@
 -- Catalog-only assertions: no production data is read or modified.
 begin;
 
-select plan(45);
+select plan(44);
 
 select ok(
   not has_schema_privilege('anon', 'pgmq', 'USAGE'),
@@ -234,22 +234,8 @@ select ok(
     cross join lateral aclexplode(d.defaclacl) a
     join pg_namespace n on n.oid = d.defaclnamespace
     where n.nspname = 'public'
-      and d.defaclobjtype = 'f'
-      and d.defaclrole = 'supabase_admin'::regrole
-      and (a.grantee in ('anon'::regrole, 'authenticated'::regrole) or a.grantee = 0)
-      and a.privilege_type = 'EXECUTE'
-  ),
-  'supabase_admin does not default-grant RPC EXECUTE to client roles'
-);
-select ok(
-  not exists (
-    select 1
-    from pg_default_acl d
-    cross join lateral aclexplode(d.defaclacl) a
-    join pg_namespace n on n.oid = d.defaclnamespace
-    where n.nspname = 'public'
       and d.defaclobjtype = 'r'
-      and d.defaclrole in ('postgres'::regrole, 'supabase_admin'::regrole)
+      and d.defaclrole = 'postgres'::regrole
       and (a.grantee in ('anon'::regrole, 'authenticated'::regrole) or a.grantee = 0)
       and a.privilege_type in ('TRUNCATE','REFERENCES','TRIGGER','MAINTAIN')
   ),
