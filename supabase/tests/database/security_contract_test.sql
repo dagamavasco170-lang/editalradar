@@ -132,7 +132,13 @@ select ok(
   'question insertion requires admin app_metadata and creator identity'
 );
 select ok(
-  not has_column('public', 'study_questions', 'answer'),
+  not exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'study_questions'
+      and column_name = 'answer'
+  ),
   'answer is not stored on the public study_questions table'
 );
 
