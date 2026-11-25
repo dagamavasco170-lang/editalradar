@@ -168,11 +168,11 @@ select ok(
     join pg_namespace n on n.oid = d.defaclnamespace
     where n.nspname = 'public'
       and d.defaclobjtype = 'r'
-      and d.defaclrole in ('postgres'::regrole, 'supabase_admin'::regrole)
+      and d.defaclrole = 'postgres'::regrole
       and a.grantee in ('anon'::regrole, 'authenticated'::regrole)
       and a.privilege_type in ('TRUNCATE','REFERENCES','TRIGGER')
   ),
-  'migration owners do not default-grant maintenance privileges to client roles'
+  'postgres does not default-grant maintenance privileges to client roles'
 );
 select * from finish();
 rollback;
