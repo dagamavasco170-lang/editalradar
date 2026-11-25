@@ -221,6 +221,8 @@ select ok(
         or has_table_privilege('authenticated', c.oid, 'REFERENCES')
         or has_table_privilege('anon', c.oid, 'TRIGGER')
         or has_table_privilege('authenticated', c.oid, 'TRIGGER')
+        or has_table_privilege('anon', c.oid, 'MAINTAIN')
+        or has_table_privilege('authenticated', c.oid, 'MAINTAIN')
       )
   ),
   'client roles have no destructive or maintenance table privileges in public'
@@ -235,7 +237,7 @@ select ok(
       and d.defaclobjtype = 'r'
       and d.defaclrole = 'postgres'::regrole
       and (a.grantee in ('anon'::regrole, 'authenticated'::regrole) or a.grantee = 0)
-      and a.privilege_type in ('TRUNCATE','REFERENCES','TRIGGER')
+      and a.privilege_type in ('TRUNCATE','REFERENCES','TRIGGER','MAINTAIN')
   ),
   'postgres does not default-grant maintenance privileges to client roles'
 );
