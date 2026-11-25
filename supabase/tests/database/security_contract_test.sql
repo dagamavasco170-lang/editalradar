@@ -2,7 +2,7 @@
 -- Catalog-only assertions: no production data is read or modified.
 begin;
 
-select plan(40);
+select plan(41);
 
 select ok(
   not has_schema_privilege('anon', 'pgmq', 'USAGE'),
@@ -226,6 +226,20 @@ select ok(
       )
   ),
   'client roles have no destructive or maintenance table privileges in public'
+);
+select ok(
+  not exists (
+    select 1
+    from pg_default_acl d
+    cross join lateral aclexplode(d.defaclacl) a
+    join pg_namespace n on n.oid = d.defaclnamespace
+    where n.nspname = 'public'
+      and d.defaclobjtype = 'f'
+      and d.defaclrole = 'supabase_admin'::regrole
+      and (a.grantee in ('anon'::regrole, 'authenticated'::regrole) or a.grantee = 0)
+      and a.privilege_type = 'EXECUTE'
+  ),
+  'supabase_admin does not default-grant RPC EXECUTE to client roles'
 );
 select ok(
   not exists (
