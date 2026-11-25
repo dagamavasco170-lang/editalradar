@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createDiagnosticEntry, sanitizeResourceTarget } from "./telemetry.js";
+import { createDiagnosticEntry, sanitizeResourceTarget, sanitizePagePath } from "./telemetry.js";
 
 describe("client diagnostics payload", () => {
   it("bounds and normalizes fields and includes runtime platform", () => {
@@ -49,5 +49,17 @@ describe("sanitizeResourceTarget", () => {
   it("uses a generic value for missing or invalid URLs", () => {
     expect(sanitizeResourceTarget("")).toBe("resource");
     expect(sanitizeResourceTarget("not a valid url", null)).toBe("resource");
+  });
+});
+
+describe("sanitizePagePath", () => {
+  it("replaces numeric and identifier-like route segments", () => {
+    expect(sanitizePagePath("/concursos/12345/edital/abcdef0123456789abcdef012345"))
+      .toBe("/concursos/:id/edital/:id");
+  });
+
+  it("rejects invalid paths and bounds static segments", () => {
+    expect(sanitizePagePath("https://example.com/user/123")).toBe("");
+    expect(sanitizePagePath("/" + "x".repeat(100))).toHaveLength(81);
   });
 });
