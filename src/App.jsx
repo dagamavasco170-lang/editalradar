@@ -340,6 +340,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   const selectedSourceReference = parseHttpsUrl(selected?.sourceUrl);
   const selectedSourceUrl = selectedSourceReference ? selectedSourceReference.href : sourceUrl;
   const selectedSourceIsOfficial = isTrustedOfficialUrl(selectedSourceUrl);
+  const selectedRegistrationUrl = isTrustedOfficialUrl(selected?.inscricaoUrl) ? selected.inscricaoUrl : "";
   const selectedRemuneration = getContestRemuneration(selected);
   const selectedSalarySourceUrl = isTrustedOfficialUrl(selectedRemuneration?.sourceUrl)
     ? selectedRemuneration.sourceUrl
@@ -1564,6 +1565,11 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                 <button className="detail-favorite-btn" type="button" onClick={() => toggleFavorite(selected.id)} disabled={Boolean(authUser && syncStatus === "loading")}>
                   {favorites.includes(selected.id) ? "♥ Salvo nos favoritos" : "♡ Salvar oportunidade"}
                 </button>
+                {selectedRegistrationUrl && (
+                  <a className="detail-registration-btn" href={selectedRegistrationUrl} target="_blank" rel="noopener noreferrer">
+                    Inscrever-se pela organizadora ↗
+                  </a>
+                )}
                 <a className="detail-source-btn" href={selectedSourceUrl} target="_blank" rel="noopener noreferrer">
                   {isPreliminary(selected) || !selectedSourceIsOfficial ? "Abrir referência externa — confirme no órgão ↗" : "Acessar fonte oficial ↗"}
                 </a>
