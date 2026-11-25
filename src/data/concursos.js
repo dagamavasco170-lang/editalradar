@@ -1329,48 +1329,8 @@ export const concursos = [
       }
     ],
     "observacao": "Registro de pré-edital. O DOU de 18/08/2026 autoriza o concurso para nove cargos efetivos: assistente administrativo, contador, analista de ciência de dados e IA, analista de desenvolvimento de sistemas, analista de suporte à gestão, analista técnico, auditor, enfermeiro de apoio às atividades finalísticas e enfermeiro fiscal. O ato cria a comissão organizadora. A página oficial da Quadrix informa situação Em breve; não há número de vagas, edital de abertura nem prazo de inscrição confirmado."
-  }
-
-]; 
-
-export const sourceRegistry = [
-  { label: "Cebraspe — concursos com inscrições abertas", sourceUrl: "https://www.cebraspe.org.br/concursos/inscricoes-abertas" },
-  { label: "FGV Conhecimento — concursos", sourceUrl: "https://conhecimento.fgv.br/concursos" },
-  { label: "Fundação Carlos Chagas — concursos em andamento", sourceUrl: "https://www.concursosfcc.com.br/concursoAndamento.html" },
-  { label: "Fundação Vunesp — inscrições abertas", sourceUrl: "https://www.vunesp.com.br/busca/concurso/inscricoesabertas" },
-  { label: "Instituto AOCP — inscrições abertas", sourceUrl: "https://www.institutoaocp.org.br/concursos/status/inscricoes-abertas" },
-  { label: "Instituto AOCP — concursos em andamento", sourceUrl: "https://www.institutoaocp.org.br/concursos/status/em-andamento" },
-  { label: "IBFC — concursos abertos", sourceUrl: "https://concursos.ibfc.org.br/index/abertos/" },
-  { label: "IGEDUC — concursos abertos", sourceUrl: "https://www.igeduc.org.br/index/abertos/" },
-  { label: "Instituto Federal de Goiás — concursos e seleções", sourceUrl: "https://www.ifg.edu.br/institucional/17-ifg/ultimas-noticias/48695-concurso-tae-ifg-26" },
-  { label: "Instituto Quadrix — todos os concursos", sourceUrl: "https://quadrix.org.br/index/todos/" },
-  { label: "Fundação La Salle — concursos em andamento", sourceUrl: "https://fundacaolasalle.org.br/concursos/?filtro=em-andamento" }
-];
-
-export const materias = [
-  {
-    "nome": "Língua Portuguesa",
-    "descricao": "Interpretação e gramática",
-    "icon": "Aa"
   },
-  {
-    "nome": "Raciocínio lógico",
-    "descricao": "Lógica e matemática",
-    "icon": "∑"
-  },
-  {
-    "nome": "Direito constitucional",
-    "descricao": "Princípios e fundamentos",
-    "icon": "§"
-  },
-  {
-    "nome": "Informática",
-    "descricao": "Conceitos e ferramentas",
-    "icon": "⌘"
-  },
-
-
-  {
+{
     "id": 533,
     "sigla": "PMS-SALVADOR-EDUCACAO",
     "cargo": "Professor Municipal I e Coordenador Pedagógico I",
@@ -1459,4 +1419,43 @@ export const materias = [
     },
     "observacao": "Concurso exclusivamente para formação de cadastro de reserva, sem quantitativo de vagas imediatas divulgado e sem garantia de nomeação. Abrange os cargos de Delegado de Polícia, Agente de Polícia Judiciária e Papiloscopista Policial, com distribuição por macrorregião conforme o edital. Inscrições de 14/07/2026 às 16h até 12/08/2026 às 16h. A prova objetiva ocorreu em 11/10/2026 e a FGV publicou o resultado preliminar em 13/11/2026; recursos foram previstos até 16/11/2026."
   },
+
+]; 
+
+export const sourceRegistry = [
+  { label: "Cebraspe — concursos com inscrições abertas", sourceUrl: "https://www.cebraspe.org.br/concursos/inscricoes-abertas" },
+  { label: "FGV Conhecimento — concursos", sourceUrl: "https://conhecimento.fgv.br/concursos" },
+  { label: "Fundação Carlos Chagas — concursos em andamento", sourceUrl: "https://www.concursosfcc.com.br/concursoAndamento.html" },
+  { label: "Fundação Vunesp — inscrições abertas", sourceUrl: "https://www.vunesp.com.br/busca/concurso/inscricoesabertas" },
+  { label: "Instituto AOCP — inscrições abertas", sourceUrl: "https://www.institutoaocp.org.br/concursos/status/inscricoes-abertas" },
+  { label: "Instituto AOCP — concursos em andamento", sourceUrl: "https://www.institutoaocp.org.br/concursos/status/em-andamento" },
+  { label: "IBFC — concursos abertos", sourceUrl: "https://concursos.ibfc.org.br/index/abertos/" },
+  { label: "IGEDUC — concursos abertos", sourceUrl: "https://www.igeduc.org.br/index/abertos/" },
+  { label: "Instituto Federal de Goiás — concursos e seleções", sourceUrl: "https://www.ifg.edu.br/institucional/17-ifg/ultimas-noticias/48695-concurso-tae-ifg-26" },
+  { label: "Instituto Quadrix — todos os concursos", sourceUrl: "https://quadrix.org.br/index/todos/" },
+  { label: "Fundação La Salle — concursos em andamento", sourceUrl: "https://fundacaolasalle.org.br/concursos/?filtro=em-andamento" }
+];
+
+export const materias = [
+  {
+    "nome": "Língua Portuguesa",
+    "descricao": "Interpretação e gramática",
+    "icon": "Aa"
+  },
+  {
+    "nome": "Raciocínio lógico",
+    "descricao": "Lógica e matemática",
+    "icon": "∑"
+  },
+  {
+    "nome": "Direito constitucional",
+    "descricao": "Princípios e fundamentos",
+    "icon": "§"
+  },
+  {
+    "nome": "Informática",
+    "descricao": "Conceitos e ferramentas",
+    "icon": "⌘"
+  },
+
 ];
