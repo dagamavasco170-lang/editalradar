@@ -817,3 +817,49 @@ describe("ranking por prazos oficiais de inscrição", () => {
   });
 });
 
+describe("segunda leva de oportunidades oficiais e pré-editais", () => {
+  const now = new Date("2026-11-25T15:00:00.000Z");
+
+  it("atualiza o PMESP existente, sem duplicar o concurso, com prazo oficial e horários de Brasília", () => {
+    const matches = concursos.filter((item) => item.sigla === "PMESP" && item.vinculo.includes("PMES2603"));
+    expect(matches).toHaveLength(1);
+    expect(matches[0]).toMatchObject({
+      vagasImediatas: 2000,
+      status: "Inscrições abertas até 22/12/2026",
+      periodoInscricao: {
+        inicio: "2026-11-09",
+        fim: "2026-12-22",
+        inicioHoraLocal: "10:00",
+        fimHoraLocal: "23:59",
+        verificadoEm: "2026-11-25"
+      }
+    });
+    expect(getVerifiedRegistrationDeadline(matches[0], now)).toMatchObject({
+      state: "open",
+      daysRemaining: 27,
+      endTime: "23:59"
+    });
+  });
+
+  it("registra os dois editais de Itupeva separadamente, com prazo futuro e vagas imediatas explícitas ou derivadas documentadas", () => {
+    const general = concursos.find((item) => item.id === 529);
+    const drivers = concursos.find((item) => item.id === 530);
+    expect(general).toMatchObject({ vagasImediatas: 72, status: "Edital publicado · inscrições começam em 30/11/2026" });
+    expect(drivers).toMatchObject({ vagasImediatas: 7, status: "Edital publicado · inscrições começam em 30/11/2026" });
+    expect(general.observacao).toMatch(/79.*005.*sete/i);
+    expect(getVerifiedRegistrationDeadline(general, now)).toMatchObject({ state: "upcoming", daysUntilOpen: 5 });
+    expect(getVerifiedRegistrationDeadline(drivers, now)).toMatchObject({ state: "upcoming", daysUntilOpen: 5 });
+  });
+
+  it("mantém COFEN e COREN-SP como pré-editais, sem vagas ou contagem regressiva inventadas", () => {
+    const cofen = concursos.find((item) => item.sigla === "COFEN");
+    const coren = concursos.find((item) => item.sigla === "COREN-SP");
+    expect(cofen).toMatchObject({ vagas: null, status: "Pré-edital · banca Quadrix; inscrições não disponíveis" });
+    expect(coren).toMatchObject({ vagas: null, status: "Autorizado · pré-edital; banca Quadrix informa Em breve" });
+    expect(getStatusTone(cofen.status)).toBe("status-upcoming");
+    expect(getStatusTone(coren.status)).toBe("status-upcoming");
+    expect(getVerifiedRegistrationDeadline(cofen, now)).toBeNull();
+    expect(getVerifiedRegistrationDeadline(coren, now)).toBeNull();
+  });
+});
+
