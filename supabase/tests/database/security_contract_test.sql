@@ -43,7 +43,7 @@ select ok(
     select 1 from pg_policies
     where schemaname = 'public'
       and tablename = 'study_exam_sources'
-      and policyname = 'Public can read official exam sources'
+      and policyname = 'Read published exam sources or admin review'
       and cmd = 'SELECT'
   ),
   'public exam-source read policy exists'
@@ -53,8 +53,14 @@ select ok(
     select 1 from pg_policies
     where schemaname = 'public'
       and tablename = 'study_exam_sources'
-      and policyname = 'Admins can manage official exam sources'
+      and policyname in (
+        'Admins can insert official exam sources',
+        'Admins can update official exam sources',
+        'Admins can delete official exam sources'
+      )
       and roles @> array['authenticated']::name[]
+    group by schemaname, tablename
+    having count(distinct policyname) = 3
   ),
   'admin management policy exists for exam sources'
 );
@@ -83,7 +89,7 @@ select ok(
   'RPC is not executable by anon through inherited grants'
 );
 select ok(
-  position('auth.uid() IS NOT NULL' in upper(pg_get_functiondef('public.check_study_question_answer(bigint,text)'::regprocedure))) > 0,
+  position('AUTH.UID() IS NOT NULL' in upper(pg_get_functiondef('public.check_study_question_answer(bigint,text)'::regprocedure))) > 0,
   'answer-check RPC requires an authenticated user'
 );
 select ok(
