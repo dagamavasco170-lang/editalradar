@@ -41,7 +41,7 @@ function safeText(value, limit = 1000) {
     .replace(/https?:\/\/[^\s<>"']+/gi, (value) => {
       try {
         const url = new URL(value);
-        return url.origin + url.pathname;
+        return url.origin;
       } catch {
         return "[url]";
       }
