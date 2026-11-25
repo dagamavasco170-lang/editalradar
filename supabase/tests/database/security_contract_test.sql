@@ -2,7 +2,7 @@
 -- Catalog-only assertions: no production data is read or modified.
 begin;
 
-select plan(15);
+select plan(17);
 
 select ok(
   (select relrowsecurity from pg_class where oid = 'public.study_question_answers'::regclass),
@@ -96,6 +96,15 @@ select ok(
   position('license_status' in pg_get_functiondef('public.check_study_question_answer(bigint,text)'::regprocedure)) > 0
   and position('published' in pg_get_functiondef('public.check_study_question_answer(bigint,text)'::regprocedure)) > 0,
   'answer-check RPC filters to published and licensed questions'
+);
+select ok(
+  position('license_proof_url' in lower(pg_get_functiondef('public.check_study_question_answer(bigint,text)'::regprocedure))) > 0,
+  'answer-check RPC requires license proof for non-public-domain sources'
+);
+select ok(
+  position('original_content' in lower(pg_get_functiondef('public.check_study_question_answer(bigint,text)'::regprocedure))) > 0
+  and position('review_status' in lower(pg_get_functiondef('public.check_study_question_answer(bigint,text)'::regprocedure))) > 0,
+  'answer-check RPC only allows reviewed original AI content'
 );
 select ok(
   not has_column('public', 'study_questions', 'answer'),
