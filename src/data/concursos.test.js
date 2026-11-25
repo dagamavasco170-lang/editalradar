@@ -48,7 +48,7 @@ describe("Atualização temporal do catálogo", () => {
     expect(contest.inscricaoUrl).toBe("https://inbraedem.selecao.net.br/area-candidato/concurso/4/inscricao");
     expect(contest.documentos[0].url).toBe("https://anexos-r2.selecao.net.br/uploads/875/concursos/4/anexos/77cdccb3-3cc7-45b9-8c81-c58081cbd4b2.pdf");
     expect(contest.remuneracao.valor).toBe(1621);
-    expect(contest.remuneracao.natureza).toMatch(/até R\$ 10\.000,00/);
+    expect(contest.remuneracao.natureza).toMatch(/chegam a R\\$ 10\\.000,00/);
   });
 
   it("registra a data da atualização do conjunto estático", () => {
