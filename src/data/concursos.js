@@ -1,6 +1,6 @@
 export const sourceUrl = "https://www.gov.br/gestao/pt-br/acesso-a-informacao/servidores/concursos-publicos/autorizacoes-e-provimentos";
-export const sourceUpdated = "Atualizado em 24/11/2026";
-export const fetchedAt = "2026-11-21T00:00:00-03:00";
+export const sourceUpdated = "Atualizado em 25/11/2026";
+export const fetchedAt = "2026-11-25T07:40:00-03:00";
 export const concursos = [
   {
     "id": 101,
@@ -870,7 +870,144 @@ export const concursos = [
     "observacao": "Concurso público para provimento de cargos efetivos do Município de São Miguel dos Milagres/AL, com 232 vagas distribuídas em 82 cargos e escolaridade fundamental, média, técnica e superior. Inscrições de 23/11 a 23/12/2026; prova objetiva prevista para 31/01/2027. O quadro de vencimentos do Anexo II varia de R$ 1.621,00 a R$ 10.000,00 conforme a função. Consulte o edital integral para conferir atribuições, requisitos, jornada, remuneração e eventuais adicionais do cargo escolhido."
   },
 
-];
+
+  {
+    "id": 521,
+    "sigla": "CRO-PR",
+    "cargo": "Auxiliar Administrativo, Fiscal, Técnico de Informática, Analista de RH, Analista de Conteúdo e IA, Contador e Procurador Jurídico",
+    "orgao": "Conselho Regional de Odontologia do Paraná",
+    "vinculo": "Concurso público · Edital nº 01/2026",
+    "nivel": "Médio e Superior",
+    "vagas": 12,
+    "vagasTotais": 12,
+    "vagasImediatas": 12,
+    "atoOficial": "Edital nº 01/2026, publicado em 23/11/2026",
+    "status": "Edital publicado · inscrições começam em 30/11/2026 às 16h",
+    "area": "Estadual",
+    "estado": "Paraná",
+    "localidade": "Curitiba, Foz do Iguaçu, Cascavel e Londrina",
+    "sourceUrl": "https://conhecimento.fgv.br/concursos/cropr",
+    "inscricaoUrl": "https://conhecimento.fgv.br/concursos/cropr",
+    "documentos": [
+      {
+        "title": "Edital nº 01/2026 — PDF integral",
+        "url": "https://conhecimento.fgv.br/sites/default/files/concursos/edital-cro-pr.pdf",
+        "description": "Edital oficial com os sete cargos, distribuição das 12 vagas, requisitos, remuneração e cronograma."
+      }
+    ],
+    "remuneracao": {
+      "valor": 4300.26,
+      "moeda": "BRL",
+      "periodicidade": "mensal",
+      "natureza": "Faixa inicial por cargo: R$ 4.300,26 a R$ 14.318,45",
+      "observacao": "A remuneração varia conforme o cargo. O edital prevê valores iniciais de R$ 4.300,26 para Auxiliar Administrativo e até R$ 14.318,45 para Procurador Jurídico, além dos benefícios previstos no instrumento.",
+      "sourceUrl": "https://conhecimento.fgv.br/sites/default/files/concursos/edital-cro-pr.pdf",
+      "sourceLabel": "FGV Conhecimento — Edital CRO/PR nº 01/2026",
+      "verificadoEm": "2026-11-25"
+    },
+    "observacao": "Concurso do Conselho Regional de Odontologia do Paraná com 12 vagas distribuídas em sete cargos. As oportunidades abrangem Curitiba, Foz do Iguaçu, Cascavel e Londrina. Inscrições de 30/11/2026 às 16h até 29/12/2026 às 16h. A abertura ainda não ocorreu em 25/11/2026; o edital já foi publicado. Confira no edital os requisitos e a remuneração específica do cargo."
+  },
+  {
+    "id": 522,
+    "sigla": "CUSTÓDIA-PE",
+    "cargo": "Diversos cargos efetivos (55 cargos)",
+    "orgao": "Prefeitura Municipal de Custódia",
+    "vinculo": "Concurso público · Edital nº 002/2026",
+    "nivel": "Diversos níveis",
+    "vagas": 384,
+    "vagasTotais": 1203,
+    "vagasImediatas": 384,
+    "cadastroReserva": 819,
+    "atoOficial": "Edital nº 002/2026, de 17/11/2026",
+    "status": "Inscrições abertas até 18/12/2026",
+    "area": "Municipal",
+    "estado": "Pernambuco",
+    "localidade": "Custódia",
+    "sourceUrl": "https://www.igeduc.org.br/informacoes/192/",
+    "inscricaoUrl": "https://www.igeduc.org.br/informacoes/192/",
+    "documentos": [
+      {
+        "title": "Edital nº 002/2026 — PDF integral e atualizações",
+        "url": "https://anexos-r2.selecao.net.br/uploads/797/concursos/192/anexos/dda41dc8-0fac-4368-9894-1baf8a5456d3.pdf",
+        "description": "Edital oficial do concurso de Custódia/PE. Conferir anexos, cargos, requisitos e eventuais retificações no portal da banca."
+      }
+    ],
+    "observacao": "Concurso público para provimento de cargos efetivos da Prefeitura de Custódia/PE. São 384 vagas imediatas e 819 oportunidades em cadastro reserva, totalizando 1.203 posições em 55 cargos. Inscrições de 18/11 a 18/12/2026. A remuneração e os requisitos variam entre os cargos; consulte o edital integral e os avisos oficiais da banca."
+  },
+  {
+    "id": 523,
+    "sigla": "SÃO CAETANO-PE",
+    "cargo": "Agente Comunitário de Saúde, Agente de Combate às Endemias, Assistente Social, Biomédico, Farmacêutico e Procurador",
+    "orgao": "Prefeitura Municipal de São Caetano",
+    "vinculo": "Concurso público · Edital nº 001/2026",
+    "nivel": "Médio e Superior",
+    "vagas": 46,
+    "vagasTotais": 46,
+    "vagasImediatas": 46,
+    "atoOficial": "Edital nº 001/2026, de 29/10/2026",
+    "status": "Inscrições abertas até 10/12/2026",
+    "area": "Municipal",
+    "estado": "Pernambuco",
+    "localidade": "São Caetano",
+    "sourceUrl": "https://www.igeduc.org.br/informacoes/153/",
+    "inscricaoUrl": "https://www.igeduc.org.br/informacoes/153/",
+    "documentos": [
+      {
+        "title": "Edital nº 001/2026 — PDF integral",
+        "url": "https://anexos-r2.selecao.net.br/uploads/797/concursos/153/anexos/4b62d198-9402-4b6d-8401-45716a13fb5d.pdf",
+        "description": "Edital oficial com seis cargos, distribuição de vagas, requisitos e remuneração."
+      }
+    ],
+    "remuneracao": {
+      "valor": 2051.03,
+      "moeda": "BRL",
+      "periodicidade": "mensal",
+      "natureza": "Faixa inicial informada no edital: R$ 2.051,03 a R$ 3.242,00",
+      "observacao": "A remuneração varia conforme o cargo e a jornada. Consulte o quadro de vencimentos do edital para o valor aplicável à função escolhida.",
+      "sourceUrl": "https://anexos-r2.selecao.net.br/uploads/797/concursos/153/anexos/4b62d198-9402-4b6d-8401-45716a13fb5d.pdf",
+      "sourceLabel": "IGEDUC — Edital nº 001/2026 de São Caetano/PE",
+      "verificadoEm": "2026-11-25"
+    },
+    "observacao": "Concurso público municipal com 46 vagas em seis cargos: Agente Comunitário de Saúde, Agente de Combate às Endemias, Assistente Social, Biomédico, Farmacêutico e Procurador. Inscrições de 30/10 a 10/12/2026. Confira no edital a escolaridade, os requisitos e a remuneração específicos de cada cargo."
+  },
+  {
+    "id": 524,
+    "sigla": "IFG",
+    "cargo": "Técnico-Administrativos em Educação (TAE), níveis C, D e E",
+    "orgao": "Instituto Federal de Goiás",
+    "vinculo": "Concurso público · Edital nº 001/2026",
+    "nivel": "Médio, Técnico e Superior",
+    "vagas": 36,
+    "vagasTotais": 36,
+    "vagasImediatas": 36,
+    "atoOficial": "Edital nº 001/2026",
+    "status": "Inscrições abertas até 23/12/2026",
+    "area": "Federal",
+    "estado": "Goiás",
+    "localidade": "12 câmpus do IFG em Goiás",
+    "sourceUrl": "https://www.ifg.edu.br/institucional/17-ifg/ultimas-noticias/48695-concurso-tae-ifg-26",
+    "inscricaoUrl": "https://www.institutoaocp.org.br/concursos/724",
+    "documentos": [
+      {
+        "title": "Concurso TAE IFG 2026 — página da organizadora",
+        "url": "https://www.institutoaocp.org.br/concursos/724",
+        "description": "Página oficial da organizadora com edital, inscrições e comunicados do concurso."
+      }
+    ],
+    "remuneracao": {
+      "valor": 2607.70,
+      "moeda": "BRL",
+      "periodicidade": "mensal",
+      "natureza": "Vencimento básico de R$ 2.607,70 a R$ 5.215,39, conforme o nível; benefícios e incentivos podem elevar a remuneração total.",
+      "observacao": "O IFG informa vencimento básico entre R$ 2.607,70 e R$ 5.215,39. A remuneração total pode alcançar R$ 10.318,93 com benefícios e incentivos aplicáveis; esse valor máximo não corresponde ao vencimento básico.",
+      "sourceUrl": "https://www.ifg.edu.br/institucional/17-ifg/ultimas-noticias/48695-concurso-tae-ifg-26",
+      "sourceLabel": "Instituto Federal de Goiás — notícia oficial sobre o Edital nº 001/2026",
+      "verificadoEm": "2026-11-25"
+    },
+    "observacao": "Concurso para 36 vagas de Técnico-Administrativos em Educação no IFG: três vagas de nível C, 25 de nível D e oito de nível E. Inscrições até 23/12/2026; prova objetiva prevista para 14/02/2027. São 12 câmpus em Goiás. A remuneração básica varia conforme o nível e não deve ser confundida com o total possível após benefícios e incentivos."
+  },
+
+]; 
 
 export const sourceRegistry = [
   { label: "Cebraspe — concursos com inscrições abertas", sourceUrl: "https://www.cebraspe.org.br/concursos/inscricoes-abertas" },
@@ -881,6 +1018,7 @@ export const sourceRegistry = [
   { label: "Instituto AOCP — concursos em andamento", sourceUrl: "https://www.institutoaocp.org.br/concursos/status/em-andamento" },
   { label: "IBFC — concursos abertos", sourceUrl: "https://concursos.ibfc.org.br/index/abertos/" },
   { label: "IGEDUC — concursos abertos", sourceUrl: "https://www.igeduc.org.br/index/abertos/" },
+  { label: "Instituto Federal de Goiás — concursos e seleções", sourceUrl: "https://www.ifg.edu.br/concursos" },
   { label: "Instituto Quadrix — todos os concursos", sourceUrl: "https://quadrix.org.br/index/todos/" },
   { label: "Fundação La Salle — concursos em andamento", sourceUrl: "https://fundacaolasalle.org.br/concursos/?filtro=em-andamento" }
 ];
