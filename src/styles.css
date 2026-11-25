@@ -3523,3 +3523,49 @@ html[data-theme="dark"] .discovery-list-footer small{color:#aebed1}
 .registration-deadline-closed{border-color:#e3e7eb;border-left-color:#8a98a5;background:#f6f7f8;color:#495866}
 .registration-deadline-review,.registration-deadline-unverified{border-color:#e7e2d5;border-left-color:#9c8956;background:#faf8f1;color:#5f5436}
 @media(max-width:640px){.registration-deadline{margin-bottom:12px;padding:9px 10px}.registration-deadline a{overflow-wrap:anywhere}}
+
+
+/* Issue #149: mobile readability and touch target sizing. */
+@media (max-width: 760px) {
+  .sidebar .sidebar-nav .nav-item {
+    min-height: 60px;
+  }
+  .sidebar .sidebar-nav .nav-item .nav-label {
+    font-size: 10px;
+    line-height: 1.2;
+  }
+  .topbar .breadcrumb {
+    max-width: 34%;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 10px;
+  }
+  .top-actions {
+    flex: 0 0 auto;
+    gap: 5px;
+  }
+  .top-actions .notification-bell,
+  .top-actions .theme-toggle {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    flex: 0 0 44px;
+  }
+  .top-actions .auth-trigger {
+    min-height: 44px;
+    padding: 8px 9px;
+    font-size: 10px;
+  }
+}
+@media (max-width: 380px) {
+  .topbar .breadcrumb {
+    max-width: 24%;
+  }
+  .top-actions .auth-trigger {
+    padding-inline: 7px;
+    font-size: 9.5px;
+  }
+}
