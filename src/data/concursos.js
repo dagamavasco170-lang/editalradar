@@ -1007,6 +1007,44 @@ export const concursos = [
     "observacao": "Concurso para 36 vagas de Técnico-Administrativos em Educação no IFG: três vagas de nível C, 25 de nível D e oito de nível E. Inscrições até 23/12/2026; prova objetiva prevista para 14/02/2027. São 12 câmpus em Goiás. A remuneração básica varia conforme o nível e não deve ser confundida com o total possível após benefícios e incentivos."
   },
 
+
+  {
+    "id": 525,
+    "sigla": "SEDUC-SP",
+    "cargo": "Professor de Ensino Fundamental e Médio (PEFM)",
+    "orgao": "Secretaria da Educação do Estado de São Paulo",
+    "vinculo": "Concurso público · Edital de abertura nº 01/2026",
+    "nivel": "Superior",
+    "vagas": 5000,
+    "vagasTotais": 5000,
+    "vagasImediatas": 5000,
+    "atoOficial": "Edital de abertura de inscrições nº 01/2026, retificado em 23/11/2026",
+    "status": "Edital publicado · inscrições começam em 26/11/2026 às 16h",
+    "area": "Estadual",
+    "estado": "São Paulo",
+    "localidade": "Diversas regiões do Estado de São Paulo",
+    "sourceUrl": "https://conhecimento.fgv.br/concursos/concursoseducsp27",
+    "inscricaoUrl": "https://conhecimento.fgv.br/concursos/concursoseducsp27",
+    "documentos": [
+      {
+        "title": "Edital nº 01/2026 — versão retificada em 23/11/2026",
+        "url": "https://conhecimento.fgv.br/sites/default/files/concursos/edital_pefm_2027_retificado.pdf",
+        "description": "Edital oficial com 5.000 cargos efetivos, distribuição por jornada e região, requisitos e cronograma."
+      }
+    ],
+    "remuneracao": {
+      "valor": 3478.13,
+      "moeda": "BRL",
+      "periodicidade": "mensal",
+      "natureza": "Subsídio inicial de R$ 3.478,13 para 25 horas semanais ou R$ 5.565,00 para 40 horas semanais.",
+      "observacao": "Os valores são subsídios iniciais por jornada, para formação em Licenciatura Plena. O edital também prevê uma modalidade PSS para lista de classificação destinada a contratações temporárias; as vagas efetivas do concurso são 5.000 e não incluem vagas extras do PSS.",
+      "sourceUrl": "https://conhecimento.fgv.br/sites/default/files/concursos/edital_pefm_2027_retificado.pdf",
+      "sourceLabel": "FGV Conhecimento — Edital SEDUC-SP nº 01/2026",
+      "verificadoEm": "2026-11-25"
+    },
+    "observacao": "Concurso para provimento de 5.000 cargos efetivos de Professor de Ensino Fundamental e Médio na rede estadual de São Paulo: 2.000 cargos com jornada de 25 horas semanais e 3.000 com jornada de 40 horas semanais. As inscrições começam em 26/11/2026 às 16h e terminam em 15/02/2027 às 16h. O edital também organiza uma lista separada para contratação temporária (PSS); essa lista não representa vagas efetivas adicionais. Consulte os anexos para a distribuição por componente curricular, área e região."
+  },
+
 ]; 
 
 export const sourceRegistry = [
