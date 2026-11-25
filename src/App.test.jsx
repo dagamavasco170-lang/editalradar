@@ -296,7 +296,7 @@ describe("EditalRadar", () => {
 
   it("anuncia a quantidade de resultados do catálogo para tecnologias assistivas", () => {
     render(<App authClient={null} authConfigured={false} />);
-    expect(screen.getByRole("status")).toHaveTextContent("39 registros");
+    expect(screen.getByRole("status")).toHaveTextContent("40 registros");
   });
 
   it("destaca visualmente inscrições abertas e pré-edital nos cards", () => {
@@ -480,10 +480,10 @@ describe("EditalRadar", () => {
   it("oculta os registros preliminares e atualiza a quantidade exibida", () => {
     render(<App />);
 
-    expect(screen.getByText("39 registros")).toBeInTheDocument();
+    expect(screen.getByText("40 registros")).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText("Ocultar registros preliminares"));
 
-    expect(screen.getByText("28 registros")).toBeInTheDocument();
+    expect(screen.getByText("29 registros")).toBeInTheDocument();
     expect(screen.getByLabelText("Ocultar registros preliminares")).toBeChecked();
   });
 
@@ -494,7 +494,7 @@ describe("EditalRadar", () => {
     fireEvent.click(screen.getByRole("button", { name: /Salvar alerta/ }));
 
     expect(screen.getByText(/Somente fichas não preliminares/)).toBeInTheDocument();
-    expect(screen.getByText("28 oportunidade(s) correspondente(s)")).toBeInTheDocument();
+    expect(screen.getByText("29 oportunidade(s) correspondente(s)")).toBeInTheDocument();
     expect(JSON.parse(localStorage.getItem("er-alerts"))[0].filters.ocultarPreliminares).toBe(true);
   });
 
@@ -526,7 +526,7 @@ describe("EditalRadar", () => {
     fireEvent.change(screen.getByPlaceholderText("Buscar cargo ou órgão..."), {
       target: { value: "Recenseador" }
     });
-    expect(screen.getByText("Recenseador — 12º Censo Agropecuário")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 3, name: "Recenseador — 12º Censo Agropecuário" })).toBeInTheDocument();
     expect(screen.getByText("Inscrições abertas até 25/11/2026 às 23h59")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Ver detalhes/ }));
     expect(screen.getByRole("heading", { level: 1, name: "Recenseador — 12º Censo Agropecuário" })).toBeInTheDocument();
