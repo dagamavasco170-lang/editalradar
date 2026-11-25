@@ -299,6 +299,12 @@ describe("EditalRadar", () => {
     expect(screen.getByRole("status")).toHaveTextContent("39 registros");
   });
 
+  it("destaca visualmente inscrições abertas e pré-edital nos cards", () => {
+    render(<App authClient={null} authConfigured={false} />);
+    expect(screen.getAllByText("Inscrições abertas", { exact: true }).length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Prepare-se", { exact: true }).length).toBeGreaterThan(0);
+  });
+
   it("filtra concursos pelo nome do órgão", () => {
     render(<App />);
 
