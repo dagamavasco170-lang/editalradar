@@ -1,6 +1,6 @@
 export const sourceUrl = "https://www.gov.br/gestao/pt-br/acesso-a-informacao/servidores/concursos-publicos/autorizacoes-e-provimentos";
 export const sourceUpdated = "Atualizado em 25/11/2026";
-export const fetchedAt = "2026-11-25T07:40:00-03:00";
+export const fetchedAt = "2026-11-25T07:45:00-03:00";
 export const concursos = [
   {
     "id": 101,
@@ -883,7 +883,7 @@ export const concursos = [
     "vagasImediatas": 12,
     "atoOficial": "Edital nº 01/2026, publicado em 23/11/2026",
     "status": "Edital publicado · inscrições começam em 30/11/2026 às 16h",
-    "area": "Estadual",
+    "area": "Federal",
     "estado": "Paraná",
     "localidade": "Curitiba, Foz do Iguaçu, Cascavel e Londrina",
     "sourceUrl": "https://conhecimento.fgv.br/concursos/cropr",
@@ -1018,7 +1018,7 @@ export const sourceRegistry = [
   { label: "Instituto AOCP — concursos em andamento", sourceUrl: "https://www.institutoaocp.org.br/concursos/status/em-andamento" },
   { label: "IBFC — concursos abertos", sourceUrl: "https://concursos.ibfc.org.br/index/abertos/" },
   { label: "IGEDUC — concursos abertos", sourceUrl: "https://www.igeduc.org.br/index/abertos/" },
-  { label: "Instituto Federal de Goiás — concursos e seleções", sourceUrl: "https://www.ifg.edu.br/concursos" },
+  { label: "Instituto Federal de Goiás — concursos e seleções", sourceUrl: "https://www.ifg.edu.br/institucional/17-ifg/ultimas-noticias/48695-concurso-tae-ifg-26" },
   { label: "Instituto Quadrix — todos os concursos", sourceUrl: "https://quadrix.org.br/index/todos/" },
   { label: "Fundação La Salle — concursos em andamento", sourceUrl: "https://fundacaolasalle.org.br/concursos/?filtro=em-andamento" }
 ];
