@@ -51,6 +51,9 @@ describe("fontes de estudo privadas e fontes de prova", () => {
     expect(isTrustedOfficialUrl("https://conhecimento.fgv.br/concursos")).toBe(true);
     expect(isTrustedOfficialUrl("https://www.cesgranrio.org.br/concurso/ibge-2026/")).toBe(true);
     expect(isTrustedOfficialUrl("https://concursos.cesgranrio.org.br/portal/avaliacoes/33")).toBe(true);
+    expect(isTrustedOfficialUrl("https://inbraedem.selecao.net.br/informacoes/4/")).toBe(true);
+    expect(isTrustedOfficialUrl("https://anexos-r2.selecao.net.br/uploads/875/concursos/4/anexos/edital.pdf")).toBe(true);
+    expect(isTrustedOfficialUrl("https://inbraedem.selecao.net.br.evil.com/informacoes/4/")).toBe(false);
     expect(isTrustedOfficialUrl("https://brasilescola.uol.com.br/gramatica")).toBe(false);
   });
 
