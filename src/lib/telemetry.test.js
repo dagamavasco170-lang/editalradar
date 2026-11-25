@@ -31,7 +31,7 @@ describe("client diagnostics payload", () => {
     expect(entry.stack).toContain("https://example.org");\n    expect(entry.stack).not.toContain("/error");
     expect(entry.stack).not.toContain("private@example.org");
   });
-
+});
 
 describe("sanitizeResourceTarget", () => {
   it("keeps only the origin and discards path, query and fragment", () => {
