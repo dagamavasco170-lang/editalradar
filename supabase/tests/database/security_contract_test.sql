@@ -2,7 +2,7 @@
 -- Catalog-only assertions: no production data is read or modified.
 begin;
 
-select plan(30);
+select plan(32);
 
 select ok(
   (select relrowsecurity from pg_class where oid = 'public.study_question_answers'::regclass),
@@ -265,6 +265,22 @@ select is(
   )->>'correct'),
   'true',
   'authenticated non-admin can check an eligible answer through the RPC'
+);
+select is(
+  (select public.check_study_question_answer(
+    (select id from public.study_questions where exam_name='ER SECURITY TEST licensed'),
+    'B'
+  )->>'correct'),
+  'false',
+  'answer-check RPC rejects an incorrect selected answer'
+);
+select is(
+  (select public.check_study_question_answer(
+    (select id from public.study_questions where exam_name='ER SECURITY TEST draft'),
+    'A'
+  )),
+  null::jsonb,
+  'answer-check RPC returns no result for an unpublished draft'
 );
 reset role;
 
