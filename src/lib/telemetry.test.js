@@ -16,7 +16,6 @@ describe("client diagnostics payload", () => {
     expect(["web", "android"]).toContain(entry.platform);
     expect(entry.page.length).toBeLessThanOrEqual(180);
   });
-});
   it("redacts emails, bearer credentials, secret assignments, URL query strings and long tokens before upload", () => {
     const entry = createDiagnosticEntry({
       message: "Contact dev@example.com; Bearer eyJabc.def.ghi; api_key=abc123; https://app.example.com/path?access_token=secret#fragment; token=0123456789abcdef0123456789abcdef",
