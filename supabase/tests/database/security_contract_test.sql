@@ -169,7 +169,7 @@ select ok(
     where n.nspname = 'public'
       and d.defaclobjtype = 'r'
       and d.defaclrole = 'postgres'::regrole
-      and a.grantee in ('anon'::regrole, 'authenticated'::regrole)
+      and (a.grantee in ('anon'::regrole, 'authenticated'::regrole) or a.grantee = 0)
       and a.privilege_type in ('TRUNCATE','REFERENCES','TRIGGER')
   ),
   'postgres does not default-grant maintenance privileges to client roles'
