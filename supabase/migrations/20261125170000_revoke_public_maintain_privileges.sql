@@ -4,3 +4,7 @@ revoke maintain on all tables in schema public from anon, authenticated, public;
 -- Do not let future public tables inherit MAINTAIN for API client roles.
 alter default privileges for role postgres in schema public
   revoke maintain on tables from anon, authenticated, public;
+
+-- Supabase-managed objects can be created under supabase_admin as well.
+alter default privileges for role supabase_admin in schema public
+  revoke maintain on tables from anon, authenticated, public;
