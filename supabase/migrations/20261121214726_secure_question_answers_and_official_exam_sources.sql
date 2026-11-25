@@ -1,5 +1,5 @@
--- Protege gabaritos e cadastra links oficiais para provas reais.
--- Questões de terceiros só são reproduzidas depois de comprovar licença/autorização.
+-- Fontes oficiais de provas reais e camada licenciada do banco de questões.
+-- Conteúdo de provas de terceiros é exibido apenas com licença/autorização comprovada.
 alter table public.study_questions
   drop constraint if exists study_questions_answer_matches_option;
 alter table public.study_questions
@@ -20,9 +20,8 @@ create policy "Admins can manage study question answers"
   on public.study_question_answers for all to authenticated
   using (coalesce((select auth.jwt() -> 'app_metadata' ->> 'role'), '') = 'admin')
   with check (coalesce((select auth.jwt() -> 'app_metadata' ->> 'role'), '') = 'admin');
+
 grant select, insert, update, delete on public.study_question_answers to authenticated;
--- Supabase default grants may expose new public tables to anon; remove inherited access.
-revoke all on table public.study_question_answers from anon, public;
 
 create or replace function public.check_study_question_answer(
   p_question_id bigint,
@@ -67,7 +66,8 @@ create table if not exists public.study_exam_sources (
   updated_at timestamptz not null default now()
 );
 create index if not exists study_exam_sources_public_idx
-  on public.study_exam_sources(board, exam_year desc) where published = true;
+  on public.study_exam_sources(board, exam_year desc)
+  where published = true;
 alter table public.study_exam_sources enable row level security;
 
 drop policy if exists "Public can read official exam sources" on public.study_exam_sources;
@@ -80,25 +80,76 @@ create policy "Admins can manage official exam sources"
   on public.study_exam_sources for all to authenticated
   using (coalesce((select auth.jwt() -> 'app_metadata' ->> 'role'), '') = 'admin')
   with check (coalesce((select auth.jwt() -> 'app_metadata' ->> 'role'), '') = 'admin');
+
 grant select on public.study_exam_sources to anon, authenticated;
 grant insert, update, delete on public.study_exam_sources to authenticated;
 grant usage, select on sequence public.study_exam_sources_id_seq to authenticated;
 
--- Seeds idempotentes com links de páginas e arquivos oficiais.
 insert into public.study_exam_sources
-  (board,exam_name,exam_year,discipline,role_name,source_url,exam_url,answer_key_url,notes)
-select v.board,v.exam_name,v.exam_year,v.discipline,v.role_name,v.source_url,v.exam_url,v.answer_key_url,v.notes
-from (values
- ('Cebraspe','TRE/GO — Analista Judiciário — Caderno A',2008,'Diversas disciplinas','Analista Judiciário — Área Administrativa','https://cdn.cebraspe.org.br/concursos/TRE_GO2008/','https://cdn.cebraspe.org.br/concursos/TRE_GO2008/arquivos/TREGO_CARGO_01_CADERNO_A.pdf','https://cdn.cebraspe.org.br/concursos/TRE_GO2008/arquivos/TREGO08_Gab_Definitivo_001_1.PDF','Caderno e gabarito definitivo publicados no arquivo oficial do Cebraspe.'),
- ('Cebraspe','TRE/GO — Caderno OMEGA',2008,'Diversas disciplinas','Analista/Técnico Judiciário','https://cdn.cebraspe.org.br/concursos/TRE_GO2008/',null,'https://cdn.cebraspe.org.br/concursos/TRE_GO2008/arquivos/TREGO08_Gab_Definitivo_012_16.PDF','Página oficial disponibiliza vários cadernos e gabaritos definitivos.'),
- ('Cebraspe','Polícia Civil do Maranhão — Delegado',2017,'Direito','Delegado de Polícia','https://cdn.cebraspe.org.br/concursos/PC_MA_17_DELEGADO/','https://cdn.cebraspe.org.br/concursos/PC_MA_17_DELEGADO/arquivos/372_PCMADELEGADO_001_01.PDF',null,'Página oficial lista caderno de provas e gabarito definitivo.'),
- ('FGV','Tribunal de Justiça do Ceará — Juiz Substituto — Tipo 1',2025,'Direito','Juiz Substituto','https://conhecimento.fgv.br/concursos/tjce25','https://conhecimento.fgv.br/sites/default/files/concursos/juiz-substituto-cns001-tipo-1.pdf','https://conhecimento.fgv.br/sites/default/files/concursos/gabarito-definitivo.pdf','Prova objetiva e gabarito definitivo na página oficial.'),
- ('FGV','Tribunal de Justiça do Tocantins — Juiz Substituto — Tipo 1',2025,'Direito','Juiz Substituto','https://conhecimento.fgv.br/concursos/tjto25','https://conhecimento.fgv.br/sites/default/files/concursos/tjto-t1.pdf','https://conhecimento.fgv.br/sites/default/files/concursos/gabarito-definitivo-tj-to.pdf','Prova objetiva e gabarito definitivo publicados na página oficial.'),
- ('FGV','Tribunal Regional Federal da 3ª Região — Juiz Federal — Tipo A101',2025,'Direito','Juiz Federal Substituto','https://conhecimento.fgv.br/concursos/trf3juiz','https://conhecimento.fgv.br/sites/default/files/concursos/a101.pdf','https://conhecimento.fgv.br/sites/default/files/concursos/juiz-federal-substituto-e-juiza-federal-substituta-da-3a-regiao-gabaritos-preliminares-retificado.pdf','Página oficial lista provas e gabaritos; confira se houve publicação posterior de gabarito definitivo.'),
- ('Vunesp','Polícia Militar de São Paulo — Aluno-Soldado',2026,'Diversas disciplinas','Aluno-Soldado PM do Quadro de Praças','https://www.vunesp.com.br/PMES2601',null,null,'A página oficial informa a publicação do caderno e do gabarito; consulte a seção de documentos.'),
- ('Cebraspe','Procuradoria-Geral do Estado de Alagoas — Procurador',2008,'Direito','Procurador do Estado','https://cdn.cebraspe.org.br/concursos/PGE_AL2008/',null,null,'Página oficial arquivada com cadernos e acesso ao gabarito/folha de respostas.')
-) as v(board,exam_name,exam_year,discipline,role_name,source_url,exam_url,answer_key_url,notes)
-where not exists (
-  select 1 from public.study_exam_sources existing
-  where existing.board=v.board and existing.exam_name=v.exam_name and existing.exam_year=v.exam_year
-);
+  (board, exam_name, exam_year, discipline, role_name, source_url, exam_url, answer_key_url, notes)
+values
+  (
+    'Cebraspe', 'TRE/GO — Analista Judiciário — Caderno A', 2008,
+    'Diversas disciplinas', 'Analista Judiciário — Área Administrativa',
+    'https://cdn.cebraspe.org.br/concursos/TRE_GO2008/',
+    'https://cdn.cebraspe.org.br/concursos/TRE_GO2008/arquivos/TREGO_CARGO_01_CADERNO_A.pdf',
+    'https://cdn.cebraspe.org.br/concursos/TRE_GO2008/arquivos/TREGO08_Gab_Definitivo_001_1.PDF',
+    'Caderno e gabarito definitivo publicados no arquivo oficial do Cebraspe.'
+  ),
+  (
+    'Cebraspe', 'TRE/GO — Analista Judiciário — Caderno OMEGA', 2008,
+    'Diversas disciplinas', 'Analista Judiciário',
+    'https://cdn.cebraspe.org.br/concursos/TRE_GO2008/',
+    null,
+    'https://cdn.cebraspe.org.br/concursos/TRE_GO2008/arquivos/TREGO08_Gab_Definitivo_012_16.PDF',
+    'Página oficial contém cadernos e gabaritos definitivos para vários tipos.'
+  ),
+  (
+    'Cebraspe', 'Polícia Civil do Maranhão — Delegado', 2017,
+    'Direito', 'Delegado de Polícia',
+    'https://cdn.cebraspe.org.br/concursos/PC_MA_17_DELEGADO/',
+    'https://cdn.cebraspe.org.br/concursos/PC_MA_17_DELEGADO/arquivos/372_PCMADELEGADO_001_01.PDF',
+    null,
+    'A página oficial lista caderno de provas e gabarito definitivo.'
+  ),
+  (
+    'FGV', 'Tribunal de Justiça do Ceará — Juiz Substituto — Tipo 1', 2025,
+    'Direito', 'Juiz Substituto',
+    'https://conhecimento.fgv.br/concursos/tjce25',
+    'https://conhecimento.fgv.br/sites/default/files/concursos/juiz-substituto-cns001-tipo-1.pdf',
+    'https://conhecimento.fgv.br/sites/default/files/concursos/gabarito-definitivo.pdf',
+    'Prova objetiva de 100 questões; gabarito definitivo na página oficial.'
+  ),
+  (
+    'FGV', 'Tribunal de Justiça do Tocantins — Juiz Substituto — Tipo 1', 2025,
+    'Direito', 'Juiz Substituto',
+    'https://conhecimento.fgv.br/concursos/tjto25',
+    'https://conhecimento.fgv.br/sites/default/files/concursos/tjto-t1.pdf',
+    'https://conhecimento.fgv.br/sites/default/files/concursos/gabarito-definitivo-tj-to.pdf',
+    'Prova objetiva e gabarito definitivo publicados na página oficial.'
+  ),
+  (
+    'FGV', 'Tribunal Regional Federal da 3ª Região — Juiz Federal — Tipo A101', 2025,
+    'Direito', 'Juiz Federal Substituto',
+    'https://conhecimento.fgv.br/concursos/trf3juiz',
+    'https://conhecimento.fgv.br/sites/default/files/concursos/a101.pdf',
+    'https://conhecimento.fgv.br/sites/default/files/concursos/juiz-federal-substituto-e-juiza-federal-substituta-da-3a-regiao-gabaritos-preliminares-retificado.pdf',
+    'Página oficial lista provas e gabaritos; confirme eventuais retificações e gabarito definitivo.'
+  ),
+  (
+    'Vunesp', 'Polícia Militar de São Paulo — Aluno-Soldado', 2026,
+    'Diversas disciplinas', 'Aluno-Soldado PM do Quadro de Praças',
+    'https://www.vunesp.com.br/PMES2601',
+    null,
+    null,
+    'A página oficial informa a publicação do caderno de questões e gabarito; consulte a seção de documentos.'
+  ),
+  (
+    'Cebraspe', 'Procuradoria-Geral do Estado de Alagoas — Procurador', 2008,
+    'Direito', 'Procurador do Estado',
+    'https://cdn.cebraspe.org.br/concursos/PGE_AL2008/',
+    null,
+    null,
+    'Página oficial arquivada com cadernos de prova e acesso ao gabarito/folha de respostas.'
+  )
+on conflict do nothing;

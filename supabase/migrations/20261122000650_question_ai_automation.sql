@@ -24,7 +24,29 @@ alter table public.study_questions
 update public.study_questions set review_status='not_required' where origin='manual' and review_status='pending';
 create index if not exists study_questions_automation_review_idx on public.study_questions(origin,review_status,created_at desc);
 
--- Public question eligibility is finalized in migration 202611220009_merge_question_read_policies.sql.
+-- Extend the base published-question policy after automation columns exist.
+drop policy if exists "Read published licensed questions or admin review" on public.study_questions;
+drop policy if exists "Admins can read all study questions" on public.study_questions;
+drop policy if exists "Public can read licensed published questions" on public.study_questions;
+create policy "Read published licensed questions or admin review"
+  on public.study_questions for select to anon, authenticated
+  using (
+    (
+      published = true
+      and (
+        (
+          license_status in ('permission_granted','public_domain','cc_by','cc_by_sa')
+          and (license_status = 'public_domain' or license_proof_url is not null)
+        )
+        or (
+          license_status = 'original_content'
+          and origin = 'ai_generated'
+          and review_status in ('auto_approved','admin_approved')
+        )
+      )
+    )
+    or coalesce(((select auth.jwt()) -> 'app_metadata' ->> 'role'), '') = 'admin'
+  );
 
 
 drop policy if exists "Admins can update study questions" on public.study_questions;
