@@ -2127,7 +2127,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
             <div className="section-title">
               <div><div className="eyebrow">{page === "favoritos" ? "SUA LISTA PESSOAL" : "CATÁLOGO DE OPORTUNIDADES"}</div><h2>{page === "favoritos" ? "Seus concursos favoritos" : "Concursos e avisos no catálogo"}</h2></div>
               <div className="section-heading-actions">
-                <span className="results">{visibleCatalog.length} registros</span>
+                <span className="results" role="status" aria-live="polite" aria-atomic="true">{visibleCatalog.length} registros</span>
                 {page === "favoritos" && <button className="export-favorites-btn" type="button" onClick={exportFavoriteContests} disabled={favorites.length === 0}>↓ Exportar CSV</button>}
               </div>
             </div>

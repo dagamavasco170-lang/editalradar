@@ -276,10 +276,10 @@ describe("EditalRadar", () => {
     render(<App />);
 
     fireEvent(window, new Event("offline"));
-    expect(screen.getByRole("status")).toHaveTextContent(/Sem conexão no momento/);
+    expect(screen.getByText(/Sem conexão no momento/)).toBeInTheDocument();
 
     fireEvent(window, new Event("online"));
-    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Sem conexão no momento/)).not.toBeInTheDocument();
   });
 
   it("renderiza a página inicial e os concursos oficiais", () => {
@@ -292,6 +292,11 @@ describe("EditalRadar", () => {
     expect(screen.getAllByText("Banco Central do Brasil").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Receita Federal do Brasil").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Controladoria-Geral da União").length).toBeGreaterThan(0);
+  });
+
+  it("anuncia a quantidade de resultados do catálogo para tecnologias assistivas", () => {
+    render(<App authClient={null} authConfigured={false} />);
+    expect(screen.getByRole("status")).toHaveTextContent("39 registros");
   });
 
   it("filtra concursos pelo nome do órgão", () => {
