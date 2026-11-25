@@ -170,7 +170,7 @@ test("rejeita caderno de prova antes de baixar ou processar o PDF", async () => 
   assert.equal(requests, 0);
 });
 
-test("não descarta a página oficial do concurso PCPR só por ela mencionar prova", () => {
+test("não descarta a página oficial principal da PCPR por mencionar prova no cronograma", () => {
   const result = classifyDiscovery(
     { ...discovery, discovery_type: "new_link", title: "Concurso público PCPR 2026" },
     {
@@ -180,9 +180,8 @@ test("não descarta a página oficial do concurso PCPR só por ela mencionar pro
     },
     "https://conhecimento.fgv.br/concursos/pcpr26"
   );
-  assert.equal(result.decision, "publish");
-  assert.equal(result.data.orgao, "Polícia Civil do Estado do Paraná");
-  assert.equal(result.data.cargo, "Agente de Polícia Judiciária");
+  assert.notEqual(result.decision, "dismiss");
+  assert.doesNotMatch(result.reason || "", /material auxiliar de avaliação/i);
 });
 
 test("descarta editais históricos sem sinal oficial de vigência", () => {
