@@ -795,7 +795,44 @@ export const concursos = [
       "verificadoEm": "2026-11-21"
     },
     "observacao": "São 510 vagas para Soldado (nível médio) e 60 vagas para Oficial Combatente (nível superior). O salário inicial divulgado é de R$ 5.617,92 para Soldado e R$ 12.937,33 para Oficial. Prova objetiva prevista para 28/02/2027. A listagem de inscrições abertas do Instituto AOCP informava prazo até 23/11/2026 às 14h, já encerrado. Acompanhe as próximas etapas na página específica do certame e na área do candidato."
-  }
+  },
+
+  {
+    "id": 519,
+    "sigla": "IBGE",
+    "cargo": "Recenseador — 12º Censo Agropecuário",
+    "orgao": "Instituto Brasileiro de Geografia e Estatística",
+    "vinculo": "Processo seletivo simplificado · contratação temporária",
+    "nivel": "Fundamental completo",
+    "vagas": 421,
+    "vagasTotais": 421,
+    "vagasImediatas": 421,
+    "atoOficial": "Edital IBGE nº 03/2026 — PSS para Recenseador",
+    "status": "Inscrições abertas até 25/11/2026 às 23h59",
+    "area": "Federal",
+    "estado": "Alagoas",
+    "sourceUrl": "https://ftp.ibge.gov.br/edital/PSS_Censo_Agro/2026_03/EDITAL_03_2026_PSS_RECENSEADOR_IBGE.pdf",
+    "inscricaoUrl": "https://concursos.cesgranrio.org.br/portal/avaliacoes/33",
+    "documentos": [
+      {
+        "title": "Página da seleção — Fundação Cesgranrio",
+        "url": "https://www.cesgranrio.org.br/concurso/ibge-2026/",
+        "description": "Resumo oficial da seleção, datas, requisitos e acesso ao portal de inscrição."
+      }
+    ],
+    "remuneracao": {
+      "valor": 1741,
+      "moeda": "BRL",
+      "periodicidade": "mensal",
+      "natureza": "Parcela fixa mensal, acrescida de produtividade variável",
+      "observacao": "O IBGE informa parcela fixa de R$ 1.741,00, produtividade variável e auxílio-alimentação de R$ 1.192,00. A parcela variável depende da produção e das regras do edital.",
+      "sourceUrl": "https://www.gov.br/agricultura/pt-br/assuntos/noticias/2026/ibge-lanca-edital-com-27-279-vagas-de-recenseador-para-o-12deg-censo-agropecuario",
+      "sourceLabel": "Ministério da Agricultura — informações oficiais do PSS IBGE",
+      "verificadoEm": "2026-11-24"
+    },
+    "observacao": "Esta ficha é de processo seletivo simplificado para contratação temporária, não de cargo efetivo. O edital oferece 27.279 vagas no país; em Alagoas, são 421 vagas distribuídas em 30 municípios/localidades. O quadro oficial registra 13 vagas em Arapiraca e 13 em Igaci. Inscrições de 06 a 25/11/2026, taxa de R$ 70,00 e prova objetiva prevista para 31/01/2027. A duração inicial estimada do contrato é de até seis meses, conforme o edital. Consulte o quadro de vagas e as regras antes de se inscrever."
+  },
+
 ];
 
 export const sourceRegistry = [
