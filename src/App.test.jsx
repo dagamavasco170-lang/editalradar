@@ -443,6 +443,7 @@ describe("EditalRadar", () => {
   it("mantém o foco dentro do diálogo, fecha com Escape e devolve o foco ao acionador", () => {
     render(<App />);
     const trigger = screen.getByRole("button", { name: "Como instalar" });
+    trigger.focus();
     fireEvent.click(trigger);
 
     const dialog = screen.getByRole("dialog", { name: "Instale o EditalRadar" });
