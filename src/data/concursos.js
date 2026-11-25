@@ -1014,14 +1014,14 @@ export const concursos = [
       "fim": "2026-12-23",
       "inicioHoraLocal": null,
       "fimHoraLocal": null,
-      "fonteUrl": "https://www.ifg.edu.br/institucional/17-ifg/ultimas-noticias/48695-concurso-tae-ifg-26",
+      "fonteUrl": "https://www.ifg.edu.br/aluno/161-ifg/campus/goiania/noticias-campus-goiania/48699-concurso-tae-26",
       "fonteDescricao": "IFG · notícia oficial do concurso TAE 2026",
       "verificadoEm": "2026-11-25"
     },
     "area": "Federal",
     "estado": "Goiás",
     "localidade": "12 câmpus do IFG em Goiás",
-    "sourceUrl": "https://www.ifg.edu.br/institucional/17-ifg/ultimas-noticias/48695-concurso-tae-ifg-26",
+    "sourceUrl": "https://www.ifg.edu.br/aluno/161-ifg/campus/goiania/noticias-campus-goiania/48699-concurso-tae-26",
     "inscricaoUrl": "https://www.institutoaocp.org.br/concursos/724",
     "documentos": [
       {
@@ -1036,7 +1036,7 @@ export const concursos = [
       "periodicidade": "mensal",
       "natureza": "Vencimento básico de R$ 2.607,70 a R$ 5.215,39, conforme o nível; benefícios e incentivos podem elevar a remuneração total.",
       "observacao": "O IFG informa vencimento básico entre R$ 2.607,70 e R$ 5.215,39. A remuneração total pode alcançar R$ 10.318,93 com benefícios e incentivos aplicáveis; esse valor máximo não corresponde ao vencimento básico.",
-      "sourceUrl": "https://www.ifg.edu.br/institucional/17-ifg/ultimas-noticias/48695-concurso-tae-ifg-26",
+      "sourceUrl": "https://www.ifg.edu.br/aluno/161-ifg/campus/goiania/noticias-campus-goiania/48699-concurso-tae-26",
       "sourceLabel": "Instituto Federal de Goiás — notícia oficial sobre o Edital nº 001/2026",
       "verificadoEm": "2026-11-25"
     },
