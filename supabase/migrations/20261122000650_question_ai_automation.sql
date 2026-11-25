@@ -120,7 +120,7 @@ returns jsonb
 language sql
 stable
 security definer
-set search_path = pg_catalog, public
+set search_path = ''
 as $$
   select jsonb_build_object(
     'correct', a.answer = btrim(coalesce(p_selected_answer, '')),
