@@ -886,6 +886,8 @@ export const concursos = [
     "periodoInscricao": {
       "inicio": "2026-11-30",
       "fim": "2026-12-29",
+      "inicioHoraLocal": "16:00",
+      "fimHoraLocal": "16:00",
       "fonteUrl": "https://conhecimento.fgv.br/sites/default/files/concursos/edital-cro-pr.pdf",
       "fonteDescricao": "Edital CRO/PR nº 01/2026 · item 4.1, p. 4",
       "verificadoEm": "2026-11-25"
@@ -930,6 +932,8 @@ export const concursos = [
     "periodoInscricao": {
       "inicio": "2026-11-18",
       "fim": "2026-12-18",
+      "inicioHoraLocal": "00:00",
+      "fimHoraLocal": "23:59",
       "fonteUrl": "https://www.igeduc.org.br/informacoes/192/",
       "fonteDescricao": "Página oficial IGEDUC · informações gerais",
       "verificadoEm": "2026-11-25"
@@ -963,6 +967,8 @@ export const concursos = [
     "periodoInscricao": {
       "inicio": "2026-10-30",
       "fim": "2026-12-10",
+      "inicioHoraLocal": "00:00",
+      "fimHoraLocal": "23:59",
       "fonteUrl": "https://www.igeduc.org.br/informacoes/153/",
       "fonteDescricao": "Página oficial IGEDUC · informações gerais",
       "verificadoEm": "2026-11-25"
@@ -1006,6 +1012,8 @@ export const concursos = [
     "periodoInscricao": {
       "inicio": null,
       "fim": "2026-12-23",
+      "inicioHoraLocal": null,
+      "fimHoraLocal": null,
       "fonteUrl": "https://www.ifg.edu.br/institucional/17-ifg/ultimas-noticias/48695-concurso-tae-ifg-26",
       "fonteDescricao": "IFG · notícia oficial do concurso TAE 2026",
       "verificadoEm": "2026-11-25"
@@ -1051,6 +1059,8 @@ export const concursos = [
     "periodoInscricao": {
       "inicio": "2026-11-26",
       "fim": "2027-02-15",
+      "inicioHoraLocal": "16:00",
+      "fimHoraLocal": "16:00",
       "fonteUrl": "https://conhecimento.fgv.br/sites/default/files/concursos/edital_pefm_2027_retificado.pdf",
       "fonteDescricao": "Edital SEDUC-SP nº 01/2026 · Capítulo 4, item 1, p. 8",
       "verificadoEm": "2026-11-25"
