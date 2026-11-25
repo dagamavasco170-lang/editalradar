@@ -51,7 +51,52 @@ describe("Atualização temporal do catálogo", () => {
     expect(contest.remuneracao.natureza).toContain("chegam a R$ 10.000,00");
   });
 
+  it("cadastra o concurso do CRO/PR com inscrição futura e edital oficial", () => {
+    const contest = concursos.find((item) => item.id === 521);
+    expect(contest).toBeDefined();
+    expect(contest.orgao).toBe("Conselho Regional de Odontologia do Paraná");
+    expect(contest.vagas).toBe(12);
+    expect(contest.status).toMatch(/inscrições começam em 30\/11\/2026/i);
+    expect(contest.sourceUrl).toBe("https://conhecimento.fgv.br/concursos/cropr");
+    expect(contest.documentos[0].url).toBe("https://conhecimento.fgv.br/sites/default/files/concursos/edital-cro-pr.pdf");
+    expect(contest.remuneracao.natureza).toContain("14.318,45");
+  });
+
+  it("cadastra Custódia com vagas imediatas e cadastro reserva separados", () => {
+    const contest = concursos.find((item) => item.id === 522);
+    expect(contest).toBeDefined();
+    expect(contest.estado).toBe("Pernambuco");
+    expect(contest.vagasImediatas).toBe(384);
+    expect(contest.cadastroReserva).toBe(819);
+    expect(contest.vagasTotais).toBe(1203);
+    expect(contest.status).toMatch(/18\/12\/2026/);
+    expect(contest.documentos[0].url).toContain("/192/anexos/");
+  });
+
+  it("cadastra São Caetano com as 46 vagas do edital", () => {
+    const contest = concursos.find((item) => item.id === 523);
+    expect(contest).toBeDefined();
+    expect(contest.estado).toBe("Pernambuco");
+    expect(contest.vagas).toBe(46);
+    expect(contest.cargo).toContain("Procurador");
+    expect(contest.status).toMatch(/10\/12\/2026/);
+    expect(contest.remuneracao.valor).toBe(2051.03);
+  });
+
+  it("cadastra IFG com distribuição por nível e diferencia vencimento básico do total", () => {
+    const contest = concursos.find((item) => item.id === 524);
+    expect(contest).toBeDefined();
+    expect(contest.estado).toBe("Goiás");
+    expect(contest.vagas).toBe(36);
+    expect(contest.nivel).toBe("Médio, Técnico e Superior");
+    expect(contest.status).toMatch(/23\/12\/2026/);
+    expect(contest.observacao).toMatch(/14\/02\/2027/);
+    expect(contest.remuneracao.natureza).toContain("R$ 2.607,70");
+    expect(contest.remuneracao.natureza).toContain("R$ 5.215,39");
+    expect(contest.remuneracao.observacao).toContain("R$ 10.318,93");
+  });
+
   it("registra a data da atualização do conjunto estático", () => {
-    expect(sourceUpdated).toBe("Atualizado em 24/11/2026");
+    expect(sourceUpdated).toBe("Atualizado em 25/11/2026");
   });
 });
