@@ -239,7 +239,7 @@ select ok(
       and (a.grantee in ('anon'::regrole, 'authenticated'::regrole) or a.grantee = 0)
       and a.privilege_type in ('TRUNCATE','REFERENCES','TRIGGER','MAINTAIN')
   ),
-  'postgres and supabase_admin do not default-grant maintenance privileges to client roles'
+  'postgres does not default-grant table maintenance privileges to client roles'
 );
 
 select ok(
