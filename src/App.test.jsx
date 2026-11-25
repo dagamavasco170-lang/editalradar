@@ -521,6 +521,21 @@ describe("EditalRadar", () => {
       .toHaveAttribute("href", "https://www.bcb.gov.br/acessoinformacao/concursospublicos");
   });
 
+  it("exibe o atalho de inscrição oficial do PSS temporário do IBGE em Alagoas", () => {
+    render(<App />);
+    fireEvent.change(screen.getByPlaceholderText("Buscar cargo ou órgão..."), {
+      target: { value: "Recenseador" }
+    });
+    expect(screen.getByText("Recenseador — 12º Censo Agropecuário")).toBeInTheDocument();
+    expect(screen.getByText("Inscrições abertas até 25/11/2026 às 23h59")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Ver detalhes/ }));
+    expect(screen.getByRole("heading", { level: 1, name: "Recenseador — 12º Censo Agropecuário" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Inscrever-se pela organizadora/ }))
+      .toHaveAttribute("href", "https://concursos.cesgranrio.org.br/portal/avaliacoes/33");
+    expect(screen.getByRole("link", { name: /Acessar fonte oficial/ }))
+      .toHaveAttribute("href", "https://ftp.ibge.gov.br/edital/PSS_Censo_Agro/2026_03/EDITAL_03_2026_PSS_RECENSEADOR_IBGE.pdf");
+  });
+
   it("compara duas oportunidades lado a lado e informa quando a remuneração não está cadastrada", () => {
     localStorage.removeItem("er-comparison:visitor");
     render(<App />);
