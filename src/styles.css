@@ -3510,3 +3510,16 @@ html[data-theme="dark"] .discovery-list-footer small{color:#aebed1}
 .active-filter-chip:hover{background:#edf7f2;border-color:#b7d8c9}
 .active-filter-clear{border:0;background:transparent;color:#a05b52;font-size:10px;font-weight:700;padding:6px 8px}
 @media(max-width:480px){.active-filter-summary{gap:6px;padding:9px}.active-filter-chip{padding:7px 9px;font-size:10px}}
+
+
+/* Prazos de inscrição confirmados exclusivamente por fontes oficiais. */
+.registration-deadline{display:flex;flex-direction:column;gap:4px;margin:0 0 14px;padding:10px 12px;border:1px solid #d9e7e2;border-left:3px solid #16866d;border-radius:9px;background:#f3faf7;color:#183d34;font-size:12px}
+.registration-deadline strong{font-size:13px;font-weight:800}
+.registration-deadline span,.registration-deadline a{line-height:1.45}
+.registration-deadline a{width:fit-content;color:#176b59;font-weight:700;text-decoration:underline;text-underline-offset:2px}
+.registration-deadline a:focus-visible{outline:3px solid #176b59;outline-offset:3px;border-radius:3px}
+.registration-deadline-upcoming{border-color:#e7dcbf;border-left-color:#b17a18;background:#fffaf0;color:#61440e}
+.registration-deadline-upcoming a{color:#785410}
+.registration-deadline-closed{border-color:#e3e7eb;border-left-color:#8a98a5;background:#f6f7f8;color:#495866}
+.registration-deadline-review,.registration-deadline-unverified{border-color:#e7e2d5;border-left-color:#9c8956;background:#faf8f1;color:#5f5436}
+@media(max-width:640px){.registration-deadline{margin-bottom:12px;padding:9px 10px}.registration-deadline a{overflow-wrap:anywhere}}
