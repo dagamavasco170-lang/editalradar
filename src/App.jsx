@@ -84,6 +84,7 @@ const describeAlert = (filters) => {
 };
 
 const isPreliminary = (item) => /concurso listado\s*·\s*verificar/i.test(item?.status || "");
+const isTemporarySelection = (item) => /processo seletivo simplificado|contratação temporária/i.test([item?.vinculo, item?.atoOficial].filter(Boolean).join(" "));
 const getStatusTone = (value = "") => {
   const status = String(value).toLocaleLowerCase("pt-BR");
   if (/inscri.{0,18}abertas|edital publicado/.test(status)) return "status-open";
@@ -2230,6 +2231,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                 <div className="card-status-row">
                   <span className={`status ${getStatusTone(item.status)} ${isPreliminary(item) ? "preliminary" : ""}`}><i />{item.status}</span>{getStatusTone(item.status) === "status-open" ? <span className="card-priority card-priority-open" aria-label="Prioridade: inscrições abertas">Inscrições abertas</span> : getStatusTone(item.status) === "status-upcoming" ? <span className="card-priority card-priority-upcoming">Prepare-se</span> : null}
                   <span className="card-area-tag">{item.area || "Federal"} · {item.estado || "Brasil"}</span>
+                  {isTemporarySelection(item) && <span className="card-type-tag" aria-label="Processo seletivo temporário">PSS temporário</span>}
                 </div>
                 <h3>{item.cargo}</h3><p className="org-name">{item.orgao}</p>
                 <div className="card-meta card-facts">
