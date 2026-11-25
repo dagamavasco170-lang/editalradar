@@ -412,7 +412,7 @@ footer{background:#fff}
 .detail-hero-actions{display:grid;gap:8px;min-width:190px}
 .detail-favorite-btn,.detail-source-btn{display:flex;align-items:center;justify-content:center;min-height:40px;padding:9px 12px;border-radius:8px;font-size:10px;font-weight:800;text-align:center;text-decoration:none}
 .detail-favorite-btn{border:1px solid rgba(255,255,255,.35);background:#fff;color:#176f59}
-.detail-source-btn{border:1px solid rgba(255,255,255,.28);background:rgba(255,255,255,.08);color:#fff}
+.detail-source-btn{border:1px solid rgba(255,255,255,.28);background:rgba(255,255,255,.08);color:#fff}.detail-registration-btn{display:flex;align-items:center;justify-content:center;min-height:40px;padding:9px 12px;border:1px solid #38c49a;border-radius:8px;background:#168a6a;color:#fff;font-size:10px;font-weight:850;text-align:center;text-decoration:none}.detail-registration-btn:hover{background:#117557}
 .detail-favorite-btn:disabled{opacity:.6;cursor:not-allowed}
 .detail-section-nav{display:flex;gap:7px;overflow-x:auto;padding:13px 0;margin:0 0 2px;scrollbar-width:thin}
 .detail-section-nav a{flex:0 0 auto;padding:8px 11px;border:1px solid #e1ebe6;border-radius:999px;background:#fff;color:#50706e;text-decoration:none;font-size:10px;font-weight:700}
