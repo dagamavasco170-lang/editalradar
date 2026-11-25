@@ -21,7 +21,7 @@ create index if not exists contest_discoveries_pending_idx
   where status = 'pending';
 alter table public.contest_discoveries enable row level security;
 
-do $
+do $$
 begin
   if not exists (select 1 from pg_policies where schemaname='public' and tablename='contest_discoveries' and policyname='Admins can read contest discoveries') then
     create policy "Admins can read contest discoveries" on public.contest_discoveries
@@ -38,7 +38,7 @@ begin
       );
   end if;
 end
-$;
+$$;
 
 grant select, update on public.contest_discoveries to authenticated;
 grant all on public.contest_discoveries to service_role;
