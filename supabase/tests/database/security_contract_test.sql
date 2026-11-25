@@ -2,7 +2,7 @@
 -- Catalog-only assertions: no production data is read or modified.
 begin;
 
-select plan(36);
+select plan(38);
 
 select ok(
   (select relrowsecurity from pg_class where oid = 'pgmq.q_push_delivery_retries'::regclass),
@@ -27,6 +27,37 @@ select ok(
   and not has_table_privilege('anon', 'pgmq.a_push_delivery_retries', 'SELECT')
   and not has_table_privilege('authenticated', 'pgmq.a_push_delivery_retries', 'SELECT'),
   'client roles cannot SELECT queue or archive directly'
+);
+
+select ok(
+  not has_table_privilege('anon', 'pgmq.q_push_delivery_retries', 'INSERT')
+  and not has_table_privilege('anon', 'pgmq.q_push_delivery_retries', 'UPDATE')
+  and not has_table_privilege('anon', 'pgmq.q_push_delivery_retries', 'DELETE')
+  and not has_table_privilege('anon', 'pgmq.q_push_delivery_retries', 'TRUNCATE')
+  and not has_table_privilege('anon', 'pgmq.q_push_delivery_retries', 'REFERENCES')
+  and not has_table_privilege('anon', 'pgmq.q_push_delivery_retries', 'TRIGGER')
+  and not has_table_privilege('anon', 'pgmq.a_push_delivery_retries', 'INSERT')
+  and not has_table_privilege('anon', 'pgmq.a_push_delivery_retries', 'UPDATE')
+  and not has_table_privilege('anon', 'pgmq.a_push_delivery_retries', 'DELETE')
+  and not has_table_privilege('anon', 'pgmq.a_push_delivery_retries', 'TRUNCATE')
+  and not has_table_privilege('anon', 'pgmq.a_push_delivery_retries', 'REFERENCES')
+  and not has_table_privilege('anon', 'pgmq.a_push_delivery_retries', 'TRIGGER'),
+  'anon has no maintenance or write privileges on queue tables'
+);
+select ok(
+  not has_table_privilege('authenticated', 'pgmq.q_push_delivery_retries', 'INSERT')
+  and not has_table_privilege('authenticated', 'pgmq.q_push_delivery_retries', 'UPDATE')
+  and not has_table_privilege('authenticated', 'pgmq.q_push_delivery_retries', 'DELETE')
+  and not has_table_privilege('authenticated', 'pgmq.q_push_delivery_retries', 'TRUNCATE')
+  and not has_table_privilege('authenticated', 'pgmq.q_push_delivery_retries', 'REFERENCES')
+  and not has_table_privilege('authenticated', 'pgmq.q_push_delivery_retries', 'TRIGGER')
+  and not has_table_privilege('authenticated', 'pgmq.a_push_delivery_retries', 'INSERT')
+  and not has_table_privilege('authenticated', 'pgmq.a_push_delivery_retries', 'UPDATE')
+  and not has_table_privilege('authenticated', 'pgmq.a_push_delivery_retries', 'DELETE')
+  and not has_table_privilege('authenticated', 'pgmq.a_push_delivery_retries', 'TRUNCATE')
+  and not has_table_privilege('authenticated', 'pgmq.a_push_delivery_retries', 'REFERENCES')
+  and not has_table_privilege('authenticated', 'pgmq.a_push_delivery_retries', 'TRIGGER'),
+  'authenticated has no maintenance or write privileges on queue tables'
 );
 
 select ok(
