@@ -17,6 +17,22 @@ describe("client diagnostics payload", () => {
     expect(entry.page.length).toBeLessThanOrEqual(180);
   });
 });
+  it("redacts emails, bearer credentials, secret assignments, URL query strings and long tokens before upload", () => {
+    const entry = createDiagnosticEntry({
+      message: "Contact dev@example.com; Bearer eyJabc.def.ghi; api_key=abc123; https://app.example.com/path?access_token=secret#fragment; token=0123456789abcdef0123456789abcdef",
+      stack: "password=hunter2 https://example.org/error?email=private@example.org"
+    });
+    expect(entry.message).toContain("[email]");
+    expect(entry.message).toContain("Bearer [redacted]");
+    expect(entry.message).toContain("api_key=[redacted]");
+    expect(entry.message).toContain("https://app.example.com/path");
+    expect(entry.message).not.toContain("access_token=secret");
+    expect(entry.message).not.toContain("0123456789abcdef0123456789abcdef");
+    expect(entry.stack).toContain("password=[redacted]");
+    expect(entry.stack).toContain("https://example.org/error");
+    expect(entry.stack).not.toContain("private@example.org");
+  });
+
 
 describe("sanitizeResourceTarget", () => {
   it("keeps only the origin and discards path, query and fragment", () => {
