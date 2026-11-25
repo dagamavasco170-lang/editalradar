@@ -2,7 +2,7 @@
 -- Catalog-only assertions: no production data is read or modified.
 begin;
 
-select plan(14);
+select plan(15);
 
 select ok(
   (select relrowsecurity from pg_class where oid = 'public.study_question_answers'::regclass),
