@@ -2,7 +2,7 @@
 -- Catalog-only assertions: no production data is read or modified.
 begin;
 
-select plan(21);
+select plan(24);
 
 select ok(
   (select relrowsecurity from pg_class where oid = 'public.study_question_answers'::regclass),
@@ -174,5 +174,53 @@ select ok(
   ),
   'postgres does not default-grant maintenance privileges to client roles'
 );
+
+select ok(
+  not exists (
+    select 1 from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public'
+      and p.oid in (
+        'public.enqueue_push_delivery(jsonb,integer)'::regprocedure,
+        'public.enqueue_push_deliveries(jsonb[],integer)'::regprocedure,
+        'public.read_push_delivery_retries(integer,integer)'::regprocedure,
+        'public.ack_push_delivery_retry(bigint)'::regprocedure,
+        'public.reschedule_push_delivery_retry(bigint,jsonb,integer)'::regprocedure,
+        'public.fail_push_delivery_retry(bigint,text,text,integer)'::regprocedure,
+        'public.verify_push_queue_worker_token(text)'::regprocedure
+      )
+      and (has_function_privilege('anon', p.oid, 'EXECUTE') or has_function_privilege('authenticated', p.oid, 'EXECUTE'))
+  ),
+  'push queue SECURITY DEFINER RPCs are not executable by client roles'
+);
+select ok(
+  not exists (
+    select 1 from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public'
+      and p.oid in (
+        'public.check_study_question_answer(bigint,text)'::regprocedure,
+        'public.enqueue_push_delivery(jsonb,integer)'::regprocedure,
+        'public.enqueue_push_deliveries(jsonb[],integer)'::regprocedure,
+        'public.read_push_delivery_retries(integer,integer)'::regprocedure,
+        'public.ack_push_delivery_retry(bigint)'::regprocedure,
+        'public.reschedule_push_delivery_retry(bigint,jsonb,integer)'::regprocedure,
+        'public.fail_push_delivery_retry(bigint,text,text,integer)'::regprocedure,
+        'public.verify_push_queue_worker_token(text)'::regprocedure
+      )
+      and not (p.proconfig @> array['search_path=""']::text[])
+  ),
+  'audited SECURITY DEFINER functions disable implicit search_path lookup'
+);
+select ok(
+  not exists (
+    select 1 from pg_proc p
+    where p.oid = 'public.check_study_question_answer(bigint,text)'::regprocedure
+      and has_function_privilege('anon', p.oid, 'EXECUTE')
+  )
+  and has_function_privilege('authenticated', 'public.check_study_question_answer(bigint,text)', 'EXECUTE'),
+  'answer-check RPC grants execute only to authenticated among client roles'
+);
+
 select * from finish();
 rollback;
