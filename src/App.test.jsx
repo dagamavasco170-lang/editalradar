@@ -294,7 +294,7 @@ describe("EditalRadar", () => {
     expect(screen.getAllByText("Controladoria-Geral da União").length).toBeGreaterThan(0);
   });
 
-  it("filtra concursos pelo nome do órgão", () => {
+  it("destaca visualmente inscrições abertas e pré-edital nos cards", () => {\n    render(<App authClient={null} authConfigured={false} />);\n    expect(screen.getAllByText("Inscrições abertas", { exact: true }).length).toBeGreaterThan(0);\n    expect(screen.getAllByText("Prepare-se", { exact: true }).length).toBeGreaterThan(0);\n  });\n\n  it("filtra concursos pelo nome do órgão", () => {
     render(<App />);
 
     fireEvent.change(screen.getByPlaceholderText("Buscar cargo ou órgão..."), {
