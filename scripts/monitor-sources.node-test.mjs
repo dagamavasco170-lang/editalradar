@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { concursos } from "../src/data/concursos.js";
-import { collectSourceUrls, compareSource, fingerprintContent, normalizeHtml, extractOpportunityLinks, buildDiscoveriesForSource, fetchOfficialSource, fetchNewsFeedWithRetry, isTrustedOfficialHost, pruneSourceState, buildGoogleNewsRssUrl, parseGoogleNewsRss, searchInternetForContestLeads, filterUnseenWebSearchDiscoveries, INTERNET_SEARCH_QUERIES, classifyContestLead, SECONDARY_NEWS_FEEDS, parseSecondaryNewsRss, isActionableSecondaryNewsLead, fetchNewsFeedWithCurl, isSameTrustedSecondaryFeedPublisher, resolveTrustedSecondaryFeedRedirect } from "./monitor-sources.mjs";
+import { collectSourceUrls, compareSource, wasSourceAccessRestricted, fingerprintContent, normalizeHtml, extractOpportunityLinks, buildDiscoveriesForSource, fetchOfficialSource, fetchNewsFeedWithRetry, isTrustedOfficialHost, pruneSourceState, buildGoogleNewsRssUrl, parseGoogleNewsRss, searchInternetForContestLeads, filterUnseenWebSearchDiscoveries, INTERNET_SEARCH_QUERIES, classifyContestLead, SECONDARY_NEWS_FEEDS, parseSecondaryNewsRss, isActionableSecondaryNewsLead, fetchNewsFeedWithCurl, isSameTrustedSecondaryFeedPublisher, resolveTrustedSecondaryFeedRedirect } from "./monitor-sources.mjs";
 
 test("coleta somente URLs HTTPS únicas", () => {
   const urls = collectSourceUrls([
@@ -220,10 +220,26 @@ test("normaliza HTML removendo scripts, estilos e espaços variáveis", () => {
   assert.equal(fingerprintContent(first), fingerprintContent(second));
 });
 
-test("identifica alteração, falha e primeira leitura", () => {
+test("identifica alteração, falha real e primeira leitura", () => {
   assert.equal(compareSource("https://example.gov.br", { sha256: "old" }, { ok: true, sha256: "new" }).type, "changed");
-  assert.equal(compareSource("https://example.gov.br", { sha256: "old" }, { ok: false, error: "HTTP 503" }).type, "unavailable");
+  assert.equal(compareSource("https://example.gov.br", { sha256: "old" }, { ok: false, status: 503, error: "HTTP 503" }).type, "unavailable");
   assert.equal(compareSource("https://example.gov.br", null, { ok: true, sha256: "new" }).type, "new_baseline");
+});
+
+test("distingue bloqueio do robô de indisponibilidade real e detecta recuperação", () => {
+  for (const status of [401, 403, 429]) {
+    const result = compareSource("https://example.gov.br", { sha256: "old" }, { ok: false, status, error: "HTTP " + status });
+    assert.equal(result.type, "restricted");
+    assert.equal(result.status, status);
+    assert.match(result.message, /não confirma que a página oficial esteja fora do ar/);
+  }
+
+  const serverFailure = compareSource("https://example.gov.br", { sha256: "old" }, { ok: false, status: 503, error: "HTTP 503" });
+  assert.equal(serverFailure.type, "unavailable");
+  assert.equal(wasSourceAccessRestricted({ lastFailureType: "restricted" }), true);
+  assert.equal(wasSourceAccessRestricted({ lastError: "HTTP 403 Forbidden" }), true);
+  assert.equal(wasSourceAccessRestricted({ lastError: "HTTP 503 Service Unavailable" }), false);
+  assert.equal(wasSourceAccessRestricted({}), false);
 });
 
 test("mantém texto relevante em português", () => {

@@ -364,8 +364,24 @@ export function buildDiscoveriesForSource(url, previous, current) {
   return discoveries;
 }
 
+export function wasSourceAccessRestricted(previous) {
+  if (previous?.lastFailureType === "restricted") return true;
+  return /\bHTTP\s+(?:401|403|429)\b/i.test(String(previous?.lastError || ""));
+}
+
 export function compareSource(url, previous, current) {
-  if (!current.ok) return { type: "unavailable", url, message: current.error || "Falha ao consultar a fonte." };
+  if (!current.ok) {
+    const status = Number(current.status || String(current.error || "").match(/\bHTTP\s+(\d{3})\b/i)?.[1] || 0);
+    if ([401, 403, 429].includes(status)) {
+      return {
+        type: "restricted",
+        url,
+        status,
+        message: "Acesso automatizado bloqueado ou limitado (HTTP " + status + "); isso não confirma que a página oficial esteja fora do ar."
+      };
+    }
+    return { type: "unavailable", url, status: status || null, message: current.error || "Falha ao consultar a fonte." };
+  }
   if (!previous?.sha256) return { type: "new_baseline", url, message: "Primeira leitura desta fonte." };
   if (previous.sha256 !== current.sha256) return { type: "changed", url, message: "O conteúdo textual da página mudou desde a última verificação." };
   return null;
@@ -383,7 +399,11 @@ async function fetchSource(url) {
   const { response, finalUrl, usedFallbackTransport } = await fetchOfficialSource(url, {
     fallbackFetch: fetchOfficialSourceWithCurl
   });
-  if (!response.ok) throw new Error("HTTP " + response.status + " " + response.statusText);
+  if (!response.ok) {
+    const error = new Error("HTTP " + response.status + " " + response.statusText);
+    error.status = response.status;
+    throw error;
+  }
 
   const contentType = response.headers.get("content-type") || "application/octet-stream";
   const contentLength = Number(response.headers.get("content-length") || 0);
@@ -1061,12 +1081,15 @@ async function runMonitor() {
   const concurrency = Math.max(1, Math.min(8, Number(process.env.MONITOR_CONCURRENCY) || 4));
   const checked = await mapWithConcurrency(urls, concurrency, async (url) => {
     try { return { url, current: await fetchSource(url) }; }
-    catch (error) { return { url, current: { ok: false, error: error.message, checkedAt: new Date().toISOString() } }; }
+    catch (error) { return { url, current: { ok: false, status: Number(error?.status) || null, error: error.message, checkedAt: new Date().toISOString() } }; }
   });
 
   const nextSources = { ...oldState.sources };
   const changed = [];
   const unavailable = [];
+  const restricted = [];
+  const newRestricted = [];
+  const recovered = [];
   const added = [];
   const discoveries = [];
   for (const entry of checked) {
@@ -1074,10 +1097,30 @@ async function runMonitor() {
     const result = compareSource(entry.url, previous, entry.current);
     if (result?.type === "changed") changed.push(result);
     if (result?.type === "unavailable") unavailable.push(result);
-    if (!previous?.sha256 && entry.current.ok && !firstRun) added.push({ ...result, type: "added" });
+    if (result?.type === "restricted") {
+      restricted.push(result);
+      if (!wasSourceAccessRestricted(previous)) newRestricted.push(result);
+    }
+    if (entry.current.ok) {
+      if (wasSourceAccessRestricted(previous)) {
+        recovered.push({
+          type: "recovered",
+          url: entry.url,
+          message: "A consulta automatizada voltou a acessar a fonte oficial."
+        });
+      }
+      if (!previous?.sha256 && !firstRun) added.push({ ...result, type: "added" });
+      nextSources[entry.url] = entry.current;
+    } else {
+      nextSources[entry.url] = {
+        ...(previous || {}),
+        lastFailureType: result?.type || "unavailable",
+        lastStatus: Number(entry.current.status) || result?.status || null,
+        lastError: entry.current.error,
+        lastCheckedAt: entry.current.checkedAt
+      };
+    }
     discoveries.push(...buildDiscoveriesForSource(entry.url, previous, entry.current));
-    if (entry.current.ok) nextSources[entry.url] = entry.current;
-    else nextSources[entry.url] = { ...(previous || {}), lastError: entry.current.error, lastCheckedAt: entry.current.checkedAt };
   }
 
   const internetSearch = await searchInternetForContestLeads();
@@ -1113,6 +1156,8 @@ async function runMonitor() {
     },
     changed,
     unavailable,
+    restricted,
+    recovered,
     added,
     removed,
     discoveries
@@ -1127,6 +1172,8 @@ async function runMonitor() {
   const groups = [
     ["Páginas alteradas", changed],
     ["Fontes indisponíveis", unavailable],
+    ["Acesso automatizado bloqueado ou limitado (não confirma indisponibilidade)", restricted],
+    ["Fontes recuperadas", recovered],
     ["Novas fontes no catálogo", added],
     ["Novos links de oportunidades em fontes oficiais", discoveries.filter((item) => item.discovery_type === "new_link")],
     ["Pistas novas da busca automática na internet (não confirmadas)", unseenWebSearch.discoveries],
@@ -1166,6 +1213,8 @@ async function runMonitor() {
       "changed_count=" + (changed.length + added.length + removed.length + discoveries.length),
       "discovered_count=" + discoveries.length,
       "failed_count=" + unavailable.length,
+      "restricted_count=" + restricted.length,
+      "new_restricted_count=" + newRestricted.length,
       "web_search_count=" + internetSearch.leadCount,
       "web_search_failed_count=" + internetSearch.errors.length,
       ""
