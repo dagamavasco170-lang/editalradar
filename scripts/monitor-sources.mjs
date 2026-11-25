@@ -366,12 +366,12 @@ export function buildDiscoveriesForSource(url, previous, current) {
 
 export function wasSourceAccessRestricted(previous) {
   if (previous?.lastFailureType === "restricted") return true;
-  return /\\bHTTP\\s+(?:401|403|429)\\b/i.test(String(previous?.lastError || ""));
+  return /\bHTTP\s+(?:401|403|429)\b/i.test(String(previous?.lastError || ""));
 }
 
 export function compareSource(url, previous, current) {
   if (!current.ok) {
-    const status = Number(current.status || String(current.error || "").match(/\\bHTTP\\s+(\\d{3})\\b/i)?.[1] || 0);
+    const status = Number(current.status || String(current.error || "").match(/\bHTTP\s+(\d{3})\b/i)?.[1] || 0);
     if ([401, 403, 429].includes(status)) {
       return {
         type: "restricted",
