@@ -4,16 +4,25 @@ import assert from "node:assert/strict";
 import { concursos } from "../src/data/concursos.js";
 import { collectSourceUrls, compareSource, wasSourceAccessRestricted, fingerprintContent, normalizeHtml, extractOpportunityLinks, buildDiscoveriesForSource, fetchOfficialSource, fetchNewsFeedWithRetry, isTrustedOfficialHost, pruneSourceState, buildGoogleNewsRssUrl, parseGoogleNewsRss, searchInternetForContestLeads, filterUnseenWebSearchDiscoveries, INTERNET_SEARCH_QUERIES, classifyContestLead, SECONDARY_NEWS_FEEDS, parseSecondaryNewsRss, isActionableSecondaryNewsLead, fetchNewsFeedWithCurl, isSameTrustedSecondaryFeedPublisher, resolveTrustedSecondaryFeedRedirect } from "./monitor-sources.mjs";
 
-test("coleta somente URLs HTTPS únicas", () => {
+test("coleta URLs principais e fontes oficiais de prazos, somente HTTPS e sem duplicatas", () => {
   const urls = collectSourceUrls([
     { sourceUrl: "https://example.gov.br/a" },
     { sourceUrl: "https://example.gov.br/a" },
+    { sourceUrl: "https://example.gov.br/contest", periodoInscricao: { fonteUrl: "https://example.gov.br/calendar" } },
+    { sourceUrl: "https://example.gov.br/other", periodoInscricao: { fonteUrl: "https://example.gov.br/calendar" } },
+    { sourceUrl: "https://example.gov.br/unsafe", periodoInscricao: { fonteUrl: "http://example.gov.br/insecure" } },
     { sourceUrl: "http://example.gov.br/b" },
-    { sourceUrl: "https://concursor.com.br/editais" },
+    { sourceUrl: "https://concursor.com.br/editais", periodoInscricao: { fonteUrl: "https://attacker.example/calendar" } },
     { sourceUrl: "not-a-url" },
     {}
   ], []);
-  assert.deepEqual(urls, ["https://example.gov.br/a"]);
+  assert.deepEqual(urls, [
+    "https://example.gov.br/a",
+    "https://example.gov.br/calendar",
+    "https://example.gov.br/contest",
+    "https://example.gov.br/other",
+    "https://example.gov.br/unsafe"
+  ]);
   assert.equal(isTrustedOfficialHost("cebraspe.org.br"), true);
   assert.equal(isTrustedOfficialHost("conhecimento.fgv.br"), true);
   assert.equal(isTrustedOfficialHost("www.concursosfcc.com.br"), true);
