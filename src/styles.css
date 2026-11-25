@@ -403,6 +403,7 @@ footer{background:#fff}
 .detail-hero-copy{min-width:0;flex:1}
 .detail-hero .eyebrow{color:#a8d9c8}
 .detail-status{margin-top:11px}
+.detail-hero h1[tabindex="-1"]:focus{outline:3px solid rgba(185,225,212,.9);outline-offset:5px;border-radius:4px}
 .detail-hero h1{font:800 27px/1.25 Manrope,sans-serif;letter-spacing:-.7px;margin:12px 0 7px;color:#fff;overflow-wrap:anywhere}
 .detail-hero-copy>p{font-size:11px;line-height:1.5;color:#d2e4df;margin:0}
 .detail-hero-facts{display:flex;flex-wrap:wrap;gap:9px;margin-top:19px}

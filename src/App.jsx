@@ -326,8 +326,104 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   const comparisonStorageKey = "er-comparison:" + (authUser?.id || "visitor");
   const catalog = useMemo(() => applyCatalogOverrides(concursos, catalogOverrides), [catalogOverrides]);
   const isAdmin = authUser?.app_metadata?.role === "admin";
-  const openContestDetails = (contest) => {
+  const detailReturnFocusRef = useRef("main-content");
+  const lastDetailPageRef = useRef(page);
+  const modalFocusRef = useRef({ dialog: null, previousFocus: null, keyHandler: null });
+  const isAnyModalOpen = Boolean((adminDraft && isAdmin) || showInstallHelp || showAuth || showProfile);
+
+  useLayoutEffect(() => {
+    const dialogs = document.querySelectorAll('[role="dialog"][aria-modal="true"]');
+    const dialog = dialogs[dialogs.length - 1] || null;
+    const focusState = modalFocusRef.current;
+
+    if (!dialog) {
+      if (focusState.dialog) {
+        if (focusState.keyHandler) document.removeEventListener("keydown", focusState.keyHandler, true);
+        if (focusState.previousFocus?.isConnected && typeof focusState.previousFocus.focus === "function") {
+          focusState.previousFocus.focus();
+        }
+        focusState.dialog = null;
+        focusState.previousFocus = null;
+        focusState.keyHandler = null;
+      }
+      return;
+    }
+
+    if (focusState.dialog === dialog) return;
+    if (focusState.dialog && focusState.keyHandler) {
+      document.removeEventListener("keydown", focusState.keyHandler, true);
+    } else {
+      focusState.previousFocus = document.activeElement;
+    }
+
+    focusState.dialog = dialog;
+    if (!dialog.hasAttribute("tabindex")) dialog.setAttribute("tabindex", "-1");
+
+    const getFocusableElements = () => Array.from(dialog.querySelectorAll(
+      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    )).filter((element) => {
+      if (element.closest("[hidden]") || element.getAttribute("aria-hidden") === "true") return false;
+      const style = window.getComputedStyle?.(element);
+      return style?.display !== "none" && style?.visibility !== "hidden";
+    });
+
+    const focusableElements = getFocusableElements();
+    const initialTarget = dialog.querySelector("[data-dialog-initial-focus]")
+      || focusableElements.find((element) => !element.classList.contains("modal-close"))
+      || focusableElements[0]
+      || dialog;
+    initialTarget.focus();
+
+    const handleDialogKeyDown = (event) => {
+      if (event.key === "Escape") {
+        const closeButton = dialog.querySelector(".modal-close");
+        if (closeButton && !closeButton.disabled) {
+          event.preventDefault();
+          closeButton.click();
+        }
+        return;
+      }
+      if (event.key !== "Tab") return;
+
+      const currentFocusable = getFocusableElements();
+      if (!currentFocusable.length) {
+        event.preventDefault();
+        dialog.focus();
+        return;
+      }
+
+      const first = currentFocusable[0];
+      const last = currentFocusable[currentFocusable.length - 1];
+      const activeElement = document.activeElement;
+      if (event.shiftKey && (activeElement === first || !dialog.contains(activeElement))) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (activeElement === last || !dialog.contains(activeElement))) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    focusState.keyHandler = handleDialogKeyDown;
+    document.addEventListener("keydown", handleDialogKeyDown, true);
+    return () => document.removeEventListener("keydown", handleDialogKeyDown, true);
+  }, [isAnyModalOpen]);
+
+  useLayoutEffect(() => {
+    if (page === "detalhes" && selected) {
+      document.getElementById("detail-page-title")?.focus();
+    } else if (lastDetailPageRef.current === "detalhes") {
+      const returnKey = detailReturnFocusRef.current;
+      const returnTarget = Array.from(document.querySelectorAll("[data-detail-focus-return]"))
+        .find((element) => element.dataset.detailFocusReturn === returnKey);
+      (returnTarget || document.getElementById("main-content"))?.focus();
+    }
+    lastDetailPageRef.current = page;
+  }, [page, selected?.id]);
+
+  const openContestDetails = (contest, returnFocusKey = "main-content") => {
     if (!contest) return;
+    detailReturnFocusRef.current = String(returnFocusKey || "main-content");
     setDetailOrigin(page === "favoritos" ? "favoritos" : "concursos");
     setSelected(contest);
     setPage("detalhes");
@@ -1271,7 +1367,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     safeSetItem(notificationStorageKey, JSON.stringify(next));
     void syncUserData({ notifications: next });
     const contest = catalog.find((item) => String(item.id) === String(notification.itemId));
-    if (contest) openContestDetails(contest);
+    if (contest) openContestDetails(contest, "notification-bell");
   };
 
   const dismissSingleNotification = (notificationId) => {
@@ -1538,10 +1634,10 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
         </div>
       </aside>
 
-      <main className="main" id="main-content">
+      <main className="main" id="main-content" tabIndex="-1">
         <header className="topbar">
           <div className="breadcrumb">Início <span>/</span> {page === "detalhes" ? "Detalhes do concurso" : page === "comparar" ? "Comparador de concursos" : page === "concursos" ? "Concursos" : page === "estudos" ? "Área de estudos" : page === "admin" ? "Administração" : "Meus favoritos"}</div>
-          <div className="top-actions"><span className="date-chip">◷ &nbsp;Sua jornada começa hoje</span><button className="install-trigger" type="button" onClick={handleInstallApp} disabled={isAppInstalled}>{isAppInstalled ? "App instalado" : deferredInstallPrompt ? "Instalar app" : "Como instalar"}</button><button className="theme-toggle" type="button" onClick={() => setTheme((current) => current === "dark" ? "light" : "dark")} aria-label={theme === "dark" ? "Ativar modo claro" : "Ativar modo escuro"} title={theme === "dark" ? "Ativar modo claro" : "Ativar modo escuro"} aria-pressed={theme === "dark"}><span aria-hidden="true">{theme === "dark" ? "☀" : "☾"}</span></button><button className="notification-bell" type="button" onClick={openNotifications} aria-label={`Ver notificações (${unreadNotificationCount} não lidas)`} title="Ver notificações">♧{unreadNotificationCount > 0 && <span>{unreadNotificationCount > 9 ? "9+" : unreadNotificationCount}</span>}</button>{authUser ? <button className="auth-trigger" onClick={handleSignOut} disabled={!authReady}>Sair da conta</button> : <button className="auth-trigger" onClick={() => { setShowAuth(true); setAuthMessage(""); }}>Entrar / cadastrar</button>}<div className="mini-avatar">{(authUser?.user_metadata?.full_name || authUser?.user_metadata?.name || authUser?.email || "C")[0]?.toUpperCase() || "C"}</div></div>
+          <div className="top-actions"><span className="date-chip">◷ &nbsp;Sua jornada começa hoje</span><button className="install-trigger" type="button" onClick={handleInstallApp} disabled={isAppInstalled}>{isAppInstalled ? "App instalado" : deferredInstallPrompt ? "Instalar app" : "Como instalar"}</button><button className="theme-toggle" type="button" onClick={() => setTheme((current) => current === "dark" ? "light" : "dark")} aria-label={theme === "dark" ? "Ativar modo claro" : "Ativar modo escuro"} title={theme === "dark" ? "Ativar modo claro" : "Ativar modo escuro"} aria-pressed={theme === "dark"}><span aria-hidden="true">{theme === "dark" ? "☀" : "☾"}</span></button><button className="notification-bell" type="button" data-detail-focus-return="notification-bell" onClick={openNotifications} aria-label={`Ver notificações (${unreadNotificationCount} não lidas)`} title="Ver notificações">♧{unreadNotificationCount > 0 && <span>{unreadNotificationCount > 9 ? "9+" : unreadNotificationCount}</span>}</button>{authUser ? <button className="auth-trigger" onClick={handleSignOut} disabled={!authReady}>Sair da conta</button> : <button className="auth-trigger" onClick={() => { setShowAuth(true); setAuthMessage(""); }}>Entrar / cadastrar</button>}<div className="mini-avatar">{(authUser?.user_metadata?.full_name || authUser?.user_metadata?.name || authUser?.email || "C")[0]?.toUpperCase() || "C"}</div></div>
         </header>
         {!isOnline && <div className="offline-status" role="status">Sem conexão no momento. Você ainda pode consultar informações já carregadas; conecte-se à internet para atualizar o catálogo e acessar sua conta.</div>}
 
@@ -1553,7 +1649,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
               <div className="detail-hero-copy">
                 <div className="eyebrow light">FICHA DA OPORTUNIDADE · {selected.sigla || "EDITALRADAR"}</div>
                 <span className={"status detail-status " + getStatusTone(selected.status) + (isPreliminary(selected) ? " preliminary" : "")}><i />{selected.status || "Situação não informada"}</span>
-                <h1>{selected.cargo}</h1>
+                <h1 id="detail-page-title" tabIndex="-1">{selected.cargo}</h1>
                 <p>{selected.orgao}{selected.vinculo ? " · " + selected.vinculo : ""}</p>
                 <div className="detail-hero-facts">
                   <span><small>VAGAS</small><strong>{selected.vagasTotais ?? selected.vagas ?? "A divulgar"}</strong></span>
@@ -2019,9 +2115,9 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                               <span>{milestone.title}</span>
                               <small>{milestone.orgao}</small>
                             </div>
-                            <button className="dashboard-milestone-open" type="button" aria-label={`Ver ${milestone.label.toLowerCase()}: ${milestone.title}`} onClick={() => {
+                            <button className="dashboard-milestone-open" type="button" data-detail-focus-return={`milestone-${milestone.id}`} aria-label={`Ver ${milestone.label.toLowerCase()}: ${milestone.title}`} onClick={(event) => {
                               const contest = catalog.find((item) => String(item.id) === String(milestone.id));
-                              if (contest) openContestDetails(contest);
+                              if (contest) openContestDetails(contest, event.currentTarget.dataset.detailFocusReturn);
                             }}>Ver ↗</button>
                           </article>
                         ))}
@@ -2126,7 +2222,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                   <article className="recommendation-card" key={item.id}>
                     <div className="recommendation-score"><strong>{score}%</strong><small>compatibilidade</small><span className="recommendation-priority">{classifyRecommendationPriority(item,score)}</span></div>
                     <div className="recommendation-info"><strong>{item.cargo}</strong><span>{item.orgao} · {item.estado||"Brasil"}</span><small>{item.status}</small><div className="recommendation-reasons" aria-label="Motivos da recomendação">{getRecommendationReasons(item,recommendationProfile).map(reason=><span key={reason}>{reason}</span>)}</div></div>
-                    <button className="recommendation-open" onClick={()=>openContestDetails(item)}>Ver detalhes</button>
+                    <button className="recommendation-open" data-detail-focus-return={`recommendation-${item.id}`} onClick={(event)=>openContestDetails(item,event.currentTarget.dataset.detailFocusReturn)}>Ver detalhes</button>
                   </article>
                 ))}</div>
               </section>
@@ -2240,7 +2336,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                   <span><small>ESCOLARIDADE</small><strong>{item.nivel || "Não informada"}</strong></span>
                   <span><small>LOCALIDADE</small><strong>{item.localidade || "Brasil"}</strong></span>
                 </div>
-                <div className="card-bottom"><div><small>{isPreliminary(item) ? "Listagem de referência" : officialSourceLabel(item.sourceUrl)}</small><strong>{item.atoOficial || "Não informado"}</strong></div><button className="detail-btn" onClick={() => openContestDetails(item)}>Ver detalhes ↗</button></div>
+                <div className="card-bottom"><div><small>{isPreliminary(item) ? "Listagem de referência" : officialSourceLabel(item.sourceUrl)}</small><strong>{item.atoOficial || "Não informado"}</strong></div><button className="detail-btn" data-detail-focus-return={`contest-${item.id}`} onClick={(event) => openContestDetails(item, event.currentTarget.dataset.detailFocusReturn)}>Ver detalhes ↗</button></div>
               </article>;
               })}
               {visibleCatalog.length === 0 && <div className="empty">
@@ -2259,7 +2355,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
       </main>
 
       {adminDraft && isAdmin && <div className="modal-backdrop" onClick={() => !adminBusy && setAdminDraft(null)}>
-        <section className="modal auth-modal admin-modal" role="dialog" aria-modal="true" aria-labelledby="admin-editor-title" onClick={e => e.stopPropagation()}>
+        <section className="modal auth-modal admin-modal" role="dialog" aria-modal="true" tabIndex="-1" aria-labelledby="admin-editor-title" onClick={e => e.stopPropagation()}>
           <button className="modal-close" type="button" onClick={() => !adminBusy && setAdminDraft(null)} aria-label="Fechar formulário do concurso">×</button>
           <div className="eyebrow">GESTÃO DO CATÁLOGO</div><h2 id="admin-editor-title">{adminEditingId === null ? "Novo concurso" : "Editar concurso"}</h2>
           <form className="auth-form admin-form" onSubmit={saveAdminContest}>
@@ -2284,7 +2380,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
         </section>
       </div>}
       {showInstallHelp && <div className="modal-backdrop" onClick={() => setShowInstallHelp(false)}>
-        <section className="modal auth-modal install-modal" role="dialog" aria-modal="true" aria-labelledby="install-title" onClick={(event) => event.stopPropagation()}>
+        <section className="modal auth-modal install-modal" role="dialog" aria-modal="true" tabIndex="-1" aria-labelledby="install-title" onClick={(event) => event.stopPropagation()}>
           <button className="modal-close" onClick={() => setShowInstallHelp(false)} aria-label="Fechar instruções de instalação">×</button>
           <div className="eyebrow">EDITALRADAR NO SEU DISPOSITIVO</div>
           <h2 id="install-title">Instale o EditalRadar</h2>
@@ -2298,7 +2394,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
         </section>
       </div>}
       {showAuth && <div className="modal-backdrop" onClick={() => setShowAuth(false)}>
-        <section className="modal auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title" onClick={(event) => event.stopPropagation()}>
+        <section className="modal auth-modal" role="dialog" aria-modal="true" tabIndex="-1" aria-labelledby="auth-title" onClick={(event) => event.stopPropagation()}>
           <button className="modal-close" onClick={() => setShowAuth(false)} aria-label="Fechar cadastro e login">×</button>
           <div className="eyebrow">SUA CONTA EDITALRADAR</div>
           <h2 id="auth-title">{authMode === "signup" ? "Criar sua conta" : authMode === "recovery" ? "Recuperar senha" : authMode === "reset" ? "Criar nova senha" : "Entrar na sua conta"}</h2>
@@ -2331,7 +2427,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
         </section>
       </div>}
       {showProfile && <div className="modal-backdrop" onClick={() => setShowProfile(false)}>
-        <section className="modal auth-modal profile-modal" role="dialog" aria-modal="true" aria-labelledby="profile-title" onClick={(event) => event.stopPropagation()}>
+        <section className="modal auth-modal profile-modal" role="dialog" aria-modal="true" tabIndex="-1" aria-labelledby="profile-title" onClick={(event) => event.stopPropagation()}>
           <button className="modal-close" onClick={() => setShowProfile(false)} aria-label="Fechar edição de perfil">×</button>
           <div className="eyebrow">SUA CONTA EDITALRADAR</div>
           <h2 id="profile-title">Editar perfil</h2>
