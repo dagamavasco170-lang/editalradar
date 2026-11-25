@@ -1,4 +1,5 @@
 import test from "node:test";
+import { buildSourceMonitorIssueReport, sourceMonitorIssueNeedsUpdate } from "./source-monitor-issue-report.mjs";
 import assert from "node:assert/strict";
 import { concursos } from "../src/data/concursos.js";
 import { collectSourceUrls, compareSource, wasSourceAccessRestricted, fingerprintContent, normalizeHtml, extractOpportunityLinks, buildDiscoveriesForSource, fetchOfficialSource, fetchNewsFeedWithRetry, isTrustedOfficialHost, pruneSourceState, buildGoogleNewsRssUrl, parseGoogleNewsRss, searchInternetForContestLeads, filterUnseenWebSearchDiscoveries, INTERNET_SEARCH_QUERIES, classifyContestLead, SECONDARY_NEWS_FEEDS, parseSecondaryNewsRss, isActionableSecondaryNewsLead, fetchNewsFeedWithCurl, isSameTrustedSecondaryFeedPublisher, resolveTrustedSecondaryFeedRedirect } from "./monitor-sources.mjs";
@@ -757,4 +758,74 @@ test("impede que o feed Google Notícias redirecione para fora do endpoint fixo"
       headers: { location: "https://attacker.example/feed.xml" }
     })
   }), /Redirecionamento do Google Notícias recusado/);
+});
+
+
+test("mantém o mesmo fingerprint quando somente o link da execução muda", () => {
+  const input = {
+    report: {
+      unavailable: [{ url: "https://orgao.gov.br/concursos", message: "HTTP 503" }],
+      restricted: [{ url: "https://banca.gov.br/concursos", message: "HTTP 403" }]
+    },
+    env: {
+      MONITOR_OUTCOME: "success",
+      PUBLISH_OUTCOME: "success",
+      TRIAGE_OUTCOME: "success",
+      TRIAGE_PENDING: "2",
+      TRIAGE_PENDING_TOTAL: "5"
+    }
+  };
+  const first = buildSourceMonitorIssueReport({ ...input, runUrl: "https://github.com/run/1" });
+  const repeated = buildSourceMonitorIssueReport({ ...input, runUrl: "https://github.com/run/2" });
+
+  assert.equal(first.fingerprint, repeated.fingerprint);
+  assert.notEqual(first.body, repeated.body);
+  assert.equal(sourceMonitorIssueNeedsUpdate(first.body, repeated.fingerprint), false);
+});
+
+test("gera novo fingerprint quando muda uma ocorrência ou o resumo da triagem", () => {
+  const first = buildSourceMonitorIssueReport({
+    report: { unavailable: [{ url: "https://orgao.gov.br/a", message: "HTTP 503" }] },
+    env: { TRIAGE_PENDING_TOTAL: "2" }
+  });
+  const changedFinding = buildSourceMonitorIssueReport({
+    report: { unavailable: [{ url: "https://orgao.gov.br/a", message: "HTTP 502" }] },
+    env: { TRIAGE_PENDING_TOTAL: "2" }
+  });
+  const changedTriage = buildSourceMonitorIssueReport({
+    report: { unavailable: [{ url: "https://orgao.gov.br/a", message: "HTTP 503" }] },
+    env: { TRIAGE_PENDING_TOTAL: "3" }
+  });
+
+  assert.notEqual(first.fingerprint, changedFinding.fingerprint);
+  assert.notEqual(first.fingerprint, changedTriage.fingerprint);
+  assert.equal(sourceMonitorIssueNeedsUpdate(first.body, changedFinding.fingerprint), true);
+  assert.equal(sourceMonitorIssueNeedsUpdate(first.body, changedTriage.fingerprint), true);
+});
+
+test("preserva novos links, acesso restrito e recuperação no relatório deduplicado", () => {
+  const result = buildSourceMonitorIssueReport({
+    report: {
+      restricted: [{ url: "https://orgao.gov.br", message: "HTTP 403" }],
+      recovered: [{ url: "https://banca.gov.br", message: "HTTP 200 após falha anterior" }],
+      discoveries: [{
+        discovery_type: "new_link",
+        candidate_url: "https://orgao.gov.br/edital-02-2026.pdf",
+        title: "Edital 02/2026",
+        context: "Novo documento na página oficial"
+      }]
+    },
+    runUrl: "https://github.com/run/3"
+  });
+
+  assert.match(result.body, /Acesso automatizado bloqueado\/limitado/);
+  assert.match(result.body, /Fonte recuperada/);
+  assert.match(result.body, /Novo link de oportunidade oficial/);
+  assert.match(result.body, /edital-02-2026\.pdf/);
+});
+
+test("inicializa fingerprint em issue legada e suprime repetição depois disso", () => {
+  const report = buildSourceMonitorIssueReport({ report: { changed: [{ url: "https://orgao.gov.br", message: "mudou" }] } });
+  assert.equal(sourceMonitorIssueNeedsUpdate("Corpo anterior sem fingerprint", report.fingerprint), true);
+  assert.equal(sourceMonitorIssueNeedsUpdate(report.body, report.fingerprint), false);
 });
