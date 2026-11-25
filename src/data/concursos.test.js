@@ -19,6 +19,19 @@ describe("Atualização temporal do catálogo", () => {
     expect(cgu.reduce((total, item) => total + Number(item.vagas || 0), 0)).toBe(60);
   });
 
+  it("cadastra o PSS temporário do IBGE separadamente de concurso efetivo", () => {
+    const selection = concursos.find((item) => item.id === 519);
+    expect(selection).toBeDefined();
+    expect(selection.orgao).toBe("Instituto Brasileiro de Geografia e Estatística");
+    expect(selection.vinculo).toMatch(/processo seletivo simplificado.*temporária/i);
+    expect(selection.estado).toBe("Alagoas");
+    expect(selection.vagas).toBe(421);
+    expect(selection.status).toMatch(/inscrições abertas até 25\/11\/2026 às 23h59/i);
+    expect(selection.sourceUrl).toMatch(/ftp\.ibge\.gov\.br\/edital/);
+    expect(selection.inscricaoUrl).toBe("https://concursos.cesgranrio.org.br/portal/avaliacoes/33");
+    expect(selection.documentos).toHaveLength(1);
+  });
+
   it("registra a data da atualização do conjunto estático", () => {
     expect(sourceUpdated).toBe("Atualizado em 24/11/2026");
   });
