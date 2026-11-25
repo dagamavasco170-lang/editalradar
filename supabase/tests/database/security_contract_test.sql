@@ -2,7 +2,7 @@
 -- Catalog-only assertions: no production data is read or modified.
 begin;
 
-select plan(44);
+select plan(45);
 
 select ok(
   not has_schema_privilege('anon', 'pgmq', 'USAGE'),
@@ -309,6 +309,20 @@ select ok(
   'authenticated cannot execute unexpected public SECURITY DEFINER functions'
 );
 
+select ok(
+  not exists (
+    select 1
+    from pg_default_acl d
+    cross join lateral aclexplode(d.defaclacl) a
+    join pg_namespace n on n.oid = d.defaclnamespace
+    where n.nspname = 'public'
+      and d.defaclobjtype = 'f'
+      and d.defaclrole = 'postgres'::regrole
+      and (a.grantee in ('anon'::regrole, 'authenticated'::regrole) or a.grantee = 0)
+      and a.privilege_type = 'EXECUTE'
+  ),
+  'postgres does not default-grant public RPC EXECUTE to clients or PUBLIC'
+);
 -- PGMQ extension routines are not directly executable by API client roles.
 select ok(
   not exists (
