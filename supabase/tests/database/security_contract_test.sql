@@ -304,6 +304,25 @@ select ok(
 );
 
 
+-- Exposed SECURITY DEFINER inventory: only the answer-check RPC may be called by authenticated.
+select ok(
+  not exists (
+    select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+    where n.nspname='public' and p.prosecdef
+      and has_function_privilege('anon',p.oid,'EXECUTE')
+  ),
+  'anon cannot execute public SECURITY DEFINER functions'
+);
+select ok(
+  not exists (
+    select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+    where n.nspname='public' and p.prosecdef
+      and has_function_privilege('authenticated',p.oid,'EXECUTE')
+      and p.oid <> 'public.check_study_question_answer(bigint,text)'::regprocedure
+  ),
+  'authenticated cannot execute unexpected public SECURITY DEFINER functions'
+);
+
 -- Behavioral RLS/RPC checks with transaction-local fixtures. All rows roll back below.
 insert into public.study_questions
   (discipline,topic,difficulty,board,exam_name,exam_year,prompt,options,explanation,source_url,rights_holder,license_status,license_proof_url,published,origin,review_status)
