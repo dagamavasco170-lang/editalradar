@@ -10,7 +10,7 @@ create table if not exists public.user_data (
 
 alter table public.user_data enable row level security;
 
-do $
+do $$
 begin
   if not exists (select 1 from pg_policies where schemaname='public' and tablename='user_data' and policyname='Users can read their own EditalRadar data') then
     create policy "Users can read their own EditalRadar data"
@@ -29,6 +29,6 @@ begin
       with check ((select auth.uid()) = user_id);
   end if;
 end
-$;
+$$;
 
 grant select, insert, update on public.user_data to authenticated;
