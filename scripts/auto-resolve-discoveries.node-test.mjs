@@ -114,6 +114,26 @@ test("descarta cadernos e variantes de prova da FGV em vez de cadastrá-los como
     {
       title: "Tipo 2",
       url: "https://conhecimento.fgv.br/sites/default/files/concursos/cns301-papiloscopista-policial-cns301-tipo-2.pdf"
+    },
+    {
+      title: "Caderno de prova",
+      url: "https://conhecimento.fgv.br/sites/default/files/concursos/cns201-caderno-de-prova.pdf"
+    },
+    {
+      title: "Gabarito preliminar",
+      url: "https://conhecimento.fgv.br/sites/default/files/concursos/cns201-gabarito-preliminar.pdf"
+    },
+    {
+      title: "Resultado preliminar",
+      url: "https://conhecimento.fgv.br/sites/default/files/concursos/cns201-resultado-preliminar.pdf"
+    },
+    {
+      title: "Classificação final",
+      url: "https://conhecimento.fgv.br/sites/default/files/concursos/cns201-classificacao-final.pdf"
+    },
+    {
+      title: "Convocação",
+      url: "https://conhecimento.fgv.br/sites/default/files/concursos/cns201-convocacao.pdf"
     }
   ];
   const misleadingDocument = {
