@@ -530,6 +530,7 @@ describe("EditalRadar", () => {
       target: { value: "Recenseador" }
     });
     expect(screen.getByRole("heading", { level: 3, name: "Recenseador — 12º Censo Agropecuário" })).toBeInTheDocument();
+    expect(screen.getByText("PSS temporário")).toBeInTheDocument();
     expect(screen.getByText("Inscrições abertas até 25/11/2026 às 23h59")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Ver detalhes/ }));
     expect(screen.getByRole("heading", { level: 1, name: "Recenseador — 12º Censo Agropecuário" })).toBeInTheDocument();
