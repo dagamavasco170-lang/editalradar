@@ -299,7 +299,8 @@ describe("EditalRadar", () => {
     expect(screen.getAllByText("Inscrições abertas", { exact: true }).length).toBeGreaterThan(0);
     expect(screen.getAllByText("Prepare-se", { exact: true }).length).toBeGreaterThan(0);
   });
-\n  it("filtra concursos pelo nome do órgão", () => {
+
+  it("filtra concursos pelo nome do órgão", () => {
     render(<App />);
 
     fireEvent.change(screen.getByPlaceholderText("Buscar cargo ou órgão..."), {
