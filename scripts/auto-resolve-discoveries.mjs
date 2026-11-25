@@ -411,7 +411,7 @@ export function assessNoticeFreshness({ candidateUrl, title = "", heading = "", 
   return { decision: "publish", editionYear, activeSignal, status, reason: "Ano/situação atual compatível com publicação automática." };
 }
 
-const NON_OPPORTUNITY_ARTIFACT_PATTERN = /\\b(?:tipo\\s*\\d+|cadernos?(?:\\s+de)?\\s+(?:provas?|quest[oõ]es?)|provas?(?:\\s+(?:objetivas?|discursivas?))?|gabaritos?|cart[aã]o\\s+respostas?|folhas?\\s+de\\s+respostas?|resultados?(?:\\s+(?:preliminares?|finais?))?|classifica[cç][aã]o|convoca[cç][aã]o)\\b/i;
+const NON_OPPORTUNITY_ARTIFACT_PATTERN = /\b(?:tipo\s*\d+|cadernos?(?:\s+de)?\s+(?:provas?|quest[oõ]es?)|provas?(?:\s+(?:objetivas?|discursivas?))?|gabaritos?|cart[aã]o\s+respostas?|folhas?\s+de\s+respostas?|resultados?(?:\s+(?:preliminares?|finais?))?|classifica[cç][aã]o|convoca[cç][aã]o)\b/i;
 
 export function getNonOpportunityArtifactReason(discovery = {}, candidateUrl = discovery?.candidate_url) {
   if (!["new_link", "page_change"].includes(discovery?.discovery_type)) return "";
@@ -422,7 +422,7 @@ export function getNonOpportunityArtifactReason(discovery = {}, candidateUrl = d
     return "";
   }
   const title = String(discovery?.title || "");
-  const identity = (pathname + " " + title).replace(/[-_.\\/]+/g, " ");
+  const identity = (pathname + " " + title).replace(/[-_.\/]+/g, " ");
   if (!NON_OPPORTUNITY_ARTIFACT_PATTERN.test(identity)) return "";
   return "O link identifica material auxiliar de avaliação (caderno/tipo de prova, gabarito, resultado, classificação ou convocação), não a publicação de abertura de um concurso. O documento não pode ser cadastrado como uma oportunidade independente.";
 }
