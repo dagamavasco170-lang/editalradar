@@ -7,25 +7,30 @@ create table if not exists public.contest_catalog (
 );
 alter table public.contest_catalog enable row level security;
 
-drop policy if exists "Catalog is readable by everyone" on public.contest_catalog;
-create policy "Catalog is readable by everyone" on public.contest_catalog
-  for select to anon, authenticated using (true);
-
-drop policy if exists "Admins can insert catalog records" on public.contest_catalog;
-create policy "Admins can insert catalog records" on public.contest_catalog
-  for insert to authenticated
-  with check (coalesce((select auth.jwt() -> 'app_metadata' ->> 'role'), '') = 'admin');
-
-drop policy if exists "Admins can update catalog records" on public.contest_catalog;
-create policy "Admins can update catalog records" on public.contest_catalog
-  for update to authenticated
-  using (coalesce((select auth.jwt() -> 'app_metadata' ->> 'role'), '') = 'admin')
-  with check (coalesce((select auth.jwt() -> 'app_metadata' ->> 'role'), '') = 'admin');
-
-drop policy if exists "Admins can delete catalog records" on public.contest_catalog;
-create policy "Admins can delete catalog records" on public.contest_catalog
-  for delete to authenticated
-  using (coalesce((select auth.jwt() -> 'app_metadata' ->> 'role'), '') = 'admin');
+do $
+begin
+  if not exists (select 1 from pg_policies where schemaname='public' and tablename='contest_catalog' and policyname='Catalog is readable by everyone') then
+    create policy "Catalog is readable by everyone" on public.contest_catalog
+      for select to anon, authenticated using (true);
+  end if;
+  if not exists (select 1 from pg_policies where schemaname='public' and tablename='contest_catalog' and policyname='Admins can insert catalog records') then
+    create policy "Admins can insert catalog records" on public.contest_catalog
+      for insert to authenticated
+      with check (coalesce((select auth.jwt() -> 'app_metadata' ->> 'role'), '') = 'admin');
+  end if;
+  if not exists (select 1 from pg_policies where schemaname='public' and tablename='contest_catalog' and policyname='Admins can update catalog records') then
+    create policy "Admins can update catalog records" on public.contest_catalog
+      for update to authenticated
+      using (coalesce((select auth.jwt() -> 'app_metadata' ->> 'role'), '') = 'admin')
+      with check (coalesce((select auth.jwt() -> 'app_metadata' ->> 'role'), '') = 'admin');
+  end if;
+  if not exists (select 1 from pg_policies where schemaname='public' and tablename='contest_catalog' and policyname='Admins can delete catalog records') then
+    create policy "Admins can delete catalog records" on public.contest_catalog
+      for delete to authenticated
+      using (coalesce((select auth.jwt() -> 'app_metadata' ->> 'role'), '') = 'admin');
+  end if;
+end
+$;
 
 grant select on public.contest_catalog to anon, authenticated;
 grant insert, update, delete on public.contest_catalog to authenticated;

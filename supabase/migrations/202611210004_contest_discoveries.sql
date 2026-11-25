@@ -21,19 +21,24 @@ create index if not exists contest_discoveries_pending_idx
   where status = 'pending';
 alter table public.contest_discoveries enable row level security;
 
-drop policy if exists "Admins can read contest discoveries" on public.contest_discoveries;
-create policy "Admins can read contest discoveries" on public.contest_discoveries
-  for select to authenticated
-  using (coalesce((select auth.jwt() -> 'app_metadata' ->> 'role'), '') = 'admin');
-
-drop policy if exists "Admins can review contest discoveries" on public.contest_discoveries;
-create policy "Admins can review contest discoveries" on public.contest_discoveries
-  for update to authenticated
-  using (coalesce((select auth.jwt() -> 'app_metadata' ->> 'role'), '') = 'admin')
-  with check (
-    coalesce((select auth.jwt() -> 'app_metadata' ->> 'role'), '') = 'admin'
-    and status in ('pending', 'published', 'dismissed')
-  );
+do $
+begin
+  if not exists (select 1 from pg_policies where schemaname='public' and tablename='contest_discoveries' and policyname='Admins can read contest discoveries') then
+    create policy "Admins can read contest discoveries" on public.contest_discoveries
+      for select to authenticated
+      using (coalesce((select auth.jwt() -> 'app_metadata' ->> 'role'), '') = 'admin');
+  end if;
+  if not exists (select 1 from pg_policies where schemaname='public' and tablename='contest_discoveries' and policyname='Admins can review contest discoveries') then
+    create policy "Admins can review contest discoveries" on public.contest_discoveries
+      for update to authenticated
+      using (coalesce((select auth.jwt() -> 'app_metadata' ->> 'role'), '') = 'admin')
+      with check (
+        coalesce((select auth.jwt() -> 'app_metadata' ->> 'role'), '') = 'admin'
+        and status in ('pending', 'published', 'dismissed')
+      );
+  end if;
+end
+$;
 
 grant select, update on public.contest_discoveries to authenticated;
 grant all on public.contest_discoveries to service_role;
