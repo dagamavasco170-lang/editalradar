@@ -7,7 +7,8 @@ import {
   parseOfficialAnswerKey,
   validateQuestionForAutomaticPublication,
   readBoundedResponse,
-  inferBoardFromOfficialUrl
+  inferBoardFromOfficialUrl,
+  runAutomaticExamImport
 } from "./import-official-exam-questions.mjs";
 
 const officialPage = "https://conhecimento.fgv.br/concursos/exemplo";
@@ -151,5 +152,13 @@ test("limita respostas de rede para proteger espaço e não aceitar conteúdo il
   await assert.rejects(
     readBoundedResponse(new Response(new Uint8Array([1,2,3,4,5])), 4),
     /limite de tamanho/
+  );
+});
+
+
+test("bloqueia execução automática que poderia gravar ou publicar no Supabase", async () => {
+  await assert.rejects(
+    runAutomaticExamImport(),
+    /ingestão automática.*desativada/i
   );
 });
