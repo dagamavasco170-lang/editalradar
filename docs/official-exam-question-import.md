@@ -31,6 +31,8 @@ Crie um arquivo JSON de metadados (exemplo):
       "exam_name": "Nome do concurso",
       "exam_year": 2025,
       "discipline": "Língua Portuguesa",
+      "topic": "Interpretação de textos",
+      "difficulty": "Intermediária",
       "role_name": "Cargo",
       "source_url": "https://www.cebraspe.org.br/concursos/...",
       "exam_pdf_url": "https://cdn.cebraspe.org.br/concursos/.../prova.pdf",
@@ -49,7 +51,9 @@ Execute:
       --metadata ./prova.json \
       --out ./manifesto-importacao.json
 
-O utilitário é local/offline: recebe um arquivo PDF já obtido, não faz scraping nem requisições HTTP e não grava no Supabase. Ele calcula SHA-256, extrai texto com layout, tenta OCR apenas em páginas com camada textual ausente/insuficiente, respeita limites de tamanho/páginas/OCR e gera um manifesto JSON.
+O utilitário é local/offline: recebe um arquivo PDF já obtido, não faz scraping nem requisições HTTP e não grava no Supabase. Ele calcula SHA-256, extrai texto com layout, tenta OCR apenas em páginas com camada textual ausente/insuficiente, respeita limites de tamanho/páginas/OCR e gera um manifesto JSON. O envio do manifesto pela área administrativa apenas cria rascunhos na tabela de staging.
+
+A publicação usa a função SQL publish_study_exam_question_import. Ela bloqueia o registro pendente, confere permissões/fundamento e alternativa escolhida e grava questão, gabarito separado e status da fila na mesma transação PostgreSQL. Em caso de erro, toda a operação é revertida.
 
 ## Revisão obrigatória
 
