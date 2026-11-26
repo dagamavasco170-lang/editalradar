@@ -107,6 +107,27 @@ test("não aceita HTTP 304 sem baseline e não inventa hash", async () => {
   }), /HTTP 304 sem uma versão anterior válida/);
 });
 
+test("rejeita HTTP 304 quando o hash salvo não é um SHA-256 válido", async () => {
+  await assert.rejects(() => fetchSource("https://orgao.gov.br/concursos", {
+    sha256: "hash-corrompido"
+  }, {
+    fetchImpl: async () => new Response(null, { status: 304 })
+  }), /HTTP 304 sem uma versão anterior válida/);
+});
+
+test("identifica PDF pela assinatura mesmo quando o servidor declara tipo incorreto", async () => {
+  const payload = new TextEncoder().encode("%PDF-1.7\\n1 0 obj\\n<< /Type /Catalog >>\\n%%EOF");
+  const current = await fetchSource("https://orgao.gov.br/edital.pdf", null, {
+    fetchImpl: async url => new Response(payload, {
+      status: 200,
+      headers: { "content-type": "application/octet-stream" }
+    })
+  });
+  assert.equal(current.ok, true);
+  assert.equal(current.contentType, "application/pdf");
+  assert.match(current.sha256, /^[a-f0-9]{64}$/);
+});
+
 test("classifica challenge/WAF servido com HTTP 200 como acesso restrito", async () => {
   await assert.rejects(() => fetchSource("https://orgao.gov.br/concursos", null, {
     fetchImpl: async () => new Response("<html><title>Just a moment...</title><p>Checking your browser before accessing</p><div>Cloudflare Ray ID</div></html>", {
