@@ -1,6 +1,14 @@
 name: Importar provas e questões oficiais automaticamente
 
 on:
+  pull_request:
+    paths:
+      - "scripts/automatic-official-exam-ingestion.mjs"
+      - "scripts/automatic-official-exam-ingestion.node-test.mjs"
+      - "scripts/import-official-exam-pdf.mjs"
+      - "src/data/concursos.js"
+      - "src/lib/official-sources.js"
+      - ".github/workflows/automatic-official-exam-ingestion.yml"
   schedule:
     # 05:40 no horário de Brasília (08:40 UTC); GitHub pode atrasar cron em períodos de alta demanda.
     - cron: "40 8 * * *"
