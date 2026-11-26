@@ -41,9 +41,30 @@ function parseQuestionStart(line) {
 }
 
 function parseOption(line) {
-  const match = String(line).match(/^\s*(?:\(([A-F])\)|([A-F])(?:[\).:-]|\s+))\s*(.*?)\s*$/iu);
+  const match = String(line).match(/^\s*(?:\(([A-F])\)|([A-F])[\).:-])\s*(.*?)\s*$/iu);
   if (!match) return null;
   return { id: String(match[1] || match[2]).toLowerCase(), text: String(match[3] || "").trim() };
+}
+
+function parseBareOption(line) {
+  const match = String(line).match(/^\s*([A-F])\s+(\S.*)$/u);
+  if (!match || !/^[“"'‘«A-ZÁÉÍÓÚÂÊÔÃÕÇ0-9]/u.test(match[2])) return null;
+  return { id: match[1].toLowerCase(), text: match[2].trim() };
+}
+
+function hasFollowingBareOptionSequence(lines, startIndex) {
+  let expected = "b";
+  let matched = 0;
+  const end = Math.min(lines.length, startIndex + 41);
+  for (let index = startIndex + 1; index < end; index += 1) {
+    if (parseQuestionStart(lines[index])) break;
+    const option = parseOption(lines[index]) || parseBareOption(lines[index]);
+    if (!option || option.id !== expected) continue;
+    matched += 1;
+    expected = String.fromCharCode(expected.charCodeAt(0) + 1);
+    if (matched >= 2) return true;
+  }
+  return false;
 }
 
 export function parseExamPages(pages, documentSha256, { questionFormat = "multiple_choice" } = {}) {
@@ -104,7 +125,8 @@ export function parseExamPages(pages, documentSha256, { questionFormat = "multip
     const pageNumber = Number(page.page);
     if (current && page.ocrUsed) current.ocrUsed = true;
     const lines = String(page.text || "").replace(/\r/g, "").split("\n");
-    for (const line of lines) {
+    for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
+      const line = lines[lineIndex];
       const start = parseQuestionStart(line);
       if (start && start.number > 0) {
         flush();
@@ -113,7 +135,16 @@ export function parseExamPages(pages, documentSha256, { questionFormat = "multip
         continue;
       }
       if (!current) continue;
-      const option = current.kind === "true_false" ? null : parseOption(line);
+      let option = parseOption(line);
+      if (!option && current.kind !== "true_false") {
+        const bareOption = parseBareOption(line);
+        const expectedId = String.fromCharCode(97 + current.options.length);
+        const firstBareSequence = current.options.length === 0
+          && bareOption?.id === "a"
+          && hasFollowingBareOptionSequence(lines, lineIndex);
+        const nextBareOption = current.options.length > 0 && bareOption?.id === expectedId;
+        if (firstBareSequence || nextBareOption) option = bareOption;
+      }
       if (option) {
         current.options.push(option);
       } else if (current.options.length) {
