@@ -95,7 +95,7 @@ test("aceita apenas gabarito explicitamente definitivo/final e associa respostas
 test("remove números com gabarito conflitante e identifica questões anuladas", () => {
   const key = parseOfficialAnswerKey([{
     page: 1,
-    text: "GABARITO DEFINITIVO\n01 - A\n01 - B\n02 - C\n03 - D\n04 - A\n05 - B\nQuestão 6 anulada"
+    text: "GABARITO DEFINITIVO\n01 - A\n01 - B\n02 - C\n03 - D\n04 - A\n05 - B\n06 - C\nQuestão 7 anulada"
   }], "gabarito definitivo");
   assert.equal(key.answers.has(1), false);
   assert.equal(key.annulled.has(7), true);
