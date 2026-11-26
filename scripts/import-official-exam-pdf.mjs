@@ -377,6 +377,16 @@ function command(commandName, args, options = {}) {
   });
 }
 
+export function scoreQuestionExtraction(questions = []) {
+  const numbers = (Array.isArray(questions) ? questions : [])
+    .map(question => Number(question?.source_question_number))
+    .filter(number => Number.isInteger(number) && number >= 1 && number <= 300);
+  const uniqueNumbers = new Set(numbers);
+  const duplicateCount = numbers.length - uniqueNumbers.size;
+  // A new, distinct item is more informative than repeating an already-seen number.
+  return uniqueNumbers.size * 1000 - duplicateCount * 100 + numbers.length;
+}
+
 export async function extractPdfPages(pdfPath, questionFormat = "multiple_choice", { splitColumns = true } = {}) {
   const info = command("pdfinfo", [pdfPath]);
   const pageCount = Number(info.match(/^Pages:\s+(\d+)/m)?.[1] || 0);
@@ -387,13 +397,43 @@ export async function extractPdfPages(pdfPath, questionFormat = "multiple_choice
   const pageTexts = allText.split("\f");
   while (pageTexts.length < pageCount) pageTexts.push("");
   const columnWarnings = [];
-  const pages = pageTexts.slice(0, pageCount).map((text, index) => {
+  const layoutPages = pageTexts.slice(0, pageCount).map((text, index) => {
     const layout = splitColumns
       ? splitPdfColumns(text, questionFormat)
       : { text, split: false };
     if (layout.split) columnWarnings.push(index + 1);
-    return { page: index + 1, text: layout.text };
+    return { page: index + 1, text: layout.text, extractionMode: "layout", columnsSplit: layout.split };
   });
+
+  // Compare Poppler's physical layout with its content-stream order. This can
+  // recover independently flowing columns without relaxing question validation.
+  let pages = layoutPages;
+  const extractionSelection = {
+    mode: "layout",
+    layoutScore: scoreQuestionExtraction(parseExamPages(layoutPages, "0".repeat(64), { questionFormat })),
+    rawScore: null
+  };
+  try {
+    const rawText = command("pdftotext", ["-raw", "-enc", "UTF-8", pdfPath, "-"]);
+    const rawPageTexts = rawText.split("\f");
+    while (rawPageTexts.length < pageCount) rawPageTexts.push("");
+    const rawPages = rawPageTexts.slice(0, pageCount).map((text, index) => ({
+      page: index + 1, text, extractionMode: "raw", columnsSplit: false
+    }));
+    const rawScore = scoreQuestionExtraction(parseExamPages(rawPages, "0".repeat(64), { questionFormat }));
+    extractionSelection.rawScore = rawScore;
+    if (rawScore > extractionSelection.layoutScore) {
+      pages = rawPages;
+      extractionSelection.mode = "raw";
+      columnWarnings.length = 0;
+    }
+  } catch {
+    // -raw is optional; preserve -layout when unavailable.
+  }
+  for (const page of pages) {
+    page.layoutScore = extractionSelection.layoutScore;
+    page.rawScore = extractionSelection.rawScore;
+  }
   const sparsePages = pages.filter((page) => page.text.replace(/\s/g, "").length < 40);
   const selectedOcrPages = selectPdfOcrPages(pages, MAX_OCR_PAGES);
   const warnings = columnWarnings.length
@@ -429,7 +469,7 @@ export async function extractPdfPages(pdfPath, questionFormat = "multiple_choice
     }
   }
 
-  return { pages, warnings, pageCount };
+  return { pages, warnings, pageCount, extractionSelection };
 }
 
 export async function importPdfToManifest({ pdfPath, metadata }) {
@@ -442,7 +482,7 @@ export async function importPdfToManifest({ pdfPath, metadata }) {
     throw new Error("O arquivo informado não possui assinatura PDF válida.");
   }
   const documentSha256 = sha256(header);
-  const { pages, warnings } = await extractPdfPages(pdfPath, metadata.question_format || "multiple_choice");
+  const { pages, warnings, extractionSelection } = await extractPdfPages(pdfPath, metadata.question_format || "multiple_choice");
   const questions = parseExamPages(pages, documentSha256, {
     questionFormat: metadata.question_format || "multiple_choice"
   });
@@ -472,11 +512,16 @@ export async function importPdfToManifest({ pdfPath, metadata }) {
       page: Number(page.page),
       characters: String(page.text || "").length,
       ocrUsed: Boolean(page.ocrUsed),
+      extractionMode: page.extractionMode || extractionSelection?.mode || "layout",
+      columnsSplit: Boolean(page.columnsSplit),
+      layoutScore: page.layoutScore ?? extractionSelection?.layoutScore ?? null,
+      rawScore: page.rawScore ?? extractionSelection?.rawScore ?? null,
       questionStartCandidates: starts,
       optionLabelLines: lines.reduce((count, line) =>
         count + (parseOption(line) || parseBareOption(line) ? 1 : 0), 0)
     };
   });
+  manifest.extractionSelection = extractionSelection;
   return manifest;
 }
 
