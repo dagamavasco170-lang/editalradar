@@ -73,7 +73,7 @@ const retryAfterMilliseconds = (headers, now = Date.now()) => {
   const value = headers?.get?.("retry-after");
   if (!value) return null;
   const seconds = Number(value);
-  if (Number.isFinite(seconds) && seconds >= 0) return Math.min(10000, seconds * 1000);
+  if (Number.isFinite(seconds) && seconds >= 0) return seconds * 1000;
   const date = Date.parse(value);
   return Number.isFinite(date) ? Math.max(0, date - now) : null;
 };
