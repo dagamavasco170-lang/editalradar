@@ -3864,3 +3864,58 @@ html[data-theme="dark"] .simulator-panel .simulator-question-map button.current.
 html[data-theme="dark"] .simulator-panel .simulator-review-item .review-correct{background:#19372e;color:#8cdbb7;}
 html[data-theme="dark"] .simulator-panel .simulator-review-item .review-wrong{background:#3b252d;color:#e7aab1;}
 @media(max-width:760px){.simulator-panel .simulator-setup{grid-template-columns:1fr;}.simulator-panel .simulator-setup-footer{flex-direction:column;align-items:stretch;}.simulator-panel .simulator-setup-footer button{width:100%;}.simulator-panel .simulator-question-map{position:static;}.simulator-panel .simulator-question-map>div{grid-template-columns:repeat(8,minmax(0,1fr));}.simulator-panel .simulator-question-layout{grid-template-columns:1fr;}.simulator-panel .simulator-navigation{display:grid;grid-template-columns:1fr 1fr;}.simulator-panel .simulator-navigation button:last-child{grid-column:1/-1;}.simulator-panel .simulator-discipline-results{grid-template-columns:1fr;}.simulator-panel .simulator-result-hero{align-items:flex-start;}.simulator-panel .simulator-history>div{grid-template-columns:repeat(2,minmax(0,1fr));}}
+
+
+/* EditalRadar — Phase 5: study hub and routine clarity */
+.study-page{gap:22px}
+.study-page>.subhead{max-width:760px;color:var(--er-muted);line-height:1.65}
+.study-target-card{border:1px solid var(--er-border);border-radius:16px;background:var(--er-surface);box-shadow:var(--er-shadow);padding:clamp(16px,2vw,22px);display:flex;align-items:center;justify-content:space-between;gap:18px}
+.study-target-card>div:first-child{display:grid;gap:7px;min-width:0}
+.study-target-card strong{font-size:clamp(16px,1.8vw,21px);color:var(--er-ink);line-height:1.4}
+.study-target-card p{margin:0;color:var(--er-muted);font-size:12px}
+.study-target-card small{color:var(--er-muted);font-size:10px;line-height:1.6}
+.study-target-actions{display:flex;flex-wrap:wrap;gap:8px;flex-shrink:0}
+.study-target-actions button{min-height:40px;padding:9px 12px;font-size:11px}
+.focus-timer-panel{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(280px,.8fr);gap:clamp(18px,3vw,32px);align-items:center;padding:clamp(18px,2.5vw,30px);border-radius:20px;background:var(--er-surface)}
+.focus-timer-copy h2{font-size:clamp(19px,2vw,26px);margin:7px 0;color:var(--er-ink);letter-spacing:-.4px}
+.focus-timer-copy p{max-width:600px;color:var(--er-muted);font-size:12px;line-height:1.7}
+.focus-timer-presets{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.focus-timer-presets button{min-height:39px;border:1px solid var(--er-border);border-radius:10px;padding:8px 12px;background:var(--er-bg);color:var(--er-muted);font-size:11px;font-weight:700}
+.focus-timer-presets button.active{background:#edf4ff;border-color:#9bb9ed;color:#2459b2}
+.focus-timer-presets button:disabled{opacity:.65}
+.focus-timer-controls{display:grid;justify-items:center;gap:13px}
+.focus-timer-dial{width:min(100%,230px);aspect-ratio:1;border-radius:50%;display:grid;place-content:center;gap:4px;text-align:center;background:radial-gradient(circle at center,var(--er-surface) 64%,transparent 65%),conic-gradient(#2e72e8 var(--timer-progress),var(--er-border) 0);padding:15px}
+.focus-timer-dial span{font:800 clamp(32px,4vw,42px) Manrope,sans-serif;color:var(--er-ink);font-variant-numeric:tabular-nums;letter-spacing:1px}
+.focus-timer-dial small{font-size:9px;color:var(--er-muted);font-weight:800;letter-spacing:1px}
+.focus-timer-buttons{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.focus-timer-buttons button{min-height:40px;padding:9px 13px;font-size:11px}
+.focus-timer-summary{display:flex;align-items:center;gap:7px;color:var(--er-muted);font-size:10px}
+.focus-timer-summary strong{font-size:18px;color:var(--er-primary)}
+.focus-timer-notice{margin:0;text-align:center;color:#20815d;font-size:11px}
+.study-grid{gap:16px}
+.study-grid>.panel{padding:clamp(16px,2vw,23px);background:var(--er-surface)}
+.progress-panel .progress-number{font-size:clamp(32px,4vw,44px);font-weight:800;letter-spacing:-1px;color:var(--er-ink)}
+.progress-panel .progress-track{height:9px;border-radius:99px;overflow:hidden}
+.progress-panel .task-list{display:grid;gap:5px;margin-top:16px}
+.progress-panel .task{padding:11px 8px;border-bottom:1px solid var(--er-border);gap:10px}
+.progress-panel .task:last-child{border-bottom:0}
+.progress-panel .task small{color:var(--er-muted);font-variant-numeric:tabular-nums}
+.study-plan-panel .study-field{display:grid;gap:7px;font-size:11px;color:var(--er-muted);font-weight:700}
+.study-plan-panel .study-field select{min-height:42px;border:1px solid var(--er-border);border-radius:10px;background:var(--er-bg);color:var(--er-ink);padding:9px 11px}
+.study-plan-panel .study-days>span{font-size:11px;color:var(--er-muted);font-weight:700}
+.study-plan-panel .study-days>div{display:flex;flex-wrap:wrap;gap:7px;margin-top:9px}
+.study-plan-panel .study-days label{display:flex;align-items:center;gap:5px;border:1px solid var(--er-border);border-radius:9px;padding:7px 9px;background:var(--er-bg);color:var(--er-ink);font-size:10px}
+.study-plan-panel .study-session-list{display:grid;gap:7px}
+.study-plan-panel .study-session{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:10px;padding:11px;border:1px solid var(--er-border);border-radius:11px;background:var(--er-bg)}
+.study-plan-panel .study-session span{display:grid;gap:3px;min-width:0}
+.study-plan-panel .study-session strong{font-size:11px;color:var(--er-ink)}
+.study-plan-panel .study-session small{font-size:10px;color:var(--er-muted);line-height:1.4}
+.study-plan-panel .study-session>small:last-child{font-size:9px;color:var(--er-muted);white-space:nowrap}
+.study-disclaimer{color:var(--er-muted);font-size:10px;line-height:1.65}
+html[data-theme="dark"] .focus-timer-presets button.active{background:#203858;border-color:#648fcf;color:#c5dbff}
+html[data-theme="dark"] .focus-timer-notice{color:#8cdbb7}
+html[data-theme="dark"] .study-plan-panel .study-session{background:#132235}
+@media(max-width:850px){.focus-timer-panel{grid-template-columns:1fr}.focus-timer-controls{grid-template-columns:auto minmax(0,1fr);justify-items:center}.focus-timer-dial{width:min(100%,190px)}.focus-timer-summary{grid-column:1/-1}}
+@media(max-width:640px){.study-page{gap:16px}.study-target-card{display:grid;gap:13px;padding:15px}.study-target-actions{justify-content:flex-start}.focus-timer-panel{padding:15px;gap:16px;border-radius:16px}.focus-timer-copy h2{font-size:20px}.focus-timer-copy p{font-size:11px}.focus-timer-controls{grid-template-columns:1fr;gap:12px}.focus-timer-dial{width:min(100%,185px)}.focus-timer-buttons{width:100%}.focus-timer-buttons button{flex:1}.study-grid{grid-template-columns:1fr}.study-grid>.panel{padding:14px}.study-plan-panel .study-session{grid-template-columns:auto minmax(0,1fr)}.study-plan-panel .study-session>small:last-child{grid-column:2}.study-plan-panel .study-days label{padding:7px 8px}}
+@media(prefers-reduced-motion:reduce){.focus-timer-dial,.focus-timer-presets button{transition:none!important}
+}
