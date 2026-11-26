@@ -3991,3 +3991,6 @@ body{background:var(--er-canvas);color:var(--er-ink)}
 button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #73a5ff;outline-offset:2px}
 @media(max-width:1000px){.sidebar{width:220px}.hero-art{margin-right:2%}.content{padding:24px 22px 42px}}
 @media(max-width:760px){.sidebar{width:100%;padding:10px 12px}.content{padding:16px 14px 32px}.hero{padding:26px 22px;min-height:unset;border-radius:19px}.hero h1{font-size:clamp(29px,8vw,38px)}.hero-art{display:none}.hero-search{height:auto;min-height:52px}.hero-search button{padding:11px 13px}.candidate-dashboard{padding:18px}.candidate-dashboard-heading{align-items:flex-start;gap:14px;flex-wrap:wrap}.stats-row{gap:9px}.stat{padding:13px}.catalog-filter-panel{padding:15px}}
+
+/* Keep breadcrumb and content rails aligned on wide desktop layouts. */
+@media(min-width:761px){.topbar{padding-left:clamp(20px,3.2vw,52px);padding-right:clamp(20px,3.2vw,52px)}}
