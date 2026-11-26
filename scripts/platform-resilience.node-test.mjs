@@ -156,6 +156,7 @@ test("WebView bloqueia frames externos, conteúdo misto e certificados inválido
   assert.match(android, /WebSettings\.MIXED_CONTENT_NEVER_ALLOW/);
   assert.match(android, /WebViewFeature\.WEB_MESSAGE_LISTENER/);
   assert.match(android, /WebViewCompat\.addWebMessageListener/);
+  assert.ok(android.includes("val payload = message.data ?: return"));
   assert.ok(android.includes('val allowedOrigins = linkedSetOf("https://$HOME_HOST")'));
   assert.ok(android.includes('allowedOrigins.add("https://$DEBUG_ASSET_HOST")'));
   assert.match(android, /WebViewAssetLoader\.Builder\(\)/);
