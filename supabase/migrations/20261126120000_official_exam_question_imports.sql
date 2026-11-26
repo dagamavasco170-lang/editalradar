@@ -148,6 +148,7 @@ create table if not exists public.study_exam_import_runs (
   pdfs_downloaded integer not null default 0,
   questions_extracted integer not null default 0,
   questions_published integer not null default 0,
+  questions_retried integer not null default 0,
   questions_skipped integer not null default 0,
   errors_count integer not null default 0,
   summary jsonb not null default '{}'::jsonb check (jsonb_typeof(summary) = 'object'),
