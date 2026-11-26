@@ -15,7 +15,7 @@ export const MAX_SOURCE_SUBPAGES = 3;
 export const MAX_HTML_BYTES = 5 * 1024 * 1024;
 export const MAX_PDF_BYTES = 25 * 1024 * 1024;
 export const MAX_REDIRECTS = 5;
-export const MIN_GABARITO_COVERAGE = 0.95;
+export const MIN_GABARITO_COVERAGE = 1.0;
 
 const sleep = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
 const SUPABASE_URL = String(process.env.SUPABASE_URL || "").replace(/\/$/, "");
