@@ -395,6 +395,8 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     return "light";
   });
   const [query, setQuery] = useState("");
+  const catalogResultsRef = useRef(null);
+  const jumpToCatalogRef = useRef(false);
   const [nivel, setNivel] = useState("Todos os níveis");
   const [esfera, setEsfera] = useState("Todas as esferas");
   const [estado, setEstado] = useState("Todos os estados");
@@ -484,6 +486,12 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   const [profileBusy, setProfileBusy] = useState(false);
   const [profileMessage, setProfileMessage] = useState("");
   const [profileMessageType, setProfileMessageType] = useState("info");
+
+  useLayoutEffect(() => {
+    if (page !== "concursos" || !jumpToCatalogRef.current) return;
+    jumpToCatalogRef.current = false;
+    catalogResultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [page]);
 
   useEffect(() => {
     const nextTheme = theme === "dark" ? "dark" : "light";
@@ -2229,7 +2237,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
           <section className="content">
             <div className="hero">
               <div><div className="eyebrow light">FONTES OFICIAIS · FEDERAL, ESTADUAL E MUNICIPAL</div><h1>Encontre concursos<br/>em todo o Brasil.</h1><p>Filtre oportunidades por esfera, estado, cidade, escolaridade e situação do edital.</p>
-                <div className="hero-search"><span>⌕</span><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Cargo, órgão ou palavra-chave..." /><button onClick={() => setPage("concursos")}>Buscar concursos</button></div>
+                <div className="hero-search"><span>⌕</span><input value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { jumpToCatalogRef.current = true; setPage("concursos"); } }} placeholder="Cargo, órgão ou palavra-chave..." /><button type="button" onClick={() => { jumpToCatalogRef.current = true; setPage("concursos"); }}>Buscar concursos</button></div>
               </div>
               <div className="hero-art"><div className="art-circle">✦</div><div className="art-card"><span>✧</span><strong>Seu esforço<br/>vai valer a pena.</strong><small>Um dia de cada vez.</small></div></div>
             </div>
@@ -2401,7 +2409,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                 ))}</div>
               </section>
             )}
-            <div className="section-title">
+            <div className="section-title" ref={catalogResultsRef}>
               <div><div className="eyebrow">{page === "favoritos" ? "SUA LISTA PESSOAL" : "CATÁLOGO DE OPORTUNIDADES"}</div><h2>{page === "favoritos" ? "Seus concursos favoritos" : "Concursos e avisos no catálogo"}</h2></div>
               <div className="section-heading-actions">
                 <span className="results" role="status" aria-live="polite" aria-atomic="true">{visibleCatalog.length} registros</span>
