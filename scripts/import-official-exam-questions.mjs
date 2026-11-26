@@ -486,6 +486,75 @@ async function persistRunFinish(baseUrl, serviceKey, runId, metrics, status, det
   });
 }
 
+async function publishQueuedImport(row, options, metrics) {
+  const attempt = Math.min(3, Math.max(0, Number(row.auto_publish_attempts) || 0) + 1);
+  await supabaseRequest(options.supabaseUrl + "/rest/v1/study_exam_question_imports?id=eq." + encodeURIComponent(row.id), options.serviceKey, {
+    method: "PATCH",
+    body: JSON.stringify({
+      auto_publish_attempts: attempt,
+      last_auto_publish_attempt_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    })
+  });
+
+  try {
+    const result = await supabaseRequest(options.supabaseUrl + "/rest/v1/rpc/publish_study_exam_question_import", options.serviceKey, {
+      method: "POST",
+      body: JSON.stringify({
+        p_import_id: row.id,
+        p_answer: String(row.suggested_answer || ""),
+        p_explanation: "Gabarito extraído do documento oficial definitivo da banca. Consulte a publicação original.",
+        p_review_notes: "Aprovação automática: fonte oficial, prova e gabarito definitivo identificados; estrutura, integridade, autonomia textual e deduplicação validadas.",
+        p_admin_confirmation: false,
+        p_automated: true,
+        p_auto_quality_score: Number(row.auto_quality_score),
+        p_validation_checks: row.validation_checks
+      })
+    });
+    if (result === null) {
+      metrics.questions_skipped += 1;
+      return "duplicate";
+    }
+    metrics.questions_published += 1;
+    return "published";
+  } catch (error) {
+    if (attempt >= 3) {
+      await supabaseRequest(options.supabaseUrl + "/rest/v1/study_exam_question_imports?id=eq." + encodeURIComponent(row.id), options.serviceKey, {
+        method: "PATCH",
+        body: JSON.stringify({
+          status: "rejected",
+          review_notes: safeText("Rejeitada automaticamente após três falhas de publicação: " + error.message, 4000),
+          reviewed_at: new Date().toISOString(),
+          review_method: "automated",
+          updated_at: new Date().toISOString()
+        })
+      }).catch(() => {});
+    }
+    throw error;
+  }
+}
+
+async function retryPendingAutomaticImports(options, metrics) {
+  const params = buildQuery({
+    select: "id,suggested_answer,auto_quality_score,validation_checks,auto_publish_attempts",
+    status: "eq.pending",
+    review_method: "eq.automated",
+    order: "created_at.asc",
+    limit: "100"
+  });
+  const pending = await supabaseRequest(options.supabaseUrl + "/rest/v1/study_exam_question_imports?" + params, options.serviceKey);
+  const errors = [];
+  for (const row of pending || []) {
+    metrics.questions_retried += 1;
+    try {
+      await publishQueuedImport(row, options, metrics);
+    } catch (error) {
+      errors.push({ import_id: row.id, error: safeText(error.message, 400) });
+    }
+  }
+  return errors;
+}
+
 async function getExistingFingerprints(baseUrl, serviceKey, board, examName, examYear) {
   const params = buildQuery({
     select: "source_fingerprint",
@@ -655,27 +724,12 @@ async function processPair(candidate, pair, pageMetadata, metrics, options) {
     const inserted = Array.isArray(insertedResponse) ? insertedResponse : [];
     let published = 0;
     for (const row of inserted) {
-      const answer = String(row.suggested_answer || "");
-      if (!answer) continue;
-      const result = await supabaseRequest(options.supabaseUrl + "/rest/v1/rpc/publish_study_exam_question_import", options.serviceKey, {
-        method: "POST",
-        body: JSON.stringify({
-          p_import_id: row.id,
-          p_answer: answer,
-          p_explanation: "Gabarito extraído do documento oficial definitivo da banca. Consulte a publicação original.",
-          p_review_notes: "Aprovação automática: fonte oficial, prova e gabarito definitivo identificados; estrutura, integridade, autonomia textual e deduplicação validadas.",
-          p_admin_confirmation: false,
-          p_automated: true,
-          p_auto_quality_score: Number(row.auto_quality_score),
-          p_validation_checks: row.validation_checks
-        })
-      });
-      if (result === null) {
+      if (!row.suggested_answer) {
         metrics.questions_skipped += 1;
         continue;
       }
-      published += 1;
-      metrics.questions_published += 1;
+      const result = await publishQueuedImport(row, options, metrics);
+      if (result === "published") published += 1;
     }
     metrics.questions_skipped += Math.max(0, pending.length - inserted.length);
     return { published, skipped: Math.max(0, pending.length - inserted.length), reason: skippedReasons.slice(0, 10) };
@@ -694,10 +748,11 @@ export async function runAutomaticExamImport(options = {}) {
   const runId = await persistRunStart(supabaseUrl, serviceKey);
   const metrics = {
     sources_scanned: 0, pages_scanned: 0, pdf_pairs_found: 0, pdfs_downloaded: 0,
-    questions_extracted: 0, questions_published: 0, questions_skipped: 0, errors_count: 0
+    questions_extracted: 0, questions_published: 0, questions_retried: 0, questions_skipped: 0, errors_count: 0
   };
   const errors = [];
   try {
+    errors.push(...await retryPendingAutomaticImports({ supabaseUrl, serviceKey }, metrics));
     const [officialRows, catalogRows] = await Promise.all([
       supabaseRequest(supabaseUrl + "/rest/v1/study_exam_sources?" + buildQuery({
         select: "board,exam_name,exam_year,discipline,role_name,source_url,exam_url,answer_key_url,notes",
