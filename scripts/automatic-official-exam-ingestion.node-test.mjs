@@ -307,3 +307,20 @@ test("parses answer-key rows with extracted table pipe and bullet separators", (
   assert.equal(parsed.answers.get(5), "A");
   assert.equal(parsed.answers.get(6), "ANULADA");
 });
+
+test("recovers FGV aligned answer rows with annulled asterisks", () => {
+  const text = [
+    "Agente de Polícia Judiciária - 1 - turno manhã",
+    "1    2    3    4    5    6   7    8    9    10 11 12 13 14 15               16   17   18   19   20",
+    "D    B    C    E    A    B    D    E    C      A   D    C    E    D    B    B    C    A    C    A",
+    "21   22   23   24   25   26   27   28   29    30   31   32   33   34   35   36   37   38   39   40",
+    "D    E    C    E    B    D    C    B    A      E   A    C    D    E    D    C    D    B    B    E",
+    "41   42   43   44   45   46   47   48   49    50   51   52   53   54   55   56   57   58   59   60",
+    "B    D    E    D    C    A    A    C    *      D    E   B    E    D    B    D    D    B    A    E"
+  ].join("\n");
+  const sections = parseOfficialAnswerKeyVariants(text, "multiple_choice");
+  assert.equal(sections.length, 1);
+  assert.equal(sections[0].parsedCount, 60);
+  assert.equal(sections[0].answers.get(49), "ANULADA");
+  assert.equal(sections[0].answers.get(48), "C");
+});
