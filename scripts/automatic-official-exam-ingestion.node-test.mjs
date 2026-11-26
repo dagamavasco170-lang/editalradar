@@ -17,13 +17,13 @@ test("extractOfficialPdfLinks keeps only HTTPS links on approved official hosts"
     <a href="/arquivos/caderno-prova.pdf">Caderno de prova</a>
     <a href="https://evil.example/prova.pdf">Prova externa</a>
     <a href="http://cdn.cebraspe.org.br/prova.pdf">HTTP inseguro</a>
-    <a href="https://cdn.cebraspe.org.br/arquivos/gabarito-definitivo.pdf">Gabarito definitivo</a>\n    <a href="https://cdn.cebraspe.org.br/concursos/TREGO08_Gab_Definitivo_001_1.PDF">Arquivo</a>
+    <a href="https://cdn.cebraspe.org.br/arquivos/gabarito-definitivo.pdf">Gabarito definitivo</a>\n    <a href="https://cdn.cebraspe.org.br/concursos/TREGO08_Gab_Definitivo_001_1.PDF">Arquivo</a>\n    <a href="https://cdn.cebraspe.org.br/concursos/abc123456789.pdf">Arquivo 123</a>
   `;
   const links = extractOfficialPdfLinks(html, "https://www.cebraspe.org.br/concursos/exemplo");
-  assert.equal(links.length, 3);
+  assert.equal(links.length, 4);
   assert.ok(links.some(link => link.url === "https://www.cebraspe.org.br/arquivos/caderno-prova.pdf"));
   assert.ok(links.some(link => link.url.includes("gabarito-definitivo.pdf")));
-  assert.ok(links.some(link => link.url.includes("Gab_Definitivo")));
+  assert.ok(links.some(link => link.url.includes("Gab_Definitivo")));\n  assert.ok(links.some(link => link.url.includes("abc123456789.pdf")));
 });
 
 test("discovers only official intermediate pages for exams and answer keys", () => {
