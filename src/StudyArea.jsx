@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { loadQuestionProgress, mergeQuestionProgress, questionBank, questionProgressStorageKey } from "./lib/question-bank.js";
 import { buildQuestionBankView } from "./lib/question-bank-view.js";
 import { buildQuestionProgressMetrics } from "./lib/question-progress-metrics.js";
+import { buildStudyRecommendations } from "./lib/study-recommendations.js";
 
 const SimulatorPanel = React.lazy(() => import("./SimulatorPanel.jsx"));
 const ExamSourcesPanel = React.lazy(() => import("./ExamSourcesPanel.jsx"));
@@ -189,6 +190,7 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
  const questionAttempt=question?latestAttempts[question.id]:null;
  const progressMetrics=useMemo(()=>buildQuestionProgressMetrics({attempts:questionProgress.attempts,questions:allQuestions}),[questionProgress.attempts,allQuestions]);
  const {totalAttempts,totalCorrect,accuracy,uniqueAnswered}=progressMetrics;
+ const studyRecommendations=useMemo(()=>buildStudyRecommendations({questions:allQuestions,attempts:questionProgress.attempts}),[allQuestions,questionProgress.attempts]);
  const sessions=useMemo(()=>{
   const chosen=plan.days.filter(day=>days.includes(day));
   const count=chosen.length||1, total=plan.hours*60, base=Math.floor(total/count), rem=total%count;
@@ -340,6 +342,7 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
     <div className="question-stat"><strong>{accuracy}%</strong><span>taxa de acerto</span></div>
    </div>
    {progressMetrics.byDiscipline.length>0&&<div className="question-discipline-metrics" aria-label="Desempenho por disciplina"><strong>Desempenho por disciplina</strong>{progressMetrics.byDiscipline.slice(0,4).map(row=><div className="question-discipline-row" key={row.discipline}><span>{row.discipline}</span><span>{row.correct}/{row.attempts} · {row.accuracy}%</span><div className="question-discipline-track"><i style={{width:row.accuracy+"%"}}/></div></div>)}</div>}
+   {studyRecommendations.length>0&&<div className="study-recommendation-panel" aria-label="Recomendações de estudo"><strong>Próximos assuntos para revisar</strong><p>Recomendações baseadas no seu histórico de respostas e questões pendentes.</p>{studyRecommendations.slice(0,4).map(item=><div className="study-recommendation-row" key={item.discipline+"::"+item.topic}><div><span>{item.topic}</span><small>{item.discipline} · {item.wrong} erro(s) · {item.unanswered} pendente(s)</small></div><div className="study-recommendation-meter"><strong>{item.accuracy}%</strong><div className="question-discipline-track"><i style={{width:item.accuracy+"%"}}/></div></div></div>)}</div>}
    <div className="question-toolbar">
     <label className="question-search">Buscar questão<input aria-label="Buscar no banco de questões" placeholder="Tema, assunto ou enunciado..." value={questionSearch} onChange={e=>setQuestionFilter(setQuestionSearch,e.target.value)}/></label>
     <label className="question-filter-field">Disciplina<select aria-label="Filtrar questões por disciplina" value={discipline} onChange={e=>setQuestionFilter(setDiscipline,e.target.value)}><option>Todas</option>{[...new Set(allQuestions.map(q=>q.discipline))].sort().map(x=><option key={x}>{x}</option>)}</select></label>
