@@ -76,7 +76,7 @@ export function extractOfficialPdfLinks(html, pageUrl) {
     if (!href) continue;
     const label = stripTags(match[2]).replace(/\s+/g, " ").trim().slice(0, 240);
     const signal = normalizeDocumentLabel(label + " " + href);
-    if (!/\.pdf(?:$|[?#])|\b(prova|caderno|gabarito|respostas?|questoes)\b/.test(signal)) continue;
+    if (!/\.pdf(?:$|[?#])|\b(prova|caderno|gab(?:arito)?|respostas?|questoes)\b/.test(signal)) continue;
     if (!found.has(href)) found.set(href, { url: href, label });
   }
   return [...found.values()];
@@ -85,8 +85,8 @@ export function extractOfficialPdfLinks(html, pageUrl) {
 export function classifyOfficialPdfLink(link, pageText = "", notes = "") {
   const signal = normalizeDocumentLabel([link?.label, link?.url, pageText, notes].join(" "));
   const linkSignal = normalizeDocumentLabel([link?.label, link?.url].join(" "));
-  if (/\b(gabarito|respostas?)\b/.test(linkSignal)) {
-    if (/\b(preliminar|provisorio|provisorio|rascunho)\b/.test(linkSignal)) return "preliminary_answer_key";
+  if (/\b(gab(?:arito)?|respostas?)\b/.test(linkSignal)) {
+    if (/\b(preliminar|provisorio|rascunho)\b/.test(linkSignal)) return "preliminary_answer_key";
     return isDefinitiveAnswerKey(linkSignal, pageText, notes) ? "definitive_answer_key" : "unconfirmed_answer_key";
   }
   if (/\b(edital|convocacao|homologacao|resultado|retificacao|cronograma)\b/.test(linkSignal)) return "other";
