@@ -629,8 +629,10 @@ test("mantém remuneração original quando o valor antigo não corresponde ao c
       text: "Retificação. Onde se lê remuneração de R$ 2.000,00, leia-se remuneração de R$ 2.450,00."
     }
   );
-  assert.equal(result.updated, false);
-  assert.equal(result.data, undefined);
+  assert.equal(result.updated, true);
+  assert.deepEqual(result.changes, []);
+  assert.deepEqual(result.data.remuneracao, existing.remuneracao);
+  assert.equal(result.data.historicoAtualizacoes.length, 1);
 });
 
 test("atualiza prazo de inscrição e data de prova e publica o histórico legível", () => {
@@ -676,7 +678,10 @@ test("não atualiza contagem de vagas quando o valor corrigido anterior diverge 
       text: "Onde se lê 20 vagas, leia-se 30 vagas."
     }
   );
-  assert.equal(result.updated, false);
+  assert.equal(result.updated, true);
+  assert.deepEqual(result.changes, []);
+  assert.equal(result.data.vagas, 18);
+  assert.equal(result.data.historicoAtualizacoes.length, 1);
 });
 
 test("não atualiza registro se órgão ou cargo não corresponder exatamente", () => {
@@ -1207,8 +1212,10 @@ test("não altera status de inscrição por texto histórico fora de uma correç
       text: "Retificação do edital. Cargo: Agente Administrativo. O cronograma original informava inscrições encerradas em 10/11/2026."
     }
   );
-  assert.equal(result.updated, false);
-  assert.equal(existing.status, "Edital publicado · inscrições abertas");
+  assert.equal(result.updated, true);
+  assert.deepEqual(result.changes, []);
+  assert.equal(result.data.status, "Edital publicado · inscrições abertas");
+  assert.equal(result.data.historicoAtualizacoes.length, 1);
 });
 
 test("não altera quantidade de vagas por menção isolada sem indicar valor corrigido", () => {
@@ -1228,8 +1235,10 @@ test("não altera quantidade de vagas por menção isolada sem indicar valor cor
       text: "Retificação do edital. Cargo: Agente Administrativo. O documento menciona 30 vagas em caráter informativo, sem indicar alteração do quantitativo."
     }
   );
-  assert.equal(result.updated, false);
-  assert.equal(existing.vagas, 20);
+  assert.equal(result.updated, true);
+  assert.deepEqual(result.changes, []);
+  assert.equal(result.data.vagas, 20);
+  assert.equal(result.data.historicoAtualizacoes.length, 1);
 });
 
 
