@@ -413,6 +413,28 @@ test("respeita Retry-After do HTTP 429 antes de repetir a leitura do edital", as
   assert.deepEqual(waits, [3000]);
 });
 
+test("não usa transporte alternativo nem repete antes de Retry-After longo em HTTP 429", async () => {
+  let calls = 0;
+  let fallbackCalls = 0;
+  const waits = [];
+  const response = await fetchCandidateWithRetry(async url => {
+    calls += 1;
+    return { ok: false, status: 429, headers: new Headers({ "retry-after": "120" }), url };
+  }, "https://orgao.gov.br/edital", {
+    attempts: 3,
+    retryDelayMs: 5,
+    sleepImpl: async milliseconds => waits.push(milliseconds),
+    fallbackRequest: async url => {
+      fallbackCalls += 1;
+      return { ok: true, status: 200, url };
+    }
+  });
+  assert.equal(response.status, 429);
+  assert.equal(calls, 1);
+  assert.equal(fallbackCalls, 0);
+  assert.deepEqual(waits, []);
+});
+
 test("limita o corpo do documento durante leitura de stream sem Content-Length", async () => {
   const stream = new ReadableStream({
     start(controller) {
