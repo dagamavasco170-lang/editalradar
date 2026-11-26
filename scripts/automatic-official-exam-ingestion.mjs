@@ -667,6 +667,7 @@ async function processDocument(record, examLink, keyLink, mode, runId, report, f
     const proofHash = sha256(proof.bytes);
     const keyHash = sha256(answerKeyFile.bytes);
     const questionFormat = questionFormatFor(record, examLink);
+    diagnostic.questionFormat = questionFormat;
     const metadata = {
       board: record.board,
       exam_name: record.exam_name,
