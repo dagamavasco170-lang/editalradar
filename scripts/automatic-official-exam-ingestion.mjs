@@ -128,6 +128,16 @@ export function parseOfficialAnswerKey(text, questionFormat = "multiple_choice")
   return { answers, conflicts: [...conflicts], parsedCount: answers.size };
 }
 
+export function calculateAnswerKeyCoverage(questions, answerMap) {
+  const questionNumbers = new Set((Array.isArray(questions) ? questions : [])
+    .map(question => Number(question?.source_question_number))
+    .filter(number => Number.isInteger(number) && number > 0));
+  const entries = answerMap instanceof Map ? [...answerMap.entries()] : [];
+  const validAnswers = entries.filter(([, answer]) => answer !== "ANULADA");
+  if (!validAnswers.length) return 0;
+  return validAnswers.filter(([number]) => questionNumbers.has(Number(number))).length / validAnswers.length;
+}
+
 export function validateQuestionForAutoPublication(question, answer, questionFormat, { ocrAllowed = false } = {}) {
   const reasons = [];
   const prompt = String(question?.prompt || "").trim();
@@ -439,9 +449,13 @@ async function processDocument(record, examLink, keyLink, mode, runId, report, f
     if (parsedKey.conflicts.length) throw new Error("O gabarito contém respostas conflitantes para questões: " + parsedKey.conflicts.join(", "));
     const questions = manifest.imports;
     if (!questions.length) throw new Error("O parser não identificou questões objetivas válidas.");
-    const coverage = questions.filter(question => parsedKey.answers.has(Number(question.source_question_number))).length / questions.length;
-    if (coverage < MIN_GABARITO_COVERAGE) {
-      throw new Error("Cobertura insuficiente do gabarito definitivo: " + Math.round(coverage * 100) + "%.");
+    const coverage = calculateAnswerKeyCoverage(questions, parsedKey.answers);
+    const missingAnswers = questions.filter(question => !parsedKey.answers.has(Number(question.source_question_number)));
+    if (missingAnswers.length || coverage < MIN_GABARITO_COVERAGE) {
+      throw new Error(
+        "Correspondência prova/gabarito insuficiente: " + Math.round(coverage * 100)
+        + "% do gabarito associado e " + missingAnswers.length + " questão(ões) sem resposta definitiva."
+      );
     }
     const output = [];
     for (const question of questions) {
