@@ -139,30 +139,137 @@ export function isDefinitiveAnswerKey(linkSignal, pageText = "", notes = "") {
   return definitive.test(contextEvidence) && !preliminary.test(contextEvidence);
 }
 
-export function parseOfficialAnswerKey(text, questionFormat = "multiple_choice") {
+function parseAnswerRows(text, questionFormat = "multiple_choice") {
   const answers = new Map();
   const conflicts = new Set();
-  const allowed = questionFormat === "true_false" ? new Set(["C", "E", "ANULADA", "X"]) : new Set(["A", "B", "C", "D", "E", "F", "ANULADA", "X"]);
-  const lines = String(text || "").replace(/\r/g, "").split("\n");
-  const pattern = /(?:QUEST(?:A|Ã)O\s*|ITEM\s*)?0*(\d{1,3})\s*(?:[-.)/:]\s*|\s+)(ANULADA|[A-F]|X)(?=\s|$)/gi;
-  for (const rawLine of lines) {
-    const line = rawLine.trim().replace(/^(?:gabarito(?: definitivo)?\s*[:\-]?\s*)/i, "");
-    if (!line || line.length > 500) continue;
-    const matches = [...line.matchAll(pattern)];
-    if (!matches.length) continue;
-    const remainder = line.replace(pattern, "").replace(/[\s|,;:.()\-–—]+/g, "");
-    if (remainder) continue;
-    for (const match of matches) {
-      const number = Number(match[1]);
-      const answer = String(match[2]).toUpperCase();
-      if (!Number.isInteger(number) || number < 1 || !allowed.has(answer)) continue;
-      const previous = answers.get(number);
-      if (previous && previous !== answer) conflicts.add(number);
-      else answers.set(number, answer === "X" ? "ANULADA" : answer);
+  const allowed = questionFormat === "true_false"
+    ? new Set(["C", "E", "ANULADA", "X"])
+    : new Set(["A", "B", "C", "D", "E", "F", "ANULADA", "X"]);
+  let pendingNumbers = [];
+
+  const add = (numberValue, answerValue) => {
+    const number = Number(numberValue);
+    let answer = String(answerValue || "").toUpperCase();
+    if (answer === "*") answer = "ANULADA";
+    if (!Number.isInteger(number) || number < 1 || number > 300 || !allowed.has(answer)) return;
+    const previous = answers.get(number);
+    if (previous && previous !== answer) conflicts.add(number);
+    else answers.set(number, answer === "X" ? "ANULADA" : answer);
+  };
+
+  for (const rawLine of String(text || "").replace(/\r/g, "").split("\n")) {
+    const line = rawLine.trim()
+      .replace(/^(?:gabarito(?:s)?(?:\s+definitivo(?:s)?)?\s*[:\-]?\s*)/i, "")
+      .replace(/^(?:quest(?:a|ã)o|item)\s*/i, "")
+      .replace(/\*/g, " ANULADA ");
+    if (!line || line.length > 1200) {
+      pendingNumbers = [];
+      continue;
     }
+
+    const tokens = (line.match(/\b(?:\d{1,3}|ANULADA|[A-F]|X)\b/gi) || [])
+      .map(token => token.toUpperCase());
+    if (!tokens.length) continue;
+    const residue = line
+      .replace(/\b(?:\d{1,3}|ANULADA|[A-F]|X)\b/gi, "")
+      .replace(/[\s|,;:.()\-–—/]+/g, "");
+    if (residue) {
+      // Cabeçalhos de cargo, páginas e textos auxiliares nunca são dados do gabarito.
+      pendingNumbers = [];
+      continue;
+    }
+
+    const isNumber = token => /^\d{1,3}$/.test(token);
+    const isAnswer = token => allowed.has(token) || token === "X";
+
+    if (tokens.length >= 2 && tokens.length % 2 === 0
+      && tokens.every((token, index) => index % 2 === 0 ? isNumber(token) : isAnswer(token))) {
+      for (let index = 0; index < tokens.length; index += 2) add(tokens[index], tokens[index + 1]);
+      pendingNumbers = [];
+      continue;
+    }
+
+    if (tokens.every(isNumber)) {
+      pendingNumbers = tokens;
+      continue;
+    }
+
+    if (tokens.every(isAnswer) && pendingNumbers.length === tokens.length) {
+      pendingNumbers.forEach((number, index) => add(number, tokens[index]));
+      pendingNumbers = [];
+      continue;
+    }
+
+    if (tokens.every(isAnswer) && pendingNumbers.length === 1 && tokens.length === 1) {
+      add(pendingNumbers[0], tokens[0]);
+      pendingNumbers = [];
+      continue;
+    }
+
+    pendingNumbers = [];
   }
+
   for (const number of conflicts) answers.delete(number);
   return { answers, conflicts: [...conflicts], parsedCount: answers.size };
+}
+
+export function parseOfficialAnswerKey(text, questionFormat = "multiple_choice") {
+  return parseAnswerRows(text, questionFormat);
+}
+
+export function parseOfficialAnswerKeyVariants(text, questionFormat = "multiple_choice") {
+  const sections = [];
+  let current = null;
+  const headingPattern = /^(.+?)\s*[-–—]\s*(\d{1,2})\s*[-–—]\s*Turno\s+([\p{L}]+)\s*$/iu;
+
+  for (const rawLine of String(text || "").replace(/\r/g, "").split("\n")) {
+    const line = rawLine.trim();
+    const heading = line.match(headingPattern);
+    if (heading) {
+      if (current) sections.push(current);
+      current = {
+        role: heading[1].trim(),
+        bookletNumber: String(Number(heading[2])),
+        shift: heading[3].trim(),
+        lines: []
+      };
+      continue;
+    }
+    if (current) current.lines.push(rawLine);
+  }
+
+  if (current) sections.push(current);
+  return sections.map(section => {
+    const parsed = parseAnswerRows(section.lines.join("\n"), questionFormat);
+    return {
+      role: section.role,
+      bookletNumber: section.bookletNumber,
+      shift: section.shift,
+      answers: parsed.answers,
+      conflicts: parsed.conflicts,
+      parsedCount: parsed.parsedCount
+    };
+  }).filter(section => section.parsedCount > 0);
+}
+
+export function selectAnswerKeySection(examLink, record, sections) {
+  const examSignal = normalizeDocumentLabel([
+    examLink?.label,
+    examLink?.url,
+    record?.role_name,
+    record?.exam_name
+  ].join(" "));
+  const examVariant = variantIdentity([examLink?.label, examLink?.url].join(" "));
+  const matches = (Array.isArray(sections) ? sections : []).filter(section => {
+    const role = normalizeDocumentLabel(section.role);
+    const roleWords = role.split(" ").filter(word => word.length > 2);
+    const roleMatches = Boolean(role) && (
+      examSignal.includes(role) || (roleWords.length >= 2 && roleWords.every(word => examSignal.includes(word)))
+    );
+    const variantMatches = !examVariant || String(section.bookletNumber) === String(Number(examVariant));
+    return roleMatches && variantMatches;
+  });
+  return matches.length === 1 ? matches[0] : null;
 }
 
 export function calculateAnswerKeyCoverage(questions, answerMap) {
