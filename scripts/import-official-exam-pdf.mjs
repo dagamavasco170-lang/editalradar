@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { existsSync, statSync } from "node:fs";
+import { mkdtemp, open, readFile, rm, writeFile } from "node:fs/promises";
+import { constants as fsConstants, existsSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -552,20 +552,43 @@ export async function extractPdfPages(pdfPath, questionFormat = "multiple_choice
 }
 
 export async function importPdfToManifest({ pdfPath, metadata }) {
-  const stats = statSync(pdfPath);
-  if (!stats.isFile() || stats.size < 8 || stats.size > MAX_PDF_BYTES) {
-    throw new Error("PDF deve ser arquivo local entre 8 bytes e 25 MB.");
-  }
-  const header = await readFile(pdfPath);
-  if (header.subarray(0, 5).toString("ascii") !== "%PDF-") {
-    throw new Error("O arquivo informado não possui assinatura PDF válida.");
-  }
-  const documentSha256 = sha256(header);
+  let inputHandle = null;
+  let tempDir = null;
+  try {
+    // Open once and inspect the same descriptor; never stat and then reopen an
+    // attacker-controlled path. The parser receives only a private immutable copy.
+    const inputFlags = fsConstants.O_RDONLY | (fsConstants.O_NOFOLLOW || 0);
+    inputHandle = await open(pdfPath, inputFlags);
+    const stats = await inputHandle.stat();
+    if (!stats.isFile() || stats.size < 8 || stats.size > MAX_PDF_BYTES) {
+      throw new Error("PDF deve ser arquivo local entre 8 bytes e 25 MB.");
+    }
+    const header = await inputHandle.readFile();
+    await inputHandle.close();
+    inputHandle = null;
+    if (header.length !== stats.size) {
+      throw new Error("O PDF foi alterado durante a leitura; a importação foi interrompida.");
+    }
+    if (header.subarray(0, 5).toString("ascii") !== "%PDF-") {
+      throw new Error("O arquivo informado não possui assinatura PDF válida.");
+    }
+    const documentSha256 = sha256(header);
+    tempDir = await mkdtemp(path.join(os.tmpdir(), "editalradar-pdf-input-"));
+    const safePdfPath = path.join(tempDir, "validated-input.pdf");
+    const outputFlags = fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL
+      | (fsConstants.O_NOFOLLOW || 0);
+    const safeHandle = await open(safePdfPath, outputFlags, 0o600);
+    try {
+      await safeHandle.writeFile(header);
+      await safeHandle.sync();
+    } finally {
+      await safeHandle.close();
+    }
   const isFgvBoard = /fgv/i.test(String(metadata.board || ""));
   const allowNumberedMultipleChoice = !isFgvBoard;
   const allowBareOptions = !isFgvBoard;
   const { pages, warnings, extractionSelection } = await extractPdfPages(
-    pdfPath,
+    safePdfPath,
     metadata.question_format || "multiple_choice",
     { allowNumberedMultipleChoice, allowBareOptions }
   );
@@ -619,6 +642,10 @@ export async function importPdfToManifest({ pdfPath, metadata }) {
   manifest.extractionSelection = extractionSelection;
   manifest.questionParsingDiagnostics = questionParsingDiagnostics;
   return manifest;
+  } finally {
+    if (inputHandle) await inputHandle.close().catch(() => {});
+    if (tempDir) await rm(tempDir, { recursive: true, force: true });
+  }
 }
 
 function parseArgs(argv) {
