@@ -751,6 +751,14 @@ async function processPair(candidate, pair, pageMetadata, metrics, options) {
 }
 
 export async function runAutomaticExamImport(options = {}) {
+  const autoPublishEnabled = options.enableAutoPublish === true
+    || process.env.EXAM_IMPORT_ENABLE_AUTOMATIC_PUBLISH === "true";
+  if (!autoPublishEnabled) {
+    throw new Error(
+      "A ingestão automática e a publicação de questões estão desativadas por padrão. " +
+      "A execução exige EXAM_IMPORT_ENABLE_AUTOMATIC_PUBLISH=true e uma ativação operacional explícita."
+    );
+  }
   const supabaseUrl = String(options.supabaseUrl || process.env.SUPABASE_URL || "").replace(/\/$/, "");
   const serviceKey = String(options.serviceKey || process.env.SUPABASE_SERVICE_ROLE_KEY || "");
   if (!supabaseUrl || new URL(supabaseUrl).protocol !== "https:" || !serviceKey) {
