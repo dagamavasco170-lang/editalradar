@@ -991,6 +991,12 @@ export function selectPdfOcrPages(pageCount, pageTexts = [], extractedText = "",
   return evenlySample(sparsePages, limit).sort((a, b) => a - b);
 }
 
+export function shouldPublishRetification(result) {
+  return result?.updated === true
+    && Array.isArray(result.changes)
+    && result.changes.length > 0;
+}
+
 export async function readPdfText(buffer) {
   let extractedText = "";
   let pageCount = 0;
@@ -1805,6 +1811,14 @@ export async function autoResolvePending(options = {}) {
             if (override?.id == null) throw new Error("O Supabase não confirmou a atualização do concurso-base.");
             existingRows.push({ id: targetId, data: retification.data, deleted: false });
           }
+          if (!shouldPublishRetification(retification)) {
+            // A versão é preservada para comparação, mas sem campo objetivo alterado
+            // a descoberta permanece pendente para decisão humana.
+            await keepPending(item, retification.reason);
+            result.updated += 1;
+            continue;
+          }
+
           await updateDiscovery(request, baseUrl, key, item, {
             status: "published",
             published_catalog_id: targetId,
