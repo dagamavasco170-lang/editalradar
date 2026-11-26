@@ -4,6 +4,7 @@ import {
   calculateAnswerKeyCoverage,
   classifyOfficialPdfLink,
   extractOfficialPdfLinks,
+  extractOfficialSubpageLinks,
   fetchOfficialResource,
   pairExamWithAnswerKey,
   parseOfficialAnswerKey,
@@ -25,6 +26,17 @@ test("extractOfficialPdfLinks keeps only HTTPS links on approved official hosts"
   assert.ok(links.some(link => link.url.includes("Gab_Definitivo")));
 });
 
+test("discovers only official intermediate pages for exams and answer keys", () => {
+  const html = `
+    <a href="/concursos/sesau_al_26/provas">Provas e gabaritos</a>
+    <a href="/concursos/sesau_al_26/edital">Edital</a>
+    <a href="https://evil.example/provas">Provas em outro site</a>
+    <a href="/concursos/sesau_al_26/gabarito.pdf">Gabarito PDF</a>
+  `;
+  const links = extractOfficialSubpageLinks(html, "https://www.cebraspe.org.br/concursos/sesau_al_26");
+  assert.equal(links.length, 1);
+  assert.equal(links[0].url, "https://www.cebraspe.org.br/concursos/sesau_al_26/provas");
+});
 test("classifies prova, gabarito definitivo and preliminary key separately", () => {
   assert.equal(classifyOfficialPdfLink({ label: "Caderno de prova", url: "https://cdn.cebraspe.org.br/prova.pdf" }), "exam_pdf");
   assert.equal(classifyOfficialPdfLink({ label: "Gabarito definitivo", url: "https://cdn.cebraspe.org.br/gab_def.pdf" }), "definitive_answer_key");
