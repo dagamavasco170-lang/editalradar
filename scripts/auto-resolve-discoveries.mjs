@@ -586,12 +586,12 @@ export function compareDocumentVersions(previousText, currentText) {
   const added = [...currentLines].filter(line => !previousLines.has(line));
   const changedText = [...removed, ...added].join("\n");
   const criticalPatterns = [
-    ["prazos", /\b(inscriç|inscricao|prazo|cronograma|data limite|até dia|ate dia)\b/i],
-    ["provas", /\b(prova|avaliaç|avaliac|exame|etapa)\b/i],
-    ["vagas", /\b(vagas?|cadastro de reserva|classificaç|classificac)\b/i],
-    ["remuneração", /\b(sal[aá]rio|remuneraç|vencimento|subs[ií]dio)\b/i],
-    ["taxas", /\b(taxa|isenç|isenc|pagamento|valor da inscriç)\b/i],
-    ["conteúdo programático", /\b(conte[uú]do program[aá]tico|programa|disciplinas|bibliografia)\b/i]
+    ["prazos", /inscriç|inscricao|prazo|cronograma|data limite|até dia|ate dia/i],
+    ["provas", /prova|avaliaç|avaliac|exame|etapa/i],
+    ["vagas", /vaga|cadastro de reserva|classificaç|classificac/i],
+    ["remuneração", /sal[aá]rio|remuneraç|vencimento|subs[ií]dio/i],
+    ["taxas", /taxa|isenç|isenc|pagamento|valor da inscriç/i],
+    ["conteúdo programático", /conte[uú]do program[aá]tico|programa|disciplinas|bibliografia/i]
   ];
   return {
     previousSha256: createHash("sha256").update(previous).digest("hex"),
