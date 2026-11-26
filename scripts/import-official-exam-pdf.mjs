@@ -59,6 +59,17 @@ function parseQuestionStart(line, questionFormat = "multiple_choice") {
   if (questionFormat === "true_false") {
     const bareItem = String(line).match(/^\s*0*(\d{1,3})(?:\s+(.*\S))?\s*$/u);
     if (bareItem) return { number: Number(bareItem[1]), rest: bareItem[2] || "", kind: "true_false", style: "numbered_item" };
+  } else {
+    // FGV e outras bancas imprimem o número isolado em uma linha e iniciam
+    // o enunciado somente na linha seguinte. A validação contextual abaixo
+    // exige uma sequência real de alternativas A/B/C antes de aceitar o número.
+    const bareNumber = String(line).match(/^\s*0*(\d{1,3})\s*$/u);
+    if (bareNumber) return {
+      number: Number(bareNumber[1]),
+      rest: "",
+      kind: "multiple_choice",
+      style: "bare_multiple_choice"
+    };
   }
   return null;
 }
@@ -140,6 +151,16 @@ function hasFollowingBareOptionSequence(lines, startIndex) {
   return false;
 }
 
+function hasQuestionOptionSequenceAfterNumber(lines, startIndex) {
+  const end = Math.min(lines.length, startIndex + 41);
+  for (let index = startIndex + 1; index < end; index += 1) {
+    if (parseQuestionStart(lines[index])) break;
+    const option = parseOption(lines[index]) || parseBareOption(lines[index]);
+    if (option?.id === "a" && hasFollowingBareOptionSequence(lines, index)) return true;
+  }
+  return false;
+}
+
 export function parseExamPages(pages, documentSha256, { questionFormat = "multiple_choice" } = {}) {
   const parsed = [];
   const seenFingerprints = new Set();
@@ -169,7 +190,7 @@ export function parseExamPages(pages, documentSha256, { questionFormat = "multip
     if (!validMultipleChoiceIds && !validTrueFalseIds) {
       issues.push("Identificadores de alternativas não correspondem ao formato declarado.");
     }
-    if (/(figura|imagem|gráfico|grafico|tabela|mapa|charge|tirinha|texto a seguir)/i.test(prompt)) {
+    if (/(figura|imagem|gráfico|grafico|tabela|mapa|charge|tirinha|cartaz|cartum|fotografia|ilustra[cç][aã]o|texto a seguir)/i.test(prompt)) {
       issues.push("Possível dependência de imagem, tabela, mapa ou texto externo; conferir o PDF visualmente.");
     }
 
@@ -202,7 +223,11 @@ export function parseExamPages(pages, documentSha256, { questionFormat = "multip
     const lines = String(page.text || "").replace(/\r/g, "").split("\n");
     for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
       const line = lines[lineIndex];
-      const start = parseQuestionStart(line, questionFormat);
+      let start = parseQuestionStart(line, questionFormat);
+      if (start?.style === "bare_multiple_choice"
+        && !hasQuestionOptionSequenceAfterNumber(lines, lineIndex)) {
+        start = null;
+      }
       if (start && start.number > 0) {
         flush();
         current = {
