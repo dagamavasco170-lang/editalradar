@@ -33,6 +33,7 @@ Crie um arquivo JSON de metadados (exemplo):
       "discipline": "Língua Portuguesa",
       "topic": "Interpretação de textos",
       "difficulty": "Intermediária",
+      "question_format": "multiple_choice",
       "role_name": "Cargo",
       "source_url": "https://www.cebraspe.org.br/concursos/...",
       "exam_pdf_url": "https://cdn.cebraspe.org.br/concursos/.../prova.pdf",
@@ -57,7 +58,7 @@ A publicação usa a função SQL publish_study_exam_question_import. Ela bloque
 
 ## Revisão obrigatória
 
-O parser é heurístico: reconhece questões numeradas e alternativas A-F; não é um OCR jurídico nem garante que toda questão foi reconhecida. O manifesto não preenche gabarito (suggested_answer permanece null). Itens com figuras, tabelas, gráficos, mapas ou texto externo recebem alerta de revisão visual.
+O parser é heurístico: reconhece questões numeradas com alternativas A-F e, quando question_format="true_false", itens Cebraspe identificados como ITEM N, criando as opções C/Certo e E/Errado sem preencher o gabarito. Não é um OCR jurídico nem garante que toda questão foi reconhecida. Para provas Cebraspe de julgamento, informe question_format="true_false" nos metadados; para provas de múltipla escolha, use "multiple_choice". O manifesto não preenche gabarito (suggested_answer permanece null). Itens com figuras, tabelas, gráficos, mapas ou texto externo recebem alerta de revisão visual.
 
 Antes de inserir/publicar:
 1. confira todas as páginas do PDF, especialmente páginas que receberam OCR;
