@@ -5,7 +5,8 @@ import {
   classifyOfficialPdfLink,
   extractOfficialPdfLinks,
   fetchOfficialResource,
-  pairExamWithAnswerKey,\n  parseOfficialAnswerKey,
+  pairExamWithAnswerKey,
+  parseOfficialAnswerKey,
   validateQuestionForAutoPublication
 } from "./automatic-official-exam-ingestion.mjs";
 
@@ -42,7 +43,8 @@ test("does not pair one unversioned answer key with multiple cadernos", () => {
   assert.equal(pairExamWithAnswerKey(examB, [answerKey], 2), null);
   assert.equal(pairExamWithAnswerKey(examA, [{ label: "Gabarito tipo A definitivo", url: "https://cdn.cebraspe.org.br/gabarito-tipo-a-definitivo.pdf" }], 2).label, "Gabarito tipo A definitivo");
 });
-\ntest("parses definitive multiple-choice answer keys with one or multiple entries per line", () => {
+
+test("parses definitive multiple-choice answer keys with one or multiple entries per line", () => {
   const parsed = parseOfficialAnswerKey("GABARITO DEFINITIVO\n1 - A\n02 B 03 C\nQUESTÃO 4: D\n5 ANULADA");
   assert.equal(parsed.conflicts.length, 0);
   assert.equal(parsed.answers.get(1), "A");
