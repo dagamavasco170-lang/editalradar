@@ -107,7 +107,7 @@ D
 A
 `;
   const sections = parseOfficialAnswerKeyVariants(text);
-  assert.equal(sections.length, 3);
+  assert.equal(sections.length, 4);
   assert.equal(sections[0].answers.get(1), "D");
   assert.equal(sections[0].answers.get(2), "B");
   assert.equal(sections[0].answers.get(3), "ANULADA");
