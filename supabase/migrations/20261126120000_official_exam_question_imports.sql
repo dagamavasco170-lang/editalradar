@@ -11,6 +11,17 @@ alter table public.study_questions
   check (origin in ('manual', 'ai_generated', 'exam_import'));
 
 alter table public.study_questions
+  drop constraint if exists study_questions_license_status_check;
+
+alter table public.study_questions
+  add constraint study_questions_license_status_check
+    check (license_status in (
+      'permission_granted','public_domain','cc_by','cc_by_sa','link_only',
+      'original_content','official_publication'
+    ));
+
+alter table public.study_questions
+  add column if not exists rights_basis text,
   add column if not exists source_document_sha256 text,
   add column if not exists source_page integer,
   add column if not exists source_question_number integer,
@@ -32,6 +43,14 @@ alter table public.study_questions
   add constraint study_questions_source_question_number_check
     check (source_question_number is null or source_question_number > 0);
 
+alter table public.study_questions
+  drop constraint if exists study_questions_rights_basis_check;
+alter table public.study_questions
+  add constraint study_questions_rights_basis_check
+    check (rights_basis is null or rights_basis in (
+      'official_publication','public_domain','permission_granted','cc_by','cc_by_sa','other_reviewed'
+    ));
+
 create unique index if not exists study_questions_exam_import_document_item_uidx
   on public.study_questions(source_document_sha256, source_question_number)
   where origin = 'exam_import'
@@ -44,6 +63,7 @@ create table if not exists public.study_exam_question_imports (
   exam_name text not null check (char_length(btrim(exam_name)) between 2 and 180),
   exam_year integer not null check (exam_year between 1900 and 2200),
   discipline text not null check (char_length(btrim(discipline)) between 2 and 100),
+  topic text not null default 'A classificar' check (char_length(btrim(topic)) between 2 and 160),
   role_name text not null default '',
   source_url text not null check (source_url ~ '^https://'),
   exam_pdf_url text not null check (exam_pdf_url ~ '^https://'),
@@ -66,6 +86,7 @@ create table if not exists public.study_exam_question_imports (
       'cc_by_sa',
       'other_reviewed'
     )),
+  official_release_verified boolean not null default false,
   rights_holder text check (rights_holder is null or char_length(btrim(rights_holder)) between 2 and 180),
   license_proof_url text check (license_proof_url is null or license_proof_url ~ '^https://'),
   source_terms_url text check (source_terms_url is null or source_terms_url ~ '^https://'),
@@ -87,6 +108,8 @@ create table if not exists public.study_exam_question_imports (
     unique (source_document_sha256, source_question_number),
   constraint study_exam_question_imports_exam_fingerprint_unique
     unique (board, exam_name, exam_year, fingerprint),
+  constraint study_exam_question_imports_official_release_check
+    check (rights_basis <> 'official_publication' or official_release_verified = true),
   constraint study_exam_question_imports_published_review_check
     check (status <> 'published' or (
       rights_review_status = 'accepted'
@@ -122,9 +145,78 @@ comment on table public.study_exam_question_imports is
   'Fila administrativa de questões extraídas de provas oficiais divulgadas; exige revisão humana e nunca publica automaticamente.';
 comment on column public.study_exam_question_imports.rights_basis is
   'Fundamento registrado para reutilização. official_publication registra análise de ato oficial público; não é licença presumida para qualquer anexo de terceiro.';
+comment on column public.study_questions.rights_basis is
+  'Fundamento de reutilização revisado para questões importadas de provas oficiais.';
+comment on column public.study_exam_question_imports.official_release_verified is
+  'Confirmação administrativa de que o documento foi divulgado pela banca/órgão responsável.';
 comment on column public.study_exam_question_imports.license_proof_url is
   'Opcional para hipóteses sem licença individual; preenchido quando houver licença/autorização específica.';
 comment on column public.study_exam_question_imports.source_restrictions is
   'Restrições específicas verificadas nos termos/edital/contrato da banca ou do órgão.';
 comment on column public.study_exam_question_imports.suggested_answer is
   'Gabarito apenas sugerido pelo parser; deve ser confirmado por administrador contra a versão definitiva da banca.';
+
+
+-- Questões importadas de atos oficiais publicamente divulgados têm fluxo explícito
+-- e só aparecem no banco público após revisão administrativa.
+drop policy if exists "Read published licensed questions or admin review"
+  on public.study_questions;
+
+create policy "Read published licensed questions or admin review"
+  on public.study_questions for select to anon, authenticated
+  using (
+    (
+      published = true
+      and (
+        (
+          license_status in ('permission_granted','public_domain','cc_by','cc_by_sa')
+          and (license_status = 'public_domain' or license_proof_url is not null)
+        )
+        or (
+          license_status = 'official_publication'
+          and origin = 'exam_import'
+          and rights_basis = 'official_publication'
+          and review_status = 'admin_approved'
+        )
+        or (
+          license_status = 'original_content'
+          and origin = 'ai_generated'
+          and review_status in ('auto_approved','admin_approved')
+        )
+      )
+    )
+    or coalesce(((select auth.jwt())->'app_metadata'->>'role'),'')='admin'
+  );
+
+create or replace function public.check_study_question_answer(
+  p_question_id bigint,
+  p_selected_answer text
+)
+returns jsonb
+language sql
+stable
+security definer
+set search_path = pg_catalog, public
+as $$
+  select jsonb_build_object(
+    'correct', a.answer = btrim(coalesce(p_selected_answer, '')),
+    'explanation', a.explanation
+  )
+  from public.study_questions q
+  join public.study_question_answers a on a.question_id = q.id
+  where q.id = p_question_id
+    and q.published = true
+    and (
+      q.license_status in ('permission_granted','public_domain','cc_by','cc_by_sa')
+      or (
+        q.license_status = 'official_publication'
+        and q.origin = 'exam_import'
+        and q.rights_basis = 'official_publication'
+      )
+    )
+    and auth.uid() is not null
+  limit 1;
+$$;
+
+revoke all on function public.check_study_question_answer(bigint, text) from public, anon;
+grant execute on function public.check_study_question_answer(bigint, text) to authenticated;
