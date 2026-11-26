@@ -252,6 +252,22 @@ test("auto-publication gate accepts a complete text question with matching offic
   assert.equal(result.checks.parserTextOnly, true);
 });
 
+test("auto-publication gate accepts a textual passage included after 'texto a seguir'", () => {
+  const question = {
+    prompt: "Leia o texto a seguir: A segurança pública exige integração entre instituições, transparência administrativa e atuação preventiva. O trecho descreve como a cooperação institucional contribui para proteger a sociedade e melhorar a prestação de serviços.",
+    options: [
+      { id: "a", text: "A cooperação institucional fortalece a prevenção e a proteção social." },
+      { id: "b", text: "A atuação isolada elimina a necessidade de planejamento." },
+      { id: "c", text: "A transparência impede a prestação de serviços públicos." },
+      { id: "d", text: "A prevenção dispensa a integração entre instituições." }
+    ],
+    ocr_used: false,
+    review_notes: "Extração automática estruturada."
+  };
+  const result = validateQuestionForAutoPublication(question, "a", "multiple_choice");
+  assert.equal(result.approved, true);
+});
+
 test("auto-publication gate rejects OCR and visual dependencies", () => {
   const question = {
     prompt: "Com base na figura apresentada, assinale a alternativa correta sobre o comportamento do gráfico a seguir.",
