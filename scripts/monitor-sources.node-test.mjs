@@ -2,7 +2,7 @@ import test from "node:test";
 import { buildSourceMonitorIssueReport, sourceMonitorIssueNeedsUpdate } from "./source-monitor-issue-report.mjs";
 import assert from "node:assert/strict";
 import { concursos } from "../src/data/concursos.js";
-import { collectSourceUrls, compareSource, wasSourceAccessRestricted, fingerprintContent, normalizeHtml, extractOpportunityLinks, buildDiscoveriesForSource, fetchOfficialSource, fetchNewsFeedWithRetry, isTrustedOfficialHost, pruneSourceState, buildGoogleNewsRssUrl, parseGoogleNewsRss, searchInternetForContestLeads, filterUnseenWebSearchDiscoveries, INTERNET_SEARCH_QUERIES, classifyContestLead, SECONDARY_NEWS_FEEDS, parseSecondaryNewsRss, isActionableSecondaryNewsLead, fetchNewsFeedWithCurl, isSameTrustedSecondaryFeedPublisher, resolveTrustedSecondaryFeedRedirect } from "./monitor-sources.mjs";
+import { collectSourceUrls, compareSource, wasSourceAccessRestricted, fingerprintContent, normalizeHtml, extractOpportunityLinks, buildDiscoveriesForSource, fetchOfficialSource, fetchNewsFeedWithRetry, isTrustedOfficialHost, pruneSourceState, buildGoogleNewsRssUrl, parseGoogleNewsRss, searchInternetForContestLeads, filterUnseenWebSearchDiscoveries, INTERNET_SEARCH_QUERIES, classifyContestLead, SECONDARY_NEWS_FEEDS, parseSecondaryNewsRss, isActionableSecondaryNewsLead, fetchNewsFeedWithCurl, isSameTrustedSecondaryFeedPublisher, resolveTrustedSecondaryFeedRedirect, normalizeOfficialSourceUrl } from "./monitor-sources.mjs";
 
 test("coleta URLs principais e fontes oficiais de prazos, somente HTTPS e sem duplicatas", () => {
   const urls = collectSourceUrls([
@@ -837,4 +837,25 @@ test("inicializa fingerprint em issue legada e suprime repetição depois disso"
   const report = buildSourceMonitorIssueReport({ report: { changed: [{ url: "https://orgao.gov.br", message: "mudou" }] } });
   assert.equal(sourceMonitorIssueNeedsUpdate("Corpo anterior sem fingerprint", report.fingerprint), true);
   assert.equal(sourceMonitorIssueNeedsUpdate(report.body, report.fingerprint), false);
+});
+
+
+test("canonicaliza URLs de fontes oficiais e remove parâmetros de rastreamento", () => {
+  assert.equal(
+    normalizeOfficialSourceUrl("https://IGACI.AL.GOV.BR:443//concursos/?utm_source=facebook&fbclid=abc&ano=2026#edital"),
+    "https://igaci.al.gov.br/concursos?ano=2026"
+  );
+  assert.equal(
+    normalizeOfficialSourceUrl("https://igaci.al.gov.br/concursos?ano=2026&utm_campaign=x"),
+    normalizeOfficialSourceUrl("https://igaci.al.gov.br/concursos?utm_medium=y&ano=2026")
+  );
+  assert.equal(normalizeOfficialSourceUrl("https://example.com/edital"), "");
+});
+
+test("deduplica links de edital que diferem somente por parâmetros de rastreamento", () => {
+  const html = '<a href="/concursos/edital-01?utm_source=facebook">Edital 01/2026 — concurso público</a>'
+    + '<a href="/concursos/edital-01?fbclid=abc">Edital 01/2026 — concurso público</a>';
+  const links = extractOpportunityLinks(html, "https://igaci.al.gov.br/concursos");
+  assert.equal(links.length, 1);
+  assert.equal(links[0].candidate_url, "https://igaci.al.gov.br/concursos/edital-01");
 });
