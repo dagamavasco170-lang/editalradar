@@ -503,7 +503,7 @@ export async function fetchSource(url, previous = null, options = {}) {
   const { response, finalUrl, usedFallbackTransport } = await fetchOfficialSource(url, fetchOptions);
 
   if (response.status === 304) {
-    if (typeof previous?.sha256 === "string" && previous.sha256) {
+    if (typeof previous?.sha256 === "string" && /^[a-f0-9]{64}$/i.test(previous.sha256)) {
       const {
         lastFailureType, lastStatus, lastError, lastCheckedAt,
         ...stablePrevious
@@ -531,8 +531,10 @@ export async function fetchSource(url, previous = null, options = {}) {
 
   const bytes = await readResponseBytes(response, MAX_BYTES);
   let contentType = response.headers.get("content-type") || "";
-  const mediaType = contentType.split(";")[0].trim().toLowerCase();
+  const declaredMediaType = contentType.split(";")[0].trim().toLowerCase();
   const pdf = hasPdfSignature(bytes);
+  if (pdf) contentType = "application/pdf";
+  const mediaType = contentType.split(";")[0].trim().toLowerCase();
   const preview = new TextDecoder("utf-8").decode(bytes.subarray(0, Math.min(bytes.byteLength, 2048))).trimStart().toLowerCase();
   const looksHtml = preview.startsWith("<!doctype html")
     || ["<html", "<head", "<body"].some(prefix => preview.startsWith(prefix));
@@ -540,7 +542,7 @@ export async function fetchSource(url, previous = null, options = {}) {
     "text/html", "text/plain", "text/xml", "application/xhtml+xml",
     "application/xml", "application/rss+xml", "application/atom+xml"
   ]);
-  const isText = mediaType.startsWith("text/") || textTypes.has(mediaType);
+  const isText = !pdf && (mediaType.startsWith("text/") || textTypes.has(mediaType));
   const isPdf = mediaType === "application/pdf" || pdf;
 
   if (!mediaType && looksHtml) contentType = "text/html";
