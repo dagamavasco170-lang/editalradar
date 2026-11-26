@@ -487,6 +487,16 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   const [profileMessage, setProfileMessage] = useState("");
   const [profileMessageType, setProfileMessageType] = useState("info");
 
+  const submitContestSearch = (event) => {
+    event?.preventDefault();
+    jumpToCatalogRef.current = page !== "concursos";
+    if (page === "concursos") {
+      catalogResultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+    setPage("concursos");
+  };
+
   useLayoutEffect(() => {
     if (page !== "concursos" || !jumpToCatalogRef.current) return;
     jumpToCatalogRef.current = false;
@@ -2237,7 +2247,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
           <section className="content">
             <div className="hero">
               <div><div className="eyebrow light">FONTES OFICIAIS · FEDERAL, ESTADUAL E MUNICIPAL</div><h1>Encontre concursos<br/>em todo o Brasil.</h1><p>Filtre oportunidades por esfera, estado, cidade, escolaridade e situação do edital.</p>
-                <div className="hero-search"><span>⌕</span><input value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { jumpToCatalogRef.current = true; setPage("concursos"); } }} placeholder="Cargo, órgão ou palavra-chave..." /><button type="button" onClick={() => { jumpToCatalogRef.current = true; setPage("concursos"); }}>Buscar concursos</button></div>
+                <form className="hero-search" onSubmit={submitContestSearch}><span aria-hidden="true">⌕</span><input aria-label="Buscar concurso por cargo, órgão ou palavra-chave" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Cargo, órgão ou palavra-chave..." /><button type="submit">Buscar concursos</button></form>
               </div>
               <div className="hero-art"><div className="art-circle">✦</div><div className="art-card"><span>✧</span><strong>Seu esforço<br/>vai valer a pena.</strong><small>Um dia de cada vez.</small></div></div>
             </div>
