@@ -6,6 +6,7 @@ import { buildStudyRecommendations } from "./lib/study-recommendations.js";
 import { buildTopicMastery, buildWeeklyStudyProgress } from "./lib/topic-mastery.js";
 import { buildAdaptiveStudySessions, buildDailyAdaptiveGoals } from "./lib/adaptive-study-plan.js";
 import { buildTutorSignals, buildAdaptiveQuestionPlan, buildAdaptiveTutorFeedback } from "./lib/tutor-intelligence.js";
+import { buildAdaptiveQuestionQueue } from "./lib/adaptive-question-queue.js";
 
 const SimulatorPanel = React.lazy(() => import("./SimulatorPanel.jsx"));
 const ExamSourcesPanel = React.lazy(() => import("./ExamSourcesPanel.jsx"));
@@ -51,6 +52,7 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
  const [checking,setChecking]=useState(false);
  const [answerFeedback,setAnswerFeedback]=useState(null);
  const [adaptiveFeedback,setAdaptiveFeedback]=useState(null);
+ const [recoveryTopic,setRecoveryTopic]=useState(null);
  const [questionProgressReady,setQuestionProgressReady]=useState(!activeUserId || !authClient);
  const [questionSyncStatus,setQuestionSyncStatus]=useState(activeUserId ? "loading" : "local");
  const [questionProgressState,setQuestionProgressState]=useState(()=>({
@@ -200,10 +202,13 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
  const progressMetrics=useMemo(()=>buildQuestionProgressMetrics({attempts:questionProgress.attempts,questions:allQuestions}),[questionProgress.attempts,allQuestions]);
  const {totalAttempts,totalCorrect,accuracy,uniqueAnswered}=progressMetrics;
  const adaptiveQuestionPlan=useMemo(()=>buildAdaptiveQuestionPlan({questions:allQuestions,latestAttempts}),[allQuestions,latestAttempts]);
+ const recoveryQueue=useMemo(()=>buildAdaptiveQuestionQueue({questions:allQuestions,latestAttempts,attempts:questionProgress.attempts}),[allQuestions,latestAttempts,questionProgress.attempts]);
  const adaptiveCurrent=question?adaptiveQuestionPlan.find(item=>item.id===question.id):null;
  const topicRecentAttempts=question?questionProgress.attempts.filter(item=>allQuestions.find(q=>q.id===item.questionId)?.topic===question.topic).slice(-5):[];
  const consecutiveCorrect=topicRecentAttempts.slice().reverse().reduce((state,item)=>item.correct&&!state.stopped?{count:state.count+1,stopped:false}:{count:state.count,stopped:true},{count:0,stopped:false}).count;
  const nextAdaptiveQuestion=()=>{const candidates=adaptiveQuestionPlan.filter(item=>item.id!==question?.id&&filtered.some(q=>q.id===item.id));if(!candidates.length)return;const target=filtered.findIndex(q=>q.id===candidates[0].id);if(target>=0){setIndex(target);setAnswer("");setChecked(false);setAnswerFeedback(null);}};
+ const startTopicRecovery=(topic)=>{const candidates=recoveryQueue.filter(item=>allQuestions.find(q=>q.id===item)?.topic===topic&&filtered.some(q=>q.id===item));const target=candidates[0];if(!target)return;const position=filtered.findIndex(q=>q.id===target);if(position<0)return;setRecoveryTopic(topic);setIndex(position);setAnswer("");setChecked(false);setAnswerFeedback(null);setAdaptiveFeedback(null);};
+ const nextRecoveryQuestion=()=>{if(!recoveryTopic)return;const candidates=recoveryQueue.filter(item=>allQuestions.find(q=>q.id===item)?.topic===recoveryTopic&&item!==question?.id&&filtered.some(q=>q.id===item));const target=candidates[0];if(!target)return;const position=filtered.findIndex(q=>q.id===target);if(position>=0){setIndex(position);setAnswer("");setChecked(false);setAnswerFeedback(null);setAdaptiveFeedback(null);}};
  const studyRecommendations=useMemo(()=>buildStudyRecommendations({questions:allQuestions,attempts:questionProgress.attempts}),[allQuestions,questionProgress.attempts]);
  const topicMastery=useMemo(()=>buildTopicMastery({questions:allQuestions,attempts:questionProgress.attempts}),[allQuestions,questionProgress.attempts]);
  const weeklyStudyProgress=useMemo(()=>buildWeeklyStudyProgress({attempts:questionProgress.attempts}),[questionProgress.attempts]);
@@ -361,7 +366,8 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
     {tutorSignals.weakTopics.length>0&&<div className="tutor-weak-topics"><strong>Foco imediato</strong>{tutorSignals.weakTopics.slice(0,3).map(item=><div key={item.discipline+"::"+item.topic}><span>{item.topic}<small>{item.discipline} · {item.status} · {item.suggestedDifficulty}</small></span><b>{item.priority}</b></div>)}</div>}
     <small className="tutor-readiness-disclaimer">Indicador de preparação, não previsão nem garantia de aprovação. O tutor recomenda nível de prática; não altera a dificuldade original das questões.</small>
    </div>
-   <div className="study-mastery-panel" aria-label="Mapa de domínio e revisões">
+<div className="adaptive-recovery-session" aria-label="Sessão guiada de recuperação"><div className="adaptive-recovery-session-head"><strong>Recuperação guiada</strong><p>Comece pelo assunto que mais precisa de reforço. A sessão acompanha o histórico e não repete questões já dominadas.</p></div>{recoveryTopic&&<div className="adaptive-recovery-active" role="status"><span>Trilha ativa: <strong>{recoveryTopic}</strong></span><button type="button" className="detail-btn" onClick={()=>setRecoveryTopic(null)}>Encerrar trilha</button></div>}<div className="adaptive-recovery-topic-list">{tutorSignals.weakTopics.slice(0,5).map(item=><div key={item.discipline+"::"+item.topic}><span><strong>{item.topic}</strong><small>{item.discipline} · {item.accuracy}% de acerto · {item.wrong} erro(s)</small></span><button type="button" className="detail-btn" disabled={!recoveryQueue.some(id=>allQuestions.find(q=>q.id===id)?.topic===item.topic&&filtered.some(q=>q.id===id))} onClick={()=>startTopicRecovery(item.topic)}>Treinar tema</button></div>)}</div>{recoveryTopic&&<div className="adaptive-recovery-session-actions"><span>{recoveryQueue.filter(id=>allQuestions.find(q=>q.id===id)?.topic===recoveryTopic&&filtered.some(q=>q.id===id)).length} questão(ões) restante(s) na trilha</span><button type="button" className="primary-btn" onClick={nextRecoveryQuestion} disabled={!recoveryQueue.some(id=>allQuestions.find(q=>q.id===id)?.topic===recoveryTopic&&id!==question?.id&&filtered.some(q=>q.id===id))}>Próxima questão de reforço</button></div>}</div>
+      <div className="study-mastery-panel" aria-label="Mapa de domínio e revisões">
     <div className="study-mastery-heading"><div><strong>Mapa de domínio dos assuntos</strong><p>Seu desempenho define o nível de domínio e o intervalo sugerido para revisar.</p></div><span>{dueTopics.length} revisão(ões) pendente(s)</span></div>
     <div className="study-mastery-list">{topicMastery.slice(0,6).map(item=><div className="study-mastery-row" key={item.discipline+"::"+item.topic}>
      <div className="study-mastery-topic"><strong>{item.topic}</strong><small>{item.discipline} · {item.attempts} respondida(s) · {item.unanswered} pendente(s)</small></div>
