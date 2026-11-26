@@ -11,6 +11,7 @@ import { extractPdfPages, importPdfToManifest, sha256 } from "./import-official-
 
 export const MAX_SOURCE_PAGES = 120;
 export const MAX_DOCUMENTS_PER_RUN = 12;
+export const MAX_SOURCE_SUBPAGES = 3;
 export const MAX_HTML_BYTES = 5 * 1024 * 1024;
 export const MAX_PDF_BYTES = 25 * 1024 * 1024;
 export const MAX_REDIRECTS = 5;
@@ -78,6 +79,22 @@ export function extractOfficialPdfLinks(html, pageUrl) {
     const signal = normalizeDocumentLabel(label + " " + href);
     if (!/\.pdf(?:$|[?#])|\b(prova|caderno|gab(?:arito)?|respostas?|questoes)\b/.test(signal)) continue;
     if (!found.has(href)) found.set(href, { url: href, label });
+  }
+  return [...found.values()];
+}
+
+export function extractOfficialSubpageLinks(html, pageUrl) {
+  const found = new Map();
+  for (const match of String(html || "").matchAll(/<a\\b([^>]*)>([\\s\\S]*?)<\\/a\\s*>/gi)) {
+    const hrefMatch = match[1].match(/\\bhref\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))/i);
+    if (!hrefMatch) continue;
+    const rawHref = decodeEntities(hrefMatch[1] ?? hrefMatch[2] ?? hrefMatch[3]);
+    const url = safeOfficialUrl(rawHref, pageUrl);
+    if (!url || /\\.pdf(?:$|[?#])/i.test(url) || url === pageUrl) continue;
+    const label = stripTags(match[2]).replace(/\\s+/g, " ").trim().slice(0, 240);
+    const signal = normalizeDocumentLabel(label + " " + url);
+    if (!/\\b(provas?|cadernos?|gabaritos?|respostas?|questoes|questoes e gabaritos)\\b/.test(signal)) continue;
+    if (!found.has(url)) found.set(url, { url, label });
   }
   return [...found.values()];
 }
@@ -665,7 +682,26 @@ export async function runAutomaticOfficialExamIngestion({ mode = "dry-run", limi
         const html = new TextDecoder("utf-8").decode(page.bytes);
         const pageText = stripTags(html);
         const links = extractOfficialPdfLinks(html, page.url);
-        const { exams, keys } = resolveExamAndKeyLinks(record, links, pageText);
+        const subpages = extractOfficialSubpageLinks(html, page.url).slice(0, MAX_SOURCE_SUBPAGES);
+        for (const subpage of subpages) {
+          try {
+            const subpageResource = await fetchOfficialResource(subpage.url, {
+              fetchImpl,
+              maxBytes: MAX_HTML_BYTES
+            });
+            if (subpageResource.isPdf) continue;
+            const subpageHtml = new TextDecoder("utf-8").decode(subpageResource.bytes);
+            links.push(...extractOfficialPdfLinks(subpageHtml, subpageResource.url));
+          } catch (error) {
+            report.failures.push({
+              source: subpage.url,
+              reason: "Página intermediária oficial: " + String(error?.message || error).slice(0, 350)
+            });
+          }
+          await sleep(250);
+        }
+        const uniqueLinks = [...new Map(links.map(link => [link.url, link])).values()];
+        const { exams, keys } = resolveExamAndKeyLinks(record, uniqueLinks, pageText);
         for (const examLink of exams) {
           if (report.documentsChecked >= maxDocs) break;
           const keyLink = pairExamWithAnswerKey(examLink, keys, exams.length);
