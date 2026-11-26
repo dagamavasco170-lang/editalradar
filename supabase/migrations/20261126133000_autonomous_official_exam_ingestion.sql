@@ -171,7 +171,7 @@ begin
      or v_import.auto_validation_evidence ->> 'answerKeyUrl' is distinct from v_import.gabarito_source_url
      or v_import.auto_validation_evidence ->> 'proofSha256' is distinct from v_import.source_document_sha256
      or v_import.auto_validation_evidence ->> 'answerKeySha256' is distinct from v_import.gabarito_document_sha256
-     or coalesce((v_import.auto_validation_evidence ->> 'gabaritoCoverage')::numeric, 0) < 0.95 then
+     or coalesce((v_import.auto_validation_evidence ->> 'gabaritoCoverage')::numeric, 0) < 1.0 then
     raise exception 'Evidências automáticas incompletas ou inconsistentes.'
       using errcode = '22023';
   end if;
