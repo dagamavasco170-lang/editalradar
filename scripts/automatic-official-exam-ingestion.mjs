@@ -586,7 +586,7 @@ async function processDocument(record, examLink, keyLink, mode, runId, report, f
       source_restrictions: ""
     };
     const manifest = await importPdfToManifest({ pdfPath: proofPath, metadata });
-    const keyExtraction = await extractPdfPages(keyPath, questionFormat);
+    const keyExtraction = await extractPdfPages(keyPath, questionFormat, { splitColumns: false });
     if (keyExtraction.pages.some(page => page.ocrUsed)) {
       throw new Error("O gabarito definitivo depende de OCR; a resposta não será presumida.");
     }
