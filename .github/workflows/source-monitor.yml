@@ -12,6 +12,12 @@ on:
       - scripts/publish-discoveries.node-test.mjs
       - scripts/auto-resolve-discoveries.mjs
       - scripts/auto-resolve-discoveries.node-test.mjs
+      - scripts/import-official-exam-pdf.mjs
+      - scripts/import-official-exam-pdf.node-test.mjs
+      - scripts/import-official-exam-questions.mjs
+      - scripts/import-official-exam-questions.node-test.mjs
+      - supabase/migrations/20261126120000_official_exam_question_imports.sql
+      - src/OfficialExamImportAdmin.jsx
       - scripts/google-news-url-resolver.mjs
       - scripts/google-news-url-resolver.node-test.mjs
       - package.json
@@ -91,6 +97,17 @@ jobs:
           TRIAGE_EXTERNAL_COOLDOWN_HOURS: 6
           TRIAGE_MAX_ITEMS: 40
 
+      - name: Importar e publicar questões oficiais automaticamente
+        id: exam_import
+        if: always() && steps.monitor.outcome == 'success'
+        timeout-minutes: 25
+        run: npm run import:official-exams
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          EXAM_IMPORT_CONCURRENCY: 3
+          EXAM_IMPORT_MAX_PAIRS: 20
+
       - name: Salvar histórico da verificação
         uses: actions/cache/save@v6
         with:
@@ -98,7 +115,7 @@ jobs:
           key: source-monitor-${{ runner.os }}-${{ github.run_id }}
 
       - name: Preparar relatório e fingerprint do monitor
-        if: always() && (steps.monitor.outputs.changed_count != '0' || steps.monitor.outputs.failed_count != '0' || steps.monitor.outputs.new_restricted_count != '0' || steps.monitor.outputs.web_search_failed_count != '0' || steps.publish_discoveries.outcome == 'failure' || steps.resolve.outcome == 'failure' || steps.resolve.outputs.pending_count != '0')
+        if: always() && (steps.monitor.outputs.changed_count != '0' || steps.monitor.outputs.failed_count != '0' || steps.monitor.outputs.new_restricted_count != '0' || steps.monitor.outputs.web_search_failed_count != '0' || steps.publish_discoveries.outcome == 'failure' || steps.resolve.outcome == 'failure' || steps.resolve.outputs.pending_count != '0' || steps.exam_import.outcome == 'failure')
         run: node scripts/source-monitor-issue-report.mjs
         env:
           REPORT_PATH: .cache/source-monitor-report.json
@@ -175,7 +192,7 @@ jobs:
             core.info("Issue #" + existing.number + " atualizada; fingerprint " + fingerprint + ".");
             
       - name: Encerrar automaticamente alerta quando a triagem se recuperar
-        if: always() && steps.monitor.outcome == 'success' && steps.monitor.outputs.changed_count == '0' && steps.monitor.outputs.failed_count == '0' && steps.monitor.outputs.restricted_count == '0' && steps.monitor.outputs.web_search_failed_count == '0' && steps.publish_discoveries.outcome != 'failure' && steps.resolve.outcome == 'success' && steps.resolve.outputs.pending_count == '0' && steps.resolve.outputs.pending_total_count == '0' && steps.resolve.outputs.error_count == '0'
+        if: always() && steps.monitor.outcome == 'success' && steps.monitor.outputs.changed_count == '0' && steps.monitor.outputs.failed_count == '0' && steps.monitor.outputs.restricted_count == '0' && steps.monitor.outputs.web_search_failed_count == '0' && steps.publish_discoveries.outcome != 'failure' && steps.resolve.outcome == 'success' && steps.resolve.outputs.pending_count == '0' && steps.resolve.outputs.pending_total_count == '0' && steps.resolve.outputs.error_count == '0' && steps.exam_import.outcome == 'success'
         uses: actions/github-script@v8
         with:
           script: |
