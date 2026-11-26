@@ -1202,9 +1202,9 @@ class MainActivity : ComponentActivity() {
 
         return try {
             val uri = Uri.parse(resolved)
-            if (isInternalAppUrl(uri)) uri.toString() else HOME_URL
+            if (isInternalAppUrl(uri)) uri.toString() else appHomeUrl()
         } catch (_: Exception) {
-            HOME_URL
+            appHomeUrl()
         }
     }
 
