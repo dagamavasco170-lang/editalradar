@@ -75,11 +75,11 @@ test("FGV ignora numeração interna no formato número-ponto-texto", () => {
     text: [
       "1",
       "Leia a descrição e assinale a alternativa que interpreta corretamente as informações apresentadas no texto.",
+      "21. O número vinte e um aparece como referência interna no enunciado.",
       "A) Primeira alternativa com conteúdo textual suficientemente extenso.",
       "B) Segunda alternativa com conteúdo textual suficientemente extenso.",
       "C) Terceira alternativa com conteúdo textual suficientemente extenso.",
       "D) Quarta alternativa com conteúdo textual suficientemente extenso.",
-      "21. O número vinte e um aparece como referência interna no enunciado.",
       "2",
       "Analise o segundo enunciado e assinale a alternativa que apresenta a conclusão adequada.",
       "A) Primeira alternativa com conteúdo textual suficientemente extenso.",
