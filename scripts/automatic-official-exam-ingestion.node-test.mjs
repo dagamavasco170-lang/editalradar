@@ -13,17 +13,17 @@ test("extractOfficialPdfLinks keeps only HTTPS links on approved official hosts"
     <a href="/arquivos/caderno-prova.pdf">Caderno de prova</a>
     <a href="https://evil.example/prova.pdf">Prova externa</a>
     <a href="http://cdn.cebraspe.org.br/prova.pdf">HTTP inseguro</a>
-    <a href="https://cdn.cebraspe.org.br/arquivos/gabarito-definitivo.pdf">Gabarito definitivo</a>
+    <a href="https://cdn.cebraspe.org.br/arquivos/gabarito-definitivo.pdf">Gabarito definitivo</a>\n    <a href="https://cdn.cebraspe.org.br/concursos/TREGO08_Gab_Definitivo_001_1.PDF">Arquivo</a>
   `;
   const links = extractOfficialPdfLinks(html, "https://www.cebraspe.org.br/concursos/exemplo");
-  assert.equal(links.length, 2);
+  assert.equal(links.length, 3);
   assert.ok(links.some(link => link.url === "https://www.cebraspe.org.br/arquivos/caderno-prova.pdf"));
-  assert.ok(links.some(link => link.url.includes("gabarito-definitivo.pdf")));
+  assert.ok(links.some(link => link.url.includes("gabarito-definitivo.pdf")));\n  assert.ok(links.some(link => link.url.includes("Gab_Definitivo")));
 });
 
 test("classifies prova, gabarito definitivo and preliminary key separately", () => {
   assert.equal(classifyOfficialPdfLink({ label: "Caderno de prova", url: "https://cdn.cebraspe.org.br/prova.pdf" }), "exam_pdf");
-  assert.equal(classifyOfficialPdfLink({ label: "Gabarito definitivo", url: "https://cdn.cebraspe.org.br/gab_def.pdf" }), "definitive_answer_key");
+  assert.equal(classifyOfficialPdfLink({ label: "Gabarito definitivo", url: "https://cdn.cebraspe.org.br/gab_def.pdf" }), "definitive_answer_key");\n  assert.equal(classifyOfficialPdfLink({ label: "TREGO08_Gab_Definitivo_001_1.PDF", url: "https://cdn.cebraspe.org.br/TREGO08_Gab_Definitivo_001_1.PDF" }), "definitive_answer_key");
   assert.equal(classifyOfficialPdfLink({ label: "Gabarito preliminar", url: "https://cdn.cebraspe.org.br/gab_preliminar.pdf" }), "preliminary_answer_key");
   assert.equal(classifyOfficialPdfLink({ label: "Edital", url: "https://cdn.cebraspe.org.br/edital.pdf" }), "other");
 });
