@@ -370,7 +370,7 @@ create policy "Read published licensed questions or admin review"
         )
       )
     )
-    or coalesce(((select auth.jwt()->'app_metadata'->>'role'),'')='admin'
+    or coalesce((select auth.jwt()->'app_metadata'->>'role'),'')='admin'
   );
 
 create or replace function public.check_study_question_answer(
