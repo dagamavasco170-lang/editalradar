@@ -81,7 +81,7 @@ test("FGV não confunde artigo A no início do enunciado com alternativa", () =>
       "(C) Terceira alternativa com conteúdo suficientemente extenso para validação.",
       "(D) Quarta alternativa com conteúdo suficientemente extenso para validação.",
       "(E) Quinta alternativa com conteúdo suficientemente extenso para validação."
-    ].join("\\n")
+    ].join("\n")
   }];
   const rows = parseExamPages(pages, documentHash, {
     allowNumberedMultipleChoice: false,
