@@ -4,6 +4,7 @@ import {
   buildImportManifest,
   normalizeQuestionText,
   parseExamPages,
+  splitPdfColumns,
   sha256
 } from "./import-official-exam-pdf.mjs";
 
@@ -165,6 +166,25 @@ test("parse o layout Cebraspe ANS com numeração simples e separa comandos entr
   assert.match(rows[4].prompt, /^Acerca da regulação econômica/);
   assert.equal(rows[5].source_question_number, 6);
 });
+
+
+
+test("separa colunas de texto extraído com layout e mantém ordem das questões", () => {
+  const layout = [
+    "A respeito da evolução dos sistemas de saúde, julgue os itens.          Em relação à regulação econômica, julgue os itens.",
+    "1 A primeira afirmação trata do sistema de saúde brasileiro.            9 A nona afirmação trata da regulação econômica.",
+    "2 A segunda afirmação descreve o desenvolvimento do SUS.                10 A décima afirmação trata de planos de saúde.",
+    "3 A terceira afirmação descreve a cobertura assistencial.                11 A décima primeira afirmação trata das operadoras.",
+    "4 A quarta afirmação descreve a rede hospitalar pública.                  12 A décima segunda afirmação trata da fiscalização."
+  ].join("\\n");
+  const separated = splitPdfColumns(layout, "true_false");
+  assert.equal(separated.split, true);
+  const rows = parseExamPages([{ page: 1, text: separated.text }], documentHash, { questionFormat: "true_false" });
+  assert.deepEqual(rows.map(item => item.source_question_number), [1, 2, 3, 4, 9, 10, 11, 12]);
+  assert.doesNotMatch(rows[3].prompt, /nona afirmação/);
+  assert.match(rows[4].prompt, /nona afirmação/);
+});
+
 
 test("deduplica questão repetida no mesmo PDF pelo fingerprint e número", () => {
   const duplicated = [
