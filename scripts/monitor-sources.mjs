@@ -1070,6 +1070,53 @@ export function filterUnseenWebSearchDiscoveries(discoveries = [], previousKeys 
   };
 }
 
+export function summarizeSourceChecks({
+  checked = [],
+  previousSources = {},
+  changed = [],
+  unavailable = [],
+  restricted = [],
+  added = [],
+  removed = [],
+  recovered = [],
+  discoveries = []
+} = {}) {
+  const successful = checked.filter(entry => entry?.current?.ok === true);
+  const unchanged = successful.filter(entry => {
+    const previousHash = previousSources?.[entry.url]?.sha256;
+    return Boolean(previousHash && previousHash === entry.current.sha256);
+  }).length;
+  const baseline = successful.filter(entry => !previousSources?.[entry.url]?.sha256).length;
+  const sourceDiscoveries = discoveries.filter(item =>
+    ["new_link", "page_change"].includes(item?.discovery_type)
+  );
+  const hasChanges = changed.length > 0 || added.length > 0 || removed.length > 0
+    || recovered.length > 0 || sourceDiscoveries.length > 0;
+  const total = checked.length;
+  const successfulCount = successful.length;
+  const hasFailures = unavailable.length > 0 || restricted.length > 0;
+
+  let outcome = "NO_CHANGE";
+  if (total === 0 || successfulCount === 0) outcome = "FAILED";
+  else if (hasFailures) outcome = "PARTIAL";
+  else if (hasChanges || baseline > 0) outcome = "SUCCESS";
+
+  return {
+    outcome,
+    total,
+    successful: successfulCount,
+    unchanged,
+    baseline,
+    changed: changed.length,
+    added: added.length,
+    removed: removed.length,
+    recovered: recovered.length,
+    sourceDiscoveries: sourceDiscoveries.length,
+    unavailable: unavailable.length,
+    restricted: restricted.length
+  };
+}
+
 async function runMonitor() {
   const urls = collectSourceUrls();
   await mkdir(dirname(resolve(STATE_PATH)), { recursive: true });
@@ -1142,11 +1189,23 @@ async function runMonitor() {
   }));
 
   const fallbackCount = checked.filter(entry => entry.current.ok && entry.current.transport === "curl-fallback").length;
+  const sourceChecks = summarizeSourceChecks({
+    checked,
+    previousSources: oldState.sources,
+    changed,
+    unavailable,
+    restricted,
+    added,
+    removed,
+    recovered,
+    discoveries
+  });
   const report = {
     generatedAt: new Date().toISOString(),
     monitoredCount: urls.length,
     concurrency,
     fallbackCount,
+    sourceChecks,
     firstRun,
     internetSearch: {
       provider: internetSearch.provider,
@@ -1189,6 +1248,7 @@ async function runMonitor() {
     "",
     "Verificado em: " + report.generatedAt,
     "Fontes acompanhadas: " + report.monitoredCount,
+    "Resultado das fontes oficiais: " + sourceChecks.outcome + " · " + sourceChecks.successful + "/" + sourceChecks.total + " consultadas, " + sourceChecks.unchanged + " sem alteração, " + sourceChecks.changed + " alteradas, " + sourceChecks.unavailable + " indisponíveis e " + sourceChecks.restricted + " com acesso automatizado restrito.",
     "Concorrência: " + report.concurrency + " · tentativas por fonte: 3",
     "Consultas recuperadas pelo transporte alternativo: " + report.fallbackCount,
     "Buscas automáticas na internet: " + internetSearch.feedsChecked + " feeds/consultas (" + internetSearch.googleFeedsChecked + " do Google Notícias e " + internetSearch.secondaryFeedsChecked + " editoriais; " + internetSearch.googleSkippedAfter503 + " consultas do Google pausadas após HTTP 503) · " + internetSearch.leadCount + " resultados atuais · " + unseenWebSearch.discoveries.length + " pistas novas.",
@@ -1215,6 +1275,13 @@ async function runMonitor() {
   if (process.env.GITHUB_OUTPUT) {
     await appendFile(process.env.GITHUB_OUTPUT, [
       "changed_count=" + (changed.length + added.length + removed.length + discoveries.length),
+      "source_status=" + sourceChecks.outcome,
+      "sources_checked_count=" + sourceChecks.total,
+      "sources_successful_count=" + sourceChecks.successful,
+      "sources_unchanged_count=" + sourceChecks.unchanged,
+      "sources_baseline_count=" + sourceChecks.baseline,
+      "sources_unavailable_count=" + sourceChecks.unavailable,
+      "sources_restricted_count=" + sourceChecks.restricted,
       "discovered_count=" + discoveries.length,
       "failed_count=" + unavailable.length,
       "restricted_count=" + restricted.length,
