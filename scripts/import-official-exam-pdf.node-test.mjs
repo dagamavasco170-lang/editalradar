@@ -69,6 +69,41 @@ test("extrai itens objetivos e preserva página/número sem inventar gabarito", 
 });
 
 
+test("FGV ignora numeração interna no formato número-ponto-texto", () => {
+  const pages = [{
+    page: 3,
+    text: [
+      "1",
+      "Leia a descrição e assinale a alternativa que interpreta corretamente as informações apresentadas no texto.",
+      "A) Primeira alternativa com conteúdo textual suficientemente extenso.",
+      "B) Segunda alternativa com conteúdo textual suficientemente extenso.",
+      "C) Terceira alternativa com conteúdo textual suficientemente extenso.",
+      "D) Quarta alternativa com conteúdo textual suficientemente extenso.",
+      "21. O número vinte e um aparece como referência interna no enunciado.",
+      "2",
+      "Analise o segundo enunciado e assinale a alternativa que apresenta a conclusão adequada.",
+      "A) Primeira alternativa com conteúdo textual suficientemente extenso.",
+      "B) Segunda alternativa com conteúdo textual suficientemente extenso.",
+      "C) Terceira alternativa com conteúdo textual suficientemente extenso.",
+      "D) Quarta alternativa com conteúdo textual suficientemente extenso."
+    ].join("\n")
+  }];
+  const rows = parseExamPages(pages, documentHash, { allowNumberedMultipleChoice: false });
+  assert.deepEqual(rows.map(row => row.source_question_number), [1, 2]);
+});
+
+test("registra o motivo estrutural de uma questão rejeitada", () => {
+  const diagnostics = [];
+  const rows = parseExamPages([{
+    page: 8,
+    text: ["7", "Enunciado curto.", "A) única alternativa identificada"].join("\n")
+  }], documentHash, { allowNumberedMultipleChoice: false, diagnostics });
+  assert.equal(rows.length, 0);
+  assert.ok(diagnostics.some(item =>
+    item.questionNumber === 7 && item.rejectionReasons.includes("option_count_out_of_range")
+  ));
+});
+
 test("reconhece questões FGV com o número isolado antes do enunciado", () => {
   const pages = [{
     page: 3,
