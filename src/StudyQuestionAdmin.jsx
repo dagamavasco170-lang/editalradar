@@ -1,5 +1,6 @@
 import React,{useEffect,useState} from "react";
 import { isTrustedOfficialUrl, isTrustedPrivateStudySourceUrl, parseHttpsUrl } from "./lib/official-sources.js";
+import OfficialExamImportAdmin from "./OfficialExamImportAdmin.jsx";
 
 const blank=()=>({exam_name:"",exam_year:String(new Date().getFullYear()),board:"Cebraspe",discipline:"Língua Portuguesa",topic:"",difficulty:"Intermediária",prompt:"",options:["","","","",""],answer:"a",explanation:"",source_url:"",rights_holder:"",license_status:"permission_granted",license_proof_url:""});
 const blankTopic=()=>({discipline:"Direito Constitucional",topic:"Princípios da Administração Pública",difficulty:"Intermediária",source_url:"",source_excerpt:"",questions_per_run:3,cadence_days:1,active:true});
@@ -202,5 +203,6 @@ export default function StudyQuestionAdmin({authClient,userId}){
     {message&&<p className={"auth-message "+kind} role="status">{message}</p>}
    </form>
   </section>
+  <OfficialExamImportAdmin authClient={authClient} userId={userId}/>
  </div>;
 }
