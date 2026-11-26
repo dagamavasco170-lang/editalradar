@@ -1,4 +1,5 @@
 import React,{useCallback,useEffect,useState} from "react";
+import { isTrustedOfficialUrl } from "./lib/official-sources.js";
 
 const RIGHTS_TO_LICENSE={
  official_publication:"official_publication",
@@ -67,8 +68,8 @@ export default function OfficialExamImportAdmin({authClient,userId}){
    }
    if(manifest.imports.length>300)throw new Error("O manifesto excede o limite de 300 questões por envio.");
    const meta=manifest.metadata||{};
-   if(!meta.board||!meta.exam_name||!meta.exam_year||!meta.discipline||!isHttps(meta.source_url)||!isHttps(meta.exam_pdf_url)){
-    throw new Error("O manifesto não contém os metadados e URLs HTTPS obrigatórios.");
+   if(!meta.board||!meta.exam_name||!meta.exam_year||!meta.discipline||!isTrustedOfficialUrl(meta.source_url)||!isTrustedOfficialUrl(meta.exam_pdf_url)){
+    throw new Error("O manifesto precisa conter metadados e URLs HTTPS pertencentes a domínios oficiais permitidos.");
    }
    if(!/^[0-9a-f]{64}$/.test(String(manifest.source_document_sha256||""))){
     throw new Error("Hash SHA-256 do PDF ausente ou inválido.");
