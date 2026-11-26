@@ -25,6 +25,7 @@ export default function OfficialExamImportAdmin({authClient,userId}){
  const [rows,setRows]=useState([]);
  const [answers,setAnswers]=useState({});
  const [notes,setNotes]=useState({});
+ const [explanations,setExplanations]=useState({});
  const [confirmed,setConfirmed]=useState({});
  const [loading,setLoading]=useState(false);
  const [busyId,setBusyId]=useState("");
@@ -127,41 +128,20 @@ export default function OfficialExamImportAdmin({authClient,userId}){
   if(!licenseStatus){setMessage("O fundamento exige classificação jurídica adicional antes da publicação.");setKind("error");return;}
   if(question.rights_basis==="official_publication"&&!question.official_release_verified){setMessage("A publicação oficial não foi confirmada.");setKind("error");return;}
   if(["permission_granted","cc_by","cc_by_sa"].includes(question.rights_basis)&&!isHttps(question.license_proof_url)){setMessage("Esse fundamento exige comprovante HTTPS de licença/autorização.");setKind("error");return;}
-  const now=new Date().toISOString();
   setBusyId(String(question.id));setMessage("");
-  let createdQuestionId=null;
   try{
-   const {data,error}=await authClient.from("study_questions").insert({
-    exam_name:question.exam_name,exam_year:question.exam_year,board:question.board,
-    discipline:question.discipline,topic:question.topic||"A classificar",difficulty:question.difficulty||"Intermediária",
-    prompt:question.prompt,options:question.options,source_url:question.exam_pdf_url,
-    rights_holder:question.rights_holder||"Não identificado",license_status:licenseStatus,
-    license_proof_url:question.license_proof_url,source_license:question.source_license,
-    source_attribution:question.source_attribution,rights_basis:question.rights_basis,
-    source_document_sha256:question.source_document_sha256,source_page:question.source_page,
-    source_question_number:question.source_question_number,source_fingerprint:question.fingerprint,
-    origin:"exam_import",review_status:"admin_approved",reviewed_at:now,published:false,created_by:userId
-   }).select("id").single();
-   if(error)throw error;
-   createdQuestionId=data.id;
-   const {error:answerError}=await authClient.from("study_question_answers").insert({
-    question_id:createdQuestionId,answer,explanation:"Gabarito conferido pelo administrador na publicação oficial da banca.",created_by:userId
+   const {data,error}=await authClient.rpc("publish_study_exam_question_import",{
+    p_import_id:question.id,
+    p_answer:answer,
+    p_explanation:String(explanations[String(question.id)]||"").slice(0,5000),
+    p_review_notes:String(notes[String(question.id)]||"").slice(0,4000),
+    p_admin_confirmation:true
    });
-   if(answerError)throw answerError;
-   const {error:publishError}=await authClient.from("study_questions").update({published:true,updated_at:now}).eq("id",createdQuestionId).eq("origin","exam_import");
-   if(publishError)throw publishError;
-   const {error:queueError}=await authClient.from("study_exam_question_imports").update({
-    status:"published",rights_review_status:"accepted",reviewed_by:userId,reviewed_at:now,
-    published_question_id:createdQuestionId,review_notes:String(notes[String(question.id)]||"").slice(0,4000),updated_at:now
-   }).eq("id",question.id).eq("status","pending");
-   if(queueError)throw queueError;
+   if(error)throw error;
    setRows(old=>old.filter(item=>String(item.id)!==String(question.id)));
-   setMessage("Questão "+question.source_question_number+" publicada após revisão e conferência do gabarito.");
+   setMessage("Questão "+question.source_question_number+" publicada após revisão administrativa. ID: "+data+".");
    setKind("success");
   }catch(error){
-   if(createdQuestionId!==null){
-    try{await authClient.from("study_questions").delete().eq("id",createdQuestionId).eq("origin","exam_import");}catch{/* Se a limpeza falhar, o item permanece não publicado quando possível. */}
-   }
    setMessage(error?.message||"Não foi possível publicar a questão importada.");
    setKind("error");
   }finally{setBusyId("");}
@@ -223,6 +203,9 @@ export default function OfficialExamImportAdmin({authClient,userId}){
        {options.map(option=><option key={option.id} value={String(option.id).toLowerCase()}>{String(option.id).toUpperCase()}</option>)}
       </select>
      </label>
+     <label>Justificativa do gabarito (opcional)
+      <textarea rows={2} value={explanations[String(question.id)]||""} onChange={event=>setExplanations(old=>({...old,[String(question.id)]:event.target.value}))} maxLength={5000}/>
+     </label>
      <label>Observações da revisão
       <textarea rows={2} value={notes[String(question.id)]||""} onChange={event=>setNotes(old=>({...old,[String(question.id)]:event.target.value}))} maxLength={4000}/>
      </label>
@@ -239,6 +222,6 @@ export default function OfficialExamImportAdmin({authClient,userId}){
   </div>}
   {!rows.length&&tableReady&&<p className="muted">Nenhuma questão aguardando revisão.</p>}
   {message&&<p className={"auth-message "+kind} role="status">{message}</p>}
-  <p className="study-disclaimer">O gabarito não é inferido pelo OCR. Questões com elementos visuais exigem inspeção do PDF. A publicação é transacional por item: se a gravação do gabarito ou da fila falhar, a questão criada é removida para evitar publicação incompleta.</p>
+  <p className="study-disclaimer">O gabarito não é inferido pelo OCR. Questões com elementos visuais exigem inspeção do PDF. A publicação é executada em uma única função SQL transacional: questão, gabarito e status da fila são confirmados juntos ou revertidos juntos.</p>
  </section>;
 }
