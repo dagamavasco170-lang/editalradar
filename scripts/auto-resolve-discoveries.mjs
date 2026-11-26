@@ -877,9 +877,14 @@ export function buildRetificationUpdate(existingData, extractedData, discovery, 
     : [];
   const previousVersion = [...history].reverse().find(entry => entry?.documentVersion?.textSnapshot);
   const normalizedDocumentText = normalizePdfVersionText(text);
+  const documentTextSnapshot = normalizedDocumentText.slice(0, PDF_VERSION_SNAPSHOT_CHARS);
   const versionComparison = previousVersion
-    ? compareDocumentVersions(previousVersion.documentVersion.textSnapshot, normalizedDocumentText)
+    ? compareDocumentVersions(previousVersion.documentVersion.textSnapshot, documentTextSnapshot)
     : null;
+  if (versionComparison) {
+    versionComparison.truncated = Boolean(previousVersion.documentVersion.snapshotTruncated)
+      || normalizedDocumentText.length > PDF_VERSION_SNAPSHOT_CHARS;
+  }
   const historyEntry = {
     at: new Date().toISOString(),
     type: "retificacao",
@@ -889,7 +894,7 @@ export function buildRetificationUpdate(existingData, extractedData, discovery, 
     changes,
     documentVersion: {
       sha256: createHash("sha256").update(normalizedDocumentText).digest("hex"),
-      textSnapshot: normalizedDocumentText.slice(0, PDF_VERSION_SNAPSHOT_CHARS),
+      textSnapshot: documentTextSnapshot,
       snapshotTruncated: normalizedDocumentText.length > PDF_VERSION_SNAPSHOT_CHARS,
       comparison: versionComparison
     }
@@ -924,8 +929,9 @@ export async function readPdfText(buffer) {
     : pageTexts
       .map((page, index) => ({ page: index + 1, length: page.replace(/\s/g, "").length }))
       .filter(item => item.length < OCR_MIN_PAGE_TEXT).map(item => item.page);
-  const selected = new Set([1, 2, 3].filter(page => page <= pageCount));
-  if (!extractedText && pageCount > selected.size) {
+  const selected = new Set();
+  if (!extractedText) {
+    for (const page of [1, 2, 3].filter(page => page <= pageCount)) selected.add(page);
     const slots = Math.min(OCR_MAX_PAGES - selected.size, pageCount - selected.size);
     for (let index = 1; index <= slots; index += 1) {
       const page = Math.round(index * pageCount / (slots + 1));
