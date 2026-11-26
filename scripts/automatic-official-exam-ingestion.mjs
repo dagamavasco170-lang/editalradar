@@ -589,19 +589,33 @@ function validateContext(record) {
 }
 
 async function processDocument(record, examLink, keyLink, mode, runId, report, fetchImpl = fetch) {
-  const diagnostic = { examUrl: examLink.url, answerKeyUrl: keyLink.url, stage: "download_exam", pages: null, extractedQuestions: 0, answerKeyPages: null, answerKeySections: [], parsedAnswers: 0 };
+  const diagnostic = { examUrl: examLink.url, answerKeyUrl: keyLink.url, stage: "download_exam", extractedQuestions: 0, answerKeyPages: null, answerKeySections: [], parsedAnswers: 0 };
   let stage = diagnostic.stage;
-  const proof = await fetchOfficialResource(examLink.url, { fetchImpl, maxBytes: MAX_PDF_BYTES });
-  if (!proof.isPdf) throw new Error("O link identificado como prova não retornou um PDF válido.");
-  stage = diagnostic.stage = "download_answer_key";
-  const answerKeyFile = await fetchOfficialResource(keyLink.url, { fetchImpl, maxBytes: MAX_PDF_BYTES });
-  if (!answerKeyFile.isPdf) throw new Error("O link identificado como gabarito não retornou um PDF válido.");
-  stage = diagnostic.stage = "validate_source";
-  const sourcePage = await fetchOfficialResource(record.source_url, { fetchImpl, maxBytes: MAX_HTML_BYTES });
-  if (sourcePage.isPdf) throw new Error("A página oficial de origem retornou um PDF, não uma página de descoberta.");
-  const sourceText = stripTags(sourcePage.bytes.toString("utf8"));
-  if (!isDefinitiveAnswerKey(keyLink.label + " " + keyLink.url, sourceText, record.notes)) {
-    throw new Error("Não foi encontrada evidência inequívoca de que o gabarito é definitivo.");
+  let proof;
+  let answerKeyFile;
+  let sourcePage;
+  let sourceText = "";
+  try {
+    proof = await fetchOfficialResource(examLink.url, { fetchImpl, maxBytes: MAX_PDF_BYTES });
+    if (!proof.isPdf) throw new Error("O link identificado como prova não retornou um PDF válido.");
+    stage = diagnostic.stage = "download_answer_key";
+    answerKeyFile = await fetchOfficialResource(keyLink.url, { fetchImpl, maxBytes: MAX_PDF_BYTES });
+    if (!answerKeyFile.isPdf) throw new Error("O link identificado como gabarito não retornou um PDF válido.");
+    stage = diagnostic.stage = "validate_source";
+    sourcePage = await fetchOfficialResource(record.source_url, { fetchImpl, maxBytes: MAX_HTML_BYTES });
+    if (sourcePage.isPdf) throw new Error("A página oficial de origem retornou um PDF, não uma página de descoberta.");
+    sourceText = stripTags(sourcePage.bytes.toString("utf8"));
+    if (!isDefinitiveAnswerKey(keyLink.label + " " + keyLink.url, sourceText, record.notes)) {
+      throw new Error("Não foi encontrada evidência inequívoca de que o gabarito é definitivo.");
+    }
+  } catch (error) {
+    report.documentDiagnostics.push({
+      ...diagnostic,
+      stage,
+      status: "failed",
+      error: String(error?.message || error).slice(0, 1600)
+    });
+    throw error;
   }
 
   const tempDir = await mkdtemp(path.join(os.tmpdir(), "editalradar-official-ingestion-"));
