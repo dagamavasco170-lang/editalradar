@@ -60,7 +60,7 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
  const [recoveryReflectionConfirmed,setRecoveryReflectionConfirmed]=useState(false);
  const [generatedReasoning,setGeneratedReasoning]=useState("");
  const [generatedAssessment,setGeneratedAssessment]=useState(null);
- const [conceptMastery,setConceptMastery]=useState(()=>{try{return JSON.parse(localStorage.getItem("er-concept-mastery:"+(activeUserId||"visitor"))||{};}catch{return {};}});
+ const [conceptMastery,setConceptMastery]=useState(()=>{try{return JSON.parse(localStorage.getItem("er-concept-mastery:"+(activeUserId||"visitor"))||"{}");}catch{return {};}});
  const [questionProgressReady,setQuestionProgressReady]=useState(!activeUserId || !authClient);
  const [questionSyncStatus,setQuestionSyncStatus]=useState(activeUserId ? "loading" : "local");
  const [questionProgressState,setQuestionProgressState]=useState(()=>({

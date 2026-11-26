@@ -18,7 +18,7 @@ export function evaluateGeneratedReasoning({text="",reference="",criteria=[]}={}
  const terms=criteria.length?criteria:extractConceptTerms(reference);
  const matched=terms.filter(term=>normalized.includes(term));
  const coverage=terms.length?Math.round(matched.length/terms.length*100):null;
- const hasReasoning=/\\b(porque|pois|portanto|assim|logo|regra|conceito|aplica|significa|quando|se)\\b/i.test(normalized);
+ const hasReasoning=/\b(porque|pois|portanto|assim|logo|regra|conceito|aplica|significa|quando|se)\b/i.test(normalized);
  const complete=words.length>=25&&hasReasoning&&(coverage===null||coverage>=25);
  const score=coverage===null?null:Math.round(coverage*.7+(hasReasoning?20:0)+(words.length>=25?10:0));
  return {wordCount:words.length,hasReasoning,criteria:terms,matched,coverage,score,complete,feedback:coverage===null
