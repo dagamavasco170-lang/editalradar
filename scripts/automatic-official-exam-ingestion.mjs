@@ -220,22 +220,37 @@ export function parseOfficialAnswerKey(text, questionFormat = "multiple_choice")
 export function parseOfficialAnswerKeyVariants(text, questionFormat = "multiple_choice") {
   const sections = [];
   let current = null;
-  const headingPattern = /^(.+?)\s*[-–—]\s*(\d{1,2})\s*[-–—]\s*Turno\s+([\p{L}]+)\s*$/iu;
+  const normalizeHeadingLine = value => String(value || "")
+    .normalize("NFC")
+    .replace(/[\u00ad\u200b\u200c\u200d\ufeff]/g, "")
+    .replace(/\u00a0/g, " ")
+    .replace(/[‐‑‒–—−]/g, "-")
+    .replace(/\s+/g, " ")
+    .trim();
+  const headingPattern = /^(?:p[aá]gina\s+\d+\s+de\s+\d+\s*)?(.+?)\s*-\s*(\d{1,2})\s*-\s*turno\s+([\p{L}]+)\s*$/iu;
+  const lines = String(text || "").replace(/\r/g, "").split("\n");
 
-  for (const rawLine of String(text || "").replace(/\r/g, "").split("\n")) {
-    const line = rawLine.trim();
-    const heading = line.match(headingPattern);
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = normalizeHeadingLine(lines[index]);
+    let heading = line.match(headingPattern);
+    if (!heading && index + 1 < lines.length) {
+      const joined = normalizeHeadingLine(line + " " + lines[index + 1]);
+      heading = joined.match(headingPattern);
+      if (heading) index += 1;
+    }
     if (heading) {
       if (current) sections.push(current);
+      let role = heading[1].trim();
+      role = role.replace(/^p[aá]gina\s+\d+\s+de\s+\d+\s+/iu, "").trim();
       current = {
-        role: heading[1].trim(),
+        role,
         bookletNumber: String(Number(heading[2])),
         shift: heading[3].trim(),
         lines: []
       };
       continue;
     }
-    if (current) current.lines.push(rawLine);
+    if (current) current.lines.push(lines[index]);
   }
 
   if (current) sections.push(current);
@@ -249,7 +264,7 @@ export function parseOfficialAnswerKeyVariants(text, questionFormat = "multiple_
       conflicts: parsed.conflicts,
       parsedCount: parsed.parsedCount
     };
-  }).filter(section => section.parsedCount > 0);
+  });
 }
 
 export function selectAnswerKeySection(examLink, record, sections) {
@@ -599,9 +614,22 @@ async function processDocument(record, examLink, keyLink, mode, runId, report, f
     if (answerKeySections.length) {
       const matchedSection = selectAnswerKeySection(examLink, record, answerKeySections);
       if (!matchedSection) {
-        const error = new Error("O gabarito definitivo consolidado não contém uma única seção que corresponda ao cargo e caderno desta prova.");
+        const candidates = definitiveText.split("\n")
+          .map(line => line.trim())
+          .filter(line => /agente|delegado|papiloscopista|turno/i.test(line))
+          .slice(0, 12);
+        const error = new Error(
+          "O gabarito definitivo consolidado não contém uma única seção que corresponda ao cargo e caderno desta prova. "
+          + "Cabeçalhos candidatos: " + candidates.join(" | ").slice(0, 900)
+        );
         error.code = "UNMATCHED_ANSWER_KEY_SECTION";
         throw error;
+      }
+      if (!matchedSection.parsedCount) {
+        throw new Error(
+          "A seção do gabarito foi localizada (" + matchedSection.role + ", caderno "
+          + matchedSection.bookletNumber + "), mas nenhuma resposta foi extraída do bloco."
+        );
       }
       parsedKey = {
         answers: matchedSection.answers,
