@@ -161,7 +161,9 @@ export default function OfficialExamImportAdmin({authClient,userId}){
    });
    if(error)throw error;
    setRows(old=>old.filter(item=>String(item.id)!==String(question.id)));
-   setMessage("Questão "+question.source_question_number+" publicada após revisão administrativa. ID: "+data+".");
+   setMessage(data
+    ? "Questão "+question.source_question_number+" publicada após revisão administrativa. ID: "+data+"."
+    : "Questão "+question.source_question_number+" identificada como duplicada; não foi criada novamente.");
    setKind("success");
   }catch(error){
    setMessage(error?.message||"Não foi possível publicar a questão importada.");
