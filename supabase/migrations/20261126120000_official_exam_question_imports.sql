@@ -292,7 +292,20 @@ begin
     v_import.source_document_sha256, v_import.source_page, v_import.source_question_number,
     v_import.fingerprint, 'exam_import', 'admin_approved', v_now, false, auth.uid()
   )
+  on conflict do nothing
   returning id into v_question_id;
+
+  if v_question_id is null then
+    update public.study_exam_question_imports
+       set status = 'duplicate',
+           rights_review_status = 'accepted',
+           reviewed_by = auth.uid(),
+           reviewed_at = v_now,
+           review_notes = left(coalesce(p_review_notes, 'Duplicidade por fingerprint de questão já existente.'), 4000),
+           updated_at = v_now
+     where id = v_import.id;
+    return null;
+  end if;
 
   insert into public.study_question_answers (
     question_id, answer, explanation, created_by
