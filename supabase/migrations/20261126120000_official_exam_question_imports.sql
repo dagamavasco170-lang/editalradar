@@ -128,14 +128,36 @@ alter table public.study_exam_question_imports enable row level security;
 drop policy if exists "Admins manage official exam question imports"
   on public.study_exam_question_imports;
 
-create policy "Admins manage official exam question imports"
-  on public.study_exam_question_imports
-  for all to authenticated
-  using (coalesce((select auth.jwt() -> 'app_metadata' ->> 'role'), '') = 'admin')
+drop policy if exists "Admins read official exam question imports"
+  on public.study_exam_question_imports;
+create policy "Admins read official exam question imports"
+  on public.study_exam_question_imports for select to authenticated
+  using (coalesce((select auth.jwt() -> 'app_metadata' ->> 'role'), '') = 'admin');
+
+drop policy if exists "Admins insert official exam question imports"
+  on public.study_exam_question_imports;
+create policy "Admins insert official exam question imports"
+  on public.study_exam_question_imports for insert to authenticated
   with check (
     coalesce((select auth.jwt() -> 'app_metadata' ->> 'role'), '') = 'admin'
     and created_by = (select auth.uid())
   );
+
+drop policy if exists "Admins update official exam question imports"
+  on public.study_exam_question_imports;
+create policy "Admins update official exam question imports"
+  on public.study_exam_question_imports for update to authenticated
+  using (coalesce((select auth.jwt() -> 'app_metadata' ->> 'role'), '') = 'admin')
+  with check (
+    coalesce((select auth.jwt() -> 'app_metadata' ->> 'role'), '') = 'admin'
+    and created_by is not null
+  );
+
+drop policy if exists "Admins delete official exam question imports"
+  on public.study_exam_question_imports;
+create policy "Admins delete official exam question imports"
+  on public.study_exam_question_imports for delete to authenticated
+  using (coalesce((select auth.jwt() -> 'app_metadata' ->> 'role'), '') = 'admin');
 
 grant select, insert, update, delete
   on public.study_exam_question_imports to authenticated;
@@ -213,6 +235,7 @@ as $$
         q.license_status = 'official_publication'
         and q.origin = 'exam_import'
         and q.rights_basis = 'official_publication'
+        and q.review_status = 'admin_approved'
       )
     )
     and auth.uid() is not null
