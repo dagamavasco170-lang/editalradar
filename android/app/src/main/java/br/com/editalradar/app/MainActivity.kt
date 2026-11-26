@@ -30,6 +30,7 @@ import android.webkit.ConsoleMessage
 import android.webkit.CookieManager
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.SslErrorHandler
 import android.net.http.SslError
 import android.webkit.WebView
@@ -50,6 +51,7 @@ import java.io.File
 import java.io.FileInputStream
 import androidx.webkit.JavaScriptReplyProxy
 import androidx.webkit.WebMessageCompat
+import androidx.webkit.WebViewAssetLoader
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
 import org.json.JSONObject
@@ -60,6 +62,8 @@ class MainActivity : ComponentActivity() {
     companion object {
         private const val HOME_URL = "https://dagamavasco170-lang.github.io/editalradar/"
         private const val HOME_HOST = "dagamavasco170-lang.github.io"
+        private const val DEBUG_ASSET_HOST = "appassets.androidplatform.net"
+        private const val DEBUG_ASSET_HOME_URL = "https://appassets.androidplatform.net/"
         private const val HOME_PATH = "/editalradar/"
         private const val NOTIFICATION_CHANNEL_ID = "editalradar_updates"
         private const val MAX_NATIVE_MESSAGE_CHARS = 2_048
@@ -73,6 +77,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private lateinit var webView: WebView
+    private var webViewAssetLoader: WebViewAssetLoader? = null
     private lateinit var webViewBackCallback: OnBackPressedCallback
     private lateinit var contentRoot: LinearLayout
     private lateinit var progress: ProgressBar
@@ -135,7 +140,7 @@ class MainActivity : ComponentActivity() {
                 webView.loadUrl(resolvePushUrl(pushUrl))
             } else if (!restoredWebState) {
                 // Não deixa a tela em branco quando o estado anterior não puder ser restaurado.
-                webView.loadUrl(HOME_URL)
+                webView.loadUrl(appHomeUrl())
             }
         }
         maybeCheckForUpdates()
@@ -505,6 +510,9 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        // Debug smoke builds may package this branch's Vite output. Release builds
+        // continue to use the official HOME_URL origin.
+        webViewAssetLoader = createDebugWebViewAssetLoader()
         configureNativeBridge()
 
         webView.webChromeClient = object : WebChromeClient() {
@@ -543,6 +551,11 @@ class MainActivity : ComponentActivity() {
         }
 
         webView.webViewClient = object : WebViewClient() {
+            override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
+                return webViewAssetLoader?.shouldInterceptRequest(request.url)
+                    ?: super.shouldInterceptRequest(view, request)
+            }
+
             override fun onPageStarted(view: WebView, url: String?, favicon: android.graphics.Bitmap?) {
                 super.onPageStarted(view, url, favicon)
                 if (view === webView) webPageReady = false
@@ -760,7 +773,7 @@ class MainActivity : ComponentActivity() {
 
         return try {
             configureWebView()
-            replacement.loadUrl(HOME_URL)
+            replacement.loadUrl(appHomeUrl())
             Log.w("EditalRadarWebView", "Recreated WebView renderer; crashed=$didCrash")
             true
         } catch (error: Exception) {
@@ -771,18 +784,75 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun appHomeUrl(): String =
+        if (webViewAssetLoader != null) DEBUG_ASSET_HOME_URL else HOME_URL
+
+    private fun createDebugWebViewAssetLoader(): WebViewAssetLoader? {
+        val isDebuggable = applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
+        if (!isDebuggable) return null
+
+        return try {
+            assets.open("www/index.html").use { }
+            WebViewAssetLoader.Builder()
+                .setDomain(DEBUG_ASSET_HOST)
+                .addPathHandler("/", object : WebViewAssetLoader.PathHandler {
+                    override fun handle(path: String): WebResourceResponse? {
+                        val decoded = Uri.decode(path).trimStart('/').ifBlank { "index.html" }
+                        val segments = decoded.split('/')
+                        if (decoded.contains('\\') || segments.any { it == "." || it == ".." || it.isEmpty() }) {
+                            return null
+                        }
+                        val mimeType = when (decoded.substringAfterLast('.', "").lowercase()) {
+                            "html" -> "text/html"
+                            "js", "mjs" -> "application/javascript"
+                            "css" -> "text/css"
+                            "json", "webmanifest" -> "application/json"
+                            "svg" -> "image/svg+xml"
+                            "png" -> "image/png"
+                            "jpg", "jpeg" -> "image/jpeg"
+                            "webp" -> "image/webp"
+                            "gif" -> "image/gif"
+                            "ico" -> "image/x-icon"
+                            "woff" -> "font/woff"
+                            "woff2" -> "font/woff2"
+                            "ttf" -> "font/ttf"
+                            "wasm" -> "application/wasm"
+                            "txt" -> "text/plain"
+                            else -> "application/octet-stream"
+                        }
+                        return try {
+                            WebResourceResponse(mimeType, "UTF-8", assets.open("www/" + decoded))
+                        } catch (_: Exception) {
+                            null
+                        }
+                    }
+                })
+                .build()
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     private fun isInternalAppUrl(uri: Uri): Boolean {
         if (uri.scheme?.lowercase() != "https" ||
-            !uri.host.equals(HOME_HOST, ignoreCase = true) ||
             (uri.port != -1 && uri.port != 443) ||
             uri.encodedUserInfo != null
         ) return false
 
         val path = uri.path ?: return false
-        if (path != HOME_PATH.trimEnd('/') && !path.startsWith(HOME_PATH)) return false
+        if (webViewAssetLoader != null && uri.host.equals(DEBUG_ASSET_HOST, ignoreCase = true)) {
+            return path.split('/').none { segment ->
+                val decoded = Uri.decode(segment)
+                decoded == "." || decoded == ".." || decoded.contains('\\')
+            }
+        }
 
-        // Bloqueia segmentos de travessia, inclusive quando chegam codificados na URL.
-        return path.split('/').none { it == "." || it == ".." }
+        if (!uri.host.equals(HOME_HOST, ignoreCase = true)) return false
+        if (path != HOME_PATH.trimEnd('/') && !path.startsWith(HOME_PATH)) return false
+        return path.split('/').none { segment ->
+            val decoded = Uri.decode(segment)
+            decoded == "." || decoded == ".." || decoded.contains('\\')
+        }
     }
 
     /**
@@ -794,10 +864,12 @@ class MainActivity : ComponentActivity() {
         if (!WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) return
 
         try {
+            val allowedOrigins = linkedSetOf("https://$HOME_HOST")
+            if (webViewAssetLoader != null) allowedOrigins.add("https://$DEBUG_ASSET_HOST")
             WebViewCompat.addWebMessageListener(
                 webView,
                 "EditalRadarNative",
-                setOf("https://$HOME_HOST"),
+                allowedOrigins,
                 object : WebViewCompat.WebMessageListener {
                     override fun onPostMessage(
                         view: WebView,
@@ -819,10 +891,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun isTrustedNativeBridgeOrigin(uri: Uri): Boolean {
-        return uri.scheme.equals("https", ignoreCase = true) &&
-            uri.host?.equals(HOME_HOST, ignoreCase = true) == true &&
-            (uri.port == -1 || uri.port == 443) &&
-            uri.encodedUserInfo == null
+        return isInternalAppUrl(uri)
     }
 
     private fun dispatchWebDiagnostic(level: String, event: String, message: String) {
@@ -1090,7 +1159,7 @@ class MainActivity : ComponentActivity() {
 
         val code = uri.getQueryParameter("code")
         if (!code.isNullOrBlank()) {
-            val callbackUrl = Uri.parse(HOME_URL)
+            val callbackUrl = Uri.parse(appHomeUrl())
                 .buildUpon()
                 .appendQueryParameter("code", code)
                 .build()
@@ -1121,13 +1190,13 @@ class MainActivity : ComponentActivity() {
 
     private fun resolvePushUrl(value: String): String {
         val target = value.trim()
-        if (target.isBlank() || target == "/") return HOME_URL
+        if (target.isBlank() || target == "/") return appHomeUrl()
 
         val resolved = when {
-            target.startsWith("//") -> return HOME_URL
+            target.startsWith("//") -> return appHomeUrl()
             target == HOME_PATH.trimEnd('/') || target.startsWith(HOME_PATH) ->
                 "https://$HOME_HOST$target"
-            target.startsWith("/") -> HOME_URL.trimEnd('/') + target
+            target.startsWith("/") -> appHomeUrl().trimEnd('/') + target
             else -> target
         }
 
@@ -1311,7 +1380,7 @@ class MainActivity : ComponentActivity() {
                     if (currentUri != null && isInternalAppUrl(currentUri)) {
                         webView.reload()
                     } else {
-                        webView.loadUrl(HOME_URL)
+                        webView.loadUrl(appHomeUrl())
                     }
                 }
             }
@@ -1329,7 +1398,7 @@ class MainActivity : ComponentActivity() {
         if (currentUri != null && isInternalAppUrl(currentUri)) {
             webView.reload()
         } else {
-            webView.loadUrl(HOME_URL)
+            webView.loadUrl(appHomeUrl())
         }
     }
 
