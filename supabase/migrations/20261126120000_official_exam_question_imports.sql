@@ -1,5 +1,7 @@
--- Staging seguro de questões extraídas de provas oficiais com direitos documentados.
--- A importação nunca publica automaticamente; um administrador revisa e cria a questão final.
+-- Fila administrativa de questões extraídas de provas oficiais já divulgadas.
+-- O fundamento "official_publication" registra a hipótese de ato oficial público;
+-- não equivale a afirmar que todo documento ou anexo de toda banca seja livre.
+-- Importações nunca são publicadas automaticamente: exigem revisão administrativa.
 
 alter table public.study_questions
   drop constraint if exists study_questions_origin_check;
@@ -55,12 +57,25 @@ create table if not exists public.study_exam_question_imports (
   ),
   suggested_answer text check (suggested_answer is null or suggested_answer ~ '^[a-f]$'),
   fingerprint text not null check (fingerprint ~ '^[0-9a-f]{64}$'),
-  rights_holder text not null check (char_length(btrim(rights_holder)) between 2 and 180),
-  license_status text not null check (license_status in ('permission_granted','public_domain','cc_by','cc_by_sa')),
-  license_proof_url text not null check (license_proof_url ~ '^https://'),
+  rights_basis text not null default 'official_publication'
+    check (rights_basis in (
+      'official_publication',
+      'public_domain',
+      'permission_granted',
+      'cc_by',
+      'cc_by_sa',
+      'other_reviewed'
+    )),
+  rights_holder text check (rights_holder is null or char_length(btrim(rights_holder)) between 2 and 180),
+  license_proof_url text check (license_proof_url is null or license_proof_url ~ '^https://'),
+  source_terms_url text check (source_terms_url is null or source_terms_url ~ '^https://'),
+  source_restrictions text not null default '',
   source_license text,
   source_attribution text,
-  status text not null default 'pending' check (status in ('pending','published','rejected','duplicate')),
+  rights_review_status text not null default 'not_reviewed'
+    check (rights_review_status in ('not_reviewed','accepted','restricted')),
+  status text not null default 'pending'
+    check (status in ('pending','published','rejected','duplicate')),
   review_notes text not null default '',
   created_by uuid not null references auth.users(id) on delete restrict,
   reviewed_by uuid references auth.users(id) on delete set null,
@@ -71,7 +86,14 @@ create table if not exists public.study_exam_question_imports (
   constraint study_exam_question_imports_document_item_unique
     unique (source_document_sha256, source_question_number),
   constraint study_exam_question_imports_exam_fingerprint_unique
-    unique (board, exam_name, exam_year, fingerprint)
+    unique (board, exam_name, exam_year, fingerprint),
+  constraint study_exam_question_imports_published_review_check
+    check (status <> 'published' or (
+      rights_review_status = 'accepted'
+      and reviewed_by is not null
+      and reviewed_at is not null
+      and published_question_id is not null
+    ))
 );
 
 create index if not exists study_exam_question_imports_review_idx
@@ -97,8 +119,12 @@ grant usage, select
   on sequence public.study_exam_question_imports_id_seq to authenticated;
 
 comment on table public.study_exam_question_imports is
-  'Fila administrativa de questões extraídas de provas. Nenhum registro é público antes de revisão e publicação explícitas.';
+  'Fila administrativa de questões extraídas de provas oficiais divulgadas; exige revisão humana e nunca publica automaticamente.';
+comment on column public.study_exam_question_imports.rights_basis is
+  'Fundamento registrado para reutilização. official_publication registra análise de ato oficial público; não é licença presumida para qualquer anexo de terceiro.';
 comment on column public.study_exam_question_imports.license_proof_url is
-  'Evidência HTTPS da licença, autorização expressa ou domínio público que permite armazenar e reutilizar o conteúdo.';
+  'Opcional para hipóteses sem licença individual; preenchido quando houver licença/autorização específica.';
+comment on column public.study_exam_question_imports.source_restrictions is
+  'Restrições específicas verificadas nos termos/edital/contrato da banca ou do órgão.';
 comment on column public.study_exam_question_imports.suggested_answer is
   'Gabarito apenas sugerido pelo parser; deve ser confirmado por administrador contra a versão definitiva da banca.';
