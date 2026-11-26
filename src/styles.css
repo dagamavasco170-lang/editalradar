@@ -3919,3 +3919,23 @@ html[data-theme="dark"] .study-plan-panel .study-session{background:#132235}
 @media(max-width:640px){.study-page{gap:16px}.study-target-card{display:grid;gap:13px;padding:15px}.study-target-actions{justify-content:flex-start}.focus-timer-panel{padding:15px;gap:16px;border-radius:16px}.focus-timer-copy h2{font-size:20px}.focus-timer-copy p{font-size:11px}.focus-timer-controls{grid-template-columns:1fr;gap:12px}.focus-timer-dial{width:min(100%,185px)}.focus-timer-buttons{width:100%}.focus-timer-buttons button{flex:1}.study-grid{grid-template-columns:1fr}.study-grid>.panel{padding:14px}.study-plan-panel .study-session{grid-template-columns:auto minmax(0,1fr)}.study-plan-panel .study-session>small:last-child{grid-column:2}.study-plan-panel .study-days label{padding:7px 8px}}
 @media(prefers-reduced-motion:reduce){.focus-timer-dial,.focus-timer-presets button{transition:none!important}
 }
+
+
+/* EditalRadar — Phase 6: final responsive, accessibility and interaction QA */
+:root{scroll-padding-top:84px}
+html{scroll-behavior:smooth;overflow-x:hidden}
+body{min-width:320px;overflow-x:hidden;text-rendering:optimizeLegibility;-webkit-font-smoothing:antialiased}
+img,svg,video,canvas{max-width:100%}
+button,a,input,select,textarea{touch-action:manipulation}
+button:disabled,[aria-disabled="true"]{cursor:not-allowed;opacity:.62;transform:none!important;box-shadow:none!important}
+button:not(:disabled):focus-visible,a:focus-visible,[role="button"]:focus-visible{outline:3px solid #78a7ff!important;outline-offset:3px!important;border-radius:8px}
+[role="status"],[role="alert"]{overflow-wrap:anywhere}
+input,textarea,select{max-width:100%;min-width:0}
+pre,code{max-width:100%;overflow-wrap:anywhere;white-space:pre-wrap}
+.panel,.contest-card,.stat,.candidate-dashboard,.study-question-bank,.simulator-panel,.study-grid,.study-page{min-width:0;overflow-wrap:anywhere}
+.panel-head,.section-title,.question-card-heading,.dashboard-section-heading,.dashboard-focus-actions,.study-target-actions,.simulator-result-actions{min-width:0;flex-wrap:wrap}
+.panel-head>*,.section-title>*{min-width:0}
+.primary-btn,.detail-btn,.recommendations-edit,.recommendation-open{min-height:40px}
+@media(max-width:760px){html{scroll-padding-top:68px}.content,.main,.panel,.contest-card,.candidate-dashboard,.study-question-bank,.simulator-panel{min-width:0;max-width:100%}.content{width:100%;box-sizing:border-box}.hero-search{width:100%;min-width:0}.hero-search input{min-width:0;width:100%}.stats-row,.study-question-bank .question-bank-stats,.candidate-dashboard-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.candidate-dashboard-stats .dashboard-stat:last-child{grid-column:1/-1}.study-question-bank .question-toolbar{grid-template-columns:repeat(2,minmax(0,1fr))}.study-question-bank .question-toolbar label,.study-question-bank .question-toolbar input,.study-question-bank .question-toolbar select{min-width:0}.study-question-bank .question-card,.simulator-panel .simulator-question-main{min-width:0}.study-target-actions,.focus-timer-buttons,.simulator-result-actions{width:100%}.study-target-actions button,.focus-timer-buttons button,.simulator-result-actions button{flex:1 1 auto}.study-plan-panel .study-session{min-width:0}}
+@media(max-width:420px){.stats-row,.study-question-bank .question-bank-stats{grid-template-columns:1fr 1fr}.study-question-bank .question-stat strong{font-size:17px}.question-meta span,.study-question-bank .question-meta span{max-width:100%;overflow-wrap:anywhere}.simulator-panel .simulator-question-map>div{grid-template-columns:repeat(6,minmax(0,1fr))}.focus-timer-dial{max-width:175px}.sidebar .sidebar-nav .nav-item .nav-label{font-size:10px!important}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}button,a{transition:none!important}}
