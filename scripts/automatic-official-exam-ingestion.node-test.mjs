@@ -30,6 +30,7 @@ test("discovers only official intermediate pages for exams and answer keys", () 
   const html = `
     <a href="/concursos/sesau_al_26/provas">Provas e gabaritos</a>
     <a href="/concursos/sesau_al_26/edital">Edital</a>
+    <a href="/concursos/sesau_al_26/inscricoes">Inscrições e provas</a>
     <a href="https://evil.example/provas">Provas em outro site</a>
     <a href="/concursos/sesau_al_26/gabarito.pdf">Gabarito PDF</a>
   `;
