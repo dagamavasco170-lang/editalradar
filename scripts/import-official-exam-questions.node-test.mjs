@@ -7,7 +7,8 @@ import {
   parseOfficialAnswerKey,
   validateQuestionForAutomaticPublication,
   readBoundedResponse,
-  inferBoardFromOfficialUrl
+  inferBoardFromOfficialUrl,
+  runAutomaticExamImport
 } from "./import-official-exam-questions.mjs";
 
 const officialPage = "https://conhecimento.fgv.br/concursos/exemplo";
@@ -174,3 +175,11 @@ test("limita respostas de rede para proteger espaço e não aceitar conteúdo il
   );
 });
 
+
+
+test("bloqueia por padrão qualquer ingestão que grave ou publique no Supabase", async () => {
+  await assert.rejects(
+    runAutomaticExamImport(),
+    /ingestão automática.*desativadas nesta versão/i
+  );
+});
