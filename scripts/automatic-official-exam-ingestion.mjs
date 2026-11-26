@@ -92,8 +92,12 @@ export function extractOfficialSubpageLinks(html, pageUrl) {
     const url = safeOfficialUrl(rawHref, pageUrl);
     if (!url || /\.pdf(?:$|[?#])/i.test(url) || url === pageUrl) continue;
     const label = stripTags(match[2]).replace(/\s+/g, " ").trim().slice(0, 240);
-    const signal = normalizeDocumentLabel(label + " " + url);
-    if (!/\b(provas?|cadernos?|gabaritos?|respostas?|questoes|questoes e gabaritos)\b/.test(signal)) continue;
+    const normalizedLabel = normalizeDocumentLabel(label);
+    const normalizedUrl = normalizeDocumentLabel(url);
+    // Não seguir formulários de inscrição/recursos ou outras áreas operacionais,
+    // mesmo que a URL do concurso contenha o termo "provas".
+    if (/\b(inscricao|inscricoes|solicitacao|recurso|recursos|login|resultado|edital|home)\b/.test(normalizedUrl)) continue;
+    if (!/\b(provas?|cadernos?|gabaritos?|respostas?|questoes)\b/.test(normalizedLabel)) continue;
     if (!found.has(url)) found.set(url, { url, label });
   }
   return [...found.values()];
@@ -788,7 +792,7 @@ async function main() {
     await import("node:fs/promises").then(fs => fs.mkdir(path.dirname(process.env.INGESTION_REPORT_PATH), { recursive: true }));
     await writeFile(process.env.INGESTION_REPORT_PATH, output + "\n", { flag: "w" });
   }
-  if (report.failures.length && report.processedDocuments === 0) process.exitCode = 1;
+  if (report.mode === "publish" && report.failures.length && report.processedDocuments === 0) process.exitCode = 1;
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
