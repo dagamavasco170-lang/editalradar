@@ -83,6 +83,28 @@ test("reconhece questões FGV com o número isolado antes do enunciado", () => {
   assert.match(rows[1].review_notes, /dependência de imagem/);
 });
 
+test("reconhece questão FGV com enunciado longo antes das alternativas", () => {
+  const longPrompt = Array.from({ length: 70 }, (_, index) =>
+    "Trecho de enunciado longo número " + (index + 1) + " com conteúdo textual da questão."
+  );
+  const pages = [{
+    page: 21,
+    text: [
+      "66",
+      ...longPrompt,
+      "(A) Primeira alternativa com conteúdo suficientemente extenso.",
+      "(B) Segunda alternativa com conteúdo suficientemente extenso.",
+      "(C) Terceira alternativa com conteúdo suficientemente extenso.",
+      "(D) Quarta alternativa com conteúdo suficientemente extenso.",
+      "(E) Quinta alternativa com conteúdo suficientemente extenso."
+    ].join("\\n")
+  }];
+  const rows = parseExamPages(pages, documentHash);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].source_question_number, 66);
+  assert.equal(rows[0].options.length, 5);
+});
+
 test("reconhece opções Cebraspe com letra separada por espaço e aspas tipográficas", () => {
   const pages = [{
     page: 1,
