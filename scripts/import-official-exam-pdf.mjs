@@ -451,7 +451,27 @@ export async function importPdfToManifest({ pdfPath, metadata }) {
   if (warnings.some((warning) => warning.startsWith("Limite de OCR aplicado"))) {
     warnings.push("A extração está incompleta; valide todas as páginas antes de inserir os itens no banco.");
   }
-  return buildImportManifest(metadata, documentSha256, questions, warnings);
+  const manifest = buildImportManifest(metadata, documentSha256, questions, warnings);
+  manifest.extractionDiagnostics = pages.map(page => {
+    const lines = String(page.text || "").replace(/\\r/g, "").split("\\n");
+    const starts = [];
+    for (let index = 0; index < lines.length; index += 1) {
+      const line = lines[index];
+      const labelled = line.match(/^\\s*(?:QUEST(?:Ã|A)O(?:\\s+N[º°.]?)?|ITEM)\\s+0*(\\d{1,3})\\b/iu);
+      const numbered = line.match(/^\\s*0*(\\d{1,3})\\s*[.)-](?:\\s|$)/u);
+      const bare = line.match(/^\\s*0*(\\d{1,3})\\s*$/u);
+      const match = labelled || numbered || bare;
+      if (match) starts.push({ line: index + 1, number: Number(match[1]), style: labelled ? "labelled" : numbered ? "numbered" : "bare" });
+    }
+    return {
+      page: Number(page.page),
+      characters: String(page.text || "").length,
+      ocrUsed: Boolean(page.ocrUsed),
+      questionStartCandidates: starts,
+      optionLabelLines: lines.reduce((count, line) => count + (/^\\s*(?:[A-F][).:]|[A-F]\\s{2,})/i.test(line) ? 1 : 0), 0)
+    };
+  });
+  return manifest;
 }
 
 function parseArgs(argv) {
