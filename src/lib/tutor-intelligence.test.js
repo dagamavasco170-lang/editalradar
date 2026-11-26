@@ -1,5 +1,5 @@
 import {describe,it,expect} from "vitest";
-import {buildTutorSignals,buildAdaptiveQuestionPlan} from "./tutor-intelligence.js";
+import {buildTutorSignals,buildAdaptiveQuestionPlan,buildConfusionPatterns,buildPersonalizedRecoveryAdvice} from "./tutor-intelligence.js";
 describe("inteligência do tutor adaptativo",()=>{
  it("identifica temas frágeis e sugere dificuldade inicial",()=>{
   const result=buildTutorSignals({topics:[
@@ -28,4 +28,13 @@ it("feedback reduz nível após erro e sobe após sequência de três acertos",(
  expect(error).toMatchObject({progression:"recover",nextLevel:"Fácil"});
  const success=buildAdaptiveTutorFeedback({correct:true,recentTopicAttempts:[{correct:true},{correct:true}],currentLevel:"Médio"});
  expect(success).toMatchObject({progression:"progress",streak:3,nextLevel:"Difícil"});
+});
+
+it("detecta padrões de erro repetido e recomenda recuperação baseada no histórico",()=>{
+ const questions=[{id:"a",topic:"Crase",discipline:"Português"},{id:"b",topic:"Crase",discipline:"Português"},{id:"c",topic:"Crase",discipline:"Português"}];
+ const attempts=[{questionId:"a",correct:false},{questionId:"b",correct:false},{questionId:"c",correct:false}];
+ const pattern=buildConfusionPatterns({questions,attempts,topic:"Crase",discipline:"Português"});
+ expect(pattern).toMatchObject({attempts:3,wrong:3,accuracy:0,recentWrong:3});
+ expect(pattern.patterns.map(item=>item.id)).toContain("error-streak");
+ expect(buildPersonalizedRecoveryAdvice({pattern}).join(" ")).toContain("questão Fácil");
 });

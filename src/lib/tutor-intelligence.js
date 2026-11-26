@@ -34,7 +34,9 @@ export function buildAdaptiveQuestionPlan({questions=[],latestAttempts={},now=Da
   const group=signalFor(question),accuracy=group.attempts?group.correct/group.attempts:0;
   const due=group.lastAt===null||group.lastAt+((accuracy>=.85?7:accuracy>=.65?3:1)*86400000)<=now;
   const targetDifficulty=group.attempts<3||accuracy<.5?1:accuracy<.75?2:3;
-  const score=(question.id in latestAttempts&&latestAttempts[question.id]?.correct===false?45:question.id in latestAttempts?0:20)+(1-accuracy)*25+(due?20:0)+(group.attempts<3?10:0);
+  const actualDifficulty=difficultyRank(question.difficulty);
+  const difficultyFit=Math.max(0,12-Math.abs(actualDifficulty-targetDifficulty)*6);
+  const score=(question.id in latestAttempts&&latestAttempts[question.id]?.correct===false?45:question.id in latestAttempts?0:20)+(1-accuracy)*25+(due?20:0)+(group.attempts<3?10:0)+difficultyFit;
   return {id:question.id,topic:question.topic||question.discipline||"Geral",discipline:question.discipline||"Outras",score,targetDifficulty,level:["Fácil","Médio","Difícil"][targetDifficulty-1],due,accuracy:Math.round(accuracy*100),attempts:group.attempts,wrong:group.wrong,index};
  });
  return scored.sort((a,b)=>b.score-a.score||a.index-b.index).map(({index,...plan})=>plan);
@@ -47,4 +49,29 @@ export function buildAdaptiveTutorFeedback({correct=false,recentTopicAttempts=[]
  const current=tutorLevelRank(currentLevel);
  const nextRank=correct?(streak>=3?Math.min(3,current+1):current):Math.max(1,current-1);
  return {correct,streak,nextLevel:tutorLevelName(nextRank),progression:correct?(streak>=3?"progress":"consolidate"):"recover",recoverySteps:correct?[]:["Releia a explicação e identifique a regra central","Revise o conceito do assunto","Resolva outra questão em nível recomendado "+tutorLevelName(nextRank)]};
+}
+
+const topicKey=value=>normalizeTopic(value||"Geral");
+export function buildConfusionPatterns({questions=[],attempts=[],topic,discipline}={}){
+ const ids=new Set(questions.filter(question=>topicKey(question.topic||question.discipline||"Geral")===topicKey(topic||"Geral")&&(!discipline||topicKey(question.discipline)===topicKey(discipline))).map(question=>String(question.id)));
+ const history=attempts.filter(attempt=>ids.has(String(attempt.questionId))).slice(-12);
+ const wrong=history.filter(attempt=>attempt.correct===false),correct=history.filter(attempt=>attempt.correct===true);
+ const accuracy=history.length?Math.round(correct.length/history.length*100):0;
+ let recentWrong=0;for(let i=history.length-1;i>=0&&history[i].correct===false;i--)recentWrong++;
+ const patterns=[];
+ if(wrong.length>=2)patterns.push({id:"repeat-errors",label:"Erros recorrentes no mesmo assunto",detail:`Você errou ${wrong.length} de ${history.length} tentativa(s) recente(s) neste tema.`});
+ if(recentWrong>=2)patterns.push({id:"error-streak",label:"Sequência recente de erros",detail:`Foram ${recentWrong} erro(s) consecutivo(s); vale reduzir a dificuldade e revisar o conceito antes de acelerar.`});
+ if(history.length>=3&&accuracy<50)patterns.push({id:"low-accuracy",label:"Acurácia baixa neste tema",detail:`A taxa recente de acerto é ${accuracy}%, indicando necessidade de reconstruir a base.`});
+ if(history.length>=3&&accuracy>=80)patterns.push({id:"stable",label:"Desempenho consistente",detail:`A taxa recente de acerto é ${accuracy}%; tente uma questão de nível superior para validar o domínio.`});
+ return {topic:topic||"Geral",attempts:history.length,wrong:wrong.length,accuracy,recentWrong,patterns};
+}
+export function buildPersonalizedRecoveryAdvice({pattern={},explanation=""}={}){
+ const advice=[];
+ if(pattern.recentWrong>=2)advice.push("Faça uma pausa na tentativa de adivinhar: revise a regra e resolva um exemplo guiado.");
+ else if(pattern.wrong>=2)advice.push("Compare os erros anteriores e procure a mesma regra conceitual antes de responder.");
+ if(pattern.attempts>=3&&pattern.accuracy<50)advice.push("Recomece por uma questão Fácil e aumente o nível somente após acertar com justificativa.");
+ else if(pattern.accuracy>=80&&pattern.attempts>=3)advice.push("Tente uma questão Médio/Difícil e explique o motivo da alternativa.");
+ if(explanation)advice.push("Use a explicação da questão como referência; a recomendação não substitui o conteúdo oficial.");
+ if(!advice.length)advice.push("Identifique a regra central no enunciado e explique o raciocínio com suas palavras antes da próxima tentativa.");
+ return advice;
 }

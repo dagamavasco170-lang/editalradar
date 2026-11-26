@@ -4110,3 +4110,11 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{ou
 
 /* Guided tutor: mini lessons, reinforcement and explicit mastery check. */
 .recovery-lesson-step{border-left:3px solid var(--accent,#17856a);padding:8px 10px;margin:8px 0;background:rgba(255,255,255,.55);border-radius:0 8px 8px 0}.recovery-lesson-step b{display:block;font-size:11px}.recovery-lesson-step p{font-size:11px;line-height:1.55;margin:5px 0 0}.recovery-mastery-confirmation{display:grid;gap:8px;border:1px solid #d7e8dc;background:#f3faf5;border-radius:10px;padding:12px;margin:10px 0;color:#256044}.recovery-mastery-confirmation strong{font-size:12px}.recovery-mastery-confirmation p,.recovery-mastery-confirmation span{font-size:11px;line-height:1.5;margin:0}.recovery-mastery-confirmation button{justify-self:start}
+
+/* Tutor: padrões observados e recuperação personalizada */
+.adaptive-confusion-patterns,.adaptive-personalized-advice{margin-top:12px;padding:12px;border:1px solid var(--border-color,rgba(128,128,128,.25));border-radius:12px;background:var(--surface-soft,rgba(128,128,128,.06))}
+.adaptive-confusion-patterns>strong,.adaptive-personalized-advice>strong{display:block;margin-bottom:6px}
+.adaptive-confusion-patterns p,.adaptive-personalized-advice p{margin:6px 0;font-size:.9rem}
+.adaptive-confusion-patterns>div{display:grid;gap:4px;margin-top:8px}
+.adaptive-confusion-patterns>div b{font-size:.88rem}
+.adaptive-confusion-patterns>div span{font-size:.84rem;opacity:.85}
