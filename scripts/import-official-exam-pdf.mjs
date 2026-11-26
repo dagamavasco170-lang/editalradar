@@ -224,7 +224,7 @@ export function parseExamPages(pages, documentSha256, {
       rejectionReasons.push("invalid_option_sequence");
     }
 
-    const hasVisualDependency = /(figura|imagem|gráfico|grafico|tabela|mapa|charge|tirinha|cartaz|cartum|fotografia|ilustra[cç][aã]o|texto a seguir)/i.test(prompt);
+    const hasVisualDependency = /(figura|imagem|gráfico|grafico|tabela|mapa|charge|tirinha|cartaz|cartum|fotografia|ilustra[cç][aã]o)/i.test(prompt);
     if (hasVisualDependency) {
       issues.push("Possível dependência de imagem, tabela, mapa ou texto externo; conferir o PDF visualmente.");
     }
