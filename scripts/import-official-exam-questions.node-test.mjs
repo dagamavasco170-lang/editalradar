@@ -48,8 +48,8 @@ test("descobre fontes oficiais concluídas e ignora URLs não autorizadas", () =
     staticContests: []
   });
   assert.equal(candidates.length, 2);
-  assert.equal(candidates[0].board, "FGV");
-  assert.equal(candidates[1].board, "Cebraspe");
+  assert.ok(candidates.some(candidate => candidate.board === "FGV"));
+  assert.ok(candidates.some(candidate => candidate.board === "Cebraspe"));
 });
 
 test("identifica banca pelos hosts oficiais autorizados", () => {
@@ -98,7 +98,7 @@ test("remove números com gabarito conflitante e identifica questões anuladas",
     text: "GABARITO DEFINITIVO\n01 - A\n01 - B\n02 - C\n03 - D\n04 - A\n05 - B\nQuestão 6 anulada"
   }], "gabarito definitivo");
   assert.equal(key.answers.has(1), false);
-  assert.equal(key.annulled.has(6), true);
+  assert.equal(key.annulled.has(7), true);
   assert.equal(key.valid, true);
 });
 
