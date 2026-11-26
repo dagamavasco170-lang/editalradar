@@ -1094,7 +1094,7 @@ export function summarizeSourceChecks({
     || recovered.length > 0 || sourceDiscoveries.length > 0;
   const total = checked.length;
   const successfulCount = successful.length;
-  const hasFailures = unavailable.length > 0 || restricted.length > 0;
+  const hasFailures = successfulCount < total || unavailable.length > 0 || restricted.length > 0;
 
   let outcome = "NO_CHANGE";
   if (total === 0 || successfulCount === 0) outcome = "FAILED";
@@ -1105,6 +1105,7 @@ export function summarizeSourceChecks({
     outcome,
     total,
     successful: successfulCount,
+    failed: total - successfulCount,
     unchanged,
     baseline,
     changed: changed.length,
@@ -1248,7 +1249,7 @@ async function runMonitor() {
     "",
     "Verificado em: " + report.generatedAt,
     "Fontes acompanhadas: " + report.monitoredCount,
-    "Resultado das fontes oficiais: " + sourceChecks.outcome + " · " + sourceChecks.successful + "/" + sourceChecks.total + " consultadas, " + sourceChecks.unchanged + " sem alteração, " + sourceChecks.changed + " alteradas, " + sourceChecks.unavailable + " indisponíveis e " + sourceChecks.restricted + " com acesso automatizado restrito.",
+    "Resultado das fontes oficiais: " + sourceChecks.outcome + " · " + sourceChecks.successful + "/" + sourceChecks.total + " consultadas, " + sourceChecks.unchanged + " sem alteração, " + sourceChecks.changed + " alteradas, " + sourceChecks.failed + " sem sucesso (" + sourceChecks.unavailable + " indisponíveis; " + sourceChecks.restricted + " com acesso automatizado restrito).",
     "Concorrência: " + report.concurrency + " · tentativas por fonte: 3",
     "Consultas recuperadas pelo transporte alternativo: " + report.fallbackCount,
     "Buscas automáticas na internet: " + internetSearch.feedsChecked + " feeds/consultas (" + internetSearch.googleFeedsChecked + " do Google Notícias e " + internetSearch.secondaryFeedsChecked + " editoriais; " + internetSearch.googleSkippedAfter503 + " consultas do Google pausadas após HTTP 503) · " + internetSearch.leadCount + " resultados atuais · " + unseenWebSearch.discoveries.length + " pistas novas.",
@@ -1278,6 +1279,7 @@ async function runMonitor() {
       "source_status=" + sourceChecks.outcome,
       "sources_checked_count=" + sourceChecks.total,
       "sources_successful_count=" + sourceChecks.successful,
+      "sources_failed_count=" + sourceChecks.failed,
       "sources_unchanged_count=" + sourceChecks.unchanged,
       "sources_baseline_count=" + sourceChecks.baseline,
       "sources_unavailable_count=" + sourceChecks.unavailable,
