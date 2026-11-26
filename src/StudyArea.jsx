@@ -60,7 +60,14 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
  const [recoveryReflectionConfirmed,setRecoveryReflectionConfirmed]=useState(false);
  const [generatedReasoning,setGeneratedReasoning]=useState("");
  const [generatedAssessment,setGeneratedAssessment]=useState(null);
- const [conceptMastery,setConceptMastery]=useState(()=>{try{return JSON.parse(localStorage.getItem("er-concept-mastery:"+(activeUserId||"visitor"))||"{}");}catch{return {};}});
+ const conceptMasteryKey="er-concept-mastery:"+(activeUserId||"visitor");
+ const loadConceptMastery=(userId)=>{try{return JSON.parse(localStorage.getItem("er-concept-mastery:"+(userId||"visitor"))||"{}");}catch{return {};}};
+ const [conceptMasteryState,setConceptMasteryState]=useState(()=>({userId:activeUserId,data:loadConceptMastery(activeUserId)}));
+ const conceptMastery=conceptMasteryState.userId===activeUserId?conceptMasteryState.data:loadConceptMastery(activeUserId);
+ const setConceptMastery=(updater)=>setConceptMasteryState(current=>{
+  const base=current.userId===activeUserId?current.data:loadConceptMastery(activeUserId);
+  return {userId:activeUserId,data:typeof updater==="function"?updater(base):updater};
+ });
  const [questionProgressReady,setQuestionProgressReady]=useState(!activeUserId || !authClient);
  const [questionSyncStatus,setQuestionSyncStatus]=useState(activeUserId ? "loading" : "local");
  const [questionProgressState,setQuestionProgressState]=useState(()=>({
@@ -101,7 +108,8 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
   setTimerNotice("Sessão concluída! Faça uma pausa e volte com energia.");
  },[timerRunning,timerRemaining,activeUserId]);
  useEffect(()=>{try{localStorage.setItem(storageKey(activeUserId),JSON.stringify(plan));}catch{}},[plan,activeUserId]);
- useEffect(()=>{try{localStorage.setItem("er-concept-mastery:"+(activeUserId||"visitor"),JSON.stringify(conceptMastery));}catch{}},[conceptMastery,activeUserId]);
+ useEffect(()=>{setConceptMasteryState({userId:activeUserId,data:loadConceptMastery(activeUserId)});setGeneratedReasoning("");setGeneratedAssessment(null);},[activeUserId]);
+ useEffect(()=>{if(conceptMasteryState.userId!==activeUserId)return;try{localStorage.setItem("er-concept-mastery:"+(activeUserId||"visitor"),JSON.stringify(conceptMasteryState.data));}catch{}},[conceptMasteryState,activeUserId]);
 
 
  useEffect(()=>{
