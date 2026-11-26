@@ -1,23 +1,19 @@
--- Fila administrativa de questões extraídas de provas oficiais já divulgadas.
--- O fundamento "official_publication" registra a hipótese de ato oficial público;
--- não equivale a afirmar que todo documento ou anexo de toda banca seja livre.
--- Importações nunca são publicadas automaticamente: exigem revisão administrativa.
+-- Importação autônoma de questões publicadas em provas oficiais.
+-- Apenas documentos diretamente hospedados por bancas/órgãos são consumidos pelo worker.
+-- A publicação exige prova + gabarito definitivo, checks determinísticos, score >=98,
+-- deduplicação e operação transacional única. Nenhuma aprovação humana é necessária.
 
 alter table public.study_questions
-  drop constraint if exists study_questions_origin_check;
-
-alter table public.study_questions
-  add constraint study_questions_origin_check
-  check (origin in ('manual', 'ai_generated', 'exam_import'));
-
-alter table public.study_questions
+  drop constraint if exists study_questions_origin_check,
   drop constraint if exists study_questions_license_status_check;
 
 alter table public.study_questions
+  add constraint study_questions_origin_check
+    check (origin in ('manual','ai_generated','exam_import')),
   add constraint study_questions_license_status_check
     check (license_status in (
-      'permission_granted','public_domain','cc_by','cc_by_sa','link_only',
-      'original_content','official_publication'
+      'permission_granted','public_domain','cc_by','cc_by_sa',
+      'link_only','original_content','official_publication'
     ));
 
 alter table public.study_questions
@@ -31,7 +27,8 @@ alter table public.study_questions
   drop constraint if exists study_questions_source_document_sha256_check,
   drop constraint if exists study_questions_source_fingerprint_check,
   drop constraint if exists study_questions_source_page_check,
-  drop constraint if exists study_questions_source_question_number_check;
+  drop constraint if exists study_questions_source_question_number_check,
+  drop constraint if exists study_questions_rights_basis_check;
 
 alter table public.study_questions
   add constraint study_questions_source_document_sha256_check
@@ -41,26 +38,22 @@ alter table public.study_questions
   add constraint study_questions_source_page_check
     check (source_page is null or source_page > 0),
   add constraint study_questions_source_question_number_check
-    check (source_question_number is null or source_question_number > 0);
-
-alter table public.study_questions
-  drop constraint if exists study_questions_rights_basis_check;
-alter table public.study_questions
+    check (source_question_number is null or source_question_number > 0),
   add constraint study_questions_rights_basis_check
     check (rights_basis is null or rights_basis in (
       'official_publication','public_domain','permission_granted','cc_by','cc_by_sa','other_reviewed'
     ));
 
 create unique index if not exists study_questions_exam_import_document_item_uidx
-  on public.study_questions(source_document_sha256, source_page, source_question_number)
-  where origin = 'exam_import'
+  on public.study_questions(source_document_sha256,source_page,source_question_number)
+  where origin='exam_import'
     and source_document_sha256 is not null
     and source_page is not null
     and source_question_number is not null;
 
 create unique index if not exists study_questions_exam_import_fingerprint_uidx
   on public.study_questions(source_fingerprint)
-  where origin = 'exam_import'
+  where origin='exam_import'
     and source_fingerprint is not null;
 
 create table if not exists public.study_exam_question_imports (
@@ -70,31 +63,34 @@ create table if not exists public.study_exam_question_imports (
   exam_year integer not null check (exam_year between 1900 and 2200),
   discipline text not null check (char_length(btrim(discipline)) between 2 and 100),
   topic text not null default 'A classificar' check (char_length(btrim(topic)) between 2 and 160),
-  difficulty text not null default 'Intermediária' check (difficulty in ('Fácil','Intermediária','Avançada')),
+  difficulty text not null default 'Intermediária'
+    check (difficulty in ('Fácil','Intermediária','Avançada')),
   question_format text not null default 'multiple_choice'
     check (question_format in ('multiple_choice','true_false')),
   role_name text not null default '',
   source_url text not null check (source_url ~ '^https://'),
   exam_pdf_url text not null check (exam_pdf_url ~ '^https://'),
+  answer_key_url text not null check (answer_key_url ~ '^https://'),
+  answer_key_sha256 text not null check (answer_key_sha256 ~ '^[0-9a-f]{64}$'),
   source_document_sha256 text not null check (source_document_sha256 ~ '^[0-9a-f]{64}$'),
   source_page integer not null check (source_page > 0),
   source_question_number integer not null check (source_question_number > 0),
   prompt text not null check (char_length(btrim(prompt)) between 20 and 5000),
   options jsonb not null check (
-    jsonb_typeof(options) = 'array'
+    jsonb_typeof(options)='array'
     and jsonb_array_length(options) between 2 and 6
   ),
   suggested_answer text check (suggested_answer is null or suggested_answer ~ '^[a-f]$'),
   fingerprint text not null check (fingerprint ~ '^[0-9a-f]{64}$'),
+  auto_quality_score integer check (auto_quality_score is null or auto_quality_score between 0 and 100),
+  validation_checks jsonb not null default '{}'::jsonb
+    check (jsonb_typeof(validation_checks)='object'),
+  review_method text not null default 'automated' check (review_method='automated'),
+  auto_publish_attempts smallint not null default 0
+    check (auto_publish_attempts between 0 and 3),
+  last_auto_publish_attempt_at timestamptz,
   rights_basis text not null default 'official_publication'
-    check (rights_basis in (
-      'official_publication',
-      'public_domain',
-      'permission_granted',
-      'cc_by',
-      'cc_by_sa',
-      'other_reviewed'
-    )),
+    check (rights_basis in ('official_publication','public_domain','permission_granted','cc_by','cc_by_sa')),
   official_release_verified boolean not null default false,
   rights_holder text check (rights_holder is null or char_length(btrim(rights_holder)) between 2 and 180),
   license_proof_url text check (license_proof_url is null or license_proof_url ~ '^https://'),
@@ -107,252 +103,274 @@ create table if not exists public.study_exam_question_imports (
   status text not null default 'pending'
     check (status in ('pending','published','rejected','duplicate')),
   review_notes text not null default '',
-  created_by uuid not null references auth.users(id) on delete restrict,
+  created_by uuid references auth.users(id) on delete set null,
   reviewed_by uuid references auth.users(id) on delete set null,
   reviewed_at timestamptz,
   published_question_id bigint references public.study_questions(id) on delete set null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint study_exam_question_imports_document_item_unique
-    unique (source_document_sha256, source_page, source_question_number),
+    unique (source_document_sha256,source_page,source_question_number),
   constraint study_exam_question_imports_exam_fingerprint_unique
-    unique (board, exam_name, exam_year, fingerprint),
+    unique (board,exam_name,exam_year,fingerprint),
   constraint study_exam_question_imports_official_release_check
-    check (rights_basis <> 'official_publication' or official_release_verified = true),
-  constraint study_exam_question_imports_published_review_check
-    check (status <> 'published' or (
-      rights_review_status = 'accepted'
-      and reviewed_by is not null
+    check (rights_basis<>'official_publication' or official_release_verified=true),
+  constraint study_exam_question_imports_published_check
+    check (status<>'published' or (
+      rights_review_status='accepted'
+      and review_method='automated'
+      and reviewed_by is null
       and reviewed_at is not null
       and published_question_id is not null
+      and auto_quality_score>=98
     ))
 );
 
 create index if not exists study_exam_question_imports_review_idx
-  on public.study_exam_question_imports(status, created_at desc);
+  on public.study_exam_question_imports(status,created_at desc);
+create index if not exists study_exam_question_imports_retry_idx
+  on public.study_exam_question_imports(auto_publish_attempts,created_at)
+  where status='pending';
 
 alter table public.study_exam_question_imports enable row level security;
 
 drop policy if exists "Admins manage official exam question imports"
   on public.study_exam_question_imports;
-
 drop policy if exists "Admins read official exam question imports"
   on public.study_exam_question_imports;
 create policy "Admins read official exam question imports"
   on public.study_exam_question_imports for select to authenticated
-  using (coalesce((select auth.jwt() -> 'app_metadata' ->> 'role'), '') = 'admin');
+  using (coalesce((select auth.jwt()->'app_metadata'->>'role'),'')='admin');
 
-drop policy if exists "Admins insert official exam question imports"
-  on public.study_exam_question_imports;
-create policy "Admins insert official exam question imports"
-  on public.study_exam_question_imports for insert to authenticated
-  with check (
-    coalesce((select auth.jwt() -> 'app_metadata' ->> 'role'), '') = 'admin'
-    and created_by = (select auth.uid())
-  );
+grant select on public.study_exam_question_imports to authenticated;
+grant select,insert,update,delete on public.study_exam_question_imports to service_role;
+grant usage,select on sequence public.study_exam_question_imports_id_seq to service_role;
 
-drop policy if exists "Admins update official exam question imports"
-  on public.study_exam_question_imports;
-create policy "Admins update official exam question imports"
-  on public.study_exam_question_imports for update to authenticated
-  using (coalesce((select auth.jwt() -> 'app_metadata' ->> 'role'), '') = 'admin')
-  with check (
-    coalesce((select auth.jwt() -> 'app_metadata' ->> 'role'), '') = 'admin'
-    and created_by is not null
-  );
+create table if not exists public.study_exam_import_runs (
+  id bigint generated by default as identity primary key,
+  status text not null default 'running'
+    check (status in ('running','completed','partial','failed')),
+  sources_scanned integer not null default 0,
+  pages_scanned integer not null default 0,
+  pdf_pairs_found integer not null default 0,
+  pdfs_downloaded integer not null default 0,
+  questions_extracted integer not null default 0,
+  questions_published integer not null default 0,
+  questions_retried integer not null default 0,
+  questions_skipped integer not null default 0,
+  errors_count integer not null default 0,
+  summary jsonb not null default '{}'::jsonb check (jsonb_typeof(summary)='object'),
+  started_at timestamptz not null default now(),
+  completed_at timestamptz
+);
 
-drop policy if exists "Admins delete official exam question imports"
-  on public.study_exam_question_imports;
-create policy "Admins delete official exam question imports"
-  on public.study_exam_question_imports for delete to authenticated
-  using (coalesce((select auth.jwt() -> 'app_metadata' ->> 'role'), '') = 'admin');
+alter table public.study_exam_import_runs enable row level security;
+drop policy if exists "Admins read exam import runs" on public.study_exam_import_runs;
+create policy "Admins read exam import runs"
+  on public.study_exam_import_runs for select to authenticated
+  using (coalesce((select auth.jwt()->'app_metadata'->>'role'),'')='admin');
 
-grant select, insert, update, delete
-  on public.study_exam_question_imports to authenticated;
-grant usage, select
-  on sequence public.study_exam_question_imports_id_seq to authenticated;
+grant select on public.study_exam_import_runs to authenticated;
+grant select,insert,update on public.study_exam_import_runs to service_role;
+grant usage,select on sequence public.study_exam_import_runs_id_seq to service_role;
+
+-- O worker publica usando exclusivamente o service_role já existente nos workflows.
+grant select,insert,update on public.study_questions to service_role;
+grant select,insert on public.study_question_answers to service_role;
+grant usage,select on sequence public.study_questions_id_seq to service_role;
 
 comment on table public.study_exam_question_imports is
-  'Fila administrativa de questões extraídas de provas oficiais divulgadas; exige revisão humana e nunca publica automaticamente.';
+  'Fila autônoma de questões identificadas em provas oficiais; casos qualificados são publicados sem intervenção humana.';
 comment on column public.study_exam_question_imports.rights_basis is
-  'Fundamento registrado para reutilização. official_publication registra análise de ato oficial público; não é licença presumida para qualquer anexo de terceiro.';
-comment on column public.study_questions.rights_basis is
-  'Fundamento de reutilização revisado para questões importadas de provas oficiais.';
-comment on column public.study_exam_question_imports.official_release_verified is
-  'Confirmação administrativa de que o documento foi divulgado pela banca/órgão responsável.';
-comment on column public.study_exam_question_imports.license_proof_url is
-  'Opcional para hipóteses sem licença individual; preenchido quando houver licença/autorização específica.';
-comment on column public.study_exam_question_imports.source_restrictions is
-  'Restrições específicas verificadas nos termos/edital/contrato da banca ou do órgão.';
-comment on column public.study_exam_question_imports.question_format is
-  'Formato do item: múltipla escolha ou julgamento Certo/Errado.';
-comment on column public.study_exam_question_imports.suggested_answer is
-  'Gabarito apenas sugerido pelo parser; deve ser confirmado por administrador contra a versão definitiva da banca.';
+  'Fundamento de reutilização classificado pelo pipeline. official_publication exige origem oficial divulgada e ausência de restrição expressa detectável.';
+comment on column public.study_exam_question_imports.answer_key_sha256 is
+  'Hash SHA-256 do documento oficial de gabarito definitivo que sustenta a resposta.';
+comment on column public.study_exam_question_imports.validation_checks is
+  'Checks determinísticos necessários à publicação automática; todos precisam ser true.';
+comment on column public.study_exam_question_imports.auto_publish_attempts is
+  'Número de tentativas de publicação; falhas persistentes são encerradas após três tentativas.';
 
-
--- Publicação atômica: questão, gabarito e fila são confirmados em uma transação SQL.
 create or replace function public.publish_study_exam_question_import(
   p_import_id bigint,
   p_answer text,
   p_explanation text default '',
   p_review_notes text default '',
-  p_admin_confirmation boolean default false
+  p_admin_confirmation boolean default false,
+  p_automated boolean default false,
+  p_auto_quality_score integer default null,
+  p_validation_checks jsonb default '{}'::jsonb
 )
 returns bigint
 language plpgsql
 security invoker
-set search_path = pg_catalog, public
+set search_path = pg_catalog,public
 as $$
 declare
   v_import public.study_exam_question_imports%rowtype;
   v_question_id bigint;
-  v_license_status text;
-  v_now timestamptz := now();
-  v_answer text := lower(btrim(coalesce(p_answer, '')));
+  v_now timestamptz:=now();
+  v_answer text:=lower(btrim(coalesce(p_answer,'')));
+  v_jwt_role text:=coalesce(
+    nullif(auth.jwt()->>'role',''),
+    nullif(current_setting('request.jwt.claim.role',true),''),
+    current_user
+  );
 begin
-  if auth.uid() is null
-     or coalesce((auth.jwt() -> 'app_metadata' ->> 'role'), '') <> 'admin' then
-    raise exception 'Apenas administradores podem publicar questões importadas.'
-      using errcode = '42501';
+  if p_automated is not true or v_jwt_role<>'service_role' then
+    raise exception 'Somente o pipeline autenticado como service_role pode publicar importações.'
+      using errcode='42501';
   end if;
 
-  if p_admin_confirmation is distinct from true then
-    raise exception 'A revisão humana precisa ser confirmada antes da publicação.'
-      using errcode = '22023';
+  if p_admin_confirmation is not false then
+    raise exception 'O worker não utiliza confirmação humana.'
+      using errcode='22023';
+  end if;
+
+  if p_auto_quality_score is null or p_auto_quality_score<98 or p_auto_quality_score>100 then
+    raise exception 'A pontuação automática mínima é 98/100.'
+      using errcode='22023';
+  end if;
+
+  if jsonb_typeof(p_validation_checks)<>'object'
+     or coalesce((p_validation_checks->>'source_official')::boolean,false) is not true
+     or coalesce((p_validation_checks->>'answer_key_official')::boolean,false) is not true
+     or coalesce((p_validation_checks->>'final_answer_key')::boolean,false) is not true
+     or coalesce((p_validation_checks->>'question_structure')::boolean,false) is not true
+     or coalesce((p_validation_checks->>'standalone_text')::boolean,false) is not true
+     or coalesce((p_validation_checks->>'no_visual_dependency')::boolean,false) is not true
+     or coalesce((p_validation_checks->>'answer_match')::boolean,false) is not true
+     or coalesce((p_validation_checks->>'duplicate_free')::boolean,false) is not true
+     or coalesce((p_validation_checks->>'extraction_integrity')::boolean,false) is not true
+     or coalesce((p_validation_checks->>'source_restrictions_clear')::boolean,false) is not true then
+    raise exception 'A questão não passou por todas as validações automáticas obrigatórias.'
+      using errcode='22023';
   end if;
 
   select *
     into v_import
     from public.study_exam_question_imports
-   where id = p_import_id
-     and status = 'pending'
+   where id=p_import_id
+     and status='pending'
+     and review_method='automated'
    for update;
 
   if not found then
-    raise exception 'Importação inexistente ou já processada.'
-      using errcode = 'P0002';
+    raise exception 'Importação inexistente, não automatizada ou já processada.'
+      using errcode='P0002';
   end if;
 
-  v_license_status := case v_import.rights_basis
-    when 'official_publication' then 'official_publication'
-    when 'public_domain' then 'public_domain'
-    when 'permission_granted' then 'permission_granted'
-    when 'cc_by' then 'cc_by'
-    when 'cc_by_sa' then 'cc_by_sa'
-    else null
-  end;
-
-  if v_license_status is null then
-    raise exception 'O fundamento exige classificação jurídica adicional antes da publicação.'
-      using errcode = '22023';
-  end if;
-
-  if v_import.rights_basis = 'official_publication'
-     and v_import.official_release_verified is not true then
-    raise exception 'A divulgação oficial do documento não foi confirmada.'
-      using errcode = '22023';
-  end if;
-
-  if v_import.rights_basis in ('permission_granted','cc_by','cc_by_sa')
-     and (
-       v_import.license_proof_url is null
-       or v_import.license_proof_url !~ '^https://'
-     ) then
-    raise exception 'O fundamento selecionado exige comprovante HTTPS de licença/autorização.'
-      using errcode = '22023';
-  end if;
-
-  if char_length(coalesce(p_explanation, '')) > 5000
-     or char_length(coalesce(p_review_notes, '')) > 4000 then
-    raise exception 'Justificativa ou observações excedem o limite permitido.'
-      using errcode = '22023';
+  if v_import.rights_basis<>'official_publication'
+     or v_import.official_release_verified is not true
+     or v_import.exam_pdf_url !~ '^https://'
+     or v_import.answer_key_url !~ '^https://'
+     or v_import.answer_key_sha256 !~ '^[0-9a-f]{64}$'
+     or v_import.source_document_sha256 !~ '^[0-9a-f]{64}$' then
+    raise exception 'A publicação automática exige prova e gabarito definitivo em fontes oficiais com hashes.'
+      using errcode='22023';
   end if;
 
   if not exists (
     select 1
       from jsonb_array_elements(v_import.options) as option_row(value)
-     where lower(coalesce(option_row.value ->> 'id', '')) = v_answer
+     where lower(coalesce(option_row.value->>'id',''))=v_answer
   ) then
     raise exception 'O gabarito informado não corresponde a uma alternativa da questão.'
-      using errcode = '22023';
+      using errcode='22023';
+  end if;
+
+  if char_length(coalesce(p_explanation,''))>5000
+     or char_length(coalesce(p_review_notes,''))>4000 then
+    raise exception 'Texto explicativo excede o limite permitido.'
+      using errcode='22023';
   end if;
 
   insert into public.study_questions (
-    exam_name, exam_year, board, discipline, topic, difficulty,
-    prompt, options, source_url, rights_holder, license_status,
-    license_proof_url, source_license, source_attribution, rights_basis,
-    source_document_sha256, source_page, source_question_number, source_fingerprint,
-    origin, review_status, reviewed_at, published, created_by
+    exam_name,exam_year,board,discipline,topic,difficulty,
+    prompt,options,source_url,rights_holder,license_status,
+    license_proof_url,source_license,source_attribution,rights_basis,
+    source_document_sha256,source_page,source_question_number,source_fingerprint,
+    origin,review_status,review_score,reviewed_at,published,created_by
   ) values (
-    v_import.exam_name, v_import.exam_year, v_import.board, v_import.discipline,
-    v_import.topic, v_import.difficulty, v_import.prompt, v_import.options,
-    v_import.exam_pdf_url, coalesce(nullif(btrim(v_import.rights_holder), ''), 'Não identificado'),
-    v_license_status, v_import.license_proof_url, v_import.source_license,
-    v_import.source_attribution, v_import.rights_basis,
-    v_import.source_document_sha256, v_import.source_page, v_import.source_question_number,
-    v_import.fingerprint, 'exam_import', 'admin_approved', v_now, false, auth.uid()
+    v_import.exam_name,v_import.exam_year,v_import.board,v_import.discipline,
+    v_import.topic,v_import.difficulty,v_import.prompt,v_import.options,
+    v_import.exam_pdf_url,coalesce(nullif(btrim(v_import.rights_holder),''),'Banca/órgão organizador'),
+    'official_publication',null,v_import.source_license,v_import.source_attribution,
+    'official_publication',v_import.source_document_sha256,v_import.source_page,
+    v_import.source_question_number,v_import.fingerprint,'exam_import','auto_approved',
+    p_auto_quality_score,v_now,false,null
   )
+  on conflict do nothing
   returning id into v_question_id;
 
-  insert into public.study_question_answers (
-    question_id, answer, explanation, created_by
-  ) values (
-    v_question_id, v_answer,
-    coalesce(nullif(btrim(p_explanation), ''), 'Gabarito conferido pelo administrador na publicação oficial da banca.'),
-    auth.uid()
+  if v_question_id is null then
+    update public.study_exam_question_imports
+       set status='duplicate',
+           rights_review_status='accepted',
+           reviewed_at=v_now,
+           review_notes='Duplicidade confirmada por fingerprint ou chave do documento; não foi publicada.',
+           updated_at=v_now
+     where id=v_import.id;
+    return null;
+  end if;
+
+  insert into public.study_question_answers(question_id,answer,explanation,created_by)
+  values (
+    v_question_id,v_answer,
+    coalesce(nullif(btrim(p_explanation),''),'Gabarito extraído do documento oficial definitivo da banca.'),
+    null
   );
 
   update public.study_questions
-     set published = true,
-         updated_at = v_now
-   where id = v_question_id;
+     set published=true,updated_at=v_now
+   where id=v_question_id;
 
   update public.study_exam_question_imports
-     set status = 'published',
-         rights_review_status = 'accepted',
-         reviewed_by = auth.uid(),
-         reviewed_at = v_now,
-         published_question_id = v_question_id,
-         review_notes = left(coalesce(p_review_notes, ''), 4000),
-         updated_at = v_now
-   where id = v_import.id;
+     set status='published',
+         rights_review_status='accepted',
+         auto_quality_score=p_auto_quality_score,
+         validation_checks=p_validation_checks,
+         reviewed_by=null,
+         reviewed_at=v_now,
+         published_question_id=v_question_id,
+         review_notes=left(coalesce(p_review_notes,''),4000),
+         updated_at=v_now
+   where id=v_import.id;
 
   return v_question_id;
 end;
 $$;
 
-revoke all on function public.publish_study_exam_question_import(bigint, text, text, text, boolean) from public, anon;
-grant execute on function public.publish_study_exam_question_import(bigint, text, text, text, boolean) to authenticated;
+revoke all on function public.publish_study_exam_question_import(bigint,text,text,text,boolean,boolean,integer,jsonb)
+  from public,anon,authenticated;
+grant execute on function public.publish_study_exam_question_import(bigint,text,text,text,boolean,boolean,integer,jsonb)
+  to service_role;
 
--- Questões importadas de atos oficiais publicamente divulgados têm fluxo explícito
--- e só aparecem no banco público após revisão administrativa.
 drop policy if exists "Read published licensed questions or admin review"
   on public.study_questions;
-
 create policy "Read published licensed questions or admin review"
-  on public.study_questions for select to anon, authenticated
+  on public.study_questions for select to anon,authenticated
   using (
     (
-      published = true
+      published=true
       and (
         (
           license_status in ('permission_granted','public_domain','cc_by','cc_by_sa')
-          and (license_status = 'public_domain' or license_proof_url is not null)
+          and (license_status='public_domain' or license_proof_url is not null)
         )
         or (
-          license_status = 'official_publication'
-          and origin = 'exam_import'
-          and rights_basis = 'official_publication'
-          and review_status = 'admin_approved'
+          license_status='official_publication'
+          and origin='exam_import'
+          and rights_basis='official_publication'
+          and review_status='auto_approved'
         )
         or (
-          license_status = 'original_content'
-          and origin = 'ai_generated'
+          license_status='original_content'
+          and origin='ai_generated'
           and review_status in ('auto_approved','admin_approved')
         )
       )
     )
-    or coalesce(((select auth.jwt())->'app_metadata'->>'role'),'')='admin'
+    or coalesce(((select auth.jwt()->'app_metadata'->>'role'),'')='admin'
   );
 
 create or replace function public.check_study_question_answer(
@@ -363,28 +381,28 @@ returns jsonb
 language sql
 stable
 security definer
-set search_path = pg_catalog, public
+set search_path = pg_catalog,public
 as $$
   select jsonb_build_object(
-    'correct', a.answer = btrim(coalesce(p_selected_answer, '')),
-    'explanation', a.explanation
+    'correct',a.answer=btrim(coalesce(p_selected_answer,'')),
+    'explanation',a.explanation
   )
   from public.study_questions q
-  join public.study_question_answers a on a.question_id = q.id
-  where q.id = p_question_id
-    and q.published = true
+  join public.study_question_answers a on a.question_id=q.id
+  where q.id=p_question_id
+    and q.published=true
     and (
       q.license_status in ('permission_granted','public_domain','cc_by','cc_by_sa')
       or (
-        q.license_status = 'official_publication'
-        and q.origin = 'exam_import'
-        and q.rights_basis = 'official_publication'
-        and q.review_status = 'admin_approved'
+        q.license_status='official_publication'
+        and q.origin='exam_import'
+        and q.rights_basis='official_publication'
+        and q.review_status='auto_approved'
       )
     )
     and auth.uid() is not null
   limit 1;
 $$;
 
-revoke all on function public.check_study_question_answer(bigint, text) from public, anon;
-grant execute on function public.check_study_question_answer(bigint, text) to authenticated;
+revoke all on function public.check_study_question_answer(bigint,text) from public,anon;
+grant execute on function public.check_study_question_answer(bigint,text) to authenticated;
