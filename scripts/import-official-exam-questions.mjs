@@ -750,106 +750,11 @@ async function processPair(candidate, pair, pageMetadata, metrics, options) {
   }
 }
 
-export async function runAutomaticExamImport(options = {}) {
-  const autoPublishEnabled = options.enableAutoPublish === true
-    || process.env.EXAM_IMPORT_ENABLE_AUTOMATIC_PUBLISH === "true";
-  if (!autoPublishEnabled) {
-    throw new Error(
-      "A ingestão automática e a publicação de questões estão desativadas por padrão. " +
-      "A execução exige EXAM_IMPORT_ENABLE_AUTOMATIC_PUBLISH=true e uma ativação operacional explícita."
-    );
-  }
-  const supabaseUrl = String(options.supabaseUrl || process.env.SUPABASE_URL || "").replace(/\/$/, "");
-  const serviceKey = String(options.serviceKey || process.env.SUPABASE_SERVICE_ROLE_KEY || "");
-  if (!supabaseUrl || new URL(supabaseUrl).protocol !== "https:" || !serviceKey) {
-    throw new Error("Configure SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY HTTPS para a ingestão automática.");
-  }
-  assertSupabaseServiceCredential(serviceKey);
-  const runId = await persistRunStart(supabaseUrl, serviceKey);
-  const metrics = {
-    sources_scanned: 0, pages_scanned: 0, pdf_pairs_found: 0, pdfs_downloaded: 0,
-    questions_extracted: 0, questions_published: 0, questions_retried: 0, questions_skipped: 0, errors_count: 0
-  };
-  const errors = [];
-  try {
-    errors.push(...await retryPendingAutomaticImports({ supabaseUrl, serviceKey }, metrics));
-    const [officialRows, catalogRows] = await Promise.all([
-      supabaseRequest(supabaseUrl + "/rest/v1/study_exam_sources?" + buildQuery({
-        select: "board,exam_name,exam_year,discipline,role_name,source_url,exam_url,answer_key_url,notes",
-        published: "eq.true", order: "exam_year.desc", limit: "500"
-      }), serviceKey),
-      supabaseRequest(supabaseUrl + "/rest/v1/contest_catalog?" + buildQuery({
-        select: "data", deleted: "eq.false", limit: "1000"
-      }), serviceKey)
-    ]);
-    const candidates = buildExamSourceCandidates({ catalog: catalogRows || [], officialSources: officialRows || [] });
-    metrics.sources_scanned = candidates.length;
-    const concurrency = Math.max(1, Math.min(4, Number(options.concurrency) || 3));
-    const queue = [];
-    for (let index = 0; index < candidates.length; index += concurrency) {
-      const batch = candidates.slice(index, index + concurrency);
-      const outcomes = await Promise.all(batch.map(async candidate => {
-        try {
-          let pageMetadata = { title: "", heading: "", text: "" };
-          let pairs = extractFinalPairFromSourceRow((officialRows || []).find(row =>
-            row.source_url === candidate.source_url
-            && row.exam_name === candidate.exam_name
-            && Number(row.exam_year) === candidate.exam_year
-          ) || {});
-          if (!pairs.length) {
-            const scanned = await scanOfficialPage(candidate, options);
-            metrics.pages_scanned += 1;
-            pageMetadata = scanned.pageMetadata;
-            pairs = scanned.pairs;
-          }
-          return { candidate, pageMetadata, pairs };
-        } catch (error) {
-          errors.push({ source: candidate.source_url, error: safeText(error.message, 400) });
-          return { candidate, pageMetadata: { title: "", heading: "", text: "" }, pairs: [] };
-        }
-      }));
-      queue.push(...outcomes);
-    }
-
-    const pairQueue = [];
-    const seenPairs = new Set();
-    for (const entry of queue) {
-      for (const pair of entry.pairs) {
-        const key = pair.exam.url + "|" + pair.answerKey.url;
-        if (seenPairs.has(key)) continue;
-        seenPairs.add(key);
-        pairQueue.push({ ...entry, pair });
-      }
-    }
-    metrics.pdf_pairs_found = pairQueue.length;
-
-    const pairLimit = Math.min(pairQueue.length, Math.max(1, Number(options.maxPairs) || 20));
-    for (const entry of pairQueue.slice(0, pairLimit)) {
-      try {
-        const result = await processPair(entry.candidate, entry.pair, entry.pageMetadata, metrics, {
-          ...options, supabaseUrl, serviceKey
-        });
-        // Skips are expected for preliminary keys, incomplete PDFs, visual questions and duplicates.
-        // They are counted separately and do not turn a healthy cycle into a failed run.
-      } catch (error) {
-        metrics.errors_count += 1;
-        errors.push({ source: entry.pair.exam.url, error: safeText(error.message, 500) });
-      }
-      if (metrics.questions_published >= MAX_QUESTIONS_PER_RUN) break;
-    }
-    metrics.errors_count = errors.length;
-    const status = metrics.errors_count === 0 ? "completed" : (metrics.questions_published ? "partial" : "failed");
-    await persistRunFinish(supabaseUrl, serviceKey, runId, metrics, status, {
-      errors: errors.slice(0, 60),
-      pairs_processed: pairLimit,
-      candidates: candidates.length
-    });
-    return { runId, status, ...metrics, errors };
-  } catch (error) {
-    metrics.errors_count += 1;
-    await persistRunFinish(supabaseUrl, serviceKey, runId, metrics, "failed", { fatal: safeText(error.message, 500) }).catch(() => {});
-    throw error;
-  }
+export async function runAutomaticExamImport() {
+  throw new Error(
+    "A ingestão automática e a publicação de questões estão desativadas nesta versão. " +
+    "Use o importador local para gerar um manifesto e submeta-o à revisão administrativa."
+  );
 }
 
 async function main() {
