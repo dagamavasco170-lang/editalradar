@@ -183,6 +183,14 @@ function parseAnswerRows(text, questionFormat = "multiple_choice") {
       pendingNumbers = [];
       continue;
     }
+    // FGV tables may have OCR residue around a complete row of question numbers.
+    // Preserve the row if its tokens are unambiguously all numbers; the answer
+    // row can then be aligned even when text extraction adds stray characters.
+    if (tokens.length >= 5 && tokens.every(isNumber)) {
+      pendingNumbers = tokens;
+      continue;
+    }
+
     if (residue) {
       pendingNumbers = [];
       continue;
