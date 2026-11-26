@@ -1,0 +1,123 @@
+# EditalRadar
+
+## Licença e propriedade intelectual
+
+O EditalRadar mantém seu código-fonte publicamente visível no GitHub, mas é um software proprietário. A visibilidade pública permite consulta e fork dentro dos limites dos Termos de Serviço do GitHub; isso não concede licença open source nem autorização adicional para comercializar, sublicenciar ou reutilizar os componentes proprietários fora dessas permissões. Bibliotecas e demais componentes de terceiros permanecem sujeitos às respectivas licenças.
+
+Consulte o arquivo [LICENSE](./LICENSE) para conhecer os termos aplicáveis.
+
+Plataforma web para descobrir e acompanhar concursos públicos, comparar oportunidades, consultar fontes oficiais e organizar a preparação.
+
+## Cobertura inicial
+
+A primeira curadoria reúne oportunidades federais verificadas em páginas oficiais do Banco Central, Receita Federal e CGU, conferidas em 21/11/2026.
+
+- Banco Central 2026: 170 vagas autorizadas — 100 Auditor, 50 Técnico e 20 Procurador. Edital ainda não publicado; inscrições aguardam edital.
+- Receita Federal 2026: 146 vagas autorizadas — 116 Analista-Tributário e 30 Auditor-Fiscal. Situação pré-edital nas informações consultadas.
+- CGU 2026: 60 vagas de Auditor Federal de Finanças e Controle. Edital publicado em 09/10/2026; inscrições encerradas em 04/11/2026; prova prevista para 13/12/2026.
+
+Cada cartão leva à página oficial do respectivo órgão. Status e datas devem sempre ser conferidos na fonte oficial, pois podem mudar.
+
+## Limites da cobertura
+
+O catálogo combina concursos federais e oportunidades estaduais e municipais, com cobertura inicial concentrada em Alagoas e em seleções monitoradas pelo Cebraspe. No corte de 21/11/2026, o catálogo inicial possui 39 fichas; 11 continuam marcadas como preliminares e fora da soma de vagas confirmadas. A lista ainda não representa todos os concursos do Brasil. Registros sem confirmação individual continuam identificados como preliminares. O monitor automático mantém a situação das inscrições como 'a confirmar' quando não consegue validar o cronograma vigente.
+
+## Registros preliminares
+
+O catálogo também pode exibir registros preliminares de Alagoas identificados em listagens secundárias. Eles são marcados como “Concurso listado · verificar edital e cronograma”, não representam confirmação individual por edital oficial e não devem ser usados como prova de vagas, requisitos, inscrições ou datas. Esses registros ficam fora da soma de vagas exibida no aplicativo. A publicação oficial do órgão ou da banca deve ser consultada antes de qualquer decisão.
+
+## Funcionalidades
+
+- Busca por cargo, órgão, ato e escolaridade.
+- Comparador lado a lado para até três oportunidades, incluindo vagas imediatas, cadastro de reserva e remuneração quando documentados.
+- Filtro por escolaridade.
+- Status por etapa da seleção.
+- Links oficiais por concurso e detalhes.
+- Favoritos e filtros sincronizados para usuários autenticados.
+- Central de notificações com histórico local para visitantes e sincronizado entre dispositivos para usuários autenticados.
+- Planejador semanal de estudos por carga horária e dias disponíveis, com sessões marcáveis e foco no concurso selecionado. O plano é salvo localmente e separado por conta neste navegador.\n- Banco de questões autorais por disciplina e estilo de banca; as questões são exercícios originais de treino, não questões oficiais nem reproduções de provas.
+- Interface responsiva com modo claro/escuro e preferência de aparência salva no dispositivo.
+- Aplicativo instalável (PWA), com cache do catálogo e da interface para acesso básico sem conexão após a primeira visita.
+- Painel administrativo com controle por função, cadastro/edição/remoção de concursos e fila de revisão de oportunidades detectadas pelo monitor de fontes oficiais.
+
+## Fontes oficiais consultadas
+
+- MGI: https://www.gov.br/gestao/pt-br/acesso-a-informacao/servidores/concursos-publicos/autorizacoes-e-provimentos
+- Banco Central: https://www.bcb.gov.br/acessoinformacao/concursospublicos
+- Receita Federal: https://www.gov.br/receitafederal/pt-br/acesso-a-informacao/servidores/concurso-publico-2026
+- CGU: https://www.gov.br/cgu/pt-br/acesso-a-informacao/concursos/concursos-publicos/
+
+## Notificações
+
+A central de notificações identifica novos concursos adicionados ao catálogo e alterações relevantes em concursos favoritados. Os avisos ficam salvos neste navegador e podem ser abertos para consultar os detalhes da oportunidade.
+
+O usuário pode autorizar notificações do navegador, consultar avisos não lidos, marcar todos como lidos e limpar o histórico. O cabeçalho exibe a quantidade de avisos pendentes e leva diretamente à central. Esse recurso não exige domínio próprio nem serviço de e-mail. Por depender da comparação local do catálogo, as novidades são identificadas quando o usuário abre ou atualiza o EditalRadar depois de uma publicação. Para usuários autenticados, o histórico também é salvo na conta Supabase e carregado ao entrar ou atualizar o aplicativo em outro aparelho; visitantes continuam com histórico apenas local. A sincronização entre aparelhos requer executar a migração `supabase/migrations/202611220001_user_notifications.sql` no SQL Editor do Supabase. As notificações do navegador dependem da permissão concedida e da comparação do catálogo quando o site está aberto; o navegador não recebe push remoto quando está fechado. No aplicativo Android, os avisos em segundo plano e com o aplicativo fechado são enviados pelo Firebase Cloud Messaging (FCM), após a autorização do usuário e a configuração do serviço no aparelho. A configuração e os detalhes de distribuição estão em [android/README.md](./android/README.md).
+
+## Monitoramento automático das fontes
+
+O GitHub Actions verifica a cada seis horas os links de origem cadastrados em `src/data/concursos.js` e no `sourceRegistry`. O registro inicial de fontes inclui páginas oficiais do Cebraspe, FGV, FCC, Vunesp e Instituto AOCP, além de órgãos e bancas já presentes no catálogo. Além de detectar páginas alteradas e novos links, o robô abre as páginas oficiais e faz uma triagem automática. Quando há evidências suficientes de edital de concurso/processo seletivo, órgão, cargo e esfera/estado, a ficha é estruturada e cadastrada no catálogo. Links claramente alheios a concursos são descartados. Páginas ambíguas, PDFs digitalizados como imagem e documentos sem dados suficientes permanecem na fila administrativa; PDFs pesquisáveis são extraídos automaticamente. O sistema não inventa vagas, escolaridade ou datas; dados não confirmados ficam marcados para conferência. Para ativar, execute as migrações `202611220003_contest_discoveries.sql` e `202611220004_auto_publish.sql` no SQL Editor e configure os secrets `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` no GitHub Actions. O robô roda automaticamente a cada seis horas e também pode ser iniciado em Actions → **Monitorar fontes de concursos** → Run workflow.
+
+## Painel administrativo
+
+O painel fica disponível apenas para contas cujo campo protegido `app_metadata.role` no Supabase seja `admin`. A migração `supabase/migrations/202611220002_admin_catalog.sql` cria a tabela de alterações e políticas RLS: todos podem ler as fichas publicadas, mas somente administradores podem alterá-las. Consulte [ADMIN_SETUP.md](./ADMIN_SETUP.md) para conceder o papel. Nunca conceda esse papel pelo `user_metadata`, que pode ser alterado pelo próprio usuário.
+
+As alterações são guardadas como sobreposições: fichas preexistentes podem ser editadas ou removidas sem apagar a curadoria original do repositório; novos concursos recebem IDs do banco. Links oficiais HTTPS são obrigatórios.
+
+## Aplicativo Android
+
+Versão estável: **1.3.11**. [Baixar APK para instalar no Android](https://github.com/dagamavasco170-lang/editalradar/releases/download/android-v1.3.11/EditalRadar-Android-v1.3.11.apk) · [Abrir a GitHub Release e conferir AAB e checksums](https://github.com/dagamavasco170-lang/editalradar/releases/tag/android-v1.3.11). A atualização preserva a assinatura permanente do aplicativo. Consulte a release para conferir os arquivos e validações da versão.
+## Instalação e uso offline
+
+O EditalRadar pode ser instalado no celular ou computador pelo menu de instalação do navegador. No iPhone/iPad, use Compartilhar → Adicionar à Tela de Início no Safari. O service worker mantém a interface e os arquivos estáticos em cache para permitir a abertura após a primeira visita online. Sem internet, o catálogo já carregado e os dados locais continuam acessíveis; login, sincronização com a conta e atualização do catálogo dependem de conexão. O navegador atualiza o aplicativo quando uma nova versão é publicada.
+
+## Desenvolvimento
+
+Requisitos: Node.js 22+ e npm.
+
+```bash
+npm install
+npm run dev
+```
+
+Compilar: `npm run build`.
+
+O GitHub Actions compila e publica o site no GitHub Pages a cada atualização da branch `main`.
+
+## Testes automatizados
+
+A suíte usa Vitest, jsdom, Testing Library e Playwright para verificar renderização, pesquisa, filtros, favoritos, detalhes, comparação, autenticação, sincronização, notificações, triagem automática, build e navegação no site publicado. Os testes de produção também verificam se o commit publicado corresponde ao commit esperado.
+
+Executar localmente:
+
+```bash
+npm install
+npm test
+```
+
+O GitHub Actions executa os testes antes do build. A publicação só é realizada se os testes e a verificação do caminho dos arquivos do GitHub Pages passarem.
+
+### Retificações automáticas
+
+O monitoramento compara retificações oficiais com concursos já cadastrados. Atualizações automáticas são limitadas a registros com correspondência exata de órgão e cargo e a campos objetivos explicitamente indicados na retificação. A versão anterior e os campos alterados são preservados em `historicoAtualizacoes`. Quando a publicação não permite identificar com segurança o registro ou o novo valor, a descoberta permanece pendente para revisão.
+
+### Remuneração e vagas
+
+Os valores remuneratórios estruturados incluem natureza do valor (por exemplo, inicial, após curso de formação ou até determinado teto), periodicidade, observação, fonte e data de verificação. A remuneração só é exibida quando há fonte oficial identificável. Vagas imediatas e cadastro de reserva são campos separados; a ausência de um campo significa que a informação não está discriminada nesta ficha.
+
+
+## Geração e revisão automática de questões
+
+A fábrica de questões autorais é autônoma: o GitHub Actions amplia continuamente um catálogo multidisciplinar de 82 temas iniciais, usando Wikilivros, Wikipédia, Wikiversidade e Wikcionário sob licenças CC BY-SA, além de conteúdos do Politize! com reutilização mediante crédito. Não coleta páginas de governos, órgãos públicos ou sites que proíbem raspagem, reprodução ou uso comercial. A licença e a atribuição da fonte são gravadas com a questão e seu relatório de revisão; conteúdos derivados de CC BY-SA recebem a mesma licença. O sistema gera questões inéditas e executa uma segunda chamada de revisão para fundamentação, gabarito, alternativas e justificativa. Validações determinísticas conferem estrutura, citação literal do texto-base e duplicidade. Apenas questões com nota mínima de 90/100 e todos os critérios atendidos são publicadas automaticamente; casos incertos ficam bloqueados na fila de exceções. A licença e a atribuição da fonte são gravadas com cada questão e seu relatório de revisão. Conteúdos derivados de CC BY-SA recebem a mesma licença. O cadastro de questões reais mantém uma verificação separada de origem e direitos autorais/licença.
+
+Configure `GEMINI_API_KEY` em Supabase → Edge Functions → Secrets. O modelo é fixado em `gemini-3.1-flash-lite`, sem fallback para OpenAI ou qualquer provedor pago. Limites de proteção: até 3 execuções por dia e no máximo 3 questões por execução (2 chamadas de IA por execução, geração + revisão). O agendamento diário usa GitHub Actions → **Gerar e revisar questões automaticamente**, com os secrets existentes `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY`. Cada tema define a frequência (1 a 30 dias). A automação usa exclusivamente o trecho oficial fornecido como base factual; questões são conteúdo original EditalRadar, não cópias de provas reais.
+
+A extração de texto de páginas HTML oficiais é automática. Para PDF ou imagem, informe manualmente um trecho oficial. A cota gratuita do Gemini está sujeita aos limites e condições do Google e pode ficar indisponível. Para garantir que o uso permaneça sem cobrança, não habilite faturamento no projeto Google usado para a chave; o código não possui provedor pago nem fallback, mas a modalidade de conta/API é controlada pelo Google. Na cota gratuita, conteúdo enviado pode ser utilizado pelo Google para melhoria de produtos, conforme termos vigentes.
+
+
+## Diagnóstico automático e privacidade
+
+O site e o aplicativo Android/WebView enviam automaticamente registros técnicos de falhas para análise e correção, quando a conexão está disponível. São coletados eventos de erro, mensagens técnicas limitadas, stack traces, versão/commit, caminho da página sem parâmetros e agente do navegador. O identificador técnico é aleatório e local ao dispositivo/navegador; não enviamos IP ao banco de diagnósticos.
+
+A ingestão filtra emails, tokens, credenciais e parâmetros de URL, limita o tamanho e a frequência dos registros e mantém o banco inacessível diretamente aos usuários. Os diagnósticos são eliminados automaticamente após 30 dias. A captura é voltada a falhas JavaScript, recursos que não carregam, promessas rejeitadas e falhas nativas da WebView (HTTP, TLS e encerramento do renderizador).
+
+Os workflows do GitHub continuam mantendo seus logs próprios em **Actions** e agora abrem uma issue automaticamente quando um workflow monitorado falha, com link para os logs completos e sem duplicar issues abertas do mesmo commit/workflow. Um workflow diário também pode publicar no GitHub somente contagens agregadas dos erros do cliente (sem mensagens, stack traces, IDs ou IPs), mas precisa dos secrets `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` configurados em Settings → Secrets and variables → Actions. Os logs técnicos completos do cliente ficam no backend de diagnósticos para análise; não são publicados como issues abertas, para evitar expor mensagens/stack traces de usuários.

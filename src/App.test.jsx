@@ -1,0 +1,916 @@
+import { fireEvent, render, screen, within } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import App from "./App.jsx";
+import { concursos } from "./data/concursos.js";
+import { getStatusTone, getVerifiedRegistrationDeadline, sortContestsByOfficialDeadline, scoreRecommendation, getRecommendationReasons } from "./App.jsx";
+import { buildCatalogSnapshot, getVisibleNotifications } from "./lib/notifications";
+
+const catalogResultCount = concursos.length;
+const nonPreliminaryResultCount = concursos.filter((item) => !/concurso listado\s*·\s*verificar/i.test(item.status || "")).length;
+
+describe("EditalRadar", () => {
+  it("migra a preferência de modo escuro gravada pelas versões anteriores", () => {
+    localStorage.clear();
+    localStorage.setItem("er-theme", "dark");
+
+    render(<App authClient={null} authConfigured={false} />);
+
+    expect(document.documentElement).toHaveAttribute("data-theme", "dark");
+    expect(screen.getByRole("button", { name: "Ativar modo claro" })).toHaveAttribute("aria-pressed", "true");
+    expect(localStorage.getItem("er-theme")).toBe(JSON.stringify("dark"));
+  });
+
+  it("alterna o modo escuro, sincroniza com o Android e restaura a preferência após recarregar", () => {
+    localStorage.clear();
+    const postMessage = vi.fn();
+    Object.defineProperty(window, "EditalRadarNative", {
+      configurable: true,
+      value: { postMessage }
+    });
+
+    const firstRender = render(<App authClient={null} authConfigured={false} />);
+    const darkToggle = screen.getByRole("button", { name: "Ativar modo escuro" });
+    expect(darkToggle).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(darkToggle);
+
+    expect(document.documentElement).toHaveAttribute("data-theme", "dark");
+    expect(document.documentElement.style.colorScheme).toBe("dark");
+    expect(localStorage.getItem("er-theme")).toBe(JSON.stringify("dark"));
+    expect(screen.getByRole("button", { name: "Ativar modo claro" })).toHaveAttribute("aria-pressed", "true");
+    expect(postMessage).toHaveBeenCalledWith(JSON.stringify({ theme: "dark", action: "set_theme" }));
+
+    firstRender.unmount();
+    render(<App authClient={null} authConfigured={false} />);
+    expect(document.documentElement).toHaveAttribute("data-theme", "dark");
+    expect(screen.getByRole("button", { name: "Ativar modo claro" })).toHaveAttribute("aria-pressed", "true");
+    delete window.EditalRadarNative;
+  });
+  it("atualiza o estado quando o Android confirma a permissão de notificações", () => {
+    localStorage.clear();
+    const postMessage = vi.fn();
+    Object.defineProperty(window, "EditalRadarNative", {
+      configurable: true,
+      value: { postMessage }
+    });
+
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "Ativar notificações" }));
+    expect(postMessage).toHaveBeenCalledWith(JSON.stringify({
+      action: "request_notification_permission"
+    }));
+    expect(screen.getByText(/Permita os avisos quando o Android solicitar/)).toBeInTheDocument();
+
+    fireEvent(window, new CustomEvent("editalradar:native-notification-permission", {
+      detail: { granted: true }
+    }));
+
+    expect(screen.getByRole("button", { name: "Notificações ativadas" })).toBeDisabled();
+    expect(screen.getByText(/Notificações ativadas! Avisaremos quando houver novidades/)).toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem("er-browser-notifications"))).toBe(true);
+    delete window.EditalRadarNative;
+  });
+
+  it("não exibe detalhes técnicos na central de notificações para usuários comuns", () => {
+    localStorage.clear();
+    render(<App authClient={null} authConfigured={false} />);
+    fireEvent.click(screen.getByRole("button", { name: /Ver notificações/ }));
+    const panel = within(screen.getByRole("region", { name: "Notificações do EditalRadar" }));
+    expect(panel.queryByText(/Firebase|Cloud Messaging|Supabase|SQL Editor|FCM|token|sincronização|cache/i)).not.toBeInTheDocument();
+    expect(panel.queryByRole("button", { name: /Testar recebimento push|Testar em segundo plano/i })).not.toBeInTheDocument();
+  });
+
+  it("não mostra instruções técnicas de configuração no acesso à conta", () => {
+    localStorage.clear();
+    render(<App authClient={null} authConfigured={false} />);
+    fireEvent.click(screen.getByRole("button", { name: /Entrar \/ cadastrar/ }));
+    expect(screen.getByText(/O acesso à conta está temporariamente indisponível/)).toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent(/Supabase|SQL Editor|VITE_SUPABASE|GitHub Actions/);
+  });
+
+  it("detecta um novo concurso e abre seus detalhes pela central de notificações", async () => {
+    localStorage.clear();
+    const latest = [...concursos].reverse().find((item) => !String(item.status || "").toLowerCase().includes("concurso listado"));
+    const previous = buildCatalogSnapshot(concursos.filter((item) => String(item.id) !== String(latest.id)));
+    localStorage.setItem("er-catalog-snapshot:visitor", JSON.stringify(previous));
+
+    render(<App />);
+
+    const notification = await screen.findByRole("button", { name: /Novo concurso no catálogo/ });
+    expect(notification).toHaveTextContent(latest.cargo);
+    fireEvent.click(notification);
+
+    expect(await screen.findByRole("heading", { level: 1, name: latest.cargo })).toBeInTheDocument();
+  });
+  it("filtra, marca como lidas e limpa notificações", async () => {
+    localStorage.clear();
+    localStorage.setItem("er-catalog-snapshot:visitor", JSON.stringify(buildCatalogSnapshot(concursos)));
+    localStorage.setItem("er-notifications:visitor", JSON.stringify([
+      {
+        id: "notification-unread",
+        type: "new",
+        itemId: String(concursos[0].id),
+        title: "Notificação recente",
+        message: "Novo concurso para acompanhar",
+        createdAt: "2026-11-21T12:00:00.000Z",
+        read: false
+      },
+      {
+        id: "notification-read",
+        type: "favorite-update",
+        itemId: String(concursos[1].id),
+        title: "Notificação antiga",
+        message: "Uma atualização já conferida",
+        createdAt: "2026-11-20T12:00:00.000Z",
+        read: true
+      }
+    ]));
+
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Ver notificações/ }));
+    expect(screen.getByRole("region", { name: "Notificações do EditalRadar" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /Notificação recente/ })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Não lidas \(1\)/ }));
+    expect(screen.getByRole("button", { name: /Notificação recente/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Notificação antiga/ })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Marcar como lidas/ }));
+    expect(screen.getByText(/Não há notificações não lidas/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Todas \(2\)/ }));
+    expect(screen.getByRole("button", { name: /Notificação antiga/ })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Limpar histórico/ }));
+    expect(screen.getByText(/Nenhuma novidade por enquanto/)).toBeInTheDocument();
+    const storedHistory = JSON.parse(localStorage.getItem("er-notifications:visitor"));
+    expect(storedHistory).toHaveLength(2);
+    expect(storedHistory.every((item) => item.dismissedAt && item.read)).toBe(true);
+    expect(getVisibleNotifications(storedHistory)).toEqual([]);
+  });
+
+  it("permite dispensar um aviso individual sem apagar os outros e sem fazê-lo voltar", async () => {
+    localStorage.clear();
+    localStorage.setItem("er-catalog-snapshot:visitor", JSON.stringify(buildCatalogSnapshot(concursos)));
+    localStorage.setItem("er-notifications:visitor", JSON.stringify([
+      {
+        id: "notice-to-dismiss",
+        type: "new",
+        itemId: String(concursos[0].id),
+        title: "Aviso individual",
+        message: "Este aviso será dispensado",
+        createdAt: "2026-11-21T12:00:00.000Z",
+        read: false
+      },
+      {
+        id: "notice-to-keep",
+        type: "new",
+        itemId: String(concursos[1].id),
+        title: "Aviso preservado",
+        message: "Este aviso continua",
+        createdAt: "2026-11-21T12:01:00.000Z",
+        read: false
+      }
+    ]));
+
+    const firstRender = render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: /Ver notificações/ }));
+    expect(await screen.findByRole("button", { name: /Aviso individual/ })).toBeInTheDocument();
+    fireEvent.click(within(screen.getByRole("group", { name: "Aviso individual" })).getByRole("button", { name: "Dispensar este aviso" }));
+
+    expect(screen.queryByRole("button", { name: /Aviso individual/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Aviso preservado/ })).toBeInTheDocument();
+    const stored = JSON.parse(localStorage.getItem("er-notifications:visitor"));
+    expect(stored).toEqual([
+      expect.objectContaining({ id: "notice-to-dismiss", dismissedAt: expect.any(String), read: true }),
+      expect.objectContaining({ id: "notice-to-keep", title: "Aviso preservado" })
+    ]);
+
+    firstRender.unmount();
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: /Ver notificações/ }));
+    expect(screen.queryByRole("button", { name: /Aviso individual/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Aviso preservado/ })).toBeInTheDocument();
+  });
+
+  it("não recria como nova uma notificação já apagada mesmo se o catálogo voltar a ser comparado", async () => {
+    localStorage.clear();
+    const latest = [...concursos].reverse().find((item) => !String(item.status || "").toLowerCase().includes("concurso listado"));
+    const previous = buildCatalogSnapshot(concursos.filter((item) => String(item.id) !== String(latest.id)));
+    localStorage.setItem("er-catalog-snapshot:visitor", JSON.stringify(previous));
+
+    const firstRender = render(<App />);
+    expect(await screen.findByRole("button", { name: /Novo concurso no catálogo/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Ver notificações/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Limpar histórico/ }));
+
+    const storedAfterDismissal = JSON.parse(localStorage.getItem("er-notifications:visitor"));
+    expect(storedAfterDismissal).toEqual([
+      expect.objectContaining({ id: `new-${latest.id}`, dismissedAt: expect.any(String), read: true })
+    ]);
+
+    // Simulate a stale catalog snapshot after refresh; the dismissal marker must win.
+    localStorage.setItem("er-catalog-snapshot:visitor", JSON.stringify(previous));
+    firstRender.unmount();
+    render(<App />);
+
+    expect(screen.queryByRole("button", { name: /Novo concurso no catálogo/ })).not.toBeInTheDocument();
+    expect(screen.getByText(/Nenhuma novidade por enquanto/)).toBeInTheDocument();
+  });
+
+  it("permite carregar o histórico completo além dos oito avisos iniciais", async () => {
+    localStorage.clear();
+    localStorage.setItem("er-catalog-snapshot:visitor", JSON.stringify(buildCatalogSnapshot(concursos)));
+    const history = Array.from({ length: 10 }, (_, index) => ({
+      id: `history-${index + 1}`,
+      type: "new",
+      itemId: String(concursos[index % concursos.length].id),
+      title: `Aviso ${index + 1}`,
+      message: `Detalhe do aviso ${index + 1}`,
+      createdAt: new Date(Date.UTC(2026, 10, 21, 12, index)).toISOString(),
+      read: true
+    }));
+    localStorage.setItem("er-notifications:visitor", JSON.stringify(history));
+
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: /Ver notificações/ }));
+
+    expect(screen.getByText("Aviso 1")).toBeInTheDocument();
+    expect(screen.getByText("Aviso 8")).toBeInTheDocument();
+    expect(screen.queryByText("Aviso 9")).not.toBeInTheDocument();
+    expect(screen.queryByText("Aviso 10")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Ver mais avisos (2 restantes)" }));
+
+    expect(screen.getByText("Aviso 9")).toBeInTheDocument();
+    expect(screen.getByText("Aviso 10")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Ver mais avisos/ })).not.toBeInTheDocument();
+  });
+
+  it("exibe o painel inteligente do candidato e abre a rotina de estudos pelo atalho", async () => {
+    localStorage.clear();
+    localStorage.setItem("er-catalog-snapshot:visitor", JSON.stringify(buildCatalogSnapshot(concursos)));
+
+    render(<App />);
+
+    const dashboard = screen.getByRole("region", { name: "Painel inteligente do candidato" });
+    expect(dashboard).toHaveTextContent("Sua jornada em um só lugar");
+    expect(dashboard).toHaveTextContent("Próximas datas importantes");
+    expect(dashboard).toHaveTextContent(/Agenda de oportunidades/i);
+    expect(within(dashboard).getByRole("button", { name: /Rotina de estudos: 0% concluída/ })).toBeInTheDocument();
+
+    fireEvent.click(within(dashboard).getByRole("button", { name: /Rotina de estudos/ }));
+    expect(await screen.findByRole("heading", { name: "Área de estudos" })).toBeInTheDocument();
+  });
+
+  it("mostra instruções para instalar o aplicativo em diferentes dispositivos", () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Como instalar" }));
+    const dialog = screen.getByRole("dialog", { name: "Instale o EditalRadar" });
+    expect(within(dialog).getByText("Android")).toBeInTheDocument();
+    expect(within(dialog).getByText("iPhone ou iPad")).toBeInTheDocument();
+    expect(within(dialog).getByText("Computador")).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Entendi" }));
+    expect(screen.queryByRole("dialog", { name: "Instale o EditalRadar" })).not.toBeInTheDocument();
+  });
+
+  it("informa quando o dispositivo fica sem conexão e quando reconecta", () => {
+    render(<App />);
+
+    fireEvent(window, new Event("offline"));
+    expect(screen.getByText(/Sem conexão no momento/)).toBeInTheDocument();
+
+    fireEvent(window, new Event("online"));
+    expect(screen.queryByText(/Sem conexão no momento/)).not.toBeInTheDocument();
+  });
+
+  it("renderiza a página inicial e os concursos oficiais", () => {
+    render(<App />);
+
+    expect(
+      screen.getByRole("heading", { name: /Encontre concursos/i })
+    ).toBeInTheDocument();
+
+    expect(screen.getAllByText("Banco Central do Brasil").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Receita Federal do Brasil").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Controladoria-Geral da União").length).toBeGreaterThan(0);
+  });
+
+  it("anuncia a quantidade de resultados do catálogo para tecnologias assistivas", () => {
+    render(<App authClient={null} authConfigured={false} />);
+    expect(screen.getByRole("status")).toHaveTextContent(`${catalogResultCount} registros`);
+  });
+
+  it("destaca visualmente inscrições abertas e pré-edital nos cards", () => {
+    render(<App authClient={null} authConfigured={false} />);
+    expect(screen.getAllByText("Inscrições abertas", { exact: true }).length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Prepare-se", { exact: true }).length).toBeGreaterThan(0);
+  });
+
+  it("filtra concursos pelo nome do órgão", () => {
+    render(<App />);
+
+    fireEvent.change(screen.getByPlaceholderText("Buscar cargo ou órgão..."), {
+      target: { value: "Controladoria" }
+    });
+
+    expect(screen.getAllByText("Controladoria-Geral da União").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Banco Central do Brasil")).not.toBeInTheDocument();
+    expect(screen.queryByText("Receita Federal do Brasil")).not.toBeInTheDocument();
+  });
+
+  it("filtra concursos por escolaridade", () => {
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText("Escolaridade"), { target: { value: "Médio" } });
+
+    expect(screen.getByText("Técnico — Carreira de Especialista")).toBeInTheDocument();
+    expect(screen.queryByText("Auditor — Carreira de Especialista")).not.toBeInTheDocument();
+  });
+
+  it("filtra oportunidades pela esfera estadual", () => {
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText("Esfera"), { target: { value: "Estadual" } });
+
+    expect(screen.getAllByText("Polícia Civil do Estado de Alagoas").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Banco Central do Brasil")).not.toBeInTheDocument();
+  });
+
+  it("limita as cidades ao estado escolhido e limpa cidade incompatível", () => {
+    render(<App />);
+    const citySelect = screen.getByLabelText("Cidade");
+    fireEvent.change(citySelect, { target: { value: "Paripueira" } });
+    fireEvent.change(screen.getByLabelText("Estado"), { target: { value: "Alagoas" } });
+    expect(citySelect).toHaveValue("Paripueira");
+    expect(screen.getByRole("option", { name: "Paripueira" })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Estado"), { target: { value: "Paraíba" } });
+    expect(citySelect).toHaveValue("Todas as cidades");
+    expect(screen.queryByRole("option", { name: "Paripueira" })).not.toBeInTheDocument();
+  });
+
+  it("filtra por cidade e mostra oportunidades de Paripueira", () => {
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText("Cidade"), { target: { value: "Paripueira" } });
+
+    expect(screen.getByText("Cargos efetivos a definir")).toBeInTheDocument();
+    expect(within(document.querySelector(".cards")).getByText("Professor — Matemática (lotação em Paripueira)")).toBeInTheDocument();
+    expect(within(document.querySelector(".cards")).getByText("Professor — Português (lotação em Paripueira)")).toBeInTheDocument();
+    expect(screen.queryByText("Banco Central do Brasil")).not.toBeInTheDocument();
+  });
+
+  it("identifica concurso municipal sem vagas publicadas", () => {
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText("Esfera"), { target: { value: "Municipal" } });
+
+    expect(screen.getByText("Cargos efetivos a definir")).toBeInTheDocument();
+    expect(screen.getAllByText(/Vagas a divulgar/).length).toBeGreaterThan(0);
+  });
+
+  it("lista concursos municipais de Pão de Açúcar e Teotônio Vilela", () => {
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText("Esfera"), { target: { value: "Municipal" } });
+
+    expect(screen.getByText("Diversos cargos efetivos (31 cargos)")).toBeInTheDocument();
+    expect(screen.getByText("Cargos da Secretaria Municipal de Educação (11 cargos)")).toBeInTheDocument();
+    expect(screen.getByText("Cargos efetivos a definir")).toBeInTheDocument();
+  });
+
+  it("filtra oportunidades municipais por cidade", () => {
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText("Cidade"), { target: { value: "Pão de Açúcar" } });
+
+    expect(screen.getByText("Diversos cargos efetivos (31 cargos)")).toBeInTheDocument();
+    expect(screen.queryByText("Banco Central do Brasil")).not.toBeInTheDocument();
+  });
+
+  it("inclui o PROCON/AL na esfera estadual com link oficial", () => {
+    render(<App />);
+
+    fireEvent.change(screen.getByPlaceholderText("Buscar cargo ou órgão..."), {
+      target: { value: "PROCON" }
+    });
+
+    expect(within(document.querySelector(".cards")).getByText("Analista e Fiscal de Proteção e Defesa do Consumidor")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Ver detalhes/ }));
+
+    expect(screen.getByRole("link", { name: /Acessar fonte oficial/ }))
+      .toHaveAttribute("href", "https://www.cebraspe.org.br/concursos/SEPLAG_AL_26_PROCON");
+  });
+
+  it("salva alerta personalizado usando os filtros atuais", () => {
+    render(<App />);
+
+    fireEvent.change(screen.getByPlaceholderText("Buscar cargo ou órgão..."), {
+      target: { value: "PROCON" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Salvar alerta/ }));
+
+    expect(screen.getByText("PROCON")).toBeInTheDocument();
+    expect(screen.getByText("1 oportunidade(s) correspondente(s)")).toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem("er-alerts"))).toHaveLength(1);
+  });
+
+  it("evita duplicar alertas e permite removê-los", () => {
+    render(<App />);
+
+    const saveButton = screen.getByRole("button", { name: /Salvar alerta/ });
+    fireEvent.click(saveButton);
+
+    expect(screen.getByRole("button", { name: "Alerta já salvo" })).toBeDisabled();
+    expect(JSON.parse(localStorage.getItem("er-alerts"))).toHaveLength(1);
+
+    fireEvent.click(screen.getByRole("button", { name: /Remover alerta Todos os concursos/ }));
+    expect(screen.getByText(/Você ainda não salvou alertas/)).toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem("er-alerts"))).toHaveLength(0);
+  });
+
+  it("mostra como ativar cadastro e login quando o Supabase ainda não está conectado", () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Entrar \/ cadastrar/ }));
+
+    expect(screen.getByRole("dialog", { name: /Entrar na sua conta/ })).toBeInTheDocument();
+    expect(screen.getByText(/O acesso à conta está temporariamente indisponível/)).toBeInTheDocument();
+    expect(screen.queryByText(/Supabase|SQL Editor|VITE_SUPABASE|GitHub Actions/)).not.toBeInTheDocument();
+  });
+
+  it("mantém o foco dentro do diálogo, fecha com Escape e devolve o foco ao acionador", () => {
+    render(<App />);
+    const trigger = screen.getByRole("button", { name: "Como instalar" });
+    trigger.focus();
+    fireEvent.click(trigger);
+
+    const dialog = screen.getByRole("dialog", { name: "Instale o EditalRadar" });
+    const confirmButton = within(dialog).getByRole("button", { name: "Entendi" });
+    const closeButton = within(dialog).getByRole("button", { name: "Fechar instruções de instalação" });
+    expect(document.activeElement).toBe(confirmButton);
+
+    fireEvent.keyDown(confirmButton, { key: "Tab" });
+    expect(document.activeElement).toBe(closeButton);
+    fireEvent.keyDown(closeButton, { key: "Tab", shiftKey: true });
+    expect(document.activeElement).toBe(confirmButton);
+
+    fireEvent.keyDown(confirmButton, { key: "Escape" });
+    expect(screen.queryByRole("dialog", { name: "Instale o EditalRadar" })).not.toBeInTheDocument();
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it("fecha o modal de autenticação pelo botão de fechar", () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Entrar \/ cadastrar/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Fechar cadastro e login" }));
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+
+  it("identifica registros preliminares e deixa claro que a listagem não é edital", () => {
+    render(<App />);
+
+    fireEvent.change(screen.getByPlaceholderText("Buscar cargo ou órgão..."), {
+      target: { value: "Departamento de Estradas e Rodagem" }
+    });
+
+    expect(screen.getByText("Listagem de referência")).toBeInTheDocument();
+    expect(screen.getByText(/Concurso listado · verificar edital e cronograma/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Ver detalhes/ }));
+
+    expect(screen.getByRole("link", { name: /Abrir referência externa — confirme no órgão/ }))
+      .toHaveAttribute("href", "https://concursor.com.br/editais?uf=AL");
+    expect(screen.getByText(/ainda não foram confirmados individualmente em edital oficial/i)).toBeInTheDocument();
+  });
+
+  it("não soma as vagas dos registros preliminares à métrica principal", () => {
+    render(<App />);
+
+    const verifiedVacancies = concursos
+      .filter((item) => item && !/concurso listado\s*·\s*verificar/i.test(item.status || ""))
+      .reduce((sum, item) => sum + (Number(item.vagas) || 0), 0);
+    const metric = screen.getByText("Vagas em fichas com fonte oficial").closest(".stat");
+
+    expect(metric.querySelector("strong")).toHaveTextContent(
+      new Intl.NumberFormat("pt-BR").format(verifiedVacancies)
+    );
+    expect(screen.getByText(/registro\(s\) são preliminares/)).toBeInTheDocument();
+  });
+
+  it("oculta os registros preliminares e atualiza a quantidade exibida", () => {
+    render(<App />);
+
+    expect(screen.getByText(`${catalogResultCount} registros`)).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText("Ocultar registros preliminares"));
+
+    expect(screen.getByText(`${nonPreliminaryResultCount} registros`)).toBeInTheDocument();
+    expect(screen.getByLabelText("Ocultar registros preliminares")).toBeChecked();
+  });
+
+  it("salva o filtro de registros não preliminares dentro do alerta", () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByLabelText("Ocultar registros preliminares"));
+    fireEvent.click(screen.getByRole("button", { name: /Salvar alerta/ }));
+
+    expect(screen.getByText(/Somente fichas não preliminares/)).toBeInTheDocument();
+    expect(screen.getByText(`${nonPreliminaryResultCount} oportunidade(s) correspondente(s)`)).toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem("er-alerts"))[0].filters.ocultarPreliminares).toBe(true);
+  });
+
+  it("salva um concurso nos favoritos e mostra a lista", () => {
+    render(<App />);
+
+    fireEvent.click(screen.getAllByLabelText("Salvar favorito")[0]);
+    fireEvent.click(screen.getByRole("button", { name: /Meus favoritos/ }));
+
+    expect(screen.getByRole("heading", { name: "Seus concursos favoritos" })).toBeInTheDocument();
+    expect(screen.getByText("Auditor — Carreira de Especialista")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Meus favoritos/ })).toHaveTextContent("1");
+  });
+
+  it("abre os detalhes de um concurso e exibe sua fonte oficial", () => {
+    render(<App />);
+
+    fireEvent.click(screen.getAllByRole("button", { name: /Ver detalhes/ })[0]);
+
+    expect(screen.getByRole("heading", { level: 1, name: "Auditor — Carreira de Especialista" })).toBeInTheDocument();
+    expect(screen.getByText(/100 vagas autorizadas para Auditor/)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Cronograma e etapas" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Acessar fonte oficial/ }))
+      .toHaveAttribute("href", "https://www.bcb.gov.br/acessoinformacao/concursospublicos");
+  });
+
+  it("exibe o atalho de inscrição oficial do PSS temporário do IBGE em Alagoas", () => {
+    render(<App />);
+    fireEvent.change(screen.getByPlaceholderText("Buscar cargo ou órgão..."), {
+      target: { value: "Recenseador" }
+    });
+    expect(screen.getByRole("heading", { level: 3, name: "Recenseador — 12º Censo Agropecuário" })).toBeInTheDocument();
+    expect(screen.getByText("PSS temporário")).toBeInTheDocument();
+    expect(screen.getByText("Inscrições abertas até 25/11/2026 às 23h59")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Ver detalhes/ }));
+    expect(screen.getByRole("heading", { level: 1, name: "Recenseador — 12º Censo Agropecuário" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Inscrever-se pela organizadora/ }))
+      .toHaveAttribute("href", "https://concursos.cesgranrio.org.br/portal/avaliacoes/33");
+    expect(screen.getByRole("link", { name: /Acessar fonte oficial/ }))
+      .toHaveAttribute("href", "https://ftp.ibge.gov.br/edital/PSS_Censo_Agro/2026_03/EDITAL_03_2026_PSS_RECENSEADOR_IBGE.pdf");
+  });
+
+  it("mostra o concurso efetivo de São Miguel dos Milagres e o acesso oficial à inscrição", () => {
+    render(<App />);
+    fireEvent.change(screen.getByPlaceholderText("Buscar cargo ou órgão..."), {
+      target: { value: "São Miguel dos Milagres" }
+    });
+    expect(screen.getByRole("heading", { level: 3, name: "Diversos cargos efetivos (82 cargos)" })).toBeInTheDocument();
+    expect(screen.getByText("232")).toBeInTheDocument();
+    expect(screen.getByText(/R\$ 1\.621,00/)).toBeInTheDocument();
+    expect(screen.getByText(/R\$ 10\.000,00/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Ver detalhes/ }));
+    expect(screen.getByRole("heading", { level: 1, name: "Diversos cargos efetivos (82 cargos)" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Inscrever-se pela organizadora/ }))
+      .toHaveAttribute("href", "https://inbraedem.selecao.net.br/area-candidato/concurso/4/inscricao");
+    expect(screen.getByRole("link", { name: /Acessar fonte oficial/ }))
+      .toHaveAttribute("href", "https://inbraedem.selecao.net.br/informacoes/4/");
+  });
+
+  it("move o foco para o título dos detalhes e o restaura ao botão que abriu a ficha", () => {
+    render(<App />);
+    const trigger = screen.getAllByRole("button", { name: /Ver detalhes/ })[0];
+    const returnKey = trigger.getAttribute("data-detail-focus-return");
+    fireEvent.click(trigger);
+
+    const heading = screen.getByRole("heading", { level: 1, name: "Auditor — Carreira de Especialista" });
+    expect(document.activeElement).toBe(heading);
+
+    fireEvent.click(screen.getByRole("button", { name: /Voltar para concursos/ }));
+    expect(document.activeElement).toHaveAttribute("data-detail-focus-return", returnKey);
+  });
+
+  it("compara duas oportunidades lado a lado e informa quando a remuneração não está cadastrada", () => {
+    localStorage.removeItem("er-comparison:visitor");
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Adicionar Auditor — Carreira de Especialista à comparação" }));
+    fireEvent.click(screen.getByRole("button", { name: "Adicionar Técnico — Carreira de Especialista à comparação" }));
+    expect(screen.getByRole("button", { name: "Comparar concursos (2)" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Comparar concursos (2)" }));
+    expect(screen.getByRole("heading", { name: "Comparador de concursos" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Tabela de comparação dos concursos" })).toBeInTheDocument();
+    expect(screen.getAllByText("Não informado nesta ficha").length).toBeGreaterThan(0);
+    expect(screen.getByText("Vagas informadas")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Remover Auditor — Carreira de Especialista da comparação" }));
+    expect(screen.getByText("Escolha pelo menos dois concursos")).toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem("er-comparison:visitor"))).toEqual([concursos[1].id]);
+  });
+
+  it("limita a comparação a três oportunidades", () => {
+    localStorage.removeItem("er-comparison:visitor");
+    render(<App />);
+
+    const compareButtons = screen.getAllByRole("button", { name: /Adicionar .* à comparação/ });
+    fireEvent.click(compareButtons[0]);
+    fireEvent.click(compareButtons[1]);
+    fireEvent.click(compareButtons[2]);
+    expect(screen.getByRole("button", { name: "Comparar concursos (3)" })).toBeInTheDocument();
+    const disabledButtons = screen.getAllByRole("button", { name: /Adicionar .* à comparação/ });
+    expect(disabledButtons.length).toBeGreaterThan(0);
+    expect(disabledButtons.every((button) => button.disabled)).toBe(true);
+  });
+
+  it("abre a área de estudos e permite concluir uma tarefa", async () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Área de estudos/ }));
+    const task = await screen.findByRole("checkbox", { name: /Revisar português/ });
+
+    expect(task).not.toBeChecked();
+    fireEvent.click(task);
+    expect(task).toBeChecked();
+    expect(screen.getByText("25%")).toBeInTheDocument();
+  });
+  it("permite remover um filtro aplicado individualmente no catálogo", () => {
+    localStorage.clear();
+    render(<App authClient={null} authConfigured={false} />);
+    const search = screen.getByRole("searchbox", { name: "Buscar concurso por cargo ou órgão" });
+    fireEvent.change(search, { target: { value: "termo sem resultados xyz" } });
+    expect(screen.getByRole("group", { name: "Filtros aplicados" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Remover filtro de busca" })).toBeInTheDocument();
+    expect(screen.getByText("0 registros")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Remover filtro de busca" }));
+    expect(screen.queryByRole("group", { name: "Filtros aplicados" })).not.toBeInTheDocument();
+    expect(screen.getByText(new RegExp(catalogResultCount + " registros"))).toBeInTheDocument();
+  });
+
+});
+
+describe("recomendações personalizadas",()=>{it("pontua melhor concursos alinhados à área fiscal e escolaridade superior",()=>{const profile={interest_area:"Fiscal e controle",education_level:"Superior completo",state:"Alagoas"};const aligned=concursos.find(item=>/auditor/i.test(item.cargo)&&/Brasil|Alagoas/.test(item.estado||""));const unrelated=concursos.find(item=>/professor/i.test(item.cargo));expect(scoreRecommendation(aligned,profile)).toBeGreaterThan(scoreRecommendation(unrelated,profile));});it("explica a compatibilidade com etiquetas legíveis",()=>{const item={cargo:"Auditor Fiscal",orgao:"Receita",estado:"Alagoas",localidade:"Maceió",nivel:"Superior",status:"Inscrições abertas"};const reasons=getRecommendationReasons(item,{interest_area:"Fiscal e controle",education_level:"Superior completo",state:"Alagoas",city:"Maceió"});expect(reasons).toEqual(["Área de interesse","Escolaridade","Estado/local","Cidade/local","Oportunidade ativa"]);});it("não inventa compatibilidades de área ou status",()=>{const item={cargo:"Professor",orgao:"Escola",estado:"São Paulo",localidade:"São Paulo",nivel:"Médio",status:"Inscrições encerradas"};const reasons=getRecommendationReasons(item,{interest_area:"Fiscal e controle",education_level:"Superior completo",state:"Alagoas",city:"Maceió"});expect(reasons).not.toContain("Área de interesse");expect(reasons).not.toContain("Oportunidade ativa");});});
+
+
+describe("classificação temporal do status do edital", () => {
+  it("não apresenta inscrição futura como aberta só porque o edital foi publicado", () => {
+    expect(getStatusTone("Edital publicado · inscrições começam em 30/11/2026 às 16h")).toBe("status-upcoming");
+  });
+
+  it("prioriza inscrições efetivamente abertas quando o edital também está publicado", () => {
+    expect(getStatusTone("Edital publicado · inscrições abertas até 18/12/2026")).toBe("status-open");
+  });
+
+  it("não classifica inscrições encerradas como abertas ou próximas", () => {
+    expect(getStatusTone("Edital publicado · inscrições encerradas em 24/11/2026")).toBe("status-closed");
+  });
+});
+
+describe("ranking por prazos oficiais de inscrição", () => {
+  const now = new Date("2026-11-25T15:00:00.000Z");
+  const sourceUrl = "https://www.igeduc.org.br/informacoes/192/";
+  const buildContest = (overrides = {}) => {
+    const base = {
+      id: 9001,
+      cargo: "Concurso de teste",
+      status: "Inscrições abertas até 18/12/2026",
+      sourceUrl,
+      periodoInscricao: {
+        inicio: "2026-11-18",
+        fim: "2026-12-18",
+        fonteUrl: sourceUrl,
+        fonteDescricao: "Página oficial IGEDUC",
+        verificadoEm: "2026-11-25"
+      }
+    };
+    return {
+      ...base,
+      ...overrides,
+      periodoInscricao: { ...base.periodoInscricao, ...(overrides.periodoInscricao || {}) }
+    };
+  };
+
+  it("calcula dias restantes com datas e fonte oficial confirmadas", () => {
+    const result = getVerifiedRegistrationDeadline(buildContest(), now);
+    expect(result).toMatchObject({ state: "open", daysRemaining: 23, endDate: "2026-12-18", sourceUrl });
+  });
+
+  it("trata o último dia como prazo vigente até o fim do dia local", () => {
+    const result = getVerifiedRegistrationDeadline(buildContest({
+      status: "Inscrições abertas até 25/11/2026",
+      periodoInscricao: { fim: "2026-11-25" }
+    }), now);
+    expect(result).toMatchObject({ state: "open", daysRemaining: 0 });
+  });
+
+  it("classifica início futuro como próximo, sem chamar de inscrição aberta", () => {
+    const result = getVerifiedRegistrationDeadline(buildContest({
+      status: "Edital publicado · inscrições começam em 26/11/2026 às 16h",
+      periodoInscricao: { inicio: "2026-11-26", fim: "2027-02-15" }
+    }), now);
+    expect(result).toMatchObject({ state: "upcoming", daysUntilOpen: 1, daysRemaining: 82 });
+  });
+
+  it("classifica prazo vencido como encerrado e não como aberto", () => {
+    const result = getVerifiedRegistrationDeadline(buildContest({
+      status: "Inscrições encerradas em 24/11/2026",
+      periodoInscricao: { fim: "2026-11-24" }
+    }), now);
+    expect(result).toMatchObject({ state: "closed", daysRemaining: -1 });
+  });
+
+  it("usa a data de Brasília nas viradas de dia UTC", () => {
+    const beforeMidnightInBrazil = getVerifiedRegistrationDeadline(buildContest({
+      periodoInscricao: { fim: "2026-11-26" }
+    }), new Date("2026-11-26T02:30:00.000Z"));
+    const afterMidnightInBrazil = getVerifiedRegistrationDeadline(buildContest({
+      periodoInscricao: { fim: "2026-11-26" }
+    }), new Date("2026-11-26T03:30:00.000Z"));
+    expect(beforeMidnightInBrazil.daysRemaining).toBe(1);
+    expect(afterMidnightInBrazil.daysRemaining).toBe(0);
+  });
+
+  it("não gera contagem quando o prazo ou o metadado está ausente", () => {
+    expect(getVerifiedRegistrationDeadline({ sourceUrl }, now)).toBeNull();
+    expect(getVerifiedRegistrationDeadline(buildContest({
+      periodoInscricao: { fim: null }
+    }), now)).toMatchObject({ state: "review" });
+  });
+
+  it("retira da contagem quando status e datas oficiais se contradizem", () => {
+    const result = getVerifiedRegistrationDeadline(buildContest({
+      periodoInscricao: { inicio: "2026-11-26" }
+    }), now);
+    expect(result).toMatchObject({ state: "review" });
+  });
+
+  it("retira da contagem quando a fonte não pertence ao domínio oficial vinculado", () => {
+    const result = getVerifiedRegistrationDeadline(buildContest({
+      periodoInscricao: { fonteUrl: "https://noticias.example.com/edital" }
+    }), now);
+    expect(result).toMatchObject({ state: "review", sourceUrl: null });
+  });
+
+  it("retira da contagem quando a conferência está vencida", () => {
+    const result = getVerifiedRegistrationDeadline(buildContest({
+      periodoInscricao: { verificadoEm: "2026-11-01" }
+    }), now);
+    expect(result).toMatchObject({ state: "review" });
+  });
+
+  it("ordena prazos abertos pelo encerramento, depois próximos e encerrados", () => {
+    const later = buildContest({ id: 1, cargo: "Prazo mais distante", periodoInscricao: { fim: "2026-12-18" } });
+    const earlier = buildContest({ id: 2, cargo: "Prazo mais próximo", periodoInscricao: { fim: "2026-12-10" } });
+    const upcoming = buildContest({
+      id: 3,
+      cargo: "Prazo futuro",
+      status: "Edital publicado · inscrições começam em 26/11/2026",
+      periodoInscricao: { inicio: "2026-11-26", fim: "2027-02-15" }
+    });
+    const closed = buildContest({
+      id: 4,
+      cargo: "Prazo encerrado",
+      status: "Inscrições encerradas",
+      periodoInscricao: { fim: "2026-11-24" }
+    });
+    const unverified = { id: 5, cargo: "Sem prazo", status: "Pré-edital" };
+    const original = [later, unverified, closed, upcoming, earlier];
+    const sorted = sortContestsByOfficialDeadline(original, now);
+    expect(sorted.map((item) => item.id)).toEqual([2, 1, 3, 4, 5]);
+    expect(original[0].id).toBe(1);
+  });
+
+  it("aceita o domínio institucional específico do IFG e não inventa a data inicial", () => {
+    const ifgUrl = "https://www.ifg.edu.br/institucional/17-ifg/campus/goiania/noticias-campus-goiania/48699-concurso-tae-26";
+    const result = getVerifiedRegistrationDeadline({
+      sourceUrl: ifgUrl,
+      status: "Inscrições abertas até 23/12/2026",
+      periodoInscricao: {
+        inicio: null,
+        fim: "2026-12-23",
+        fonteUrl: ifgUrl,
+        fonteDescricao: "IFG · notícia oficial do concurso TAE 2026",
+        verificadoEm: "2026-11-25"
+      }
+    }, now);
+    expect(result).toMatchObject({ state: "open", startDate: null, endDate: "2026-12-23" });
+  });
+
+  it("respeita o horário oficial de encerramento no fuso de Brasília", () => {
+    const contest = buildContest({
+      status: "Inscrições abertas até 25/11/2026",
+      periodoInscricao: { fim: "2026-11-25", fimHoraLocal: "16:00" }
+    });
+    const beforeDeadline = getVerifiedRegistrationDeadline(contest, new Date("2026-11-25T18:59:00.000Z"));
+    const afterDeadline = getVerifiedRegistrationDeadline(contest, new Date("2026-11-25T19:01:00.000Z"));
+    expect(beforeDeadline).toMatchObject({ state: "open", daysRemaining: 0, endTime: "16:00" });
+    expect(afterDeadline).toMatchObject({ state: "closed", daysRemaining: 0, endTime: "16:00" });
+  });
+
+  it("informa abertura no mesmo dia quando ainda não chegou o horário oficial", () => {
+    const result = getVerifiedRegistrationDeadline(buildContest({
+      status: "Edital publicado · inscrições começam em 25/11/2026 às 16h",
+      periodoInscricao: { inicio: "2026-11-25", inicioHoraLocal: "16:00" }
+    }), new Date("2026-11-25T18:59:00.000Z"));
+    expect(result).toMatchObject({ state: "upcoming", daysUntilOpen: 0, startTime: "16:00" });
+  });
+});
+
+describe("segunda leva de oportunidades oficiais e pré-editais", () => {
+  const now = new Date("2026-11-25T15:00:00.000Z");
+
+  it("atualiza o PMESP existente, sem duplicar o concurso, com prazo oficial e horários de Brasília", () => {
+    const matches = concursos.filter((item) => item.sigla === "PMESP" && item.vinculo.includes("PMES2603"));
+    expect(matches).toHaveLength(1);
+    expect(matches[0]).toMatchObject({
+      vagasImediatas: 2000,
+      status: "Inscrições abertas até 22/12/2026",
+      periodoInscricao: {
+        inicio: "2026-11-09",
+        fim: "2026-12-22",
+        inicioHoraLocal: "10:00",
+        fimHoraLocal: "23:59",
+        verificadoEm: "2026-11-25"
+      }
+    });
+    expect(getVerifiedRegistrationDeadline(matches[0], now)).toMatchObject({
+      state: "open",
+      daysRemaining: 27,
+      endTime: "23:59"
+    });
+  });
+
+  it("registra os dois editais de Itupeva separadamente, com prazo futuro e vagas imediatas explícitas ou derivadas documentadas", () => {
+    const general = concursos.find((item) => item.id === 529);
+    const drivers = concursos.find((item) => item.id === 530);
+    expect(general).toMatchObject({ vagasImediatas: 72, status: "Edital publicado · inscrições começam em 30/11/2026" });
+    expect(drivers).toMatchObject({ vagasImediatas: 7, status: "Edital publicado · inscrições começam em 30/11/2026" });
+    expect(general.observacao).toMatch(/79.*005.*sete/i);
+    expect(getVerifiedRegistrationDeadline(general, now)).toMatchObject({ state: "upcoming", daysUntilOpen: 5 });
+    expect(getVerifiedRegistrationDeadline(drivers, now)).toMatchObject({ state: "upcoming", daysUntilOpen: 5 });
+  });
+
+  it("mantém COFEN e COREN-SP como pré-editais, sem vagas ou contagem regressiva inventadas", () => {
+    const cofen = concursos.find((item) => item.sigla === "COFEN");
+    const coren = concursos.find((item) => item.sigla === "COREN-SP");
+    expect(cofen).toMatchObject({ vagas: null, status: "Pré-edital · banca Quadrix; inscrições não disponíveis" });
+    expect(coren).toMatchObject({ vagas: null, status: "Autorizado · pré-edital; banca Quadrix informa Em breve" });
+    expect(getStatusTone(cofen.status)).toBe("status-upcoming");
+    expect(getStatusTone(coren.status)).toBe("status-upcoming");
+    expect(getVerifiedRegistrationDeadline(cofen, now)).toBeNull();
+    expect(getVerifiedRegistrationDeadline(coren, now)).toBeNull();
+  });
+});
+
+
+describe("terceira leva de concursos oficiais FGV", () => {
+  const now = new Date("2026-11-25T15:00:00.000Z");
+
+  it("cadastra o concurso de Educação de Salvador com 190 vagas imediatas e fase atual de resultados", () => {
+    const contest = concursos.find((item) => item.id === 533);
+    expect(contest).toMatchObject({
+      sigla: "PMS-SALVADOR-EDUCACAO",
+      vagas: 190,
+      vagasImediatas: 190,
+      status: "Provas / resultados · relação de candidatos com prova discursiva corrigida publicada em 18/11/2026",
+      periodoInscricao: {
+        inicio: "2026-07-09",
+        fim: "2026-08-07",
+        verificadoEm: "2026-11-25"
+      }
+    });
+    expect(contest.documentos[0].url).toContain("edital-preliminar-pref-salvador");
+    expect(contest.observacao).toMatch(/130.*Professor.*60.*Coordenador/);
+    expect(getVerifiedRegistrationDeadline(contest, now)).toMatchObject({
+      state: "closed",
+      endDate: "2026-08-07"
+    });
+  });
+
+  it("registra a PCPR como exclusivamente cadastro de reserva, sem inventar vagas", () => {
+    const contest = concursos.find((item) => item.id === 534);
+    expect(contest).toMatchObject({
+      sigla: "PCPR",
+      vagas: null,
+      vagasImediatas: null,
+      status: "Provas / resultados · resultado preliminar da prova objetiva publicado em 13/11/2026",
+      periodoInscricao: {
+        inicio: "2026-07-14",
+        fim: "2026-08-12",
+        inicioHoraLocal: "16:00",
+        fimHoraLocal: "16:00",
+        verificadoEm: "2026-11-25"
+      }
+    });
+    expect(contest.vagasTotais).toBeUndefined();
+    expect(contest.vinculo).toMatch(/exclusivamente cadastro de reserva/);
+    expect(contest.observacao).toMatch(/sem quantitativo de vagas imediatas/);
+    expect(contest.documentos[0].url).toContain("pcpr-publicacao.docx.pdf");
+    expect(getVerifiedRegistrationDeadline(contest, now)).toMatchObject({
+      state: "closed",
+      endDate: "2026-08-12",
+      endTime: "16:00"
+    });
+  });
+});

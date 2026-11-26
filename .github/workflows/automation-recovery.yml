@@ -1,0 +1,99 @@
+name: Recuperar automações com falha
+
+on:
+  schedule:
+    - cron: "45 * * * *"
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: automation-recovery
+  cancel-in-progress: false
+
+jobs:
+  retry:
+    name: Reexecutar falhas transitórias
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Reexecutar uma vez workflows críticos com falha recente
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const targets = [
+              { file: "source-monitor.yml", label: "Monitor de fontes" },
+              { file: "question-automation.yml", label: "Automação de questões" },
+              { file: "build.yml", label: "Testes, build e publicação do site" },
+              { file: "android-emulator-smoke.yml", label: "Teste de instalação Android" },
+              { file: "android-apk.yml", label: "Compilação do APK" },
+              { file: "dependency-autofix.yml", label: "Correções automáticas de dependências" }
+            ];
+            const now = Date.now();
+            const retryErrors = [];
+            for (const target of targets) {
+              try {
+                const response = await github.rest.actions.listWorkflowRuns({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  workflow_id: target.file,
+                  per_page: 20
+                });
+                const run = response.data.workflow_runs
+                  .filter(item =>
+                    item.head_branch === "main" &&
+                    ["schedule", "workflow_dispatch", "push"].includes(item.event) &&
+                    item.status === "completed" &&
+                    ["timed_out", "cancelled"].includes(item.conclusion) &&
+                    item.run_attempt < 2 &&
+                    (now - new Date(item.created_at).getTime()) / 3600000 <= 2
+                  )
+                  .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+                if (!run) {
+                  core.info(target.label + ": nenhuma execução interrompida/timeout recente elegível; falhas determinísticas não são reexecutadas automaticamente.");
+                  continue;
+                }
+                const jobsResponse = await github.rest.actions.listJobsForWorkflowRun({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  run_id: run.id,
+                  per_page: 100
+                });
+                const retryableJobs = jobsResponse.data.jobs.filter(job =>
+                  job.status === "completed" &&
+                  ["timed_out", "cancelled"].includes(job.conclusion)
+                );
+                if (!retryableJobs.length) {
+                  core.info(target.label + ": run #" + run.id + " sem jobs interrompidos/timeout; sem retry.");
+                  continue;
+                }
+                for (const job of retryableJobs) {
+                  await github.request(
+                    "POST /repos/{owner}/{repo}/actions/jobs/{job_id}/rerun",
+                    {
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      job_id: job.id
+                    }
+                  );
+                  core.warning(target.label + ": retry somente do job " + job.name + " (#" + job.id + ") em run #" + run.id + ".");
+                }
+              } catch (error) {
+                const message = String(error?.message || error).slice(0, 200);
+                const status = error?.status || error?.response?.status;
+                // GitHub can reject reruns when a run is no longer eligible (for example,
+                // already retried or superseded). This is a normal recovery outcome, not
+                // a failure of the recovery workflow itself.
+                if ([404, 422].includes(status) || /cannot be retried|already.*rerun|already.*re-?run/i.test(message)) {
+                  core.info(target.label + ": run #" + (run?.id ?? "desconhecida") + " não é mais elegível para retry; ignorando. " + message);
+                  continue;
+                }
+                retryErrors.push(target.label + ": " + message);
+                core.warning(target.label + ": não foi possível iniciar a recuperação. " + message);
+              }
+            }
+            if (retryErrors.length) {
+              core.setFailed("Uma ou mais recuperações não puderam ser iniciadas: " + retryErrors.join(" | "));
+            }

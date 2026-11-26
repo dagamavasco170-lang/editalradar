@@ -1,0 +1,19 @@
+{
+  "name": "EditalRadar — Concursos públicos",
+  "short_name": "EditalRadar",
+  "description": "Encontre concursos públicos e organize sua preparação.",
+  "lang": "pt-BR",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f5f7fa",
+  "theme_color": "#12364b",
+  "icons": [
+    {
+      "src": "./pwa-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

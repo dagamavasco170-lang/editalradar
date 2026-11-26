@@ -1,0 +1,50 @@
+name: Manter lockfile do npm
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - package.json
+      - package-lock.json
+      - .github/workflows/dependency-lock.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: npm-lockfile-main
+  cancel-in-progress: false
+
+jobs:
+  lockfile:
+    name: Gerar e versionar package-lock.json
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout da branch principal
+        uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Configurar Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Resolver dependências e gerar lockfile
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Validar árvore de dependências, testes e build
+        run: |
+          npm ci --no-audit --no-fund
+          npm test
+          npm run build
+      - name: Registrar lockfile no Git
+        run: |
+          git add package-lock.json
+          if git diff --cached --quiet -- package-lock.json; then
+            echo "package-lock.json já está atualizado."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "build: sync npm lockfile"
+          git push origin HEAD:main
