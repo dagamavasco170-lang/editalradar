@@ -91,7 +91,7 @@ export function parseExamPages(pages, documentSha256, { questionFormat = "multip
           suggested_answer: null,
           fingerprint,
           ocr_used: Boolean(current.ocrUsed),
-          review_notes: issues.join(" ") || "Extração automática; conferir enunciado, alternativas, imagens e gabarito oficial."
+          review_notes: issues.join(" ") || "Extração automática estruturada; gabarito deve corresponder à publicação definitiva."
         });
         seenFingerprints.add(fingerprint);
         seenQuestionNumbers.add(current.number);
@@ -102,6 +102,7 @@ export function parseExamPages(pages, documentSha256, { questionFormat = "multip
 
   for (const page of pages) {
     const pageNumber = Number(page.page);
+    if (current && page.ocrUsed) current.ocrUsed = true;
     const lines = String(page.text || "").replace(/\r/g, "").split("\n");
     for (const line of lines) {
       const start = parseQuestionStart(line);
