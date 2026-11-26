@@ -30,3 +30,10 @@ describe("domínio por assunto e revisão espaçada",()=>{
   expect(result[6]).toMatchObject({date:"2026-11-26",attempts:1,correct:1});
  });
 });
+
+it("desbloqueia nível progressivamente e amplia intervalo com sequência de domínio",()=>{
+ const now=Date.parse("2026-11-26T12:00:00Z");
+ const attempts=Array.from({length:5},(_,i)=>({questionId:i%2?"b":"a",correct:true,at:new Date(now-(4-i)*86400000).toISOString()}));
+ const result=buildTopicMastery({questions:questions.slice(0,2),attempts,now});
+ expect(result[0]).toMatchObject({streak:5,unlockedLevel:"Difícil",nextLevel:"Difícil",intervalDays:14});
+});

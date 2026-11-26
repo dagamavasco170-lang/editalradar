@@ -20,11 +20,11 @@ export function buildTopicMastery({questions=[],attempts=[],now=Date.now()}={}) 
     const discipline=question.discipline||"Outras";
     const topic=String(question.topic||discipline).trim()||discipline;
     const key=discipline+"::"+topic;
-    if(!topics.has(key)) topics.set(key,{discipline,topic,attempts:0,correct:0,wrong:0,unanswered:0,lastActivity:null,questionCount:0});
+    if(!topics.has(key)) topics.set(key,{discipline,topic,attempts:0,correct:0,wrong:0,unanswered:0,lastActivity:null,questionCount:0,questionIds:[]});
     return topics.get(key);
   };
   for(const question of questions) {
-    const row=rowFor(question); row.questionCount++;
+    const row=rowFor(question); row.questionCount++; row.questionIds.push(String(question.id));
     const attempt=latest.get(String(question.id));
     if(!attempt){row.unanswered++;continue;}
     row.attempts++;
