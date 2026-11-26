@@ -32,6 +32,13 @@ test("classifies prova, gabarito definitivo and preliminary key separately", () 
   assert.equal(classifyOfficialPdfLink({ label: "Edital", url: "https://cdn.cebraspe.org.br/edital.pdf" }), "other");
 });
 
+test("extracts a booklet variant from caderno and answer-key labels", () => {
+  assert.equal(variantIdentity("Caderno tipo A"), "a");
+  assert.equal(variantIdentity("Prova tipo B"), "b");
+  assert.equal(variantIdentity("Gabarito tipo A definitivo"), "a");
+  assert.equal(variantIdentity("TREGO08_Gab_Definitivo_001_1.PDF"), "");
+});
+
 test("does not pair one unversioned answer key with multiple cadernos", () => {
   const answerKey = {
     label: "Gabarito definitivo",
