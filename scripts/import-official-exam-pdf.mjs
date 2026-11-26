@@ -44,7 +44,7 @@ export function selectPdfOcrPages(pages = [], maxPages = MAX_OCR_PAGES) {
 
 function parseQuestionStart(line, questionFormat = "multiple_choice") {
   const item = String(line).match(/^\s*ITEM\s+0*(\d{1,3})\s*[:.)-]?\s*(.*)$/iu);
-  if (item) return { number: Number(item[1]), rest: item[2] || "", kind: "true_false" };
+  if (item) return { number: Number(item[1]), rest: item[2] || "", kind: "true_false", style: "item_marker" };
   const labelled = String(line).match(/^\s*QUEST(?:Ã|A)O(?:\s+N[º°.]?)?\s*0*(\d{1,3})\s*[:.)-]?\s*(.*)$/iu);
   if (labelled) return { number: Number(labelled[1]), rest: labelled[2] || "", kind: "multiple_choice" };
   const numbered = String(line).match(/^\s*0*(\d{1,3})\s*[.)-]\s*(.*)$/u);
@@ -52,12 +52,13 @@ function parseQuestionStart(line, questionFormat = "multiple_choice") {
     return {
       number: Number(numbered[1]),
       rest: numbered[2] || "",
-      kind: questionFormat === "true_false" ? "true_false" : "multiple_choice"
+      kind: questionFormat === "true_false" ? "true_false" : "multiple_choice",
+      style: questionFormat === "true_false" ? "numbered_item" : "multiple_choice"
     };
   }
   if (questionFormat === "true_false") {
     const bareItem = String(line).match(/^\s*0*(\d{1,3})(?:\s+(.*\S))?\s*$/u);
-    if (bareItem) return { number: Number(bareItem[1]), rest: bareItem[2] || "", kind: "true_false" };
+    if (bareItem) return { number: Number(bareItem[1]), rest: bareItem[2] || "", kind: "true_false", style: "numbered_item" };
   }
   return null;
 }
@@ -207,15 +208,21 @@ export function parseExamPages(pages, documentSha256, { questionFormat = "multip
         current = {
           number: start.number,
           kind: start.kind,
+          startStyle: start.style || "multiple_choice",
           page: pageNumber,
           ocrUsed: Boolean(page.ocrUsed),
-          promptLines: questionFormat === "true_false" ? [...activeCommandLines] : [],
+          promptLines: questionFormat === "true_false" && start.style === "numbered_item"
+            ? [...activeCommandLines]
+            : [],
           options: []
         };
+        if (start.style === "item_marker") activeCommandLines = [];
         if (start.rest.trim()) current.promptLines.push(start.rest.trim());
         continue;
       }
-      if (questionFormat === "true_false" && isTrueFalseCommandLine(line)) {
+      if (questionFormat === "true_false"
+        && current?.startStyle !== "item_marker"
+        && isTrueFalseCommandLine(line)) {
         if (current && current.promptLines.some(value => value.trim())) {
           flush();
         }
