@@ -58,7 +58,7 @@ A ingestão automática por service_role não faz parte desta versão: não há 
 
 A publicação usa a função SQL publish_study_exam_question_import. Ela bloqueia o registro pendente, confere permissões/fundamento e alternativa escolhida e grava questão, gabarito separado e status da fila na mesma transação PostgreSQL. Em caso de erro, toda a operação é revertida.
 
-Nesta versão, a única entrada ativa é PDF local → manifesto → fila administrativa → confirmação humana → publicação transacional. A rotina de ingestão automática com SUPABASE_SERVICE_ROLE_KEY não é ativada pelo workflow nem possui comando operacional no package.json. O módulo auxiliar de descoberta/validação falha de forma segura quando sua função de execução automática é invocada.
+Nesta versão, a única entrada ativa é PDF local → manifesto → fila administrativa → confirmação humana → publicação transacional. Não há worker de ingestão automática, comando de publicação por service_role ou etapa de importação no workflow de monitoramento.
 
 ## Revisão obrigatória
 
