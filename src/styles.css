@@ -4097,3 +4097,5 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{ou
 .simulator-finish-confirm p{margin:0;font-size:11px;line-height:1.55}
 .simulator-finish-confirm>div{display:flex;gap:8px;flex-wrap:wrap}
 .simulator-finish-confirm button{min-height:34px}
+
+.question-progress-summary>span{font-size:12px;font-weight:700;color:var(--accent,#168364);white-space:nowrap}
