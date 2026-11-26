@@ -14,7 +14,6 @@
     "test:monitor": "node --test scripts/*.node-test.mjs",
     "publish:discoveries": "node scripts/publish-discoveries.mjs",
     "auto:resolve": "node scripts/auto-resolve-discoveries.mjs",
-    "import:official-exams": "node scripts/import-official-exam-questions.mjs",
     "import:official-exam-pdf": "node scripts/import-official-exam-pdf.mjs"
   },
   "dependencies": {
