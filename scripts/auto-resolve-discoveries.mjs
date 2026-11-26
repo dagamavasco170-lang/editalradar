@@ -925,15 +925,16 @@ export async function readPdfText(buffer) {
       .map((page, index) => ({ page: index + 1, length: page.replace(/\s/g, "").length }))
       .filter(item => item.length < OCR_MIN_PAGE_TEXT).map(item => item.page);
   const selected = new Set([1, 2, 3].filter(page => page <= pageCount));
-  for (const page of sparsePages) {
-    if (selected.size >= OCR_MAX_PAGES) break;
-    selected.add(page);
-  }
-  if (sparsePages.length >= pageCount && selected.size < OCR_MAX_PAGES && pageCount > selected.size) {
-    const slots = OCR_MAX_PAGES - selected.size;
+  if (!extractedText && pageCount > selected.size) {
+    const slots = Math.min(OCR_MAX_PAGES - selected.size, pageCount - selected.size);
     for (let index = 1; index <= slots; index += 1) {
       const page = Math.round(index * pageCount / (slots + 1));
       if (page >= 1 && page <= pageCount) selected.add(page);
+    }
+  } else {
+    for (const page of sparsePages) {
+      if (selected.size >= OCR_MAX_PAGES) break;
+      selected.add(page);
     }
   }
   if (!selected.size) return extractedText;
