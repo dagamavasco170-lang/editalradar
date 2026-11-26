@@ -60,6 +60,52 @@ function isTrueFalseCommandLine(line) {
   return /^\s*(?:a respeito|no que se refere|acerca de|acerca da|acerca do|em relação|em relacao|com relação|com relacao|considerando|julgue|no tocante|quanto a|no âmbito|no ambito|a propósito|a proposito|relativamente|com base|de acordo com|à luz|a luz|diante de)\b/i.test(String(line || ""));
 }
 
+
+export function splitPdfColumns(pageText, questionFormat = "multiple_choice") {
+  const lines = String(pageText || "").replace(/\r/g, "").split("\n");
+  const positions = [];
+  for (const line of lines) {
+    const match = line.match(/^(.*?\S)( {4,})(\S.*)$/);
+    if (match) positions.push(match[1].length + match[2].length);
+  }
+  if (positions.length < 4) return { text: String(pageText || ""), split: false };
+
+  const sorted = [...positions].sort((a, b) => a - b);
+  const boundary = sorted[Math.floor(sorted.length / 2)];
+  if (!Number.isFinite(boundary) || boundary < 12) return { text: String(pageText || ""), split: false };
+
+  const left = [];
+  const right = [];
+  let splitRows = 0;
+  for (const line of lines) {
+    const leftPart = line.slice(0, boundary);
+    const rightPart = line.slice(boundary);
+    const hasLeft = Boolean(leftPart.trim());
+    const hasRight = Boolean(rightPart.trim());
+    const gapAtBoundary = /\s{2,}$/.test(leftPart);
+
+    if (hasRight && (!hasLeft || gapAtBoundary)) {
+      left.push(leftPart.trimEnd());
+      right.push(rightPart.trim());
+      if (hasLeft) splitRows += 1;
+    } else {
+      left.push(line.trimEnd());
+      right.push("");
+    }
+  }
+
+  const leftHasItems = left.some(line => parseQuestionStart(line, questionFormat));
+  const rightHasItems = right.some(line => parseQuestionStart(line, questionFormat));
+  if (!leftHasItems || !rightHasItems || splitRows < 3) {
+    return { text: String(pageText || ""), split: false };
+  }
+
+  return {
+    text: left.join("\n") + "\n\n" + right.join("\n"),
+    split: true
+  };
+}
+
 function parseOption(line) {
   const match = String(line).match(/^\s*(?:\(([A-F])\)|([A-F])[\).:-])\s*(.*?)\s*$/iu);
   if (!match) return null;
@@ -292,7 +338,7 @@ function command(commandName, args, options = {}) {
   });
 }
 
-export async function extractPdfPages(pdfPath) {
+export async function extractPdfPages(pdfPath, questionFormat = "multiple_choice") {
   const info = command("pdfinfo", [pdfPath]);
   const pageCount = Number(info.match(/^Pages:\s+(\d+)/m)?.[1] || 0);
   if (!pageCount || pageCount > MAX_PDF_PAGES) {
@@ -301,10 +347,17 @@ export async function extractPdfPages(pdfPath) {
   const allText = command("pdftotext", ["-layout", "-enc", "UTF-8", pdfPath, "-"]);
   const pageTexts = allText.split("\f");
   while (pageTexts.length < pageCount) pageTexts.push("");
-  const pages = pageTexts.slice(0, pageCount).map((text, index) => ({ page: index + 1, text }));
+  const columnWarnings = [];
+  const pages = pageTexts.slice(0, pageCount).map((text, index) => {
+    const layout = splitPdfColumns(text, questionFormat);
+    if (layout.split) columnWarnings.push(index + 1);
+    return { page: index + 1, text: layout.text };
+  });
   const sparsePages = pages.filter((page) => page.text.replace(/\s/g, "").length < 40);
   const selectedOcrPages = selectPdfOcrPages(pages, MAX_OCR_PAGES);
-  const warnings = [];
+  const warnings = columnWarnings.length
+    ? ["Layout de duas colunas detectado e separado nas páginas: " + columnWarnings.join(", ") + ". Revise visualmente a ordem e o conteúdo."]
+    : [];
 
   if (selectedOcrPages.length) {
     const tempDir = await mkdtemp(path.join(os.tmpdir(), "editalradar-pdf-"));
@@ -348,7 +401,7 @@ export async function importPdfToManifest({ pdfPath, metadata }) {
     throw new Error("O arquivo informado não possui assinatura PDF válida.");
   }
   const documentSha256 = sha256(header);
-  const { pages, warnings } = await extractPdfPages(pdfPath);
+  const { pages, warnings } = await extractPdfPages(pdfPath, metadata.question_format || "multiple_choice");
   const questions = parseExamPages(pages, documentSha256, {
     questionFormat: metadata.question_format || "multiple_choice"
   });
