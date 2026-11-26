@@ -172,7 +172,7 @@ function parseAnswerRows(text, questionFormat = "multiple_choice") {
     if (!tokens.length) continue;
     const residue = line
       .replace(/\b(?:\d{1,3}|ANULADA|[A-F]|X)\b/gi, "")
-      .replace(/[\s|,;:.()\-–—/]+/g, "");
+      .replace(/[\s|,;:.()\-–—/\\u00b7\\u2022\\u00a0/]+/g, "");
     if (residue) {
       // Cabeçalhos de cargo, páginas e textos auxiliares nunca são dados do gabarito.
       pendingNumbers = [];
