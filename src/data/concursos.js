@@ -1285,90 +1285,90 @@ export const concursos = [
     "observacao": "O edital 005/2026 oferece sete vagas imediatas para condutor de veículos de urgência, motoristas de veículos leves e pesados e operador de empilhadeira, além de cadastro reserva. Inscrições de 30/11 a 27/12/2026. O comunicado municipal não detalha a distribuição das sete vagas entre os cargos nem os horários de abertura e encerramento; consulte o edital completo no portal do IDCAP."
   },
     {
-    "id": 531,
-    "sigla": "COFEN",
-    "cargo": "13 cargos de nível superior — 6 vagas imediatas + 444 cadastro reserva",
-    "orgao": "Conselho Federal de Enfermagem",
-    "vinculo": "Concurso público · Edital nº 1/2026",
-    "nivel": "Superior",
-    "vagas": 6,
-    "vagasTotais": 450,
-    "vagasImediatas": 6,
-    "atoOficial": "Edital nº 1, de 25/11/2026",
-    "status": "Inscrições abertas até 11/01/2027 às 23h",
-    "area": "Federal",
-    "estado": "Distrito Federal",
-    "localidade": "Brasília",
-    "sourceUrl": "https://www.cofen.gov.br/edital-no-1-2026-concurso-publico-para-provimento-de-vagas-e-formacao-de-cadastro-dereserva-para-cargos-de-nivel-superior/",
-    "inscricaoUrl": "https://quadrix.org.br/informacoes/3002/",
-    "periodoInscricao": {
-      "inicio": "2026-11-26",
-      "fim": "2027-01-11",
-      "inicioHoraLocal": "10:00",
-      "fimHoraLocal": "23:00",
-      "fonteUrl": "https://quadrix.org.br/informacoes/3002/",
-      "fonteDescricao": "Página oficial do concurso — Instituto Quadrix",
-      "verificadoEm": "2026-11-26"
-    },
-    "documentos": [
-      {
-        "title": "Edital nº 1/2026 — publicação oficial Cofen",
-        "url": "https://cofen.gov.br/wp-content/uploads/2026/11/Edital-01-2026-Concurso-Cofen.pdf",
-        "description": "PDF oficial do edital de abertura, publicado em 25/11/2026."
-      },
-      {
-        "title": "Página oficial do concurso — Instituto Quadrix",
-        "url": "https://quadrix.org.br/informacoes/3002/",
-        "description": "Página oficial da banca com inscrições, cronograma, cargos e publicações."
-      }
-    ],
-    "observacao": "Edital oficial publicado em 25/11/2026: 13 cargos de nível superior, 6 vagas imediatas e 444 para cadastro reserva (450 no total). Salário-base de R$ 18.950,52 mais benefícios, jornada de 40 horas semanais e lotação em Brasília/DF. Inscrições de 26/11/2026 às 10h a 11/01/2027 às 23h; isenção em 26 e 27/11. Provas objetiva e discursiva em 28/02/2027, no Distrito Federal. Dados confirmados no edital do Cofen e na página oficial Quadrix."
+  "id": 531,
+  "sigla": "COFEN",
+  "cargo": "13 cargos de nível superior — 6 vagas imediatas + 444 cadastro reserva",
+  "orgao": "Conselho Federal de Enfermagem",
+  "vinculo": "Concurso público · Edital nº 1/2026",
+  "nivel": "Superior",
+  "vagas": 6,
+  "vagasTotais": 450,
+  "vagasImediatas": 6,
+  "atoOficial": "Edital nº 1, de 25/11/2026",
+  "status": "Inscrições abertas até 11/01/2027 às 23h",
+  "area": "Federal",
+  "estado": "Distrito Federal",
+  "localidade": "Brasília",
+  "sourceUrl": "https://www.cofen.gov.br/edital-no-1-2026-concurso-publico-para-provimento-de-vagas-e-formacao-de-cadastro-dereserva-para-cargos-de-nivel-superior/",
+  "inscricaoUrl": "https://quadrix.org.br/informacoes/3002/",
+  "periodoInscricao": {
+    "inicio": "2026-11-26",
+    "fim": "2027-01-11",
+    "inicioHoraLocal": "10:00",
+    "fimHoraLocal": "23:00",
+    "fonteUrl": "https://quadrix.org.br/informacoes/3002/",
+    "fonteDescricao": "Página oficial do concurso — Instituto Quadrix",
+    "verificadoEm": "2026-11-26"
   },
+  "documentos": [
     {
-    "id": 532,
-    "sigla": "COREN-SP",
-    "cargo": "9 cargos — 76 vagas imediatas + 204 cadastro reserva",
-    "orgao": "Conselho Regional de Enfermagem de São Paulo",
-    "vinculo": "Concurso público · Edital nº 1/2026",
-    "nivel": "Médio e Superior",
-    "vagas": 76,
-    "vagasTotais": 280,
-    "vagasImediatas": 76,
-    "atoOficial": "Edital nº 1, de 25/11/2026",
-    "status": "Inscrições abertas até 11/01/2027 às 23h",
-    "area": "Federal",
-    "estado": "São Paulo",
-    "localidade": "São Paulo",
-    "sourceUrl": "https://quadrix.org.br/informacoes/3075/",
-    "inscricaoUrl": "https://quadrix.org.br/informacoes/3075/",
-    "periodoInscricao": {
-      "inicio": "2026-11-26",
-      "fim": "2027-01-11",
-      "inicioHoraLocal": "10:00",
-      "fimHoraLocal": "23:00",
-      "fonteUrl": "https://quadrix.org.br/informacoes/3075/",
-      "fonteDescricao": "Página oficial do concurso — Instituto Quadrix",
-      "verificadoEm": "2026-11-26"
+      "title": "Edital nº 1/2026 — publicação oficial Cofen",
+      "url": "https://cofen.gov.br/wp-content/uploads/2026/11/Edital-01-2026-Concurso-Cofen.pdf",
+      "description": "PDF oficial do edital de abertura, publicado em 25/11/2026."
     },
-    "documentos": [
-      {
-        "title": "Edital nº 1/2026 — abertura",
-        "url": "https://anexos-r2.selecao.net.br/uploads/861/concursos/3075/anexos/a10260c5-f08b-4290-9ee3-b3be6d126724.pdf",
-        "description": "PDF do edital de abertura, vinculado pela página oficial da Quadrix."
-      },
-      {
-        "title": "Cronograma — 25/11/2026",
-        "url": "https://anexos-r2.selecao.net.br/uploads/861/concursos/3075/anexos/7978ed5f-7136-4922-800b-f54040fef282.pdf",
-        "description": "Cronograma oficial do concurso, vinculado pela página Quadrix."
-      },
-      {
-        "title": "Página oficial do concurso — Instituto Quadrix",
-        "url": "https://quadrix.org.br/informacoes/3075/",
-        "description": "Página da banca com inscrições, cargos, salários e etapas."
-      }
-    ],
-    "observacao": "Edital publicado em 25/11/2026 para 9 cargos: 76 vagas imediatas e 204 para cadastro reserva (280 no total). Remuneração-base: R$ 5.389,00 para Assistente Administrativo, R$ 8.440,59 para a maioria dos cargos superiores e R$ 10.692,00 para Enfermeiro Fiscal, além de benefícios. Jornada de 40 horas. Inscrições de 26/11/2026 às 10h a 11/01/2027 às 23h; isenção em 26 e 27/11. Provas objetiva e discursiva em 07/03/2027, em São Paulo e interior. Dados confirmados no edital e cronograma vinculados à página oficial Quadrix."
+    {
+      "title": "Página oficial do concurso — Instituto Quadrix",
+      "url": "https://quadrix.org.br/informacoes/3002/",
+      "description": "Página oficial da banca com inscrições, cronograma, cargos e publicações."
+    }
+  ],
+  "observacao": "Edital oficial publicado em 25/11/2026: 13 cargos de nível superior, 6 vagas imediatas e 444 para cadastro reserva (450 no total). Salário-base de R$ 18.950,52 mais benefícios, jornada de 40 horas semanais e lotação em Brasília/DF. Inscrições de 26/11/2026 às 10h a 11/01/2027 às 23h; isenção em 26 e 27/11. Provas objetiva e discursiva em 28/02/2027, no Distrito Federal. Dados confirmados no edital do Cofen e na página oficial Quadrix."
+},
+    {
+  "id": 532,
+  "sigla": "COREN-SP",
+  "cargo": "9 cargos — 76 vagas imediatas + 204 cadastro reserva",
+  "orgao": "Conselho Regional de Enfermagem de São Paulo",
+  "vinculo": "Concurso público · Edital nº 1/2026",
+  "nivel": "Médio e Superior",
+  "vagas": 76,
+  "vagasTotais": 280,
+  "vagasImediatas": 76,
+  "atoOficial": "Edital nº 1, de 25/11/2026",
+  "status": "Inscrições abertas até 11/01/2027 às 23h",
+  "area": "Federal",
+  "estado": "São Paulo",
+  "localidade": "São Paulo",
+  "sourceUrl": "https://quadrix.org.br/informacoes/3075/",
+  "inscricaoUrl": "https://quadrix.org.br/informacoes/3075/",
+  "periodoInscricao": {
+    "inicio": "2026-11-26",
+    "fim": "2027-01-11",
+    "inicioHoraLocal": "10:00",
+    "fimHoraLocal": "23:00",
+    "fonteUrl": "https://quadrix.org.br/informacoes/3075/",
+    "fonteDescricao": "Página oficial do concurso — Instituto Quadrix",
+    "verificadoEm": "2026-11-26"
   },
+  "documentos": [
+    {
+      "title": "Edital nº 1/2026 — abertura",
+      "url": "https://anexos-r2.selecao.net.br/uploads/861/concursos/3075/anexos/a10260c5-f08b-4290-9ee3-b3be6d126724.pdf",
+      "description": "PDF do edital de abertura, vinculado pela página oficial da Quadrix."
+    },
+    {
+      "title": "Cronograma — 25/11/2026",
+      "url": "https://anexos-r2.selecao.net.br/uploads/861/concursos/3075/anexos/7978ed5f-7136-4922-800b-f54040fef282.pdf",
+      "description": "Cronograma oficial do concurso, vinculado pela página Quadrix."
+    },
+    {
+      "title": "Página oficial do concurso — Instituto Quadrix",
+      "url": "https://quadrix.org.br/informacoes/3075/",
+      "description": "Página da banca com inscrições, cargos, salários e etapas."
+    }
+  ],
+  "observacao": "Edital publicado em 25/11/2026 para 9 cargos: 76 vagas imediatas e 204 para cadastro reserva (280 no total). Remuneração-base: R$ 5.389,00 para Assistente Administrativo, R$ 8.440,59 para a maioria dos cargos superiores e R$ 10.692,00 para Enfermeiro Fiscal, além de benefícios. Jornada de 40 horas. Inscrições de 26/11/2026 às 10h a 11/01/2027 às 23h; isenção em 26 e 27/11. Provas objetiva e discursiva em 07/03/2027, em São Paulo e interior. Dados confirmados no edital e cronograma vinculados à página oficial Quadrix."
+},
 {
     "id": 533,
     "sigla": "PMS-SALVADOR-EDUCACAO",
