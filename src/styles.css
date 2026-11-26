@@ -3741,3 +3741,61 @@ html[data-theme="dark"] .dashboard-focus{background:linear-gradient(145deg,#1a2b
 html[data-theme="dark"] .dashboard-focus h3{color:#e2edfc}
 html[data-theme="dark"] .dashboard-focus p{color:#a9bbd1}
 html[data-theme="dark"] .candidate-dashboard-stats .dashboard-stat{background:#132235}
+
+
+/* EditalRadar — Phase 3: question bank experience */
+.study-question-bank{display:grid;gap:18px;padding:clamp(16px,2vw,24px);border-radius:18px;}
+.study-question-bank>.panel-head{align-items:flex-start;gap:16px;flex-wrap:wrap;}
+.study-question-bank .question-bank-subtitle{margin:8px 0 0;color:var(--er-muted);font-size:12px;line-height:1.55;}
+.study-question-bank .question-bank-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;}
+.study-question-bank .question-stat{border:1px solid var(--er-border);border-radius:12px;padding:12px 15px;background:var(--er-bg);display:grid;gap:4px;min-width:0;}
+.study-question-bank .question-stat strong{font:800 20px Manrope,sans-serif;color:var(--er-ink);}
+.study-question-bank .question-stat span{font-size:10px;color:var(--er-muted);}
+.study-question-bank .question-toolbar{display:grid;grid-template-columns:minmax(190px,1.6fr) repeat(4,minmax(130px,1fr));gap:10px;align-items:end;}
+.study-question-bank .question-toolbar label{display:grid;gap:6px;min-width:0;color:var(--er-muted);font-size:10px;font-weight:700;}
+.study-question-bank .question-toolbar input,.study-question-bank .question-toolbar select{width:100%;min-width:0;min-height:42px;padding:9px 11px;border:1px solid var(--er-border);border-radius:9px;background:var(--er-surface);color:var(--er-ink);font-size:11px;}
+.study-question-bank .question-toolbar input:focus,.study-question-bank .question-toolbar select:focus{border-color:#8fb2ef;outline:3px solid rgba(37,99,235,.12);outline-offset:1px;}
+.study-question-bank .question-sync-status{font-size:10px;color:var(--er-muted);padding:9px 11px;border:1px solid var(--er-border);border-radius:9px;background:var(--er-bg);}
+.study-question-bank .question-collections{display:flex;flex-wrap:wrap;gap:8px;}
+.study-question-bank .question-collections button{min-height:39px;border:1px solid var(--er-border);background:var(--er-surface);color:var(--er-muted);border-radius:10px;padding:8px 12px;font-size:11px;font-weight:700;display:flex;align-items:center;gap:9px;transition:background .15s,border-color .15s,color .15s;}
+.study-question-bank .question-collections button span{display:inline-grid;place-items:center;min-width:22px;height:22px;border-radius:7px;background:var(--er-bg);font-size:10px;}
+.study-question-bank .question-collections button:hover{border-color:#b7ccef;color:var(--er-primary);}
+.study-question-bank .question-collections button.active{border-color:#93b5ed;background:#edf4ff;color:#2459b5;box-shadow:0 2px 8px rgba(37,99,235,.06);}
+.study-question-bank .question-card{border:1px solid var(--er-border);border-radius:15px;background:var(--er-surface);padding:clamp(16px,2.2vw,25px);display:grid;gap:16px;box-shadow:var(--er-shadow);}
+.study-question-bank .question-card-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;}
+.study-question-bank .question-meta{display:flex;flex-wrap:wrap;gap:7px;align-items:center;}
+.study-question-bank .question-meta span{font-size:10px;color:var(--er-muted);border:1px solid var(--er-border);background:var(--er-bg);border-radius:8px;padding:6px 8px;line-height:1.4;}
+.study-question-bank .question-meta .question-difficulty{font-weight:800;border-radius:999px;}
+.study-question-bank .question-meta .difficulty-facil{color:#19815c;background:#edf8f2;border-color:#cbead9;}
+.study-question-bank .question-meta .difficulty-intermediaria{color:#99650d;background:#fff7e7;border-color:#f1dfb9;}
+.study-question-bank .question-meta .difficulty-avancada{color:#a43c4b;background:#fff0f1;border-color:#f0c9cf;}
+.study-question-bank .question-bookmark{width:38px;height:38px;flex-shrink:0;border:1px solid var(--er-border);border-radius:10px;background:var(--er-bg);color:var(--er-muted);font-size:20px;}
+.study-question-bank .question-bookmark.saved{color:#d08b18;border-color:#efd39b;background:#fff8e9;}
+.study-question-bank .question-index{font-size:10px;color:var(--er-muted);font-weight:700;}
+.study-question-bank .question-card h3{font-size:clamp(14px,1.5vw,17px);line-height:1.75;color:var(--er-ink);font-weight:700;margin:0;white-space:pre-wrap;}
+.study-question-bank .question-options{display:grid;gap:9px;}
+.study-question-bank .question-options .option{display:flex;align-items:flex-start;gap:10px;min-height:48px;padding:12px 14px;border:1px solid var(--er-border);background:var(--er-bg);color:var(--er-ink);border-radius:11px;font-size:12px;line-height:1.65;margin:0;white-space:normal;}
+.study-question-bank .question-options .option.chosen{border-color:#7fa8ef;background:#eef4ff;color:#204d99;}
+.study-question-bank .question-options .option.correct{border-color:#4db58b;background:#edf9f3;color:#1b7657;}
+.study-question-bank .question-options .option.wrong{border-color:#dc929a;background:#fff2f3;color:#a03d4c;}
+.study-question-bank .question-actions{display:flex;flex-wrap:wrap;gap:9px;align-items:center;}
+.study-question-bank .question-actions button{min-height:42px;padding:10px 14px;font-size:11px;border-radius:9px;}
+.study-question-bank .answer{margin:0;padding:12px 14px;border:1px solid var(--er-border);border-radius:10px;font-size:12px;line-height:1.65;}
+.study-question-bank .answer.good{border-color:#b7dfc8;background:#eff9f3;color:#207654;}
+.study-question-bank .answer.bad{border-color:#efc4ca;background:#fff3f4;color:#a24250;}
+.study-question-bank .study-disclaimer{font-size:10px;line-height:1.65;color:var(--er-muted);overflow-wrap:anywhere;}
+.study-question-bank .question-empty{padding:28px 20px;border:1px dashed var(--er-border);border-radius:13px;background:var(--er-bg);text-align:center;color:var(--er-muted);}
+.study-question-bank .question-empty strong{color:var(--er-ink);font-size:13px;}
+.study-question-bank .question-empty p{font-size:11px;line-height:1.6;}
+html[data-theme="dark"] .study-question-bank .question-collections button.active{background:#203858;color:#b9d1ff;border-color:#648fcf;}
+html[data-theme="dark"] .study-question-bank .question-meta .difficulty-facil{background:#19372e;color:#84d5b1;border-color:#35664f;}
+html[data-theme="dark"] .study-question-bank .question-meta .difficulty-intermediaria{background:#3b3121;color:#e4c27b;border-color:#665333;}
+html[data-theme="dark"] .study-question-bank .question-meta .difficulty-avancada{background:#3b252d;color:#e3a2aa;border-color:#71424a;}
+html[data-theme="dark"] .study-question-bank .question-options .option.chosen{background:#203858;color:#c5dbff;}
+html[data-theme="dark"] .study-question-bank .question-options .option.correct{background:#19372e;color:#8cdbb7;}
+html[data-theme="dark"] .study-question-bank .question-options .option.wrong{background:#3b252d;color:#e7aab1;}
+html[data-theme="dark"] .study-question-bank .question-bookmark.saved{background:#3b3121;color:#e4c27b;border-color:#665333;}
+html[data-theme="dark"] .study-question-bank .answer.good{background:#19372e;color:#8cdbb7;border-color:#35664f;}
+html[data-theme="dark"] .study-question-bank .answer.bad{background:#3b252d;color:#e7aab1;border-color:#71424a;}
+@media(max-width:1050px){.study-question-bank .question-toolbar{grid-template-columns:repeat(3,minmax(0,1fr));}.study-question-bank .question-toolbar .question-search{grid-column:1/-1;}}
+@media(max-width:640px){.study-question-bank{padding:14px;gap:14px;border-radius:15px;}.study-question-bank .question-bank-stats{gap:7px;}.study-question-bank .question-stat{padding:10px 8px;border-radius:10px;}.study-question-bank .question-stat strong{font-size:18px;}.study-question-bank .question-stat span{font-size:9px;line-height:1.35;}.study-question-bank .question-toolbar{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;}.study-question-bank .question-toolbar .question-search{grid-column:1/-1;}.study-question-bank .question-card{padding:14px;gap:13px;}.study-question-bank .question-meta{gap:5px;}.study-question-bank .question-meta span{font-size:9px;padding:5px 7px;}.study-question-bank .question-card h3{font-size:13px;line-height:1.7;}.study-question-bank .question-options .option{padding:11px 12px;font-size:11px;}.study-question-bank .question-actions{display:grid;grid-template-columns:1fr 1fr;}.study-question-bank .question-actions .primary-btn{grid-column:1/-1;}.study-question-bank .question-actions button{width:100%;}.study-question-bank .question-collections{gap:6px;}.study-question-bank .question-collections button{flex:1 1 calc(50% - 6px);justify-content:center;padding:8px 9px;font-size:10px;}}
