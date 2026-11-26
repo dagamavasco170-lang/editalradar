@@ -4099,3 +4099,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{ou
 .simulator-finish-confirm button{min-height:34px}
 
 .question-progress-summary>span{font-size:12px;font-weight:700;color:var(--accent,#168364);white-space:nowrap}
+
+.question-keyboard-hints{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin:10px 0;color:var(--text-muted,#657178);font-size:11px}
+.question-keyboard-hints>span{font-weight:700;margin-right:3px}
+.question-keyboard-hints kbd,.option-shortcut{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;padding:0 5px;border:1px solid var(--border,#d5dce0);border-radius:5px;background:var(--surface,#fff);font:inherit;font-weight:700;color:var(--text,#2b353b)}
+.option-shortcut{margin-right:8px;flex-shrink:0}
