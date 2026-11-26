@@ -349,6 +349,7 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
    </div>
    <div className="question-sync-status" role="status">Progresso: {questionSyncStatus==="syncing"?"Salvando progresso…":questionSyncStatus==="synced"?"Progresso salvo":questionSyncStatus==="loading"?"Carregando seu progresso…":"Progresso salvo neste aparelho"}</div>
    <div className="question-collections" role="group" aria-label="Coleções de questões">
+    <button type="button" className={collection==="adaptive"?"active":""} aria-pressed={collection==="adaptive"} onClick={()=>selectCollection("adaptive")}>Recomendadas <span>{collectionCounts.adaptive}</span></button>
     <button type="button" className={collection==="all"?"active":""} aria-pressed={collection==="all"} onClick={()=>selectCollection("all")}>Todas <span>{collectionCounts.all}</span></button>
     <button type="button" className={collection==="unanswered"?"active":""} aria-pressed={collection==="unanswered"} onClick={()=>selectCollection("unanswered")}>Não respondidas <span>{collectionCounts.unanswered}</span></button>
     <button type="button" className={collection==="wrong"?"active":""} aria-pressed={collection==="wrong"} onClick={()=>selectCollection("wrong")}>Caderno de erros <span>{collectionCounts.wrong}</span></button>
