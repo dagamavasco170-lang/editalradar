@@ -142,6 +142,9 @@ function validateMetadata(metadata) {
 }
 
 export function buildImportManifest(metadata, documentSha256, questions, warnings = []) {
+  if (!/^[0-9a-f]{64}$/.test(String(documentSha256 || ""))) {
+    throw new Error("Hash SHA-256 do documento inválido.");
+  }
   const verifiedMetadata = validateMetadata(metadata);
   return {
     format: "editalradar-exam-import-v1",
