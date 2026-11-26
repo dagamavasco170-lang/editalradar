@@ -139,7 +139,8 @@ function parseBareOption(line) {
 
 function hasFollowingBareOptionSequence(lines, startIndex, {
   questionFormat = "multiple_choice",
-  allowNumberedMultipleChoice = true
+  allowNumberedMultipleChoice = true,
+  allowBareOptions = true
 } = {}) {
   let expected = "b";
   let matched = 0;
@@ -147,7 +148,7 @@ function hasFollowingBareOptionSequence(lines, startIndex, {
   for (let index = startIndex + 1; index < end; index += 1) {
     const nextStart = parseQuestionStart(lines[index], questionFormat);
     if (nextStart && (allowNumberedMultipleChoice || nextStart.style !== "multiple_choice")) break;
-    const option = parseOption(lines[index]) || parseBareOption(lines[index]);
+    const option = parseOption(lines[index]) || (allowBareOptions ? parseBareOption(lines[index]) : null);
     if (!option || option.id !== expected) continue;
     matched += 1;
     expected = String.fromCharCode(expected.charCodeAt(0) + 1);
@@ -161,7 +162,7 @@ function hasQuestionOptionSequenceAfterNumber(lines, startIndex, options = {}) {
   for (let index = startIndex + 1; index < end; index += 1) {
     const nextStart = parseQuestionStart(lines[index], options.questionFormat || "multiple_choice");
     if (nextStart && (options.allowNumberedMultipleChoice !== false || nextStart.style !== "multiple_choice")) break;
-    const option = parseOption(lines[index]) || parseBareOption(lines[index]);
+    const option = parseOption(lines[index]) || (options.allowBareOptions !== false ? parseBareOption(lines[index]) : null);
     if (option?.id === "a" && hasFollowingBareOptionSequence(lines, index, options)) return true;
   }
   return false;
@@ -170,6 +171,7 @@ function hasQuestionOptionSequenceAfterNumber(lines, startIndex, options = {}) {
 export function parseExamPages(pages, documentSha256, {
   questionFormat = "multiple_choice",
   allowNumberedMultipleChoice = true,
+  allowBareOptions = true,
   diagnostics = null
 } = {}) {
   const parsed = [];
@@ -293,7 +295,7 @@ export function parseExamPages(pages, documentSha256, {
       }
 
       if (start?.style === "bare_multiple_choice"
-        && !hasQuestionOptionSequenceAfterNumber(lines, lineIndex, { questionFormat, allowNumberedMultipleChoice })) {
+        && !hasQuestionOptionSequenceAfterNumber(lines, lineIndex, { questionFormat, allowNumberedMultipleChoice, allowBareOptions })) {
         addDiagnostic({
           page: pageNumber,
           questionNumber: Number(start.number),
@@ -339,11 +341,11 @@ export function parseExamPages(pages, documentSha256, {
 
       let option = parseOption(line);
       if (!option && current.kind !== "true_false") {
-        const bareOption = parseBareOption(line);
+        const bareOption = allowBareOptions ? parseBareOption(line) : null;
         const expectedId = String.fromCharCode(97 + current.options.length);
         const firstBareSequence = current.options.length === 0
           && bareOption?.id === "a"
-          && hasFollowingBareOptionSequence(lines, lineIndex, { questionFormat, allowNumberedMultipleChoice });
+          && hasFollowingBareOptionSequence(lines, lineIndex, { questionFormat, allowNumberedMultipleChoice, allowBareOptions });
         const nextBareOption = current.options.length > 0 && bareOption?.id === expectedId;
         if (firstBareSequence || nextBareOption) option = bareOption;
       }
@@ -464,7 +466,7 @@ export function scoreQuestionExtraction(questions = []) {
   return uniqueNumbers.size * 1000 - duplicateCount * 100 + numbers.length;
 }
 
-export async function extractPdfPages(pdfPath, questionFormat = "multiple_choice", { splitColumns = true, allowNumberedMultipleChoice = true } = {}) {
+export async function extractPdfPages(pdfPath, questionFormat = "multiple_choice", { splitColumns = true, allowNumberedMultipleChoice = true, allowBareOptions = true } = {}) {
   const info = command("pdfinfo", [pdfPath]);
   const pageCount = Number(info.match(/^Pages:\s+(\d+)/m)?.[1] || 0);
   if (!pageCount || pageCount > MAX_PDF_PAGES) {
@@ -487,7 +489,7 @@ export async function extractPdfPages(pdfPath, questionFormat = "multiple_choice
   let pages = layoutPages;
   const extractionSelection = {
     mode: "layout",
-    layoutScore: scoreQuestionExtraction(parseExamPages(layoutPages, "0".repeat(64), { questionFormat, allowNumberedMultipleChoice })),
+    layoutScore: scoreQuestionExtraction(parseExamPages(layoutPages, "0".repeat(64), { questionFormat, allowNumberedMultipleChoice, allowBareOptions })),
     rawScore: null
   };
   try {
@@ -497,7 +499,7 @@ export async function extractPdfPages(pdfPath, questionFormat = "multiple_choice
     const rawPages = rawPageTexts.slice(0, pageCount).map((text, index) => ({
       page: index + 1, text, extractionMode: "raw", columnsSplit: false
     }));
-    const rawScore = scoreQuestionExtraction(parseExamPages(rawPages, "0".repeat(64), { questionFormat, allowNumberedMultipleChoice }));
+    const rawScore = scoreQuestionExtraction(parseExamPages(rawPages, "0".repeat(64), { questionFormat, allowNumberedMultipleChoice, allowBareOptions }));
     extractionSelection.rawScore = rawScore;
     if (rawScore > extractionSelection.layoutScore) {
       pages = rawPages;
@@ -559,16 +561,19 @@ export async function importPdfToManifest({ pdfPath, metadata }) {
     throw new Error("O arquivo informado não possui assinatura PDF válida.");
   }
   const documentSha256 = sha256(header);
-  const allowNumberedMultipleChoice = !/fgv/i.test(String(metadata.board || ""));
+  const isFgvBoard = /fgv/i.test(String(metadata.board || ""));
+  const allowNumberedMultipleChoice = !isFgvBoard;
+  const allowBareOptions = !isFgvBoard;
   const { pages, warnings, extractionSelection } = await extractPdfPages(
     pdfPath,
     metadata.question_format || "multiple_choice",
-    { allowNumberedMultipleChoice }
+    { allowNumberedMultipleChoice, allowBareOptions }
   );
   const questionParsingDiagnostics = [];
   const questions = parseExamPages(pages, documentSha256, {
     questionFormat: metadata.question_format || "multiple_choice",
     allowNumberedMultipleChoice,
+    allowBareOptions,
     diagnostics: questionParsingDiagnostics
   });
   if (!questions.length) {
@@ -592,7 +597,8 @@ export async function importPdfToManifest({ pdfPath, metadata }) {
             && (candidate.style !== "bare_multiple_choice"
               || hasQuestionOptionSequenceAfterNumber(lines, index, {
                 questionFormat: metadata.question_format || "multiple_choice",
-                allowNumberedMultipleChoice
+                allowNumberedMultipleChoice,
+                allowBareOptions
               }))
         });
       }
@@ -607,7 +613,7 @@ export async function importPdfToManifest({ pdfPath, metadata }) {
       rawScore: page.rawScore ?? extractionSelection?.rawScore ?? null,
       questionStartCandidates: starts,
       optionLabelLines: lines.reduce((count, line) =>
-        count + (parseOption(line) || parseBareOption(line) ? 1 : 0), 0)
+        count + (parseOption(line) || (allowBareOptions && parseBareOption(line)) ? 1 : 0), 0)
     };
   });
   manifest.extractionSelection = extractionSelection;
