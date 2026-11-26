@@ -213,9 +213,9 @@ test("catálogo atual possui fontes HTTPS deduplicadas", () => {
   assert.ok(urls.includes("https://www.institutoaocp.org.br/concursos/status/inscricoes-abertas"));
   assert.ok(urls.includes("https://www.institutoaocp.org.br/concursos/status/em-andamento"));
   assert.ok(urls.includes("https://concursos.ibfc.org.br/index/abertos"));
-  assert.ok(urls.includes("https://www.igeduc.org.br/index/abertos/"));
-  assert.ok(urls.includes("https://quadrix.org.br/index/todos/"));
-  assert.ok(urls.includes("https://fundacaolasalle.org.br/concursos/?filtro=em-andamento"));
+  assert.ok(urls.includes("https://www.igeduc.org.br/index/abertos"));
+  assert.ok(urls.includes("https://quadrix.org.br/index/todos"));
+  assert.ok(urls.includes("https://fundacaolasalle.org.br/concursos?filtro=em-andamento"));
   assert.equal(isTrustedOfficialHost("www.igeduc.org.br"), true);
   assert.equal(isTrustedOfficialHost("concursos.ibfc.org.br"), true);
   assert.equal(isTrustedOfficialHost("quadrix.org.br"), true);
