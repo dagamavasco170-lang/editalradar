@@ -33,11 +33,16 @@ export function buildTopicMastery({questions=[],attempts=[],now=Date.now()}={}) 
     if(at!==null&&(row.lastActivity===null||at>row.lastActivity))row.lastActivity=at;
   }
   return [...topics.values()].map(row=>{
+    const history=attempts.filter(attempt=>row.questionIds.includes(String(attempt.questionId))&&toTimestamp(attempt.at)!==null).sort((a,b)=>toTimestamp(a.at)-toTimestamp(b.at));
+    let streak=0;
+    for(let i=history.length-1;i>=0;i--){if(history[i].correct===true)streak++;else break;}
     const accuracy=row.attempts?Math.round(row.correct/row.attempts*100):0;
     const mastery=row.attempts<2?"starting":accuracy>=80?"strong":"developing";
-    const intervalDays=row.attempts===0?0:accuracy>=85?7:accuracy>=65?3:1;
+    const intervalDays=row.attempts===0?0:streak>=5&&accuracy>=85?14:streak>=3&&accuracy>=80?7:accuracy>=65?3:1;
+    const unlockedLevel=streak>=5&&accuracy>=85?"Difícil":streak>=3&&accuracy>=70?"Médio":"Fácil";
+    const nextLevel=unlockedLevel==="Fácil"?"Médio":unlockedLevel==="Médio"?"Difícil":"Difícil";
     const dueAt=row.lastActivity===null?now:row.lastActivity+intervalDays*DAY_MS;
-    return {...row,accuracy,mastery,intervalDays,dueAt,due:dueAt<=now};
+    return {...row,accuracy,mastery,streak,unlockedLevel,nextLevel,intervalDays,dueAt,due:dueAt<=now};
   }).sort((a,b)=>(Number(b.due)-Number(a.due))||(b.wrong-a.wrong)||(a.accuracy-b.accuracy)||a.topic.localeCompare(b.topic,"pt-BR"));
 }
 
