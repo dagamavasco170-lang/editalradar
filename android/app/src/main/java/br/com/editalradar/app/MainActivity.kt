@@ -879,7 +879,7 @@ class MainActivity : ComponentActivity() {
                         replyProxy: JavaScriptReplyProxy
                     ) {
                         if (view !== webView || !isMainFrame || !isTrustedNativeBridgeOrigin(sourceOrigin)) return
-                        val payload = message.data
+                        val payload = message.data ?: return
                         if (payload.length > MAX_NATIVE_MESSAGE_CHARS) return
                         handleNativeBridgeMessage(payload)
                     }
