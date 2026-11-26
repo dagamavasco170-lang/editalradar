@@ -176,7 +176,7 @@ test("separa colunas de texto extraído com layout e mantém ordem das questões
     "2 A segunda afirmação descreve o desenvolvimento do SUS.                10 A décima afirmação trata de planos de saúde.",
     "3 A terceira afirmação descreve a cobertura assistencial.                11 A décima primeira afirmação trata das operadoras.",
     "4 A quarta afirmação descreve a rede hospitalar pública.                  12 A décima segunda afirmação trata da fiscalização."
-  ].join("\\n");
+  ].join("\n");
   const separated = splitPdfColumns(layout, "true_false");
   assert.equal(separated.split, true);
   const rows = parseExamPages([{ page: 1, text: separated.text }], documentHash, { questionFormat: "true_false" });
