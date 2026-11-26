@@ -365,10 +365,10 @@ function resolveExamAndKeyLinks(record, links, pageText) {
   return { exams, keys };
 }
 
-function variantIdentity(value) {
+export function variantIdentity(value) {
   const text = normalizeDocumentLabel(value);
-  const match = text.match(/\b(?:tipo|caderno|prova|versao)\s*([a-z0-9]{1,4})\b/);
-  return match ? match[1] : "";
+  const match = text.match(/\b(?:caderno|prova)\s+tipo\s+([a-z0-9]{1,4})\b|\b(?:tipo|caderno|prova|versao)\s+([a-z0-9]{1,4})\b/);
+  return match ? (match[1] || match[2]) : "";
 }
 
 export function pairExamWithAnswerKey(exam, keys, examCount = 1) {
