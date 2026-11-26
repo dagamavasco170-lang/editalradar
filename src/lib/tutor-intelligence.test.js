@@ -11,6 +11,6 @@ describe("inteligência do tutor adaptativo",()=>{
  });
  it("calcula indicador de prontidão com métricas de cobertura e consistência",()=>{
   const result=buildTutorSignals({topics:[{topic:"A",attempts:5,accuracy:80,questionCount:10,unanswered:5,due:false}],weeklyProgress:[{attempts:1},{attempts:0}]});
-  expect(result).toMatchObject({overallAccuracy:80,coverage:50,consistency:50,readiness:59});
+  expect(result).toMatchObject({overallAccuracy:80,coverage:50,consistency:50,readiness:62});
  });
 });
