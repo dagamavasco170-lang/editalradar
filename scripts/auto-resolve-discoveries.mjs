@@ -919,9 +919,11 @@ export async function readPdfText(buffer) {
     pageTexts = extractedText.split("\f").map(page => page.trim());
   } catch {}
   if (!pageCount) pageCount = Math.max(1, pageTexts.length);
-  const sparsePages = pageTexts
-    .map((page, index) => ({ page: index + 1, length: page.replace(/\s/g, "").length }))
-    .filter(item => item.length < OCR_MIN_PAGE_TEXT).map(item => item.page);
+  const sparsePages = !extractedText
+    ? Array.from({ length: pageCount }, (_, index) => index + 1)
+    : pageTexts
+      .map((page, index) => ({ page: index + 1, length: page.replace(/\s/g, "").length }))
+      .filter(item => item.length < OCR_MIN_PAGE_TEXT).map(item => item.page);
   const selected = new Set([1, 2, 3].filter(page => page <= pageCount));
   for (const page of sparsePages) {
     if (selected.size >= OCR_MAX_PAGES) break;
