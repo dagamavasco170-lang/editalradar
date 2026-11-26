@@ -12,6 +12,10 @@ on:
       - scripts/publish-discoveries.node-test.mjs
       - scripts/auto-resolve-discoveries.mjs
       - scripts/auto-resolve-discoveries.node-test.mjs
+      - scripts/import-official-exam-pdf.mjs
+      - scripts/import-official-exam-pdf.node-test.mjs
+      - supabase/migrations/20261126120000_official_exam_question_imports.sql
+      - src/OfficialExamImportAdmin.jsx
       - scripts/google-news-url-resolver.mjs
       - scripts/google-news-url-resolver.node-test.mjs
       - package.json

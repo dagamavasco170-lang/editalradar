@@ -145,7 +145,10 @@ test("WebView mantém navegação interna restrita à origem e ao caminho do app
   assert.match(android, /HOME_PATH = "\/editalradar\/"/);
   assert.match(android, /uri\.encodedUserInfo != null/);
   assert.match(android, /uri\.port != -1 && uri\.port != 443/);
-  assert.match(android, /path\.split\('\/'\)\.none \{ it == "\." \|\| it == "\.\." \}/);
+  assert.ok(android.includes("path.split('/').none { segment ->"));
+  assert.ok(android.includes("val decoded = Uri.decode(segment)"));
+  assert.match(android, /decoded == "\." \|\| decoded == "\.\." \|\| decoded\.contains/);
+  assert.match(android, /webViewAssetLoader != null && uri\.host\.equals\(DEBUG_ASSET_HOST/);
 });
 
 test("WebView bloqueia frames externos, conteúdo misto e certificados inválidos", () => {
@@ -153,7 +156,12 @@ test("WebView bloqueia frames externos, conteúdo misto e certificados inválido
   assert.match(android, /WebSettings\.MIXED_CONTENT_NEVER_ALLOW/);
   assert.match(android, /WebViewFeature\.WEB_MESSAGE_LISTENER/);
   assert.match(android, /WebViewCompat\.addWebMessageListener/);
-  assert.match(android, /setOf\("https:\/\/\$HOME_HOST"\)/);
+  assert.ok(android.includes("val payload = message.data ?: return"));
+  assert.ok(android.includes('val allowedOrigins = linkedSetOf("https://$HOME_HOST")'));
+  assert.ok(android.includes('allowedOrigins.add("https://$DEBUG_ASSET_HOST")'));
+  assert.match(android, /WebViewAssetLoader\.Builder\(\)/);
+  assert.match(android, /WebViewAssetLoader\.PathHandler/);
+  assert.match(android, /webViewAssetLoader\?\.shouldInterceptRequest\(request\.url\)/);
   assert.match(android, /!isMainFrame \|\| !isTrustedNativeBridgeOrigin\(sourceOrigin\)/);
   assert.doesNotMatch(android, /addJavascriptInterface|JavascriptInterface/);
   assert.match(android, /setAcceptThirdPartyCookies\(webView, false\)/);
@@ -163,8 +171,10 @@ test("WebView bloqueia frames externos, conteúdo misto e certificados inválido
 
 test("destinos vindos de notificações são validados antes de abrir no aplicativo", () => {
   assert.match(android, /private fun resolvePushUrl\(value: String\): String/);
-  assert.match(android, /if \(isInternalAppUrl\(uri\)\) uri\.toString\(\) else HOME_URL/);
-  assert.match(android, /target\.startsWith\("\/\/"\) -> return HOME_URL/);
+  assert.match(android, /if \(isInternalAppUrl\(uri\)\) uri\.toString\(\) else appHomeUrl\(\)/);
+  assert.match(android, /target\.startsWith\("\/\/"\) -> return appHomeUrl\(\)/);
+  assert.match(android, /private fun appHomeUrl\(\): String/);
+  assert.match(android, /DEBUG_ASSET_HOME_URL else HOME_URL/);
 });
 
 test("ponte Android limita ações ao WebMessageListener de origem confiável", () => {
@@ -190,7 +200,7 @@ test("WebView recria uma instância nova quando o renderizador Android é encerr
   assert.ok(android.includes("goneView.destroy()"));
   assert.ok(android.includes("webView = replacement"));
   assert.ok(android.includes("configureWebView()"));
-  assert.ok(android.includes("replacement.loadUrl(HOME_URL)"));
+  assert.ok(android.includes("replacement.loadUrl(appHomeUrl())"));
   assert.ok(android.includes("EditalRadarWebView"));
   assert.ok(android.includes("Feche e abra o aplicativo novamente."));
 });
