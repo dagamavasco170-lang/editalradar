@@ -25,3 +25,11 @@ describe("fila adaptativa de questões", () => {
   const rows=[{id:"q1",discipline:"Português",topic:"Crase",difficulty:"Médio"},{id:"q2",discipline:"Direito",topic:"Constituição",difficulty:"Difícil"}];
   expect(buildAdaptiveQuestionQueue({questions:rows,latestAttempts:{q1:{correct:false,at:"2026-11-25"}}})).toEqual(["q1","q2"]);
  });
+
+// Prioridade da fila: questões erradas, assuntos vencidos e menor precisão.
+it("prioriza assuntos vencidos e com baixo desempenho",()=>{
+ const questions=[{id:"weak",discipline:"Português",topic:"Crase"},{id:"strong",discipline:"Direito",topic:"Constituição"}];
+ const now=Date.parse("2026-11-26T12:00:00Z");
+ const attempts=Array.from({length:5},(_,i)=>({questionId:"strong",correct:true,at:new Date(now-(4-i)*86400000).toISOString()}));
+ expect(buildAdaptiveQuestionQueue({questions,attempts,now})).toEqual(["weak"]);
+});
