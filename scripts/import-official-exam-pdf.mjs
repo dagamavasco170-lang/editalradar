@@ -137,12 +137,16 @@ function parseBareOption(line) {
   return { id: match[1].toLowerCase(), text: match[2].trim() };
 }
 
-function hasFollowingBareOptionSequence(lines, startIndex) {
+function hasFollowingBareOptionSequence(lines, startIndex, {
+  questionFormat = "multiple_choice",
+  allowNumberedMultipleChoice = true
+} = {}) {
   let expected = "b";
   let matched = 0;
   const end = Math.min(lines.length, startIndex + MAX_BARE_QUESTION_LOOKAHEAD_LINES + 1);
   for (let index = startIndex + 1; index < end; index += 1) {
-    if (parseQuestionStart(lines[index])) break;
+    const nextStart = parseQuestionStart(lines[index], questionFormat);
+    if (nextStart && (allowNumberedMultipleChoice || nextStart.style !== "multiple_choice")) break;
     const option = parseOption(lines[index]) || parseBareOption(lines[index]);
     if (!option || option.id !== expected) continue;
     matched += 1;
@@ -152,55 +156,104 @@ function hasFollowingBareOptionSequence(lines, startIndex) {
   return false;
 }
 
-function hasQuestionOptionSequenceAfterNumber(lines, startIndex) {
+function hasQuestionOptionSequenceAfterNumber(lines, startIndex, options = {}) {
   const end = Math.min(lines.length, startIndex + MAX_BARE_QUESTION_LOOKAHEAD_LINES + 1);
   for (let index = startIndex + 1; index < end; index += 1) {
-    if (parseQuestionStart(lines[index])) break;
+    const nextStart = parseQuestionStart(lines[index], options.questionFormat || "multiple_choice");
+    if (nextStart && (options.allowNumberedMultipleChoice !== false || nextStart.style !== "multiple_choice")) break;
     const option = parseOption(lines[index]) || parseBareOption(lines[index]);
-    if (option?.id === "a" && hasFollowingBareOptionSequence(lines, index)) return true;
+    if (option?.id === "a" && hasFollowingBareOptionSequence(lines, index, options)) return true;
   }
   return false;
 }
 
-export function parseExamPages(pages, documentSha256, { questionFormat = "multiple_choice" } = {}) {
+export function parseExamPages(pages, documentSha256, {
+  questionFormat = "multiple_choice",
+  allowNumberedMultipleChoice = true,
+  diagnostics = null
+} = {}) {
   const parsed = [];
   const seenFingerprints = new Set();
   const seenQuestionNumbers = new Set();
   let current = null;
   let activeCommandLines = [];
 
+  const addDiagnostic = entry => {
+    if (Array.isArray(diagnostics)) diagnostics.push(entry);
+  };
+
   const flush = () => {
     if (!current) return;
     const prompt = current.promptLines.join(" ").replace(/\s+/g, " ").trim();
     let options = current.options
-      .map((item) => ({ id: item.id, text: item.text.replace(/\s+/g, " ").trim() }))
-      .filter((item) => item.text.length >= 2);
+      .map(item => ({ id: item.id, text: item.text.replace(/\s+/g, " ").trim() }))
+      .filter(item => item.text.length >= 2);
     if (!options.length && questionFormat === "true_false" && current.kind === "true_false") {
       options = [{ id: "c", text: "Certo" }, { id: "e", text: "Errado" }];
     }
+
     const issues = [];
-    if (prompt.length < 20) issues.push("Enunciado curto ou não identificado com segurança.");
-    if (prompt.length > 5000) issues.push("Enunciado excede 5.000 caracteres.");
-    if (options.length < 2 || options.length > 6) issues.push("Quantidade de alternativas fora do intervalo de 2 a 6.");
-    if (new Set(options.map((item) => item.id)).size !== options.length) issues.push("Identificadores de alternativas repetidos.");
-    const optionIds = options.map((item) => item.id);
+    const rejectionReasons = [];
+    if (prompt.length < 20) {
+      issues.push("Enunciado curto ou não identificado com segurança.");
+      rejectionReasons.push("prompt_too_short");
+    }
+    if (prompt.length > 5000) {
+      issues.push("Enunciado excede 5.000 caracteres.");
+      rejectionReasons.push("prompt_too_long");
+    }
+    if (options.length < 2 || options.length > 6) {
+      issues.push("Quantidade de alternativas fora do intervalo de 2 a 6.");
+      rejectionReasons.push("option_count_out_of_range");
+    }
+    const uniqueOptionIds = new Set(options.map(item => item.id));
+    if (uniqueOptionIds.size !== options.length) {
+      issues.push("Identificadores de alternativas repetidos.");
+      rejectionReasons.push("duplicate_option_ids");
+    }
+
+    const optionIds = options.map(item => item.id);
     const validMultipleChoiceIds = optionIds.every((id, index) => id === String.fromCharCode(97 + index));
     const validTrueFalseIds = current.kind === "true_false"
       && questionFormat === "true_false"
       && optionIds.join(",") === "c,e";
     if (!validMultipleChoiceIds && !validTrueFalseIds) {
       issues.push("Identificadores de alternativas não correspondem ao formato declarado.");
+      rejectionReasons.push("invalid_option_sequence");
     }
-    if (/(figura|imagem|gráfico|grafico|tabela|mapa|charge|tirinha|cartaz|cartum|fotografia|ilustra[cç][aã]o|texto a seguir)/i.test(prompt)) {
+
+    const hasVisualDependency = /(figura|imagem|gráfico|grafico|tabela|mapa|charge|tirinha|cartaz|cartum|fotografia|ilustra[cç][aã]o|texto a seguir)/i.test(prompt);
+    if (hasVisualDependency) {
       issues.push("Possível dependência de imagem, tabela, mapa ou texto externo; conferir o PDF visualmente.");
     }
 
-    if (prompt.length >= 20 && prompt.length <= 5000 && options.length >= 2 && options.length <= 6
-      && !issues.some((item) => item.includes("Identificadores") || item.includes("sequência contínua"))) {
-      const canonical = normalizeQuestionText(prompt + " " + options.map((item) => item.id + " " + item.text).join(" "));
+    const structurallyEligible = prompt.length >= 20 && prompt.length <= 5000
+      && options.length >= 2 && options.length <= 6
+      && uniqueOptionIds.size === options.length
+      && (validMultipleChoiceIds || validTrueFalseIds);
+
+    const entry = {
+      page: Number(current.page),
+      questionNumber: Number(current.number),
+      startStyle: current.startStyle,
+      promptLength: prompt.length,
+      optionCount: options.length,
+      optionIds,
+      hasVisualDependency,
+      ocrUsed: Boolean(current.ocrUsed),
+      accepted: false,
+      rejectionReasons
+    };
+
+    if (structurallyEligible) {
+      const canonical = normalizeQuestionText(prompt + " " + options.map(item => item.id + " " + item.text).join(" "));
       const fingerprint = sha256(canonical);
       const sourceItemKey = current.page + ":" + current.number;
-      if (!seenFingerprints.has(fingerprint) && !seenQuestionNumbers.has(sourceItemKey)) {
+      if (seenFingerprints.has(fingerprint)) {
+        entry.rejectionReasons.push("duplicate_fingerprint");
+      } else if (seenQuestionNumbers.has(sourceItemKey)) {
+        entry.rejectionReasons.push("duplicate_source_page_number");
+      } else {
         parsed.push({
           source_page: current.page,
           source_question_number: current.number,
@@ -213,8 +266,10 @@ export function parseExamPages(pages, documentSha256, { questionFormat = "multip
         });
         seenFingerprints.add(fingerprint);
         seenQuestionNumbers.add(sourceItemKey);
+        entry.accepted = true;
       }
     }
+    addDiagnostic(entry);
     current = null;
   };
 
@@ -225,10 +280,30 @@ export function parseExamPages(pages, documentSha256, { questionFormat = "multip
     for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
       const line = lines[lineIndex];
       let start = parseQuestionStart(line, questionFormat);
-      if (start?.style === "bare_multiple_choice"
-        && !hasQuestionOptionSequenceAfterNumber(lines, lineIndex)) {
+
+      if (start?.style === "multiple_choice" && !allowNumberedMultipleChoice) {
+        addDiagnostic({
+          page: pageNumber,
+          questionNumber: Number(start.number),
+          startStyle: start.style,
+          accepted: false,
+          rejectionReasons: ["numbered_marker_not_allowed_for_board"]
+        });
         start = null;
       }
+
+      if (start?.style === "bare_multiple_choice"
+        && !hasQuestionOptionSequenceAfterNumber(lines, lineIndex, { questionFormat, allowNumberedMultipleChoice })) {
+        addDiagnostic({
+          page: pageNumber,
+          questionNumber: Number(start.number),
+          startStyle: start.style,
+          accepted: false,
+          rejectionReasons: ["no_following_option_sequence"]
+        });
+        start = null;
+      }
+
       if (start && start.number > 0) {
         flush();
         current = {
@@ -246,31 +321,33 @@ export function parseExamPages(pages, documentSha256, { questionFormat = "multip
         if (start.rest.trim()) current.promptLines.push(start.rest.trim());
         continue;
       }
+
       if (questionFormat === "true_false"
         && current?.startStyle !== "item_marker"
         && isTrueFalseCommandLine(line)) {
-        if (current && current.promptLines.some(value => value.trim())) {
-          flush();
-        }
+        if (current && current.promptLines.some(value => value.trim())) flush();
         activeCommandLines = [String(line).trim()];
         continue;
       }
+
       if (!current) {
         if (questionFormat === "true_false" && isTrueFalseCommandLine(line)) {
           activeCommandLines = [String(line).trim()];
         }
         continue;
       }
+
       let option = parseOption(line);
       if (!option && current.kind !== "true_false") {
         const bareOption = parseBareOption(line);
         const expectedId = String.fromCharCode(97 + current.options.length);
         const firstBareSequence = current.options.length === 0
           && bareOption?.id === "a"
-          && hasFollowingBareOptionSequence(lines, lineIndex);
+          && hasFollowingBareOptionSequence(lines, lineIndex, { questionFormat, allowNumberedMultipleChoice });
         const nextBareOption = current.options.length > 0 && bareOption?.id === expectedId;
         if (firstBareSequence || nextBareOption) option = bareOption;
       }
+
       if (option) {
         current.options.push(option);
       } else if (current.options.length) {
@@ -387,7 +464,7 @@ export function scoreQuestionExtraction(questions = []) {
   return uniqueNumbers.size * 1000 - duplicateCount * 100 + numbers.length;
 }
 
-export async function extractPdfPages(pdfPath, questionFormat = "multiple_choice", { splitColumns = true } = {}) {
+export async function extractPdfPages(pdfPath, questionFormat = "multiple_choice", { splitColumns = true, allowNumberedMultipleChoice = true } = {}) {
   const info = command("pdfinfo", [pdfPath]);
   const pageCount = Number(info.match(/^Pages:\s+(\d+)/m)?.[1] || 0);
   if (!pageCount || pageCount > MAX_PDF_PAGES) {
@@ -410,7 +487,7 @@ export async function extractPdfPages(pdfPath, questionFormat = "multiple_choice
   let pages = layoutPages;
   const extractionSelection = {
     mode: "layout",
-    layoutScore: scoreQuestionExtraction(parseExamPages(layoutPages, "0".repeat(64), { questionFormat })),
+    layoutScore: scoreQuestionExtraction(parseExamPages(layoutPages, "0".repeat(64), { questionFormat, allowNumberedMultipleChoice })),
     rawScore: null
   };
   try {
@@ -420,7 +497,7 @@ export async function extractPdfPages(pdfPath, questionFormat = "multiple_choice
     const rawPages = rawPageTexts.slice(0, pageCount).map((text, index) => ({
       page: index + 1, text, extractionMode: "raw", columnsSplit: false
     }));
-    const rawScore = scoreQuestionExtraction(parseExamPages(rawPages, "0".repeat(64), { questionFormat }));
+    const rawScore = scoreQuestionExtraction(parseExamPages(rawPages, "0".repeat(64), { questionFormat, allowNumberedMultipleChoice }));
     extractionSelection.rawScore = rawScore;
     if (rawScore > extractionSelection.layoutScore) {
       pages = rawPages;
@@ -482,9 +559,17 @@ export async function importPdfToManifest({ pdfPath, metadata }) {
     throw new Error("O arquivo informado não possui assinatura PDF válida.");
   }
   const documentSha256 = sha256(header);
-  const { pages, warnings, extractionSelection } = await extractPdfPages(pdfPath, metadata.question_format || "multiple_choice");
+  const allowNumberedMultipleChoice = !/fgv/i.test(String(metadata.board || ""));
+  const { pages, warnings, extractionSelection } = await extractPdfPages(
+    pdfPath,
+    metadata.question_format || "multiple_choice",
+    { allowNumberedMultipleChoice }
+  );
+  const questionParsingDiagnostics = [];
   const questions = parseExamPages(pages, documentSha256, {
-    questionFormat: metadata.question_format || "multiple_choice"
+    questionFormat: metadata.question_format || "multiple_choice",
+    allowNumberedMultipleChoice,
+    diagnostics: questionParsingDiagnostics
   });
   if (!questions.length) {
     throw new Error("Nenhuma questão objetiva foi identificada. Não foi gerado manifesto; revise o PDF ou faça importação assistida.");
@@ -503,8 +588,12 @@ export async function importPdfToManifest({ pdfPath, metadata }) {
           line: index + 1,
           number: candidate.number,
           style: candidate.style || "multiple_choice",
-          acceptedByParser: candidate.style !== "bare_multiple_choice"
-            || hasQuestionOptionSequenceAfterNumber(lines, index)
+          acceptedByParser: (allowNumberedMultipleChoice || candidate.style !== "multiple_choice")
+            && (candidate.style !== "bare_multiple_choice"
+              || hasQuestionOptionSequenceAfterNumber(lines, index, {
+                questionFormat: metadata.question_format || "multiple_choice",
+                allowNumberedMultipleChoice
+              }))
         });
       }
     }
@@ -522,6 +611,7 @@ export async function importPdfToManifest({ pdfPath, metadata }) {
     };
   });
   manifest.extractionSelection = extractionSelection;
+  manifest.questionParsingDiagnostics = questionParsingDiagnostics;
   return manifest;
 }
 
