@@ -280,7 +280,8 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
   finally{setChecking(false);}
  };
  const next=()=>{
-  setIndex(i=>(i+1)%Math.max(filtered.length,1));
+  if(index>=filtered.length-1)return;
+  setIndex(i=>Math.min(i+1,Math.max(filtered.length-1,0)));
   setAnswer("");setChecked(false);setAnswerFeedback(null);
  };
  const randomQuestion=()=>{
@@ -389,7 +390,7 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
     <div className="question-options">{question.options.map(([label,value])=><button type="button" key={value} disabled={checked||checking} className={"option "+(answer===value?"chosen ":"")+(checked&&answerFeedback?.correct&&answer===value?"correct":checked&&answer===value&&!answerFeedback?.correct?"wrong":"")} onClick={()=>setAnswer(value)}>{label}</button>)}</div>
     <div className="question-actions">
      <button className="primary-btn" type="button" disabled={!answer||checked||checking} onClick={check}>{checking?"Corrigindo…":"Conferir resposta"}</button>
-     <button className="detail-btn" type="button" onClick={next}>Próxima questão</button>
+     <button className="detail-btn" type="button" disabled={index>=filtered.length-1} onClick={next}>{index>=filtered.length-1?"Última questão":"Próxima questão"}</button>
      <button className="detail-btn" type="button" onClick={randomQuestion} disabled={filtered.length<2}>Questão aleatória</button>
     </div>
     {answerFeedback?.error&&<p className="answer bad" role="alert">{answerFeedback.error}</p>}
