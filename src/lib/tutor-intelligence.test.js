@@ -21,3 +21,4 @@ describe("inteligência do tutor adaptativo",()=>{
   expect(plan[0]).toMatchObject({id:"wrong",due:true,level:"Fácil"});
   expect(plan.find(row=>row.id==="new")).toMatchObject({level:"Fácil",due:true});
  });
+\nit("prioriza recuperação e recomenda níveis adaptativos",()=>{\n const questions=[{id:"a",discipline:"Português",topic:"Crase",difficulty:"Fácil"},{id:"b",discipline:"Português",topic:"Crase",difficulty:"Difícil"},{id:"c",discipline:"Direito",topic:"Controle",difficulty:"Médio"}];\n const plan=buildAdaptiveQuestionPlan({questions,latestAttempts:{a:{correct:true,at:"2026-11-25T10:00:00Z"},b:{correct:false,at:"2026-11-25T11:00:00Z"}},now:Date.parse("2026-11-26T12:00:00Z")});\n expect(plan.find(item=>item.id==="a").level).toBe("Fácil");\n expect(plan.find(item=>item.id==="b").level).toBe("Fácil");\n expect(plan.find(item=>item.id==="c").level).toBe("Fácil");\n});\n
