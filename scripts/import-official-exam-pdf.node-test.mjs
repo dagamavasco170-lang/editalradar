@@ -96,11 +96,17 @@ test("registra o motivo estrutural de uma questão rejeitada", () => {
   const diagnostics = [];
   const rows = parseExamPages([{
     page: 8,
-    text: ["7", "Enunciado curto.", "A) única alternativa identificada"].join("\n")
+    text: [
+      "7",
+      "Enunciado muito curto.",
+      "A) Primeira alternativa suficientemente identificável.",
+      "B) Segunda alternativa suficientemente identificável.",
+      "C) Terceira alternativa suficientemente identificável."
+    ].join("\n")
   }], documentHash, { allowNumberedMultipleChoice: false, diagnostics });
   assert.equal(rows.length, 0);
   assert.ok(diagnostics.some(item =>
-    item.questionNumber === 7 && item.rejectionReasons.includes("option_count_out_of_range")
+    item.questionNumber === 7 && item.rejectionReasons.includes("prompt_too_short")
   ));
 });
 
