@@ -161,6 +161,25 @@ test("recognizes wrapped and typographic section headings in consolidated answer
   assert.equal(sections[1].answers.get(2), "A");
 });
 
+test("parses FGV answer-key tables with rows of question numbers and aligned answers", () => {
+  const answerValues = ["D", "B", "C", "E", "A", "B", "D", "E", "C", "A", "D", "C", "E", "D", "B", "B", "C", "A", "C", "A"];
+  answerValues[12] = "*";
+  const text = [
+    "Agente de Polícia Judiciária - 1 - Turno Tarde",
+    "Página 1 de 7",
+    Array.from({ length: 20 }, (_, index) => index + 1).join("   "),
+    answerValues.join("   "),
+    Array.from({ length: 20 }, (_, index) => index + 21).join("   "),
+    Array.from({ length: 20 }, (_, index) => ["A", "B", "C", "D", "E"][index % 5]).join("   ")
+  ].join("\n");
+  const parsed = parseOfficialAnswerKey(text);
+  assert.equal(parsed.parsedCount, 40);
+  assert.equal(parsed.answers.get(1), "D");
+  assert.equal(parsed.answers.get(13), "ANULADA");
+  assert.equal(parsed.answers.get(20), "A");
+  assert.equal(parsed.answers.get(40), "E");
+});
+
 test("parses definitive multiple-choice answer keys with one or multiple entries per line", () => {
   const parsed = parseOfficialAnswerKey("GABARITO DEFINITIVO\n1 - A\n02 B 03 C\nQUESTÃO 4: D\n5 ANULADA");
   assert.equal(parsed.conflicts.length, 0);
