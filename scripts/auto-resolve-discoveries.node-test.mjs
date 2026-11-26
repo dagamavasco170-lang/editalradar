@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { appendContext, buildPendingDiscoveriesUrl, buildNonActionablePendingDiscoveriesUrl, dismissNonActionablePendingDiscoveries, buildRetificationUpdate, classifyDiscovery, extractDocumentText, extractRoleNamesFromText, extractVacancyDetails, fetchCandidateWithRetry, findMatchingContestForRetification, inferOrganization, mapWithConcurrency, normalizeContestIdentity, normalizeOfficialUrl, normalizePdfVersionText, compareDocumentVersions, prepareDiscoveryDocument, isGenericOfficialLandingPage, countPendingDiscoveries, requestJson, summarizeFetchError, assessNoticeFreshness, extractDeclaredPublisherUrl, resolveGoogleNewsArticleUrl, prioritizePendingDiscoveries, selectDiscoveriesForTriage, isClearlyUnrelatedAdministrativeDiscovery, isTrustedSecondaryNewsHost, extractOfficialReferenceLinks, fetchSecondaryNewsArticle, autoResolvePending } from "./auto-resolve-discoveries.mjs";
+import { appendContext, buildPendingDiscoveriesUrl, buildNonActionablePendingDiscoveriesUrl, dismissNonActionablePendingDiscoveries, buildRetificationUpdate, classifyDiscovery, extractDocumentText, extractRoleNamesFromText, extractVacancyDetails, fetchCandidateWithRetry, readBoundedResponseBytes, findMatchingContestForRetification, inferOrganization, mapWithConcurrency, normalizeContestIdentity, normalizeOfficialUrl, normalizePdfVersionText, compareDocumentVersions, prepareDiscoveryDocument, isGenericOfficialLandingPage, countPendingDiscoveries, requestJson, summarizeFetchError, assessNoticeFreshness, extractDeclaredPublisherUrl, resolveGoogleNewsArticleUrl, prioritizePendingDiscoveries, selectDiscoveriesForTriage, isClearlyUnrelatedAdministrativeDiscovery, isTrustedSecondaryNewsHost, extractOfficialReferenceLinks, fetchSecondaryNewsArticle, autoResolvePending } from "./auto-resolve-discoveries.mjs";
 
 const discovery = {
   id: 1,
@@ -389,6 +389,42 @@ test("repete uma falha temporária de rede e recupera o acesso à publicação",
   }, "https://orgao.gov.br/edital", { attempts: 2, timeoutMs: 1000, retryDelayMs: 0 });
   assert.equal(response.ok, true);
   assert.equal(calls, 2);
+});
+
+test("respeita Retry-After do HTTP 429 antes de repetir a leitura do edital", async () => {
+  const waits = [];
+  let calls = 0;
+  const response = await fetchCandidateWithRetry(async url => {
+    calls += 1;
+    if (calls === 1) return {
+      ok: false,
+      status: 429,
+      headers: new Headers({ "retry-after": "3" }),
+      url
+    };
+    return { ok: true, status: 200, headers: new Headers(), url };
+  }, "https://orgao.gov.br/edital", {
+    attempts: 2,
+    retryDelayMs: 5,
+    sleepImpl: async milliseconds => waits.push(milliseconds)
+  });
+  assert.equal(response.ok, true);
+  assert.equal(calls, 2);
+  assert.deepEqual(waits, [3000]);
+});
+
+test("limita o corpo do documento durante leitura de stream sem Content-Length", async () => {
+  const stream = new ReadableStream({
+    start(controller) {
+      controller.enqueue(new Uint8Array(8));
+      controller.enqueue(new Uint8Array(8));
+      controller.close();
+    }
+  });
+  await assert.rejects(
+    () => readBoundedResponseBytes({ headers: new Headers(), body: stream }, 12, "Documento"),
+    /Documento excede o limite/
+  );
 });
 
 test("segue redirecionamento somente para outro destino oficial e HTTPS", async () => {
