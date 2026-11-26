@@ -97,6 +97,13 @@ A
 C
 3
 D
+Papiloscopista Policial - 1 - Turno Tarde
+1
+B
+2
+D
+3
+A
 `;
   const sections = parseOfficialAnswerKeyVariants(text);
   assert.equal(sections.length, 3);
