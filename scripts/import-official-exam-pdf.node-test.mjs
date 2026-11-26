@@ -140,6 +140,32 @@ test("não confunde enunciado iniciado por 'A respeito' com alternativa A", () =
   assert.match(rows[0].options[0].text, /^Apenas a afirmação I/);
 });
 
+
+
+test("parse o layout Cebraspe ANS com numeração simples e separa comandos entre blocos", () => {
+  const pages = [{
+    page: 1,
+    text: [
+      "A respeito da evolução dos sistemas de saúde no Brasil, julgue os itens a seguir.",
+      "1 A Conferência da Organização Mundial da Saúde de Alma Ata, de 1978, é reconhecida como marco conceitual internacional importante para a definição de um modelo de atenção assistencial de saúde.",
+      "2 Visto que o sistema de saúde brasileiro se desenvolveu ao longo do século XX com grande estímulo a entidades privadas, a implantação do SUS ocorreu concomitantemente com a forte presença daqueles prestadores.",
+      "3 A criação do SUS e a universalização da cobertura de saúde resultaram em imediata e importante melhoria dos serviços.",
+      "4 Dados de 2024 demonstram que há predominância, no Brasil, de planos de assistência médica hospitalar e ambulatorial por meio de contrato coletivo.",
+      "Acerca da regulação econômica, pelo Estado, das operadoras de planos privados de assistência à saúde, julgue os itens que se seguem.",
+      "5 Do ponto de vista histórico, o Plano Diretor da Reforma do Aparelho do Estado, de 1995, implantou as desestatizações de diversos setores.",
+      "6 Caso a rede hospitalar do SUS em determinado município se encontre sem vagas para a realização de hemodiálise, esse município poderá realizar convênio com instituição privada."
+    ].join("\n")
+  }];
+  const rows = parseExamPages(pages, documentHash, { questionFormat: "true_false" });
+  assert.equal(rows.length, 6);
+  assert.deepEqual(rows[0].options, [{ id: "c", text: "Certo" }, { id: "e", text: "Errado" }]);
+  assert.equal(rows[0].suggested_answer, null);
+  assert.match(rows[0].prompt, /^A respeito da evolução/);
+  assert.doesNotMatch(rows[3].prompt, /Acerca da regulação econômica/);
+  assert.match(rows[4].prompt, /^Acerca da regulação econômica/);
+  assert.equal(rows[5].source_question_number, 6);
+});
+
 test("deduplica questão repetida no mesmo PDF pelo fingerprint e número", () => {
   const duplicated = [
     samplePages[0],
