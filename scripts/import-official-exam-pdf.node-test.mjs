@@ -5,7 +5,8 @@ import {
   normalizeQuestionText,
   parseExamPages,
   splitPdfColumns,
-  sha256
+  sha256,
+  scoreQuestionExtraction
 } from "./import-official-exam-pdf.mjs";
 
 const documentHash = sha256("sample-pdf-document");
@@ -35,6 +36,20 @@ const metadata = {
   official_release_verified: true,
   question_format: "multiple_choice"
 };
+
+test("prioriza a extração PDF com mais números de questão distintos", () => {
+  const layoutQuestions = [
+    { source_question_number: 1 },
+    { source_question_number: 2 },
+    { source_question_number: 2 }
+  ];
+  const rawQuestions = [
+    { source_question_number: 1 },
+    { source_question_number: 2 },
+    { source_question_number: 3 }
+  ];
+  assert.ok(scoreQuestionExtraction(rawQuestions) > scoreQuestionExtraction(layoutQuestions));
+});
 
 test("normaliza acentos, caixa e espaços para fingerprint estável", () => {
   assert.equal(normalizeQuestionText("  Ação   Pública! "), "acao publica");
