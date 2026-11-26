@@ -376,7 +376,7 @@ function command(commandName, args, options = {}) {
   });
 }
 
-export async function extractPdfPages(pdfPath, questionFormat = "multiple_choice") {
+export async function extractPdfPages(pdfPath, questionFormat = "multiple_choice", { splitColumns = true } = {}) {
   const info = command("pdfinfo", [pdfPath]);
   const pageCount = Number(info.match(/^Pages:\s+(\d+)/m)?.[1] || 0);
   if (!pageCount || pageCount > MAX_PDF_PAGES) {
@@ -387,7 +387,9 @@ export async function extractPdfPages(pdfPath, questionFormat = "multiple_choice
   while (pageTexts.length < pageCount) pageTexts.push("");
   const columnWarnings = [];
   const pages = pageTexts.slice(0, pageCount).map((text, index) => {
-    const layout = splitPdfColumns(text, questionFormat);
+    const layout = splitColumns
+      ? splitPdfColumns(text, questionFormat)
+      : { text, split: false };
     if (layout.split) columnWarnings.push(index + 1);
     return { page: index + 1, text: layout.text };
   });
