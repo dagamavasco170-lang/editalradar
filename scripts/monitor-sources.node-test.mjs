@@ -212,7 +212,7 @@ test("catálogo atual possui fontes HTTPS deduplicadas", () => {
   assert.ok(urls.includes("https://www.vunesp.com.br/busca/concurso/inscricoesabertas"));
   assert.ok(urls.includes("https://www.institutoaocp.org.br/concursos/status/inscricoes-abertas"));
   assert.ok(urls.includes("https://www.institutoaocp.org.br/concursos/status/em-andamento"));
-  assert.ok(urls.includes("https://concursos.ibfc.org.br/index/abertos/"));
+  assert.ok(urls.includes("https://concursos.ibfc.org.br/index/abertos"));
   assert.ok(urls.includes("https://www.igeduc.org.br/index/abertos/"));
   assert.ok(urls.includes("https://quadrix.org.br/index/todos/"));
   assert.ok(urls.includes("https://fundacaolasalle.org.br/concursos/?filtro=em-andamento"));
