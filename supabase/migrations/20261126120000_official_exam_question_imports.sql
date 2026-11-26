@@ -239,7 +239,7 @@ declare
   v_license_status text;
   v_now timestamptz := now();
   v_answer text := lower(btrim(coalesce(p_answer, '')));
-  v_jwt_role text := coalesce(auth.jwt() ->> 'role', current_setting('request.jwt.claim.role', true), '');
+  v_jwt_role text := coalesce(auth.jwt() ->> 'role', current_setting('request.jwt.claim.role', true), current_user);
   v_review_status text;
   v_review_method text;
 begin
@@ -254,13 +254,15 @@ begin
     end if;
     if jsonb_typeof(p_validation_checks) <> 'object'
        or coalesce((p_validation_checks ->> 'source_official')::boolean, false) is not true
+       or coalesce((p_validation_checks ->> 'answer_key_official')::boolean, false) is not true
        or coalesce((p_validation_checks ->> 'final_answer_key')::boolean, false) is not true
        or coalesce((p_validation_checks ->> 'question_structure')::boolean, false) is not true
        or coalesce((p_validation_checks ->> 'standalone_text')::boolean, false) is not true
        or coalesce((p_validation_checks ->> 'no_visual_dependency')::boolean, false) is not true
        or coalesce((p_validation_checks ->> 'answer_match')::boolean, false) is not true
        or coalesce((p_validation_checks ->> 'duplicate_free')::boolean, false) is not true
-       or coalesce((p_validation_checks ->> 'extraction_integrity')::boolean, false) is not true then
+       or coalesce((p_validation_checks ->> 'extraction_integrity')::boolean, false) is not true
+       or coalesce((p_validation_checks ->> 'source_restrictions_clear')::boolean, false) is not true then
       raise exception 'A questão não passou por todas as validações automáticas obrigatórias.'
         using errcode = '22023';
     end if;
