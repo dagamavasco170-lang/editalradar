@@ -1,4 +1,5 @@
 import { pathToFileURL } from "node:url";
+import { createHash } from "node:crypto";
 import { assertSupabaseServiceCredential } from "./supabase-credentials.mjs";
 import { appendFile, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { execFile, execFileSync } from "node:child_process";
@@ -15,7 +16,9 @@ const execFileAsync = promisify(execFile);
 
 const MAX_BYTES = 4 * 1024 * 1024;
 const TIMEOUT_MS = 12000;
-const OCR_MAX_PAGES = 3;
+const OCR_MAX_PAGES = 12;
+const OCR_MIN_PAGE_TEXT = 45;
+const PDF_VERSION_SNAPSHOT_CHARS = 24000;
 const OCR_PAGE_TIMEOUT_MS = 6000;
 
 const DEFAULT_OFFICIAL_RETRY_COOLDOWN_MS = 6 * 60 * 60 * 1000;
@@ -550,17 +553,58 @@ export function normalizeContestIdentity(value) {
     .replace(/\s+/g, " ");
 }
 
-function normalizeOfficialUrl(value) {
+export function normalizeOfficialUrl(value) {
   try {
     const url = new URL(value);
+    if (url.protocol !== "https:" && url.protocol !== "http:") return "";
     url.hash = "";
-    url.pathname = url.pathname.replace(/\/+$/, "") || "/";
+    url.hostname = url.hostname.toLowerCase().replace(/\.$/, "");
+    if ((url.protocol === "https:" && url.port === "443") || (url.protocol === "http:" && url.port === "80")) url.port = "";
+    url.pathname = url.pathname.replace(/\/{2,}/g, "/").replace(/\/+$/, "") || "/";
+    const trackingKeys = /^(?:utm_[a-z0-9_]+|fbclid|gclid|dclid|msclkid|mc_cid|mc_eid|_ga|_gl|yclid|vero_id|ref_src|ref_url)$/i;
+    for (const key of [...url.searchParams.keys()]) if (trackingKeys.test(key)) url.searchParams.delete(key);
+    url.searchParams.sort();
     return url.toString();
   } catch {
     return "";
   }
 }
 
+export function normalizePdfVersionText(value) {
+  return String(value || "").normalize("NFC").replace(/\r\n?/g, "\n")
+    .replace(/[ \t]+/g, " ").split("\n").map(line => line.trim())
+    .filter(line => line && !/^(?:p[aá]gina\s+)?\d{1,4}(?:\s+de\s+\d{1,4})?$/i.test(line))
+    .join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+export function compareDocumentVersions(previousText, currentText) {
+  const previous = normalizePdfVersionText(previousText);
+  const current = normalizePdfVersionText(currentText);
+  const previousLines = new Set(previous.split("\n").filter(Boolean));
+  const currentLines = new Set(current.split("\n").filter(Boolean));
+  const removed = [...previousLines].filter(line => !currentLines.has(line));
+  const added = [...currentLines].filter(line => !previousLines.has(line));
+  const changedText = [...removed, ...added].join("\n");
+  const criticalPatterns = [
+    ["prazos", /\b(inscriç|inscricao|prazo|cronograma|data limite|até dia|ate dia)\b/i],
+    ["provas", /\b(prova|avaliaç|avaliac|exame|etapa)\b/i],
+    ["vagas", /\b(vagas?|cadastro de reserva|classificaç|classificac)\b/i],
+    ["remuneração", /\b(sal[aá]rio|remuneraç|vencimento|subs[ií]dio)\b/i],
+    ["taxas", /\b(taxa|isenç|isenc|pagamento|valor da inscriç)\b/i],
+    ["conteúdo programático", /\b(conte[uú]do program[aá]tico|programa|disciplinas|bibliografia)\b/i]
+  ];
+  return {
+    previousSha256: createHash("sha256").update(previous).digest("hex"),
+    currentSha256: createHash("sha256").update(current).digest("hex"),
+    changed: previous !== current,
+    addedLineCount: added.length,
+    removedLineCount: removed.length,
+    addedLines: added.slice(0, 30),
+    removedLines: removed.slice(0, 30),
+    criticalAreas: criticalPatterns.filter(([, pattern]) => pattern.test(changedText)).map(([name]) => name),
+    truncated: previous.length > PDF_VERSION_SNAPSHOT_CHARS || current.length > PDF_VERSION_SNAPSHOT_CHARS
+  };
+}
 
 export function findMatchingContestForRetification({
   candidateUrl,
@@ -831,13 +875,24 @@ export function buildRetificationUpdate(existingData, extractedData, discovery, 
   const history = Array.isArray(existingData?.historicoAtualizacoes)
     ? existingData.historicoAtualizacoes
     : [];
+  const previousVersion = [...history].reverse().find(entry => entry?.documentVersion?.textSnapshot);
+  const normalizedDocumentText = normalizePdfVersionText(text);
+  const versionComparison = previousVersion
+    ? compareDocumentVersions(previousVersion.documentVersion.textSnapshot, normalizedDocumentText)
+    : null;
   const historyEntry = {
     at: new Date().toISOString(),
     type: "retificacao",
     title: String(discovery?.title || document?.title || "Retificação oficial").slice(0, 240),
     sourceUrl: normalizeOfficialUrl(discovery?.source_url || ""),
     candidateUrl: normalizeOfficialUrl(discovery?.candidate_url || extractedData?.sourceUrl || ""),
-    changes
+    changes,
+    documentVersion: {
+      sha256: createHash("sha256").update(normalizedDocumentText).digest("hex"),
+      textSnapshot: normalizedDocumentText.slice(0, PDF_VERSION_SNAPSHOT_CHARS),
+      snapshotTruncated: normalizedDocumentText.length > PDF_VERSION_SNAPSHOT_CHARS,
+      comparison: versionComparison
+    }
   };
   updatedData.historicoAtualizacoes = [...history, historyEntry].slice(-30);
 
@@ -848,59 +903,70 @@ export function buildRetificationUpdate(existingData, extractedData, discovery, 
     reason: "Retificação oficial confirmada para o mesmo órgão e cargo; campos objetivos atualizados e versão anterior preservada no histórico."
   };
 }
-async function readPdfText(buffer) {
+export async function readPdfText(buffer) {
   let extractedText = "";
+  let pageCount = 0;
+  let pageTexts = [];
+  let directory = "";
+  try {
+    const info = execFileSync("pdfinfo", ["-"], { input: buffer, encoding: "utf8", maxBuffer: 256 * 1024, timeout: TIMEOUT_MS });
+    pageCount = Number(info.match(/^Pages:\s+(\d+)/mi)?.[1] || 0);
+  } catch {}
   try {
     extractedText = execFileSync("pdftotext", ["-layout", "-", "-"], {
-      input: buffer,
-      encoding: "utf8",
-      maxBuffer: MAX_BYTES * 8,
-      timeout: TIMEOUT_MS
+      input: buffer, encoding: "utf8", maxBuffer: MAX_BYTES * 8, timeout: TIMEOUT_MS
     }).trim();
-  } catch {
-    // PDFs digitalizados podem não possuir camada de texto.
+    pageTexts = extractedText.split("\f").map(page => page.trim());
+  } catch {}
+  if (!pageCount) pageCount = Math.max(1, pageTexts.length);
+  const sparsePages = pageTexts
+    .map((page, index) => ({ page: index + 1, length: page.replace(/\s/g, "").length }))
+    .filter(item => item.length < OCR_MIN_PAGE_TEXT).map(item => item.page);
+  const selected = new Set([1, 2, 3].filter(page => page <= pageCount));
+  for (const page of sparsePages) {
+    if (selected.size >= OCR_MAX_PAGES) break;
+    selected.add(page);
   }
-  if (extractedText.length >= 120) return extractedText;
-
-  // Fallback OCR limitado aos três primeiros fólios, somente após falha da extração
-  // textual. O processo é temporário, tem timeout e não altera o documento original.
-  let directory = "";
+  if (sparsePages.length >= pageCount && selected.size < OCR_MAX_PAGES && pageCount > selected.size) {
+    const slots = OCR_MAX_PAGES - selected.size;
+    for (let index = 1; index <= slots; index += 1) {
+      const page = Math.round(index * pageCount / (slots + 1));
+      if (page >= 1 && page <= pageCount) selected.add(page);
+    }
+  }
+  if (!selected.size) return extractedText;
   try {
     directory = await mkdtemp(join(tmpdir(), "editalradar-ocr-"));
     const pdfPath = join(directory, "source.pdf");
-    const outputPrefix = join(directory, "page");
     await writeFile(pdfPath, buffer);
-    await execFileAsync("pdftoppm", [
-      "-f", "1", "-l", String(OCR_MAX_PAGES), "-r", "110", "-png",
-      pdfPath, outputPrefix
-    ], { encoding: "utf8", timeout: 12000, maxBuffer: 128 * 1024 });
-
-    const pages = (await readdir(directory))
-      .filter(name => /^page-\d+\.png$/i.test(name))
-      .sort((a, b) => Number(a.match(/\d+/)?.[0] || 0) - Number(b.match(/\d+/)?.[0] || 0))
-      .slice(0, OCR_MAX_PAGES);
     const ocrText = [];
-    for (const page of pages) {
+    for (const page of [...selected].sort((a, b) => a - b)) {
+      const prefix = join(directory, "page-" + String(page).padStart(4, "0"));
       try {
+        await execFileAsync("pdftoppm", [
+          "-f", String(page), "-l", String(page), "-r", "120", "-png", pdfPath, prefix
+        ], { encoding: "utf8", timeout: 12000, maxBuffer: 128 * 1024 });
+        const imagePath = (await readdir(directory))
+          .find(name => name.startsWith("page-" + String(page).padStart(4, "0")) && name.endsWith(".png"));
+        if (!imagePath) continue;
         const { stdout } = await execFileAsync("tesseract", [
-          join(directory, page), "stdout", "-l", "por+eng", "--psm", "6"
+          join(directory, imagePath), "stdout", "-l", "por+eng", "--psm", "6"
         ], { encoding: "utf8", timeout: OCR_PAGE_TIMEOUT_MS, maxBuffer: 512 * 1024 });
-        if (stdout.trim()) ocrText.push(stdout.trim());
-      } catch {
-        // Se um fólio falhar, tenta os restantes antes de deixar o item pendente.
-      }
+        if (stdout.trim()) ocrText.push("[Página " + page + "]\n" + stdout.trim());
+      } catch {}
     }
-    const combined = ocrText.join("\n\n").trim();
-    return combined.length >= 120 ? combined : extractedText;
+    const ocrCombined = ocrText.join("\n\n").trim();
+    if (!ocrCombined) return extractedText;
+    if (extractedText.length < 120) return ocrCombined;
+    const digitalPages = pageTexts.map((page, index) => page.trim()
+      ? "[Página " + (index + 1) + "]\n" + page.trim() : "").filter(Boolean);
+    return [...digitalPages, ocrCombined].join("\n\n").slice(0, MAX_BYTES * 8);
   } catch {
-    // Mantém a extração normal como fallback quando o OCR não está instalado
-    // ou o PDF não pode ser convertido dentro dos limites de segurança.
     return extractedText;
   } finally {
     if (directory) await rm(directory, { recursive: true, force: true }).catch(() => {});
   }
 }
-
 async function extractCandidateDocument(response, item, finalUrl, contentType) {
   const bytes = Buffer.from(await response.arrayBuffer());
   if (bytes.byteLength > MAX_BYTES) return null;
