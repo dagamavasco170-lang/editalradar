@@ -797,6 +797,12 @@ async function processDocument(record, examLink, keyLink, mode, runId, report, f
     diagnostic.parsedAnswers = parsedKey.parsedCount;
     const questions = manifest.imports;
     if (!questions.length) throw new Error("O parser não identificou questões objetivas válidas.");
+    diagnostic.extractedQuestionNumbers = questions
+      .map(question => Number(question.source_question_number))
+      .filter(number => Number.isInteger(number) && number > 0)
+      .sort((a, b) => a - b);
+    diagnostic.extractedQuestionPages = [...new Set(questions.map(question => Number(question.source_page)).filter(Number.isInteger))].sort((a, b) => a - b);
+    diagnostic.answerKeyQuestionNumbers = [...parsedKey.answers.keys()].map(Number).sort((a, b) => a - b);
     const coverage = calculateAnswerKeyCoverage(questions, parsedKey.answers);
     const missingAnswers = questions.filter(question => !parsedKey.answers.has(Number(question.source_question_number)));
     if (missingAnswers.length || coverage < MIN_GABARITO_COVERAGE) {
