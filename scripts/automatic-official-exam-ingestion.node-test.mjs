@@ -1,0 +1,105 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {
+  classifyOfficialPdfLink,
+  extractOfficialPdfLinks,
+  fetchOfficialResource,
+  parseOfficialAnswerKey,
+  validateQuestionForAutoPublication
+} from "./automatic-official-exam-ingestion.mjs";
+
+test("extractOfficialPdfLinks keeps only HTTPS links on approved official hosts", () => {
+  const html = `
+    <a href="/arquivos/caderno-prova.pdf">Caderno de prova</a>
+    <a href="https://evil.example/prova.pdf">Prova externa</a>
+    <a href="http://cdn.cebraspe.org.br/prova.pdf">HTTP inseguro</a>
+    <a href="https://cdn.cebraspe.org.br/arquivos/gabarito-definitivo.pdf">Gabarito definitivo</a>
+  `;
+  const links = extractOfficialPdfLinks(html, "https://www.cebraspe.org.br/concursos/exemplo");
+  assert.equal(links.length, 2);
+  assert.ok(links.some(link => link.url === "https://www.cebraspe.org.br/arquivos/caderno-prova.pdf"));
+  assert.ok(links.some(link => link.url.includes("gabarito-definitivo.pdf")));
+});
+
+test("classifies prova, gabarito definitivo and preliminary key separately", () => {
+  assert.equal(classifyOfficialPdfLink({ label: "Caderno de prova", url: "https://cdn.cebraspe.org.br/prova.pdf" }), "exam_pdf");
+  assert.equal(classifyOfficialPdfLink({ label: "Gabarito definitivo", url: "https://cdn.cebraspe.org.br/gab_def.pdf" }), "definitive_answer_key");
+  assert.equal(classifyOfficialPdfLink({ label: "Gabarito preliminar", url: "https://cdn.cebraspe.org.br/gab_preliminar.pdf" }), "preliminary_answer_key");
+  assert.equal(classifyOfficialPdfLink({ label: "Edital", url: "https://cdn.cebraspe.org.br/edital.pdf" }), "other");
+});
+
+test("parses definitive multiple-choice answer keys with one or multiple entries per line", () => {
+  const parsed = parseOfficialAnswerKey("GABARITO DEFINITIVO\n1 - A\n02 B 03 C\nQUESTÃO 4: D\n5 ANULADA");
+  assert.equal(parsed.conflicts.length, 0);
+  assert.equal(parsed.answers.get(1), "A");
+  assert.equal(parsed.answers.get(2), "B");
+  assert.equal(parsed.answers.get(3), "C");
+  assert.equal(parsed.answers.get(4), "D");
+  assert.equal(parsed.answers.get(5), "ANULADA");
+});
+
+test("parses Cebraspe Certo/Errado keys and rejects conflicting values", () => {
+  const parsed = parseOfficialAnswerKey("1 C\n2 E\nITEM 3 C\n4 C\n4 E", "true_false");
+  assert.equal(parsed.answers.get(1), "C");
+  assert.equal(parsed.answers.get(2), "E");
+  assert.equal(parsed.answers.get(3), "C");
+  assert.deepEqual(parsed.conflicts, [4]);
+  assert.equal(parsed.answers.has(4), false);
+});
+
+test("auto-publication gate accepts a complete text question with matching official answer", () => {
+  const question = {
+    prompt: "Segundo a Constituição Federal, a administração pública deve observar os princípios expressos no texto constitucional.",
+    options: [
+      { id: "a", text: "Legalidade, impessoalidade, moralidade, publicidade e eficiência." },
+      { id: "b", text: "Legalidade, pessoalidade, moralidade, sigilo e eficiência." },
+      { id: "c", text: "Autonomia, hierarquia, publicidade, sigilo e eficiência." },
+      { id: "d", text: "Legalidade, moralidade, economicidade, sigilo e eficiência." }
+    ],
+    ocr_used: false,
+    review_notes: "Extração automática estruturada."
+  };
+  const result = validateQuestionForAutoPublication(question, "a", "multiple_choice");
+  assert.equal(result.approved, true);
+  assert.equal(result.checks.completePrompt, true);
+  assert.equal(result.checks.answerKeyMatches, true);
+  assert.equal(result.checks.parserTextOnly, true);
+});
+
+test("auto-publication gate rejects OCR and visual dependencies", () => {
+  const question = {
+    prompt: "Com base na figura apresentada, assinale a alternativa correta sobre o comportamento do gráfico a seguir.",
+    options: [
+      { id: "a", text: "Primeira alternativa textual." },
+      { id: "b", text: "Segunda alternativa textual." }
+    ],
+    ocr_used: true,
+    review_notes: "OCR aplicado; possível dependência de imagem."
+  };
+  const result = validateQuestionForAutoPublication(question, "a", "multiple_choice");
+  assert.equal(result.approved, false);
+  assert.ok(result.reasons.some(reason => reason.includes("OCR")));
+  assert.ok(result.reasons.some(reason => reason.includes("visual")));
+});
+
+test("official resource fetch blocks cross-domain redirects", async () => {
+  const fetchImpl = async () => new Response("", {
+    status: 302,
+    headers: { location: "https://evil.example/steal.pdf" }
+  });
+  await assert.rejects(
+    fetchOfficialResource("https://www.cebraspe.org.br/concursos/exemplo", { fetchImpl }),
+    /Redirecionamento para destino não autorizado/
+  );
+});
+
+test("official resource fetch verifies PDF signature and returns bounded bytes", async () => {
+  const pdf = Buffer.from("%PDF-1.7\nfixture");
+  const fetchImpl = async () => new Response(pdf, {
+    status: 200,
+    headers: { "content-type": "application/pdf", "content-length": String(pdf.length) }
+  });
+  const result = await fetchOfficialResource("https://cdn.cebraspe.org.br/exemplo.pdf", { fetchImpl });
+  assert.equal(result.isPdf, true);
+  assert.equal(result.bytes.subarray(0, 5).toString("ascii"), "%PDF-");
+});
