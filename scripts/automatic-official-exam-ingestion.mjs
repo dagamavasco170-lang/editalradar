@@ -178,7 +178,7 @@ function parseAnswerRows(text, questionFormat = "multiple_choice") {
 
     // Only accept aligned rows when their residual text has no letters/numbers.
     if (pendingNumbers.length && tokens.every(isAnswer)
-      && pendingNumbers.length === tokens.length && !residue) {
+      && pendingNumbers.length === tokens.length) {
       pendingNumbers.forEach((number, index) => add(number, tokens[index]));
       pendingNumbers = [];
       continue;
