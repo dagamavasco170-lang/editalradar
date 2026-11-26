@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  classifyOfficialPdfLink,
+  calculateAnswerKeyCoverage,\n  classifyOfficialPdfLink,
   extractOfficialPdfLinks,
   fetchOfficialResource,
   parseOfficialAnswerKey,
@@ -47,7 +47,20 @@ test("parses Cebraspe Certo/Errado keys and rejects conflicting values", () => {
   assert.equal(parsed.answers.has(4), false);
 });
 
-test("auto-publication gate accepts a complete text question with matching official answer", () => {
+
+test("answer-key coverage compares the extracted caderno against all non-annulled key entries", () => {
+  const answers = new Map([[1, "A"], [2, "B"], [3, "ANULADA"], [4, "D"]]);
+  assert.equal(calculateAnswerKeyCoverage([
+    { source_question_number: 1 },
+    { source_question_number: 2 },
+    { source_question_number: 4 }
+  ], answers), 1);
+  assert.equal(calculateAnswerKeyCoverage([
+    { source_question_number: 1 },
+    { source_question_number: 2 }
+  ], answers), 2 / 3);
+});
+\ntest("auto-publication gate accepts a complete text question with matching official answer", () => {
   const question = {
     prompt: "Segundo a Constituição Federal, a administração pública deve observar os princípios expressos no texto constitucional.",
     options: [
