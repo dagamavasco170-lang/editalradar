@@ -15,8 +15,8 @@ export function buildTutorSignals({topics=[],simulations=[],weeklyProgress=[]}={
  return {topics:normalized,overallAccuracy,coverage,consistency,simulationAccuracy,readiness,weakTopics:normalized.filter(t=>t.priority>=50).slice(0,5)};
 }
 
-const difficultyRank=value=>({ "Fácil":1,"Easy":1,"Médio":2,"Intermediária":2,"Intermediate":2,"Difícil":3,"Avançada":3,"Hard":3 }[String(value||"")]||2;
-const normalizeTopic=value=>String(value||"").normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").toLowerCase().trim();
+const difficultyRank=value=>({"Fácil":1,"Easy":1,"Médio":2,"Intermediária":2,"Intermediate":2,"Difícil":3,"Avançada":3,"Hard":3}[String(value||"")]||2);
+const normalizeTopic=value=>String(value||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim();
 export function buildAdaptiveQuestionPlan({questions=[],latestAttempts={},now=Date.now()}={}) {
  const groups=new Map();
  for(const question of questions){
