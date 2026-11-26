@@ -23,7 +23,8 @@ test("extractOfficialPdfLinks keeps only HTTPS links on approved official hosts"
   assert.equal(links.length, 4);
   assert.ok(links.some(link => link.url === "https://www.cebraspe.org.br/arquivos/caderno-prova.pdf"));
   assert.ok(links.some(link => link.url.includes("gabarito-definitivo.pdf")));
-  assert.ok(links.some(link => link.url.includes("Gab_Definitivo")));\n  assert.ok(links.some(link => link.url.includes("abc123456789.pdf")));
+  assert.ok(links.some(link => link.url.includes("Gab_Definitivo")));
+  assert.ok(links.some(link => link.url.includes("abc123456789.pdf")));
 });
 
 test("discovers only official intermediate pages for exams and answer keys", () => {
