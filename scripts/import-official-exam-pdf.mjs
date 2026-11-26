@@ -48,7 +48,13 @@ function parseQuestionStart(line, questionFormat = "multiple_choice") {
   const labelled = String(line).match(/^\s*QUEST(?:Ã|A)O(?:\s+N[º°.]?)?\s*0*(\d{1,3})\s*[:.)-]?\s*(.*)$/iu);
   if (labelled) return { number: Number(labelled[1]), rest: labelled[2] || "", kind: "multiple_choice" };
   const numbered = String(line).match(/^\s*0*(\d{1,3})\s*[.)-]\s*(.*)$/u);
-  if (numbered) return { number: Number(numbered[1]), rest: numbered[2] || "", kind: "multiple_choice" };
+  if (numbered) {
+    return {
+      number: Number(numbered[1]),
+      rest: numbered[2] || "",
+      kind: questionFormat === "true_false" ? "true_false" : "multiple_choice"
+    };
+  }
   if (questionFormat === "true_false") {
     const bareItem = String(line).match(/^\s*0*(\d{1,3})(?:\s+(.*\S))?\s*$/u);
     if (bareItem) return { number: Number(bareItem[1]), rest: bareItem[2] || "", kind: "true_false" };
