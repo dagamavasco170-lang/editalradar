@@ -719,6 +719,7 @@ async function processDocument(record, examLink, keyLink, mode, runId, report, f
     stage = diagnostic.stage = "extract_exam_pdf";
     const manifest = await importPdfToManifest({ pdfPath: proofPath, metadata });
     diagnostic.extractedQuestions = Array.isArray(manifest?.imports) ? manifest.imports.length : 0;
+    diagnostic.extractionDiagnostics = Array.isArray(manifest?.extractionDiagnostics) ? manifest.extractionDiagnostics : [];
     stage = diagnostic.stage = "extract_answer_key";
     const keyExtraction = await extractPdfPages(keyPath, questionFormat, { splitColumns: false });
     diagnostic.answerKeyPages = Array.isArray(keyExtraction?.pages) ? keyExtraction.pages.length : null;
