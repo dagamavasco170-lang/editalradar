@@ -668,7 +668,10 @@ async function requestPinnedHttpsResponse(targetUrl, { address, family, maxBytes
         Accept: "text/html,application/xhtml+xml,application/pdf;q=0.9"
       },
       // Pin the resolved IP while preserving hostname-based TLS SNI and Host.
-      lookup: (_hostname, _options, callback) => callback(null, address, family)
+      lookup: (_hostname, options, callback) => {
+        if (options?.all) callback(null, [{ address, family }]);
+        else callback(null, address, family);
+      }
     }, response => {
       const declaredLength = Number(response.headers["content-length"] || 0);
       if (declaredLength > maxBytes) {
