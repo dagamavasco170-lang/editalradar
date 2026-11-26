@@ -115,6 +115,31 @@ test("manifesto preserva o formato certo/errado para a fila administrativa", () 
 });
 
 
+
+
+test("não confunde enunciado iniciado por 'A respeito' com alternativa A", () => {
+  const pages = [{
+    page: 4,
+    text: [
+      "QUESTÃO 10",
+      "A respeito da regência verbal, analise as afirmações e assinale a opção correta.",
+      "I O primeiro enunciado descreve uma situação hipotética.",
+      "II O segundo enunciado apresenta uma consequência possível.",
+      "III O terceiro enunciado delimita o contexto de aplicação.",
+      "Assinale a opção correta.",
+      "A Apenas a afirmação I está correta.",
+      "B Apenas a afirmação II está correta.",
+      "C Apenas as afirmações I e III estão corretas.",
+      "D Todas as afirmações estão corretas."
+    ].join("\n")
+  }];
+  const rows = parseExamPages(pages, documentHash);
+  assert.equal(rows.length, 1);
+  assert.match(rows[0].prompt, /^A respeito da regência verbal/);
+  assert.deepEqual(rows[0].options.map(option => option.id), ["a", "b", "c", "d"]);
+  assert.match(rows[0].options[0].text, /^Apenas a afirmação I/);
+});
+
 test("deduplica questão repetida no mesmo PDF pelo fingerprint e número", () => {
   const duplicated = [
     samplePages[0],
