@@ -190,7 +190,7 @@ create or replace function public.publish_study_exam_question_import(
 )
 returns bigint
 language plpgsql
-security definer
+security invoker
 set search_path = pg_catalog, public
 as $
 declare
