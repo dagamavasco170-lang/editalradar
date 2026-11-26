@@ -1,84 +1,65 @@
-# Importação de questões de provas oficiais
+# Importação autônoma de questões de provas oficiais
 
-## Objetivo
+## Operação sem revisão humana
 
-Importar questões objetivas de PDFs publicados pela própria banca ou pelo órgão do concurso, mantendo origem, versão, página, número original e hash do documento. O importador não acessa nem copia acervos privados de terceiros, não importa comentários de outras plataformas e não publica questões sem revisão administrativa.
+O EditalRadar descobre provas em fontes cadastradas e no catálogo de concursos, consulta páginas oficiais das bancas e órgãos, identifica pares de caderno e gabarito definitivo, baixa os PDFs, extrai texto, aplica OCR seletivo, separa questões e cruza cada número com a resposta oficial. Itens que passam nos critérios determinísticos são publicados automaticamente no banco, com gabarito armazenado separadamente.
 
-## Fundamento e limites
+O workflow existente executa o processo a cada seis horas. Não é necessário enviar manifesto, confirmar questões, aprovar gabaritos ou operar uma fila manual. O painel administrativo é somente de monitoramento.
 
-O fluxo aceita o fundamento "official_publication" quando a prova foi efetivamente divulgada em fonte oficial. Essa opção não declara que qualquer PDF ou elemento incorporado ao arquivo seja automaticamente de livre reutilização. A Lei 9.610/1998 exclui do âmbito de proteção os textos de atos oficiais (art. 8º, IV), e há precedente do TJPR que aplicou essa regra a questões de concursos; a extensão da regra a toda reprodução comercial, todo edital e todo conteúdo de terceiros embutido em um PDF não deve ser presumida.
+## Fontes e proveniência
 
-O administrador deve verificar:
-- se a URL da página e do PDF pertence à banca ou ao órgão responsável;
-- se o certame já publicou o caderno de prova, e não se trata de material sigiloso, vazado ou prova ainda em aplicação;
-- se edital, contrato, termo de uso ou aviso específico traz restrição relevante;
-- se o item contém imagem, charge, texto, mapa, tabela ou obra de terceiro cuja reutilização possa ter regime próprio;
-- se o gabarito usado é definitivo e se a questão foi anulada/alterada.
+- São consumidos documentos obtidos diretamente de hosts oficiais permitidos (bancas e órgãos públicos).
+- As fontes de descoberta são o catálogo de concursos, as fontes oficiais cadastradas e as URLs oficiais encontradas nas páginas.
+- O worker não baixa provas do PCI Concursos, Gran Questões, Qconcursos ou outros agregadores, nem copia comentários, respostas comentadas, taxonomias ou a organização desses serviços.
+- Cada prova e cada gabarito precisam ter assinatura PDF válida e SHA-256 registrado.
+- Só são aceitos pares de prova e gabarito identificados como definitivos/finais. Gabaritos preliminares, conflitantes ou sem cobertura suficiente não publicam questões.
+- official_publication é o fundamento de reutilização empregado para provas oficialmente divulgadas. A publicação automática bloqueia restrições expressas de reprodução detectadas na página ou no PDF. Isso não torna anexos de terceiros, figuras ou obras incorporadas automaticamente livres.
 
-O campo rights_basis registra o fundamento analisado. license_proof_url é opcional para official_publication; deve ser preenchido quando a base for autorização/licença específica. Restrição específica deve ser anotada em source_restrictions. Todo item permanece em pending e not_reviewed até decisão humana.
+## Critérios automáticos de publicação
 
-## Uso local
+Cada item precisa cumprir todos os critérios, com pontuação de 98/100 ou 100/100:
+1. página da prova e PDF da prova em host oficial permitido;
+2. PDF do gabarito definitivo em host oficial permitido, com hash próprio;
+3. mapeamento não ambíguo entre número da questão e alternativa do gabarito;
+4. questão objetiva estruturada, com quatro/cinco alternativas ou item Cebraspe Certo/Errado;
+5. enunciado autônomo, sem depender de texto externo, figura, charge, tabela, mapa ou gráfico;
+6. texto íntegro, sem artefatos relevantes de extração/OCR;
+7. gabarito correspondente a uma alternativa existente;
+8. ausência de duplicidade por fingerprint, documento e número;
+9. ausência de restrição expressa de reutilização detectada no material analisado.
 
-Dependências no ambiente:
-- Node.js 22 ou superior;
-- Poppler (pdfinfo, pdftotext, pdftoppm);
-- Tesseract OCR com idioma português (por) e inglês (eng) para páginas digitalizadas.
+Questões anuladas, itens com gabarito conflitante, PDFs incompletos, páginas com dependências visuais, formatos discursivos e documentos sem metadados suficientes são descartados ou adiados automaticamente. Não entram em uma fila à espera de pessoas.
 
-Crie um arquivo JSON de metadados (exemplo):
+## Limites operacionais e proteção
 
-    {
-      "board": "Cebraspe",
-      "exam_name": "Nome do concurso",
-      "exam_year": 2025,
-      "discipline": "Língua Portuguesa",
-      "topic": "Interpretação de textos",
-      "difficulty": "Intermediária",
-      "question_format": "multiple_choice",
-      "role_name": "Cargo",
-      "source_url": "https://www.cebraspe.org.br/concursos/...",
-      "exam_pdf_url": "https://cdn.cebraspe.org.br/concursos/.../prova.pdf",
-      "rights_basis": "official_publication",
-      "official_release_verified": true,
-      "source_terms_url": null,
-      "source_restrictions": ""
-    }
+- Até 120 fontes candidatas por ciclo, 20 pares de PDFs por ciclo e 120 publicações por execução.
+- PDF limitado a 25 MB e 300 páginas.
+- OCR Tesseract em português, com amostragem distribuída de até 60 páginas sem camada textual, usando Poppler.
+- Até três tentativas automáticas de publicação; após três falhas técnicas consecutivas, o item é encerrado como rejeitado.
+- HTTP 401/403/429, CAPTCHA, WAF, redirects para hosts externos e documentos acima dos limites não são contornados. São registrados e tentados novamente nos ciclos seguintes quando aplicável.
+- O worker usa apenas SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY já existentes nos secrets do workflow. Não cria chave nova, não expõe credencial no cliente e não usa provedor de IA pago.
+- A publicação de questão, gabarito e status da importação ocorre em uma única função SQL transacional. A deduplicação também é protegida por índices únicos no PostgreSQL.
 
-official_release_verified só deve ser true depois de confirmar manualmente que o arquivo foi divulgado pela banca/órgão responsável.
+## Comandos
 
-Execute:
+O comando usado pelo agendamento é:
 
-    node scripts/import-official-exam-pdf.mjs \
-      --pdf ./prova.pdf \
-      --metadata ./prova.json \
-      --out ./manifesto-importacao.json
+    npm run import:official-exams
 
-O utilitário é local/offline: recebe um arquivo PDF já obtido, não faz scraping nem requisições HTTP e não grava no Supabase. Ele calcula SHA-256, extrai texto com layout, tenta OCR apenas em páginas com camada textual ausente/insuficiente, respeita limites de tamanho/páginas/OCR e gera um manifesto JSON. O envio do manifesto pela área administrativa apenas cria rascunhos na tabela de staging.
+O importador local abaixo é uma ferramenta opcional de diagnóstico e não faz parte do fluxo agendado:
 
-A publicação usa a função SQL publish_study_exam_question_import. Ela bloqueia o registro pendente, confere permissões/fundamento e alternativa escolhida e grava questão, gabarito separado e status da fila na mesma transação PostgreSQL. Em caso de erro, toda a operação é revertida.
+    node scripts/import-official-exam-pdf.mjs --pdf ./prova.pdf --metadata ./prova.json --out ./manifesto.json
 
-## Limite da automação
+Dependências do worker nas GitHub Actions: Node.js 22+, Poppler (pdfinfo, pdftotext, pdftoppm) e Tesseract com idioma português.
 
-A descoberta/ingestão automática com credencial de serviço e publicação automática está desativada nesta entrega. O workflow de monitoramento não chama o publicador automático, e o módulo auxiliar `scripts/import-official-exam-questions.mjs` falha de forma segura quando executado diretamente. Ele mantém apenas utilitários de parsing/validação usados por testes. Não configurar `service_role` para executar esse fluxo.
+## Ativação
 
-A única rota de entrada nesta versão é: PDF local → manifesto → fila administrativa → confirmação humana → função SQL transacional. A migration não cria a tabela de métricas de ingestão agendada nem permissões de escrita para um worker automático.
+A funcionalidade só começa a executar depois que a PR for incorporada ao branch de produção e a migration supabase/migrations/20261126120000_official_exam_question_imports.sql for aplicada no banco. Até esses passos serem autorizados e realizados, o código e o agendamento ficam apenas na PR Draft; nenhuma gravação ou migration é feita em produção por esta implementação.
 
-## Revisão obrigatória
-
-O parser é heurístico: reconhece questões numeradas com alternativas A-F e, quando question_format="true_false", itens Cebraspe identificados como ITEM N, criando as opções C/Certo e E/Errado sem preencher o gabarito. Não é um OCR jurídico nem garante que toda questão foi reconhecida. Para provas Cebraspe de julgamento, informe question_format="true_false" nos metadados; para provas de múltipla escolha, use "multiple_choice". O manifesto não preenche gabarito (suggested_answer permanece null). Itens com figuras, tabelas, gráficos, mapas ou texto externo recebem alerta de revisão visual.
-
-Antes de inserir/publicar:
-1. confira todas as páginas do PDF, especialmente páginas que receberam OCR;
-2. compare enunciado e alternativas com a imagem do caderno;
-3. confirme número original e página;
-4. compare o gabarito com a versão definitiva e verifique anulações/retificações;
-5. classifique direitos/base e registre restrições específicas;
-6. confira duplicidade contra o banco existente;
-7. mantenha a referência oficial e o SHA-256 para rastreabilidade.
-
-Não importar de páginas, PDFs ou bancos do Gran, Qconcursos, PCI Concursos ou outros agregadores. Use-os apenas como referências de descoberta; obtenha o PDF diretamente da banca/órgão. Não copiar suas explicações, comentários, taxonomias proprietárias, índices ou organização de dados.
+Depois de ativada, a coleta, validação, deduplicação, publicação, retry e monitoramento são automáticos. A ausência de intervenção humana por questão não significa publicar itens que não passaram nos critérios: incerteza resulta em descarte ou nova tentativa, nunca em publicação presumida.
 
 ## Testes
 
-    node --test scripts/import-official-exam-pdf.node-test.mjs
-
-Os testes unitários não exigem Poppler, Tesseract, PDF real nem credenciais Supabase.
+    npm run test:monitor
+    npm test
+    npm run build

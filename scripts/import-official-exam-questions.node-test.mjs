@@ -7,8 +7,7 @@ import {
   parseOfficialAnswerKey,
   validateQuestionForAutomaticPublication,
   readBoundedResponse,
-  inferBoardFromOfficialUrl,
-  runAutomaticExamImport
+  inferBoardFromOfficialUrl
 } from "./import-official-exam-questions.mjs";
 
 const officialPage = "https://conhecimento.fgv.br/concursos/exemplo";
@@ -145,6 +144,26 @@ test("rejeita questão com dependência de texto externo mesmo com gabarito corr
   assert.equal(result.checks.standalone_text, false);
 });
 
+
+test("aprova automaticamente item Cebraspe Certo/Errado com gabarito definitivo correspondente", () => {
+  const question = {
+    prompt: "A administração pública deve observar os princípios constitucionais previstos no artigo 37 da Constituição Federal.",
+    options: [{ id: "c", text: "Certo" }, { id: "e", text: "Errado" }],
+    source_question_number: 1,
+    review_notes: "Extração automática estruturada.",
+    ocr_used: false
+  };
+  const key = { valid: true, answers: new Map([[1, "c"]]), annulled: new Set() };
+  const result = validateQuestionForAutomaticPublication(question, key, {
+    sourceOfficial: true, answerKeyOfficial: true,
+    duplicateFree: true, sourceRestrictionsClear: true
+  });
+  assert.equal(result.eligible, true);
+  assert.equal(result.score, 100);
+  assert.equal(result.answer, "c");
+  assert.ok(Object.values(result.checks).every(Boolean));
+});
+
 test("limita respostas de rede para proteger espaço e não aceitar conteúdo ilimitado", async () => {
   const response = new Response(new Uint8Array([1,2,3,4]));
   const bytes = await readBoundedResponse(response, 4);
@@ -155,10 +174,3 @@ test("limita respostas de rede para proteger espaço e não aceitar conteúdo il
   );
 });
 
-
-test("bloqueia execução automática que poderia gravar ou publicar no Supabase", async () => {
-  await assert.rejects(
-    runAutomaticExamImport(),
-    /ingestão automática.*desativada/i
-  );
-});
