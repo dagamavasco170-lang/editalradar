@@ -275,3 +275,16 @@ test("whole-booklet gate blocks every item when one question fails", () => {
   assert.deepEqual(enforceWholeBookletGate([{ approved: true }, { approved: false }, { approved: true }]), { approved: false, total: 3, rejected: 1 });
   assert.deepEqual(enforceWholeBookletGate([{ approved: true }, { approved: true }]), { approved: true, total: 2, rejected: 0 });
 });
+
+
+test("parses answer-key rows with extracted table pipe and bullet separators", () => {
+  const parsed = parseOfficialAnswerKey("1 | D | 2 | B\n3 · C · 4 · E\n5 • A • 6 • ANULADA");
+  assert.equal(parsed.conflicts.length, 0);
+  assert.equal(parsed.parsedCount, 6);
+  assert.equal(parsed.answers.get(1), "D");
+  assert.equal(parsed.answers.get(2), "B");
+  assert.equal(parsed.answers.get(3), "C");
+  assert.equal(parsed.answers.get(4), "E");
+  assert.equal(parsed.answers.get(5), "A");
+  assert.equal(parsed.answers.get(6), "ANULADA");
+});
