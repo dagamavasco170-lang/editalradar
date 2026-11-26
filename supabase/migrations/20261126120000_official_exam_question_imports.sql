@@ -64,6 +64,7 @@ create table if not exists public.study_exam_question_imports (
   exam_year integer not null check (exam_year between 1900 and 2200),
   discipline text not null check (char_length(btrim(discipline)) between 2 and 100),
   topic text not null default 'A classificar' check (char_length(btrim(topic)) between 2 and 160),
+  difficulty text not null default 'Intermediária' check (difficulty in ('Fácil','Intermediária','Avançada')),
   role_name text not null default '',
   source_url text not null check (source_url ~ '^https://'),
   exam_pdf_url text not null check (exam_pdf_url ~ '^https://'),
