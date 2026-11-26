@@ -355,6 +355,28 @@ begin
       using errcode = '22023';
   end if;
 
+  if exists (
+    select 1
+      from public.study_questions existing
+     where existing.origin = 'exam_import'
+       and existing.board = v_import.board
+       and existing.exam_name = v_import.exam_name
+       and existing.exam_year = v_import.exam_year
+       and existing.source_fingerprint = v_import.fingerprint
+  ) then
+    update public.study_exam_question_imports
+       set status = 'duplicate',
+           review_method = v_review_method,
+           auto_quality_score = case when p_automated then p_auto_quality_score else auto_quality_score end,
+           validation_checks = case when p_automated then p_validation_checks else validation_checks end,
+           reviewed_by = case when p_automated then null else auth.uid() end,
+           reviewed_at = v_now,
+           review_notes = left('Questão duplicada por fingerprint de conteúdo; não foi publicada.', 4000),
+           updated_at = v_now
+     where id = v_import.id;
+    return null;
+  end if;
+
   insert into public.study_questions (
     exam_name, exam_year, board, discipline, topic, difficulty,
     prompt, options, source_url, rights_holder, license_status,
