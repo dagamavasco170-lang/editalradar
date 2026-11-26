@@ -47,3 +47,18 @@ it("diagnostica a alternativa marcada e prepara revisão reflexiva baseada na qu
  expect(result.reflection).toContain("alternativa escolhida");
  expect(result.verification).toContain("nova questão");
 });
+
+import {buildGeneratedPractice,evaluateGeneratedReasoning} from "./tutor-generated-practice.js";
+describe("prática autoral e checagem de raciocínio",()=>{
+ it("gera exercício aberto vinculado ao tema e explicação quando disponível",()=>{
+  const generated=buildGeneratedPractice({question:{topic:"Crase"},explanation:"Crase ocorre na fusão de preposição e artigo."});
+  expect(generated.topic).toBe("Crase");
+  expect(generated.prompt).toContain("Crase");
+  expect(generated.reference).toContain("fusão");
+ });
+ it("checa estrutura da explicação sem alegar avaliação semântica",()=>{
+  const response="A regra se aplica porque o exemplo mostra o conceito quando o caso ocorre. Portanto, essa relação explica a situação concreta e o resultado.";
+  expect(evaluateGeneratedReasoning({text:response}).complete).toBe(true);
+  expect(evaluateGeneratedReasoning({text:"Sim, porque."}).complete).toBe(false);
+ });
+});
