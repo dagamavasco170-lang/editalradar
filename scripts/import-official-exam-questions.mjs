@@ -856,6 +856,18 @@ async function main() {
     const { appendFile } = await import("node:fs/promises");
     await appendFile(process.env.GITHUB_STEP_SUMMARY, summary + "\n");
   }
+  if (process.env.GITHUB_OUTPUT) {
+    const { appendFile } = await import("node:fs/promises");
+    await appendFile(process.env.GITHUB_OUTPUT, [
+      "status=" + result.status,
+      "published=" + result.questions_published,
+      "retried=" + result.questions_retried,
+      "skipped=" + result.questions_skipped,
+      "errors=" + result.errors_count,
+      "run_id=" + result.runId,
+      ""
+    ].join("\n"));
+  }
   if (result.status === "failed") process.exitCode = 1;
 }
 
