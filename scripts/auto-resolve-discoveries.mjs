@@ -800,11 +800,10 @@ export function buildRetificationUpdate(existingData, extractedData, discovery, 
   const explicitVacancy = text.match(/\bpassa(?:m)? a ser\D{0,40}(\d{1,5})\s+vagas?\b/i)
     || text.match(/\bpassa(?:m)? para\D{0,40}(\d{1,5})\s+vagas?\b/i)
     || text.match(/\btotalizando\D{0,40}(\d{1,5})\s+vagas?\b/i);
-  const vacancyMentions = [...text.matchAll(/\b(\d{1,5})\s+vagas?\b/gi)].map(match => Number(match[1]));
-  const uniqueVacancies = [...new Set(vacancyMentions)];
-  const nextVacancies = explicitVacancy
-    ? Number(explicitVacancy[1])
-    : uniqueVacancies.length === 1 ? uniqueVacancies[0] : null;
+  // A menção isolada a "N vagas" não prova que N seja o valor corrigido.
+  // Sem "passam a ser/para", "totalizando" ou par "onde se lê/leia-se",
+  // a alteração permanece para revisão humana.
+  const nextVacancies = explicitVacancy ? Number(explicitVacancy[1]) : null;
   if (!handledVacancyFields.has("vagas") && nextVacancies !== null
     && Number.isInteger(nextVacancies) && nextVacancies >= 0) {
     setIfChanged("vagas", nextVacancies);
@@ -821,14 +820,6 @@ export function buildRetificationUpdate(existingData, extractedData, discovery, 
 
   if (correctionNotes.length) {
     setIfChanged("observacao", formatRetificationObservation(updatedData.observacao, correctionNotes));
-  }
-
-  const saysOpen = /inscrições\s+(?:estão\s+)?abertas|período de inscrições\s+aberto/i.test(text);
-  const saysClosed = /inscrições\s+(?:estão\s+)?encerradas|período de inscrições\s+encerrado/i.test(text);
-  if (!explicitInscriptionStatusCorrection && saysOpen !== saysClosed) {
-    setIfChanged("status", saysOpen
-      ? "Edital publicado · inscrições abertas"
-      : "Edital publicado · inscrições encerradas");
   }
 
   if (!changes.length) {
