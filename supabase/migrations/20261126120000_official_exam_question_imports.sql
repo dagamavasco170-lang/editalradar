@@ -88,6 +88,8 @@ create table if not exists public.study_exam_question_imports (
   auto_quality_score integer check (auto_quality_score is null or auto_quality_score between 0 and 100),
   validation_checks jsonb not null default '{}'::jsonb check (jsonb_typeof(validation_checks) = 'object'),
   review_method text not null default 'manual' check (review_method in ('manual','automated')),
+  auto_publish_attempts smallint not null default 0 check (auto_publish_attempts between 0 and 3),
+  last_auto_publish_attempt_at timestamptz,
   rights_basis text not null default 'official_publication'
     check (rights_basis in (
       'official_publication',
