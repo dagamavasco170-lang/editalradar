@@ -531,7 +531,6 @@ export async function fetchSource(url, previous = null, options = {}) {
 
   const bytes = await readResponseBytes(response, MAX_BYTES);
   let contentType = response.headers.get("content-type") || "";
-  const declaredMediaType = contentType.split(";")[0].trim().toLowerCase();
   const pdf = hasPdfSignature(bytes);
   if (pdf) contentType = "application/pdf";
   const mediaType = contentType.split(";")[0].trim().toLowerCase();
