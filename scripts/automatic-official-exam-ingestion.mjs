@@ -108,21 +108,35 @@ export function extractOfficialSubpageLinks(html, pageUrl) {
 export function classifyOfficialPdfLink(link, pageText = "", notes = "") {
   const signal = normalizeDocumentLabel([link?.label, link?.url, pageText, notes].join(" "));
   const linkSignal = normalizeDocumentLabel([link?.label, link?.url].join(" "));
+  const pageSignal = normalizeDocumentLabel(pageText);
+  const isPdf = /\.pdf(?:$|[?#])/i.test(String(link?.url || ""));
   if (/\b(gab(?:arito)?|respostas?)\b/.test(linkSignal)) {
     if (/\b(preliminar|provisorio|rascunho)\b/.test(linkSignal)) return "preliminary_answer_key";
     return isDefinitiveAnswerKey(linkSignal, pageText, notes) ? "definitive_answer_key" : "unconfirmed_answer_key";
   }
-  if (/\b(edital|convocacao|homologacao|resultado|retificacao|cronograma)\b/.test(linkSignal)) return "other";
+  if (/\b(edital|convocacao|homologacao|resultado|retificacao|cronograma|comunicado|recurso|inscricao)\b/.test(linkSignal)) return "other";
   if (/\b(prova|caderno|questoes|questao objetiva)\b/.test(linkSignal)) return "exam_pdf";
-  if (/\b(prova|caderno)\b/.test(signal) && /\.pdf/.test(linkSignal)) return "exam_pdf";
+  if (isPdf
+    && /\btipo\s+[1-9][a-z]?\b/.test(linkSignal)
+    && /\b(prova objetiva|caderno de prova|cadernos de prova|provas objetivas)\b/.test(pageSignal)) {
+    return "exam_pdf";
+  }
+  if (/\b(prova|caderno)\b/.test(signal) && isPdf) return "exam_pdf";
   return "other";
 }
 
 export function isDefinitiveAnswerKey(linkSignal, pageText = "", notes = "") {
-  const explicit = normalizeDocumentLabel([linkSignal, notes].join(" "));
-  if (/\b(preliminar|provisorio|rascunho)\b/.test(explicit)) return false;
-  const evidence = normalizeDocumentLabel([explicit, pageText].join(" "));
-  return /\b(definitivo|definitiva|final|pos recurso|apos recurso|resultado dos recursos)\b/.test(evidence);
+  const linkEvidence = normalizeDocumentLabel(linkSignal);
+  const contextEvidence = normalizeDocumentLabel([pageText, notes].join(" "));
+  const preliminary = /\b(preliminar|provisorio|rascunho)\b/;
+  const definitive = /\b(definitivo|definitiva|final|pos recurso|apos recurso|resultado dos recursos)\b/;
+
+  // O rótulo do próprio arquivo é a evidência mais específica. Notas genéricas
+  // sobre etapas preliminares do concurso não anulam um PDF explicitamente final.
+  if (preliminary.test(linkEvidence)) return false;
+  if (definitive.test(linkEvidence)) return true;
+  if (preliminary.test(contextEvidence) && definitive.test(contextEvidence)) return false;
+  return definitive.test(contextEvidence) && !preliminary.test(contextEvidence);
 }
 
 export function parseOfficialAnswerKey(text, questionFormat = "multiple_choice") {
