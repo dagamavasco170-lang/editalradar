@@ -171,10 +171,22 @@ function parseAnswerRows(text, questionFormat = "multiple_choice") {
       .map(token => token.toUpperCase());
     if (!tokens.length) continue;
     const residue = line
-      .replace(/\b(?:\d{1,3}|ANULADA|[A-F]|X)\b/gi, "")
-      .replace(/[\s|,;:.()\-–—/\\·• ]+/g, "");
+      .replace(/\\b(?:\\d{1,3}|ANULADA|[A-F]|X)\\b/gi, "")
+      .replace(/[\\p{P}\\p{Z}\\p{S}\\p{C}]+/gu, "");
+
+    const isNumber = token => /^\\d{1,3}$/.test(token);
+    const isAnswer = token => allowed.has(token) || token === "X";
+
+    // Layout separators in text-extracted PDF tables may be invisible/control
+    // characters. Accept an answer row only when it aligns with the pending
+    // question-number row and its residue contains no letters or digits.
+    if (pendingNumbers.length && tokens.every(isAnswer)
+      && pendingNumbers.length === tokens.length && !residue) {
+      pendingNumbers.forEach((number, index) => add(number, tokens[index]));
+      pendingNumbers = [];
+      continue;
+    }
     if (residue) {
-      // Cabeçalhos de cargo, páginas e textos auxiliares nunca são dados do gabarito.
       pendingNumbers = [];
       continue;
     }
