@@ -93,6 +93,8 @@ test("extrai itens Cebraspe ITEM n como Certo/Errado sem inferir resposta", () =
   assert.equal(rows.length, 3);
   assert.deepEqual(rows[0].options, [{ id: "c", text: "Certo" }, { id: "e", text: "Errado" }]);
   assert.equal(rows[0].suggested_answer, null);
+  assert.equal(rows[1].source_question_number, 2);
+  assert.match(rows[1].prompt, /A equipe de atenção básica/);
   assert.equal(rows[2].source_question_number, 3);
   assert.doesNotMatch(rows[2].prompt, /GABARITO/i);
 });
