@@ -184,7 +184,7 @@ test("parses FGV answer-key tables with rows of question numbers and aligned ans
 test("keeps aligned FGV answer rows when OCR leaves non-token residue", () => {
   const numbers = Array.from({ length: 20 }, (_, i) => String(i + 1)).join("   ");
   const answers = Array.from({ length: 20 }, (_, i) => ["D", "B", "C", "E", "A"][i % 5]).join("   ");
-  const parsed = parseOfficialAnswerKey(numbers + "\n" + answers + "  | OCR");
+  const parsed = parseOfficialAnswerKey(numbers + "  | OCR\n" + answers + "  | OCR");
   assert.equal(parsed.parsedCount, 20);
   assert.equal(parsed.answers.get(1), "D");
   assert.equal(parsed.answers.get(20), "A");
