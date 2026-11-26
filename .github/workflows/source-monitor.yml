@@ -108,6 +108,7 @@ jobs:
           SOURCE_STATUS: ${{ steps.monitor.outputs.source_status }}
           SOURCE_CHECKED: ${{ steps.monitor.outputs.sources_checked_count }}
           SOURCE_SUCCESSFUL: ${{ steps.monitor.outputs.sources_successful_count }}
+          SOURCE_FAILED: ${{ steps.monitor.outputs.sources_failed_count }}
           SOURCE_UNCHANGED: ${{ steps.monitor.outputs.sources_unchanged_count }}
           SOURCE_BASELINE: ${{ steps.monitor.outputs.sources_baseline_count }}
           SOURCE_UNAVAILABLE: ${{ steps.monitor.outputs.sources_unavailable_count }}
