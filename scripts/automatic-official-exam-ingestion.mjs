@@ -170,13 +170,13 @@ function parseAnswerRows(text, questionFormat = "multiple_choice") {
     const tokens = (line.match(/\b(?:\d{1,3}|ANULADA|[A-F]|X)\b/gi) || [])
       .map(token => token.toUpperCase());
     if (!tokens.length) continue;
+    const isNumber = token => /^\d{1,3}$/.test(token);
+    const isAnswer = token => allowed.has(token) || token === "X";
     const residue = line
-      .replace(/\\b(?:\\d{1,3}|ANULADA|[A-F]|X)\\b/gi, "")
-      .replace(/[\\p{P}\\p{Z}\\p{S}\\p{C}]+/gu, "");
+      .replace(/\b(?:\d{1,3}|ANULADA|[A-F]|X)\b/gi, "")
+      .replace(/[^A-Za-z0-9]/g, "");
 
-    // Layout separators in text-extracted PDF tables may be invisible/control
-    // characters. Accept an answer row only when it aligns with the pending
-    // question-number row and its residue contains no letters or digits.
+    // Only accept aligned rows when their residual text has no letters/numbers.
     if (pendingNumbers.length && tokens.every(isAnswer)
       && pendingNumbers.length === tokens.length && !residue) {
       pendingNumbers.forEach((number, index) => add(number, tokens[index]));
@@ -187,9 +187,6 @@ function parseAnswerRows(text, questionFormat = "multiple_choice") {
       pendingNumbers = [];
       continue;
     }
-
-    const isNumber = token => /^\d{1,3}$/.test(token);
-    const isAnswer = token => allowed.has(token) || token === "X";
 
     if (tokens.length >= 2 && tokens.length % 2 === 0
       && tokens.every((token, index) => index % 2 === 0 ? isNumber(token) : isAnswer(token))) {
