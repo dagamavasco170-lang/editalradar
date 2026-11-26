@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { appendContext, buildPendingDiscoveriesUrl, buildNonActionablePendingDiscoveriesUrl, dismissNonActionablePendingDiscoveries, buildRetificationUpdate, classifyDiscovery, extractDocumentText, extractRoleNamesFromText, extractVacancyDetails, fetchCandidateWithRetry, readBoundedResponseBytes, findMatchingContestForRetification, inferOrganization, mapWithConcurrency, normalizeContestIdentity, normalizeOfficialUrl, normalizePdfVersionText, compareDocumentVersions, prepareDiscoveryDocument, isGenericOfficialLandingPage, countPendingDiscoveries, requestJson, summarizeFetchError, assessNoticeFreshness, extractDeclaredPublisherUrl, resolveGoogleNewsArticleUrl, prioritizePendingDiscoveries, selectDiscoveriesForTriage, isClearlyUnrelatedAdministrativeDiscovery, isTrustedSecondaryNewsHost, extractOfficialReferenceLinks, fetchSecondaryNewsArticle, autoResolvePending } from "./auto-resolve-discoveries.mjs";
+import { appendContext, buildPendingDiscoveriesUrl, buildNonActionablePendingDiscoveriesUrl, dismissNonActionablePendingDiscoveries, buildRetificationUpdate, classifyDiscovery, extractDocumentText, extractRoleNamesFromText, extractVacancyDetails, fetchCandidateWithRetry, readBoundedResponseBytes, selectPdfOcrPages, findMatchingContestForRetification, inferOrganization, mapWithConcurrency, normalizeContestIdentity, normalizeOfficialUrl, normalizePdfVersionText, compareDocumentVersions, prepareDiscoveryDocument, isGenericOfficialLandingPage, countPendingDiscoveries, requestJson, summarizeFetchError, assessNoticeFreshness, extractDeclaredPublisherUrl, resolveGoogleNewsArticleUrl, prioritizePendingDiscoveries, selectDiscoveriesForTriage, isClearlyUnrelatedAdministrativeDiscovery, isTrustedSecondaryNewsHost, extractOfficialReferenceLinks, fetchSecondaryNewsArticle, autoResolvePending } from "./auto-resolve-discoveries.mjs";
 
 const discovery = {
   id: 1,
@@ -1245,6 +1245,27 @@ test("normaliza URLs oficiais removendo tracking, fragmentos e diferenças irrel
   assert.equal(normalizeOfficialUrl("javascript:alert(1)"), "");
 });
 
+test("distribui OCR por todo PDF digitalizado sem exceder 12 páginas", () => {
+  const selected = selectPdfOcrPages(100, [], "", 12);
+  assert.equal(selected.length, 12);
+  assert.ok(selected.includes(1));
+  assert.ok(selected.includes(2));
+  assert.ok(selected.includes(3));
+  assert.ok(selected.includes(100));
+  assert.ok(selected[0] <= 3);
+  assert.ok(selected.at(-1) >= 99);
+  assert.ok(selected.every((page, index) => page >= 1 && page <= 100 && (index === 0 || page > selected[index - 1])));
+});
+
+test("distribui OCR entre páginas esparsas ao longo de PDFs mistos", () => {
+  const pages = Array.from({ length: 60 }, (_, index) => index % 2 === 0 ? "" : "Texto digital extraído com densidade suficiente para não ser selecionado");
+  const selected = selectPdfOcrPages(60, pages, "texto extraído", 12, 45);
+  assert.equal(selected.length, 12);
+  assert.ok(selected[0] <= 2);
+  assert.ok(selected.at(-1) >= 58);
+  assert.ok(selected.every(page => page % 2 === 1));
+});
+
 test("compara versões textuais de PDF ignorando numeração de página e detectando mudanças críticas", () => {
   const previous = "EDITAL 01/2026\nPágina 1 de 20\nPeríodo de inscrições: até 10/12/2026\n20 vagas";
   const current = "EDITAL 01/2026\nPágina 1 de 21\nPeríodo de inscrições: até 20/12/2026\n25 vagas";
@@ -1255,6 +1276,61 @@ test("compara versões textuais de PDF ignorando numeração de página e detect
   assert.ok(result.criticalAreas.includes("prazos"));
   assert.ok(result.criticalAreas.includes("vagas"));
   assert.equal(normalizePdfVersionText("Página 2 de 10\nTexto"), "Texto");
+});
+
+test("registra baseline de retificação mesmo sem correção estruturada e não duplica a mesma versão", () => {
+  const existing = {
+    orgao: "Prefeitura Municipal de Igaci",
+    cargo: "Agente Administrativo",
+    vagas: 20,
+    historicoAtualizacoes: []
+  };
+  const item = { ...discovery, title: "Retificação do Edital 01/2026" };
+  const document = {
+    title: "Retificação do Edital 01/2026",
+    text: "Retificação do Edital 01/2026\nA comissão publica nova versão para consulta dos candidatos."
+  };
+  const first = buildRetificationUpdate(existing, {
+    orgao: existing.orgao, cargo: existing.cargo
+  }, item, document);
+  assert.equal(first.updated, true);
+  assert.deepEqual(first.changes, []);
+  assert.equal(first.data.historicoAtualizacoes.length, 1);
+  assert.equal(first.data.historicoAtualizacoes[0].documentVersion.comparison, null);
+  assert.match(first.data.historicoAtualizacoes[0].documentVersion.sha256, /^[a-f0-9]{64}$/);
+
+  const repeated = buildRetificationUpdate(first.data, {
+    orgao: existing.orgao, cargo: existing.cargo
+  }, item, document);
+  assert.equal(repeated.updated, false);
+  assert.equal(repeated.data, undefined);
+  assert.equal(first.data.historicoAtualizacoes.length, 1);
+});
+
+test("compara nova versão sem correções estruturadas com a baseline anterior", () => {
+  const existing = {
+    orgao: "Prefeitura Municipal de Igaci",
+    cargo: "Agente Administrativo",
+    vagas: 20,
+    historicoAtualizacoes: [{
+      type: "retificacao",
+      documentVersion: {
+        sha256: "placeholder",
+        textSnapshot: "Retificação do Edital 01/2026\nA comissão publica nova versão para consulta dos candidatos."
+      }
+    }]
+  };
+  const result = buildRetificationUpdate(existing, {
+    orgao: existing.orgao, cargo: existing.cargo
+  }, { ...discovery, title: "Retificação do Edital 01/2026" }, {
+    title: "Retificação do Edital 01/2026",
+    text: "Retificação do Edital 01/2026\nA comissão publica nova versão para consulta dos candidatos.\nO atendimento presencial ocorrerá em horário especial."
+  });
+  assert.equal(result.updated, true);
+  assert.deepEqual(result.changes, []);
+  const version = result.data.historicoAtualizacoes.at(-1).documentVersion;
+  assert.equal(version.comparison.changed, true);
+  assert.ok(version.comparison.addedLineCount >= 1);
 });
 
 test("mantém histórico de versão e resumo comparativo ao registrar retificação subsequente", () => {
