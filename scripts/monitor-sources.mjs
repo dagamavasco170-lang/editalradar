@@ -1016,6 +1016,7 @@ export async function fetchNewsFeedWithRetry(feedUrl, options = {}) {
 
   let lastError = null;
   let lastResponse = null;
+  let deferFallbackUntilNextCycle = false;
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     try {
       let currentUrl = parsedUrl;
@@ -1049,6 +1050,10 @@ export async function fetchNewsFeedWithRetry(feedUrl, options = {}) {
         lastResponse = response;
         if (attempt < attempts) {
           const retryAfter = retryAfterMilliseconds(response.headers, nowMs);
+          if (retryAfter !== null && retryAfter > 60000) {
+            deferFallbackUntilNextCycle = true;
+            break;
+          }
           await wait(retryAfter ?? retryDelayMs * (2 ** (attempt - 1)));
           continue;
         }
@@ -1069,7 +1074,9 @@ export async function fetchNewsFeedWithRetry(feedUrl, options = {}) {
     }
   }
 
-  if (typeof options.fallbackFetch === "function") {
+  const fallbackEligible = !deferFallbackUntilNextCycle
+    && (!lastResponse || lastResponse.status === 403 || lastResponse.status >= 500);
+  if (fallbackEligible && typeof options.fallbackFetch === "function") {
     try {
       const fallbackResponse = await options.fallbackFetch(parsedUrl.href, {
         timeoutMs,
