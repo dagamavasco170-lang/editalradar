@@ -98,7 +98,10 @@ export async function readResponseBytes(response, maxBytes = MAX_BYTES) {
   }
   const reader = response?.body?.getReader?.();
   if (!reader) {
-    const bytes = new Uint8Array(await response.arrayBuffer());
+    let bytes;
+    if (typeof response?.arrayBuffer === "function") bytes = new Uint8Array(await response.arrayBuffer());
+    else if (typeof response?.text === "function") bytes = new TextEncoder().encode(await response.text());
+    else throw new Error("Resposta não disponibilizou um corpo legível.");
     if (bytes.byteLength > maxBytes) {
       throw new Error("Resposta excede o limite de " + Math.round(maxBytes / (1024 * 1024)) + " MB.");
     }
@@ -1126,7 +1129,7 @@ export async function searchInternetForContestLeads(options = {}) {
       }
       const contentLength = Number(response.headers?.get?.("content-length") || 0);
       if (contentLength > WEB_SEARCH_MAX_FEED_BYTES) throw new Error("O feed excede o limite de 2 MB.");
-      const xml = await response.text();
+      const xml = new TextDecoder("utf-8").decode(await readResponseBytes(response, WEB_SEARCH_MAX_FEED_BYTES));
       if (new TextEncoder().encode(xml).byteLength > WEB_SEARCH_MAX_FEED_BYTES) throw new Error("O feed excede o limite de 2 MB.");
       if (!/<(?:rss|feed)\b/i.test(xml)) throw new Error("A resposta não contém um feed RSS/XML válido.");
       const discoveries = parseGoogleNewsRss(xml, { now, queryLabel: entry.label, feedUrl, maxResults: maxResultsPerQuery });
@@ -1152,7 +1155,7 @@ export async function searchInternetForContestLeads(options = {}) {
       if (!response.ok) throw new Error(feed.label + " respondeu HTTP " + response.status + ".");
       const contentLength = Number(response.headers?.get?.("content-length") || 0);
       if (contentLength > WEB_SEARCH_MAX_FEED_BYTES) throw new Error("O feed excede o limite de 2 MB.");
-      const xml = await response.text();
+      const xml = new TextDecoder("utf-8").decode(await readResponseBytes(response, WEB_SEARCH_MAX_FEED_BYTES));
       if (new TextEncoder().encode(xml).byteLength > WEB_SEARCH_MAX_FEED_BYTES) throw new Error("O feed excede o limite de 2 MB.");
       if (!/<(?:rss|feed)\b/i.test(xml)) throw new Error("A resposta não contém um feed RSS/XML válido.");
       const discoveries = parseSecondaryNewsRss(xml, {
