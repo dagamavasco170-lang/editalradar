@@ -103,7 +103,8 @@ export function parseExamPages(pages, documentSha256, { questionFormat = "multip
       && !issues.some((item) => item.includes("Identificadores") || item.includes("sequência contínua"))) {
       const canonical = normalizeQuestionText(prompt + " " + options.map((item) => item.id + " " + item.text).join(" "));
       const fingerprint = sha256(canonical);
-      if (!seenFingerprints.has(fingerprint) && !seenQuestionNumbers.has(current.number)) {
+      const sourceItemKey = current.page + ":" + current.number;
+      if (!seenFingerprints.has(fingerprint) && !seenQuestionNumbers.has(sourceItemKey)) {
         parsed.push({
           source_page: current.page,
           source_question_number: current.number,
@@ -115,7 +116,7 @@ export function parseExamPages(pages, documentSha256, { questionFormat = "multip
           review_notes: issues.join(" ") || "Extração automática estruturada; gabarito deve corresponder à publicação definitiva."
         });
         seenFingerprints.add(fingerprint);
-        seenQuestionNumbers.add(current.number);
+        seenQuestionNumbers.add(sourceItemKey);
       }
     }
     current = null;
