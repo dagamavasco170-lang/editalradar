@@ -1,142 +1,130 @@
 # EditalRadar — Direção de produto, UX e redesign visual
 
 ## Objetivo
-Evoluir o EditalRadar para uma plataforma de preparação para concursos completa, com interface de alta qualidade, navegação previsível, foco em estudo e identidade própria. Inspirar-se em padrões de produto e fluxo de trabalho de Qconcursos, Gran Questões e Tec Concursos, sem copiar marca, layouts exatos, textos, assets, código ou elementos proprietários.
+Evoluir o EditalRadar para uma plataforma completa de preparação para concursos, com interface de alta qualidade, navegação previsível, foco em estudo e identidade própria. Inspirar-se em padrões de produto e fluxo de trabalho de Qconcursos, Gran Questões e Tec Concursos, sem copiar marca, layouts exatos, textos, assets, código ou elementos proprietários.
 
 ## Referências de experiência
 - **Qconcursos:** descoberta por filtros, questões e cadernos organizados, continuidade entre busca e prática, ações de guardar questões.
-- **Gran Questões:** painel de desempenho, provas completas, simulados configuráveis, disciplinas/assuntos em árvore, programa de estudos e visão de evolução.
-- **Tec Concursos:** tratar como referência de navegação funcional, produtividade no banco de questões e ferramentas de prática; validar funcionalidades atuais antes de replicar qualquer fluxo específico.
+- **Gran Questões:** painel de desempenho, provas completas, simulados configuráveis, disciplinas/assuntos em árvore, programa de estudos e evolução.
+- **Tec Concursos:** referência para produtividade no banco de questões e ferramentas de prática; validar funcionalidades atuais antes de adotar padrões específicos.
 
-## Identidade visual proposta
-- Marca: EditalRadar — clara, confiável, orientada a dados e ação; não parecer uma cópia de cursinho.
-- Paleta: azul profundo/ink para estrutura e confiança; azul vivo para ações; verde para progresso/acertos; âmbar para atenção; vermelho apenas para erro ou risco.
-- Superfícies: fundo neutro e levemente quente, cards limpos, bordas sutis, sombras discretas; evitar gradientes excessivos, efeitos pesados e dashboards poluídos.
-- Tipografia: sans-serif moderna, escala tipográfica consistente, títulos compactos e legíveis; números de desempenho com hierarquia.
-- Iconografia consistente, labels explícitos e estados de foco visíveis.
-- Design tokens centralizados (cores, spacing, radius, shadows, typography) e componentes reutilizáveis.
-- Tema claro como padrão; tema escuro preservado e aprimorado.
+## Identidade visual
+- Marca clara, confiável, orientada a dados e ação — sem parecer cópia de cursinho.
+- Paleta: azul profundo/ink para estrutura; azul vivo para ação; verde para progresso/acertos; âmbar para atenção; vermelho para erro/risco.
+- Superfícies neutras, cards limpos, bordas sutis e sombras discretas; evitar excesso de gradientes e poluição.
+- Tipografia sans-serif moderna, escala consistente, números com hierarquia e alta legibilidade.
+- Tokens centralizados de cor, spacing, radius, shadows e typography; ícones consistentes e estados de foco.
+- Tema claro padrão; tema escuro preservado e aprimorado.
 
-## Estrutura de navegação (desktop)
-1. **Sidebar persistente:** Visão geral, Concursos, Questões, Provas, Simulados, Disciplinas, Plano de estudos, Cadernos, Estatísticas, Favoritos e Alertas. Administração fica segregada e visível somente a administradores.
-2. **Barra superior:** busca global (concurso, órgão, cargo, banca, assunto), notificações, ajuda, perfil e acesso rápido ao tema.
-3. **Conteúdo:** breadcrumb, título + subtítulo, ação primária contextual, filtros colapsáveis e conteúdo em grid com largura controlada.
-4. **Mobile:** bottom navigation com 4–5 destinos prioritários, menu “Mais”, filtros em bottom sheet, cards empilhados, ações principais acessíveis com polegar; sidebar nunca ocupa espaço.
+## Navegação
+### Desktop
+Sidebar persistente: Visão geral, Concursos, Questões, Provas, Simulados, Disciplinas, Plano de estudos, Cadernos, Estatísticas, Favoritos e Alertas. Administração segregada, somente para administradores.
+Topbar: busca global (concurso, órgão, cargo, banca, assunto), notificações, ajuda, perfil e tema.
+Conteúdo: breadcrumb, título/subtítulo, ação primária contextual, filtros recolhíveis, grid de largura controlada.
+### Mobile
+Bottom navigation com destinos prioritários, menu Mais, filtros em bottom sheet, cards empilhados e ações acessíveis com o polegar; sidebar não ocupa espaço.
 
-## Visão geral / Dashboard
-- Saudação e “continuar de onde parei”.
-- Concurso-alvo e meta semanal configurável.
-- KPI: questões respondidas, taxa de acerto, tempo de estudo, sequência e sessões concluídas (mostrar apenas dados existentes; não inventar métricas).
-- Gráfico de atividade e evolução de acerto por período, acessível e com texto alternativo.
-- Lista de oportunidades personalizadas: inscrições abertas, próximos marcos, alterações recentes e alertas oficiais.
-- Plano de estudo do dia com progresso e botão iniciar sessão.
-- Ações rápidas: encontrar questões, gerar simulado, abrir prova e revisar erros.
+## Dashboard
+- Saudação e retomar sessão anterior.
+- Concurso-alvo e meta semanal.
+- KPIs de questões respondidas, acerto, tempo, consistência e sessões (somente dados existentes).
+- Gráfico de atividade e evolução, acessível.
+- Oportunidades personalizadas, inscrições, próximos marcos, alterações e fontes oficiais.
+- Plano do dia e ação iniciar sessão.
+- Ações rápidas: questões, simulado, prova e revisão de erros.
 
 ## Concursos
-- Busca e filtros por situação, esfera, estado, escolaridade, órgão, banca, cargo e cidade, com filtros ativos em chips removíveis.
-- Listagem em cards informativos, com status de inscrições e etapa, cargo/órgão, vagas (se verificadas), remuneração (se verificada), nível, local, banca e data relevante.
-- Ação comparar, favoritar, alertar e ver fonte oficial.
-- Detalhes em página própria: resumo, cronograma, requisitos, etapas, fontes e histórico de mudanças; destacar dados não confirmados.
-- Comparador para até 3 oportunidades com tabela e campos de origem.
+- Busca/filtros por situação, esfera, estado, escolaridade, órgão, banca, cargo e cidade; filtros ativos em chips removíveis.
+- Cards com status, cargo/órgão, vagas e remuneração somente se verificadas, escolaridade, local, banca e datas.
+- Comparar, favoritar, alertar e fonte oficial.
+- Detalhes em página própria: resumo, cronograma, requisitos, etapas, fontes e histórico; sinalizar dados não confirmados.
+- Comparador de até três oportunidades.
 
-## Questões — área central de estudo
-- Barra de filtros estruturada (disciplina, assunto, banca, órgão, cargo, ano, dificuldade, formato, status respondida/errada/favorita, origem e comentários quando disponíveis).
-- Busca textual; filtros avançados em drawer/sheet e filtros ativos como chips.
-- Resultado com total, ordenação, salvar filtro, criar caderno e gerar simulado.
-- Questão em card de leitura confortável: enunciado, metadados discretos, alternativas grandes e clicáveis, navegação e salvar/favoritar.
-- Ao responder: feedback claro sem saltos visuais, gabarito, justificativa somente se houver fonte/explicação confiável, referência oficial, tags, comentários quando implementados.
-- Revisão de erro, questões marcadas, caderno e continuidade de sessão.
-- Não apresentar questões oficiais sem origem/rights review e estado de publicação adequado.
+## Questões
+- Filtros por disciplina, assunto, banca, órgão, cargo, ano, dificuldade, formato, respondidas/erradas/favoritas, origem e comentários disponíveis.
+- Busca textual; filtros avançados em drawer/sheet; chips para filtros ativos.
+- Total, ordenação, salvar filtro, criar caderno e gerar simulado.
+- Card de leitura confortável: enunciado, metadados discretos, alternativas grandes e clicáveis, navegação e salvar.
+- Feedback após resposta, gabarito, justificativa apenas quando confiável, referência oficial e comentários (se implementados).
+- Revisão de erros, questões marcadas e continuidade de sessão.
+- Questões oficiais somente com origem, revisão de direitos e estado de publicação adequados.
 
-## Modo de resolução / prova
-- Layout de foco, sem sidebar pesada; cabeçalho com concurso/prova, progresso, tempo e opções.
-- Desktop: coluna de questão + painel de navegação de números; painel lateral recolhível.
-- Mobile: progresso e timer no topo, navegação de questões compacta, controles no rodapé fixo.
-- Estados: não respondida, respondida, marcada para revisão, anulada, sincronização offline.
-- Prova cronometrada, pausável quando permitido, confirmação de saída e recuperação de sessão.
-- Resultado: acertos, erros, em branco, tempo, desempenho por disciplina/assunto, lista de revisão e recomendações baseadas em dados.
+## Modo prova / resolução
+- Layout de foco, sem sidebar pesada; cabeçalho com prova, progresso, tempo e opções.
+- Desktop: questão e painel de números; painel lateral recolhível.
+- Mobile: timer/progresso compacto, navegação e controles no rodapé.
+- Estados: não respondida, respondida, revisar, anulada e sincronização offline.
+- Timer, pausa quando aplicável, confirmação ao sair e recuperação de sessão.
+- Resultado: acertos, erros, em branco, tempo, desempenho por matéria/assunto e fila de revisão.
 
 ## Simulados
-- Criador com seleção de disciplinas/assuntos, banca, quantidade, distribuição, nível e duração.
-- Presets: rápido (10), prática (20), prova (40), personalizado; apenas sugestões, não imposições.
-- Simulados salvos, inéditos oficiais, simulados do usuário e histórico diferenciados por origem.
-- Antes de iniciar, resumo de configuração; durante a prova, foco; ao finalizar, relatório e revisão.
+- Configuração: disciplinas/assuntos, banca, quantidade, distribuição, nível e duração.
+- Presets sugeridos: 10 (rápido), 20 (prática), 40 (prova), personalizado.
+- Diferenciar simulados inéditos, oficiais, de usuário e histórico.
+- Resumo antes de iniciar, foco durante a execução, análise após concluir.
 
 ## Disciplinas e assuntos
-- Árvore/accordion de disciplinas e tópicos, busca, contagem real de questões e taxa de acerto (se houver histórico).
-- Priorizar assuntos fracos e frequentes sem prometer previsão; mostrar base e período da estatística.
-- Acesso direto a treino do tópico e inclusão no plano.
+- Árvore/accordion, busca, contagem real e taxa de acerto quando houver histórico.
+- Priorizar assuntos fracos/frequentes com explicação de base e período, sem promessas de previsão.
+- Acesso ao treino do tópico e inclusão no plano.
 
 ## Plano de estudos
-- Configuração simples (objetivo/concurso, dias, disponibilidade e disciplinas).
-- Semana visual em desktop; agenda/lista em mobile.
-- Sessões adaptativas com questões, revisão e pausas; marcar conclusão e reorganizar.
-- Mostrar progresso real; nunca criar sessões ou resultados falsos.
+- Setup simples: concurso, dias disponíveis, horas e disciplinas.
+- Semana visual desktop; lista/agenda mobile.
+- Sessões adaptativas de questões, revisão e pausas; concluir e reorganizar.
+- Mostrar progresso real.
 
 ## Cadernos, favoritos e revisão
-- Cadernos criados pelo usuário, nome, descrição, questões adicionadas, duplicatas evitadas, editar e remover.
+- Cadernos personalizados, descrição, questões, duplicatas evitadas, editar/remover.
 - Favoritos e marcadores.
-- Fila de revisão de erros, questões difíceis e questões marcadas.
-- Ações consistentes: salvar, remover, adicionar a caderno, reportar problema.
+- Revisão de erros, questões difíceis e marcadas.
+- Ações consistentes para guardar, remover, adicionar e reportar.
 
 ## Estatísticas
-- Dashboard com intervalo de datas, volume, acerto, tempo e consistência.
-- Charts por disciplina, assunto, banca e concurso; filtros de período.
-- Heatmap/indicador de pontos fortes e fracos, baseado exclusivamente no histórico real.
-- Recomendações práticas e links para começar uma sessão.
+- Intervalo de datas, volume, acerto, tempo e consistência.
+- Gráficos por disciplina, assunto, banca e concurso.
+- Indicadores de pontos fortes/fracos baseados no histórico real.
+- Recomendações e links para iniciar treino.
 
-## Alertas e descoberta
-- Central de notificações com categorias (novo concurso, alteração, inscrição, prova, gabarito, questão).
-- Fonte oficial e data/hora de atualização sempre visíveis.
+## Alertas
+- Categorias: novo concurso, alteração, inscrição, prova, gabarito e questão.
+- Fonte oficial e data de atualização.
 - Preferências por estado, cargo, escolaridade, esfera e palavras-chave.
-- Deduplicação, quiet hours configuráveis e gerenciamento de alertas.
+- Deduplicação e quiet hours configuráveis.
 
-## Admin / operações
-- Administração isolada da experiência do candidato.
-- Revisão de concursos descobertos, fontes, importação de provas, filas e saúde de automações.
-- Estados de confiança/proveniência; log de auditoria; ação destrutiva exige confirmação.
-- Não expor segredos nem executar ações privilegiadas a partir de UI pública.
+## Administração
+- Separada da experiência de candidato.
+- Revisão de descobertas, fontes, importação, filas e automações.
+- Proveniência e logs de auditoria; ações destrutivas exigem confirmação.
+- Segredos e ações privilegiadas nunca expostos na UI pública.
 
-## Componentes reutilizáveis
-Button (variants), IconButton, SearchBox, FilterBar, FilterChip, Select/Combobox, Tabs, Card, StatusBadge, KPIStat, EmptyState, Skeleton, Toast, Modal/Dialog, Drawer/BottomSheet, Pagination, QuestionCard, AnswerOption, Timer, Progress, SourceCitation, ContestCard, ExamCard, StudySessionCard, ChartCard, NotificationItem.
-Todos com states: default, hover, focus, disabled, loading, success, error; acessibilidade via teclado e leitor de tela.
+## Componentes
+Button, IconButton, SearchBox, FilterBar, FilterChip, Select/Combobox, Tabs, Card, StatusBadge, KPIStat, EmptyState, Skeleton, Toast, Dialog, Drawer/BottomSheet, Pagination, QuestionCard, AnswerOption, Timer, Progress, SourceCitation, ContestCard, ExamCard, StudySessionCard, ChartCard, NotificationItem. Estados default/hover/focus/disabled/loading/success/error e acessibilidade por teclado/leitor de tela.
 
-## Responsividade, acessibilidade e qualidade
-- Breakpoints orientados ao conteúdo; testar 360px, 768px, 1024px, 1440px.
-- WCAG AA para contraste, foco, tamanho de alvo (mínimo prático 44px), labels, sem depender somente de cor.
-- Reduced motion, zoom e navegação por teclado.
-- Loading/empty/error/success states para cada fluxo; feedback de ações e retry.
-- Evitar layout shift, preservar filtros e sessão ao navegar; autosave e offline com limites claros.
-- Performance: lazy-load áreas pesadas, paginação/virtualização onde necessário, evitar queries repetidas.
+## Responsividade e qualidade
+- Breakpoints orientados ao conteúdo; validar 360, 768, 1024 e 1440px.
+- Contraste WCAG AA, foco visível, targets de toque de 44px, labels e não depender só de cor.
+- Reduced motion, zoom e teclado.
+- Loading/empty/error/success states; retry; evitar layout shift.
+- Preservar filtros e sessões; autosave e offline com limites.
+- Lazy-load áreas pesadas, paginação/virtualização e evitar requests redundantes.
 
-## Roadmap de implementação
-### Fase 1 — Fundamentos visuais
-1. Auditoria de telas e fluxos atuais, inventário de CSS e componentes.
-2. Design tokens, tipografia, cores, spacing, grid, sidebar/header e primitives.
-3. Aplicar shell responsivo e acessibilidade sem quebrar funcionalidades.
+## Roadmap
+### 1. Fundação visual
+Auditoria de telas, CSS e componentes; tokens; tipografia; cores; grid; sidebar/topbar; primitives; acessibilidade.
+### 2. Descoberta
+Dashboard, catálogo, filtros, cards, detalhes, comparador e busca/alertas.
+### 3. Estudos
+Banco de questões, cadernos, favoritos, revisão, modo resolução, prova, simulado, timer, plano e tópicos.
+### 4. Retenção/analytics
+Performance, estatísticas, recomendações transparentes e notificações.
+### 5. Admin e qualidade
+Admin, auditoria, E2E, mobile, Android WebView, performance e regressão.
 
-### Fase 2 — Descoberta e concursos
-4. Redesenhar dashboard, catálogo, filtros, cards, detalhes e comparador.
-5. Busca global e alertas consistentes.
-
-### Fase 3 — Estudo
-6. Redesenhar filtros e resultados de questões, cards, cadernos, favoritos e revisão.
-7. Modo resolução, prova e simulado; timer e persistência.
-8. Plano de estudo, disciplinas, tópicos e sessão.
-
-### Fase 4 — Retenção e analytics
-9. Dashboard de desempenho e estatísticas; recomendações transparentes.
-10. Notificações e preferências.
-
-### Fase 5 — Admin e acabamento
-11. Redesign administrativo e ferramentas de auditoria.
-12. Testes e2e, mobile, Android WebView, performance, acessibilidade e regressão.
-
-## Regras de execução
-- Implementar por entregas pequenas e testáveis; cada fase em PR separado (ou PRs sequenciais), Draft até validação.
-- Não fazer redesign só de screenshots: manter funcionalidade, dados, auth, RLS e APIs.
-- Não modificar migrations ou dados de produção; Supabase produção permanece read-only.
-- Não habilitar autopublicação nem publicação de provas/questões durante o redesign.
-- Nenhuma contratação, serviço pago ou segredo novo.
-- Merge e deploy exigem autorização explícita; não habilitar publicação em produção automaticamente.
-- Antes de cada PR: refetch main/head, testes, build, E2E relevantes e Android smoke quando afetado.
+## Regras
+- Entregas pequenas e verificáveis, PRs sequenciais; Draft até validação.
+- Preservar funcionalidades, dados, auth, RLS e APIs.
+- Supabase produção read-only: sem migrations, DDL, RLS ou writes.
+- Não habilitar autopublicação ou publicação durante redesign.
+- Sem serviços pagos, contratação ou segredos novos.
+- Merge e deploy requerem autorização explícita.

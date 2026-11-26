@@ -1,0 +1,388 @@
+import React, { useEffect, useMemo, useState } from "react";
+import { loadQuestionProgress, mergeQuestionProgress, questionBank, questionProgressStorageKey } from "./lib/question-bank.js";
+
+const SimulatorPanel = React.lazy(() => import("./SimulatorPanel.jsx"));
+const ExamSourcesPanel = React.lazy(() => import("./ExamSourcesPanel.jsx"));
+
+const subjects=["Língua Portuguesa","Direito Constitucional","Raciocínio lógico","Direito Administrativo","Informática"];
+const days=["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"];
+const storageKey=(userId)=>"er-study-plan:"+(userId||"visitor");
+const focusStorageKey=(userId)=>"er-focus-sessions:"+(userId||"visitor");
+const loadFocusSessions=(userId)=>{
+ try { const value=Number(localStorage.getItem(focusStorageKey(userId))||0); return Number.isFinite(value)&&value>0?Math.floor(value):0; }
+ catch { return 0; }
+};
+const formatClock=(seconds)=>String(Math.floor(seconds/60)).padStart(2,"0")+":"+String(seconds%60).padStart(2,"0");
+const rightsBasisLabel=value=>({
+ official_publication:"publicação oficial de ato da banca/órgão",
+ public_domain:"domínio público",
+ permission_granted:"autorização expressa",
+ cc_by:"licença CC BY",
+ cc_by_sa:"licença CC BY-SA"
+}[value]||"fundamento revisado");
+
+const loadPlan=(userId)=>{
+ try {
+  const value=JSON.parse(localStorage.getItem(storageKey(userId))||"{}");
+  return {hours:[5,8,10,15,20].includes(Number(value.hours))?Number(value.hours):10,days:Array.isArray(value.days)&&value.days.length?value.days:days.slice(0,5),done:Array.isArray(value.done)?value.done:[]};
+ } catch { return {hours:10,days:days.slice(0,5),done:[]}; }
+};
+
+export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDetails,onClearFocus,userId,authClient}) {
+ const activeUserId=userId||null;
+ const [plan,setPlan]=useState(()=>loadPlan(activeUserId));
+ const [discipline,setDiscipline]=useState("Todas");
+ const [board,setBoard]=useState("Todas");
+ const [difficulty,setDifficulty]=useState("Todas");
+ const [collection,setCollection]=useState("all");
+ const [questionSearch,setQuestionSearch]=useState("");
+ const [originFilter,setOriginFilter]=useState("Todas");
+ const [licensedQuestions,setLicensedQuestions]=useState([]);
+ const [licensedQuestionStatus,setLicensedQuestionStatus]=useState("loading");
+ const [index,setIndex]=useState(0);
+ const [answer,setAnswer]=useState("");
+ const [checked,setChecked]=useState(false);
+ const [checking,setChecking]=useState(false);
+ const [answerFeedback,setAnswerFeedback]=useState(null);
+ const [questionProgressReady,setQuestionProgressReady]=useState(!activeUserId || !authClient);
+ const [questionSyncStatus,setQuestionSyncStatus]=useState(activeUserId ? "loading" : "local");
+ const [questionProgressState,setQuestionProgressState]=useState(()=>({
+  userId:activeUserId,data:loadQuestionProgress(activeUserId)
+ }));
+ const questionProgress=questionProgressState.userId===activeUserId
+  ?questionProgressState.data:loadQuestionProgress(activeUserId);
+ const [timerMinutes,setTimerMinutes]=useState(25);
+ const [timerRemaining,setTimerRemaining]=useState(25*60);
+ const [timerRunning,setTimerRunning]=useState(false);
+ const [focusSessions,setFocusSessions]=useState(()=>loadFocusSessions(activeUserId));
+ const [timerNotice,setTimerNotice]=useState("");
+
+ useEffect(()=>setPlan(loadPlan(activeUserId)),[activeUserId]);
+ useEffect(()=>{
+  setQuestionProgressState({userId:activeUserId,data:loadQuestionProgress(activeUserId)});
+  setQuestionProgressReady(!activeUserId || !authClient);
+  setQuestionSyncStatus(activeUserId ? "loading" : "local");
+  setLicensedQuestions([]);setLicensedQuestionStatus("loading");
+  setDiscipline("Todas");setBoard("Todas");setDifficulty("Todas");setCollection("all");
+  setQuestionSearch("");setOriginFilter("Todas");setIndex(0);setAnswer("");setChecked(false);setAnswerFeedback(null);
+  setTimerRunning(false);
+  setTimerRemaining(timerMinutes*60);
+  setFocusSessions(loadFocusSessions(activeUserId));
+  setTimerNotice("");
+ },[activeUserId]);
+ useEffect(()=>{
+  if(!timerRunning)return undefined;
+  const interval=window.setInterval(()=>setTimerRemaining(value=>Math.max(0,value-1)),1000);
+  return ()=>window.clearInterval(interval);
+ },[timerRunning]);
+ useEffect(()=>{
+  if(!timerRunning||timerRemaining!==0)return;
+  setTimerRunning(false);
+  const nextCount=focusSessions+1;
+  setFocusSessions(nextCount);
+  try{localStorage.setItem(focusStorageKey(activeUserId),String(nextCount));}catch{}
+  setTimerNotice("Sessão concluída! Faça uma pausa e volte com energia.");
+ },[timerRunning,timerRemaining,activeUserId]);
+ useEffect(()=>{try{localStorage.setItem(storageKey(activeUserId),JSON.stringify(plan));}catch{}},[plan,activeUserId]);
+
+
+ useEffect(()=>{
+  let cancelled=false;
+  if(!activeUserId||!authClient){setQuestionProgressReady(true);setQuestionSyncStatus("local");return undefined;}
+  const localProgress=loadQuestionProgress(activeUserId);
+  setQuestionProgressReady(false);setQuestionSyncStatus("loading");
+  const loadCloudProgress=async()=>{
+   try{
+    const {data,error}=await authClient.from("user_data").select("question_progress").eq("user_id",activeUserId).maybeSingle();
+    if(error)throw error;
+    if(cancelled)return;
+    setQuestionProgressState(current=>{
+     const newestLocal=current.userId===activeUserId?current.data:localProgress;
+     return {userId:activeUserId,data:mergeQuestionProgress(data?.question_progress,newestLocal)};
+    });
+    setQuestionSyncStatus("synced");
+   }catch{
+    if(!cancelled)setQuestionSyncStatus("local");
+   }finally{
+    if(!cancelled)setQuestionProgressReady(true);
+   }
+  };
+  void loadCloudProgress();
+  return()=>{cancelled=true;};
+ },[activeUserId,authClient]);
+
+ useEffect(()=>{
+  let cancelled=false;
+  if(!authClient){setLicensedQuestions([]);setLicensedQuestionStatus("fallback");return undefined;}
+  const loadLicensedQuestions=async()=>{
+   try{
+    const records=[];
+    const pageSize=500;
+    for(let offset=0;!cancelled;offset+=pageSize){
+     const {data,error}=await authClient.from("study_questions")
+      .select("id, discipline, topic, difficulty, board, exam_name, exam_year, prompt, options, source_url, license_status, rights_basis, origin, review_status")
+      .eq("published",true).order("created_at",{ascending:false}).range(offset,offset+pageSize-1);
+     if(error)throw error;
+     const page=Array.isArray(data)?data:[];
+     records.push(...page);
+     if(page.length<pageSize)break;
+    }
+    if(cancelled)return;
+    const rows=records.map(record=>({
+     id:"licensed-"+record.id,databaseId:record.id,origin:record.origin==="ai_generated"?"generated":record.origin==="exam_import"?"exam_import":"licensed",
+     discipline:record.discipline,topic:record.topic,difficulty:record.difficulty,
+     board:record.board,examName:record.exam_name,examYear:record.exam_year,
+     prompt:record.prompt,
+     options:(Array.isArray(record.options)?record.options:[]).map(option=>[option.text,option.id]),
+     sourceUrl:record.source_url,licenseStatus:record.license_status,rightsBasis:record.rights_basis
+    })).filter(question=>question.options.length>=2);
+    setLicensedQuestions(rows);setLicensedQuestionStatus("ready");
+   }catch{if(!cancelled){setLicensedQuestions([]);setLicensedQuestionStatus("unavailable");}}
+  };
+  void loadLicensedQuestions();
+  return()=>{cancelled=true;};
+ },[authClient]);
+
+ useEffect(()=>{
+  if(!activeUserId||!authClient||!questionProgressReady||questionProgressState.userId!==activeUserId)return undefined;
+  let cancelled=false;
+  const timeout=window.setTimeout(async()=>{
+   setQuestionSyncStatus("syncing");
+   try{
+    const {error}=await authClient.from("user_data").upsert({
+     user_id:activeUserId,question_progress:questionProgressState.data,updated_at:new Date().toISOString()
+    });
+    if(error)throw error;
+    if(!cancelled)setQuestionSyncStatus("synced");
+   }catch{if(!cancelled)setQuestionSyncStatus("local");}
+  },500);
+  return()=>{cancelled=true;window.clearTimeout(timeout);};
+ },[activeUserId,authClient,questionProgressReady,questionProgressState]);
+
+
+ useEffect(()=>{
+  if(questionProgressState.userId!==activeUserId)return;
+  try{
+   localStorage.setItem(questionProgressStorageKey(activeUserId),JSON.stringify(questionProgressState.data));
+  }catch{/* O banco continua utilizável durante esta sessão. */}
+ },[questionProgressState,activeUserId]);
+
+ const latestAttempts=useMemo(()=>{
+  const latest={};
+  for(const attempt of questionProgress.attempts)latest[attempt.questionId]=attempt;
+  return latest;
+ },[questionProgress.attempts]);
+ const savedQuestions=useMemo(()=>new Set(questionProgress.saved),[questionProgress.saved]);
+ const allQuestions=useMemo(()=>[...questionBank,...licensedQuestions],[licensedQuestions]);
+ const simulatorQuestions=useMemo(()=>allQuestions.filter(question=>
+  question.origin!=="licensed"&&(!question.databaseId||Boolean(activeUserId&&authClient))
+ ),[allQuestions,activeUserId,authClient]);
+ const questionBase=useMemo(()=>allQuestions.filter(q=>
+  (discipline==="Todas"||q.discipline===discipline)
+  &&(board==="Todas"||q.board===board)
+  &&(difficulty==="Todas"||q.difficulty===difficulty)
+  &&(originFilter==="Todas"||(originFilter==="EditalRadar"&&q.origin!=="licensed"&&q.origin!=="exam_import")||(originFilter==="Provas oficiais e licenciadas"&&(q.origin==="licensed"||q.origin==="exam_import")))
+  &&(!questionSearch.trim()||(q.prompt+" "+q.topic+" "+q.discipline+" "+(q.examName||"")).toLocaleLowerCase("pt-BR").includes(questionSearch.trim().toLocaleLowerCase("pt-BR")))
+ ),[allQuestions,discipline,board,difficulty,originFilter,questionSearch]);
+ const collectionCounts={
+  all:questionBase.length,
+  unanswered:questionBase.filter(q=>!latestAttempts[q.id]).length,
+  wrong:questionBase.filter(q=>latestAttempts[q.id]?.correct===false).length,
+  saved:questionBase.filter(q=>savedQuestions.has(q.id)).length
+ };
+ const filtered=useMemo(()=>questionBase.filter(q=>{
+  if(collection==="unanswered")return !latestAttempts[q.id];
+  if(collection==="wrong")return latestAttempts[q.id]?.correct===false;
+  if(collection==="saved")return savedQuestions.has(q.id);
+  return true;
+ }),[questionBase,collection,latestAttempts,savedQuestions]);
+ const question=filtered.length?filtered[index%filtered.length]:null;
+ const questionAttempt=question?latestAttempts[question.id]:null;
+ const totalAttempts=questionProgress.attempts.length;
+ const totalCorrect=questionProgress.attempts.filter(attempt=>attempt.correct).length;
+ const accuracy=totalAttempts?Math.round(totalCorrect/totalAttempts*100):0;
+ const uniqueAnswered=Object.keys(latestAttempts).length;
+ const sessions=useMemo(()=>{
+  const chosen=plan.days.filter(day=>days.includes(day));
+  const count=chosen.length||1, total=plan.hours*60, base=Math.floor(total/count), rem=total%count;
+  const preferred=/pol[ií]cia|bombeiro|tribunal|procurador/i.test((selected?.cargo||"")+" "+(selected?.orgao||""))
+   ? ["Direito Constitucional","Língua Portuguesa","Raciocínio lógico","Direito Administrativo","Informática"]
+   : /auditor|controle|fiscal|analista/i.test((selected?.cargo||"")+" "+(selected?.orgao||""))
+    ? ["Direito Administrativo","Língua Portuguesa","Direito Constitucional","Raciocínio lógico","Informática"]
+    : subjects;
+  return chosen.map((day,i)=>{const subject=preferred[i%preferred.length];const slug=subject.toLowerCase().replace(/[^a-z0-9]+/g,"-");return {id:day+"-"+slug,day,subject,minutes:base+(i<rem?1:0)};});
+ },[plan,selected]);
+ const update=(patch)=>setPlan(current=>({...current,...patch}));
+ const updateQuestionProgress=(updater)=>{
+  setQuestionProgressState(current=>{
+   const base=current.userId===activeUserId?current.data:loadQuestionProgress(activeUserId);
+   const next=typeof updater==="function"?updater(base):updater;
+   return {userId:activeUserId,data:next};
+  });
+ };
+ const completeSimulation=(summary)=>{
+  const reviewByQuestion=new Map((summary.review||[]).map(item=>[String(item.questionId),item]));
+  const attempts=summary.questionIds.map(questionId=>{
+   const review=reviewByQuestion.get(String(questionId));
+   const question=allQuestions.find(item=>String(item.id)===String(questionId));
+   const answerValue=summary.answers[questionId]||"";
+   return {id:summary.id+":"+questionId,questionId,answer:answerValue,correct:Boolean(answerValue&&review?.correct),at:summary.completedAt,source:question?.origin==="generated"?"autoral-gerada":question?.origin==="licensed"||question?.origin==="exam_import"?"prova-real":"simulado",simulationId:summary.id};
+  });
+  const savedSummary={...summary};
+  delete savedSummary.review;
+  updateQuestionProgress(current=>({
+   ...current,
+   attempts:[...current.attempts,...attempts].slice(-500),
+   simulations:[...current.simulations,savedSummary].slice(-100)
+  }));
+ };
+ const resetQuestionSelection=()=>{
+  setIndex(0);setAnswer("");setChecked(false);setAnswerFeedback(null);
+ };
+ const selectCollection=(next)=>{setCollection(next);resetQuestionSelection();};
+ const setQuestionFilter=(setter,value)=>{setter(value);resetQuestionSelection();};
+ const chooseTimer=(minutes)=>{
+  setTimerMinutes(minutes);
+  setTimerRemaining(minutes*60);
+  setTimerRunning(false);
+  setTimerNotice("");
+ };
+ const resetTimer=()=>{
+  setTimerRunning(false);
+  setTimerRemaining(timerMinutes*60);
+  setTimerNotice("");
+ };
+ const timerProgress=Math.max(0,Math.min(100,(timerRemaining/(timerMinutes*60))*100));
+ const toggleDay=(day)=>{
+  const removing=plan.days.includes(day);
+  const nextDays=removing?plan.days.filter(x=>x!==day):[...plan.days,day];
+  if(!nextDays.length)return;
+  update({days:nextDays,done:removing?plan.done.filter(id=>!id.startsWith(day+"-")):plan.done});
+ };
+ const check=async()=>{
+  if(!question||!answer||checked||checking)return;
+  setChecking(true);setAnswerFeedback(null);
+  try{
+   let correct=false,explanation="";
+   if(question.databaseId){
+    if(!activeUserId)throw new Error("Entre na sua conta para corrigir esta questão.");
+
+    const {data,error}=await authClient.rpc("check_study_question_answer",{
+     p_question_id:question.databaseId,p_selected_answer:answer
+    });
+    if(error)throw error;
+    if(!data||typeof data.correct!=="boolean")throw new Error("Gabarito indisponível para esta questão. Avise a administração.");
+    correct=data.correct;explanation=data.explanation||"";
+   }else{
+    correct=answer===question.answer;explanation=question.explanation||"";
+   }
+   updateQuestionProgress(current=>({
+    ...current,
+    attempts:[...current.attempts,{id:"attempt-"+Date.now()+"-"+question.id,questionId:question.id,answer,correct,at:new Date().toISOString(),source:question.origin==="licensed"||question.origin==="exam_import"?"prova-real":question.origin==="generated"?"autoral-gerada":"autoral"}].slice(-500)
+   }));
+   setAnswerFeedback({correct,explanation});setChecked(true);
+  }catch(error){setAnswerFeedback({error:"Não foi possível corrigir esta questão. Tente novamente."});}
+  finally{setChecking(false);}
+ };
+ const next=()=>{
+  setIndex(i=>(i+1)%Math.max(filtered.length,1));
+  setAnswer("");setChecked(false);setAnswerFeedback(null);
+ };
+ const randomQuestion=()=>{
+  if(filtered.length<2)return;
+  const choices=filtered.map((_,i)=>i).filter(i=>i!==index);
+  setIndex(choices[Math.floor(Math.random()*choices.length)]);
+  setAnswer("");setChecked(false);setAnswerFeedback(null);
+ };
+ const toggleSavedQuestion=()=>{
+  if(!question)return;
+  updateQuestionProgress(current=>({
+   ...current,
+   saved:current.saved.includes(question.id)
+    ?current.saved.filter(id=>id!==question.id)
+    :[...current.saved,question.id]
+  }));
+ };
+
+ return <section className="content study-page">
+  <div className="eyebrow">SUA ROTINA, SEU RITMO</div><h1>Área de estudos</h1>
+  <p className="subhead">Monte uma rotina semanal, pratique por disciplina e acompanhe seu progresso.</p>
+  {selected&&<section className="study-target-card" aria-label="Concurso selecionado para preparação"><div><div className="eyebrow">FOCO DA SUA PREPARAÇÃO</div><strong>{selected.cargo}</strong><p>{selected.orgao} · {selected.sigla||selected.estado||"Seleção selecionada"}</p><small>O planejamento é uma sugestão inicial. Consulte o conteúdo programático e os pesos do edital.</small></div><div className="study-target-actions"><button className="detail-btn" onClick={onBackDetails}>Voltar aos detalhes</button><button className="alert-remove" onClick={onClearFocus}>Limpar foco</button></div></section>}
+  <section className="panel focus-timer-panel" aria-label="Cronômetro de foco">
+   <div className="focus-timer-copy">
+    <div className="eyebrow">MODO CONCENTRAÇÃO</div>
+    <h2>Hora de focar em você.</h2>
+    <p>Use ciclos curtos para manter a constância. Inicie uma sessão e acompanhe o tempo restante sem sair da área de estudos.</p>
+    <div className="focus-timer-presets" role="group" aria-label="Duração da sessão">
+     <button type="button" className={timerMinutes===25?"active":""} disabled={timerRunning} onClick={()=>chooseTimer(25)}>25 min · foco</button>
+     <button type="button" className={timerMinutes===50?"active":""} disabled={timerRunning} onClick={()=>chooseTimer(50)}>50 min · profundo</button>
+    </div>
+   </div>
+   <div className="focus-timer-controls">
+    <div className="focus-timer-dial" style={{"--timer-progress":timerProgress+"%"}} role="timer" aria-label={"Tempo restante "+formatClock(timerRemaining)}>
+     <span>{formatClock(timerRemaining)}</span><small>{timerRunning?"EM ANDAMENTO":"TEMPO DE FOCO"}</small>
+    </div>
+    <div className="focus-timer-buttons">
+     <button type="button" className="primary-btn" onClick={()=>{setTimerNotice("");setTimerRunning(value=>!value);}}>{timerRunning?"Pausar sessão":"Iniciar foco"}</button>
+     <button type="button" className="detail-btn" onClick={resetTimer}>Reiniciar</button>
+    </div>
+    <div className="focus-timer-summary"><strong>{focusSessions}</strong><span>sessões de foco concluídas</span></div>
+    {timerNotice&&<p className="focus-timer-notice" role="status">{timerNotice}</p>}
+   </div>
+  </section>
+  <div className="study-grid">
+   <div className="panel progress-panel"><div className="panel-head"><div><div className="eyebrow">VISÃO GERAL</div><h2>Seu progresso diário</h2></div><span className="soft-pill">Hoje</span></div><div className="progress-number">{progress}%</div><div className="progress-track"><div style={{width:progress+"%"}}/></div><p className="muted">{tasks.filter(Boolean).length} de {tasks.length} atividades concluídas</p><div className="task-list">{["Revisar português","Resolver 10 questões","Estudar direito constitucional","Fazer uma revisão rápida"].map((task,i)=><label className="task" key={task}><input type="checkbox" checked={Boolean(tasks[i])} onChange={()=>onToggleTask(i)}/><span className={tasks[i]?"task-done":""}>{task}</span><small>{[25,30,40,15][i]} min</small></label>)}</div></div>
+   <div className="panel study-plan-panel"><div className="panel-head"><div><div className="eyebrow">PLANEJAMENTO SEMANAL</div><h2>Monte sua rotina</h2></div><span className="soft-pill">{plan.hours} h/semana</span></div><label className="study-field">Carga horária semanal<select aria-label="Carga horária semanal" value={plan.hours} onChange={e=>update({hours:Number(e.target.value)})}>{[5,8,10,15,20].map(h=><option key={h} value={h}>{h} horas</option>)}</select></label><div className="study-days"><span>Dias disponíveis</span><div>{days.map(day=><label key={day}><input type="checkbox" checked={plan.days.includes(day)} onChange={()=>toggleDay(day)}/>{day}</label>)}</div></div><div className="study-session-list">{sessions.map(s=><label className="study-session" key={s.id}><input type="checkbox" checked={plan.done.includes(s.id)} onChange={()=>update({done:plan.done.includes(s.id)?plan.done.filter(x=>x!==s.id):[...plan.done,s.id]})}/><span><strong>{s.day} · {s.subject}</strong><small>{s.minutes} minutos · teoria, revisão e questões</small></span><small>{plan.done.includes(s.id)?"Concluído":"Pendente"}</small></label>)}</div><p className="study-disclaimer">A distribuição das atividades é uma sugestão e não substitui o edital.</p></div>
+  </div>
+
+  <React.Suspense fallback={<section className="panel simulator-panel"><p className="muted">Carregando simulados…</p></section>}>
+   <SimulatorPanel key={activeUserId || "visitor"} userId={activeUserId} authClient={authClient} questionBank={simulatorQuestions} history={questionProgress.simulations} onComplete={completeSimulation}/>
+  </React.Suspense>
+  <React.Suspense fallback={<section className="panel official-exams-panel"><p className="muted">Carregando catálogo de provas oficiais…</p></section>}>
+   <ExamSourcesPanel authClient={authClient}/>
+  </React.Suspense>
+
+  <section className="panel study-question-bank" aria-label="Banco de questões">
+   <div className="panel-head">
+    <div><div className="eyebrow">PRÁTICA CONTÍNUA</div><h2>Banco de questões</h2><p className="question-bank-subtitle">{allQuestions.length} questões disponíveis · {new Set(allQuestions.map(item=>item.discipline)).size} disciplinas para praticar.</p></div>
+    <span className="soft-pill">{totalCorrect}/{totalAttempts} acertos · {accuracy}%</span>
+   </div>
+   <div className="question-bank-stats" aria-label="Estatísticas do banco de questões">
+    <div className="question-stat"><strong>{uniqueAnswered}</strong><span>questões respondidas</span></div>
+    <div className="question-stat"><strong>{totalAttempts}</strong><span>tentativas registradas</span></div>
+    <div className="question-stat"><strong>{accuracy}%</strong><span>taxa de acerto</span></div>
+   </div>
+   <div className="question-toolbar">
+    <label className="question-search">Buscar questão<input aria-label="Buscar no banco de questões" placeholder="Tema, assunto ou enunciado..." value={questionSearch} onChange={e=>setQuestionFilter(setQuestionSearch,e.target.value)}/></label>
+    <label className="question-filter-field">Disciplina<select aria-label="Filtrar questões por disciplina" value={discipline} onChange={e=>setQuestionFilter(setDiscipline,e.target.value)}><option>Todas</option>{[...new Set(allQuestions.map(q=>q.discipline))].sort().map(x=><option key={x}>{x}</option>)}</select></label>
+    <label className="question-filter-field">Banca<select aria-label="Filtrar questões por estilo de banca" value={board} onChange={e=>setQuestionFilter(setBoard,e.target.value)}><option>Todas</option>{[...new Set(allQuestions.map(q=>q.board))].sort().map(x=><option key={x}>{x}</option>)}</select></label>
+    <label className="question-filter-field">Dificuldade<select aria-label="Filtrar questões por dificuldade" value={difficulty} onChange={e=>setQuestionFilter(setDifficulty,e.target.value)}><option>Todas</option>{["Fácil","Intermediária","Avançada"].map(x=><option key={x}>{x}</option>)}</select></label>
+    <label className="question-filter-field">Origem<select aria-label="Filtrar questões por origem" value={originFilter} onChange={e=>setQuestionFilter(setOriginFilter,e.target.value)}><option>Todas</option><option>EditalRadar</option><option>Provas oficiais e licenciadas</option></select></label>
+   </div>
+   <div className="question-sync-status" role="status">Progresso: {questionSyncStatus==="syncing"?"Salvando progresso…":questionSyncStatus==="synced"?"Progresso salvo":questionSyncStatus==="loading"?"Carregando seu progresso…":"Progresso salvo neste aparelho"}</div>
+   <div className="question-collections" role="group" aria-label="Coleções de questões">
+    <button type="button" className={collection==="all"?"active":""} aria-pressed={collection==="all"} onClick={()=>selectCollection("all")}>Todas <span>{collectionCounts.all}</span></button>
+    <button type="button" className={collection==="unanswered"?"active":""} aria-pressed={collection==="unanswered"} onClick={()=>selectCollection("unanswered")}>Não respondidas <span>{collectionCounts.unanswered}</span></button>
+    <button type="button" className={collection==="wrong"?"active":""} aria-pressed={collection==="wrong"} onClick={()=>selectCollection("wrong")}>Caderno de erros <span>{collectionCounts.wrong}</span></button>
+    <button type="button" className={collection==="saved"?"active":""} aria-pressed={collection==="saved"} onClick={()=>selectCollection("saved")}>Salvas <span>{collectionCounts.saved}</span></button>
+   </div>
+   {question?<div className="question-card">
+    <div className="question-card-heading">
+     <div className="question-meta"><span>{question.discipline}</span><span>{question.origin==="exam_import"?"Prova oficial · importada":question.origin==="licensed"?"Prova real licenciada":question.origin==="generated"?"Questão autoral · revisada por IA":"Questão autoral · estilo "+question.board}</span><span>{question.origin==="licensed"||question.origin==="exam_import"?(question.examName+" · "+question.examYear):question.topic}</span><span className={"question-difficulty difficulty-"+question.difficulty.toLowerCase().replace("á","a").replace("í","i")}>{question.difficulty}</span></div>
+     <button type="button" className={"question-bookmark"+(savedQuestions.has(question.id)?" saved":"")} aria-label={savedQuestions.has(question.id)?"Remover questão salva":"Salvar questão"} aria-pressed={savedQuestions.has(question.id)} onClick={toggleSavedQuestion}>{savedQuestions.has(question.id)?"★":"☆"}</button>
+    </div>
+    <div className="question-index">Questão {index+1} de {filtered.length}{questionAttempt?" · "+(questionAttempt.correct?"Última resposta correta":"Última resposta incorreta"):" · Ainda não respondida"}</div>
+    <h3>{question.prompt}</h3>
+    <div className="question-options">{question.options.map(([label,value])=><button type="button" key={value} disabled={checked||checking} className={"option "+(answer===value?"chosen ":"")+(checked&&answerFeedback?.correct&&answer===value?"correct":checked&&answer===value&&!answerFeedback?.correct?"wrong":"")} onClick={()=>setAnswer(value)}>{label}</button>)}</div>
+    <div className="question-actions">
+     <button className="primary-btn" type="button" disabled={!answer||checked||checking} onClick={check}>{checking?"Corrigindo…":"Conferir resposta"}</button>
+     <button className="detail-btn" type="button" onClick={next}>Próxima questão</button>
+     <button className="detail-btn" type="button" onClick={randomQuestion} disabled={filtered.length<2}>Questão aleatória</button>
+    </div>
+    {answerFeedback?.error&&<p className="answer bad" role="alert">{answerFeedback.error}</p>}
+    {checked&&<p className={"answer "+(answerFeedback?.correct?"good":"bad")} role="status">{answerFeedback?.correct?"Resposta correta. ":"Resposta incorreta. "}{answerFeedback?.explanation}</p>}
+    <small className="study-disclaimer">{question.origin==="exam_import"?"Questão extraída de prova oficialmente divulgada. Fundamento registrado: "+rightsBasisLabel(question.rightsBasis)+". Fonte: "+question.sourceUrl:question.origin==="licensed"?"Questão real reproduzida sob licença/autorização registrada. Fonte: "+question.sourceUrl:"Questão autoral criada pelo EditalRadar em formato de treino. Não é questão oficial nem reprodução de prova."} Confira sempre o edital e a legislação atualizada.</small>
+   </div>:<div className="question-empty"><strong>Nenhuma questão nesta seleção.</strong><p>Altere os filtros ou escolha outra coleção para continuar praticando.</p><button type="button" className="detail-btn" onClick={()=>{setDiscipline("Todas");setBoard("Todas");setDifficulty("Todas");setQuestionSearch("");setOriginFilter("Todas");selectCollection("all");}}>Limpar filtros</button></div>}
+  </section>
+ </section>;
+}

@@ -1,0 +1,208 @@
+name: Test, build and deploy EditalRadar
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  test:
+    name: Testes automatizados
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Configurar Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Instalar dependências
+        run: |
+          if [ ! -f package-lock.json ]; then
+            npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+          fi
+          npm ci --no-audit --no-fund
+      - name: Executar testes
+        run: npm test
+      - name: Testar monitoramento de fontes
+        run: npm run test:monitor
+
+  build:
+    name: Compilar aplicação
+    permissions:
+      contents: read
+      pages: write
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Configurar Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Instalar dependências
+        run: |
+          if [ ! -f package-lock.json ]; then
+            npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+          fi
+          npm ci --no-audit --no-fund
+      - name: Compilar para produção
+        env:
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+        run: npm run build
+      - name: Instalar Chromium para testes de navegador
+        run: npx playwright install --with-deps chromium
+      - name: Testar site compilado em navegador real
+        env:
+          EXPECTED_APP_COMMIT: ${{ github.sha }}
+        run: npm run test:e2e
+      - name: Salvar relatório dos testes de navegador
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+      - name: Verificar caminhos do GitHub Pages
+        run: |
+          test -s dist/index.html
+          grep -q "/editalradar/assets/" dist/index.html
+      - name: Configurar GitHub Pages
+        uses: actions/configure-pages@v6
+      - name: Enviar artefato do Pages
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: ./dist
+
+  deploy:
+    name: Publicar no GitHub Pages
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: build
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publicar site
+        id: deployment
+        uses: actions/deploy-pages@v5
+      - name: Checkout para teste pós-publicação
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Configurar Node.js para teste pós-publicação
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Instalar dependências dos testes
+        run: |
+          if [ ! -f package-lock.json ]; then
+            npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+          fi
+          npm ci --no-audit --no-fund
+      - name: Instalar Chromium para teste do site publicado
+        run: npx playwright install --with-deps chromium
+      - name: Aguardar o site público responder
+        env:
+          PLAYWRIGHT_BASE_URL: https://dagamavasco170-lang.github.io/editalradar/
+        run: |
+          curl --fail --location --retry 12 --retry-delay 5 --retry-all-errors "$PLAYWRIGHT_BASE_URL"
+      - name: Testar o endereço público após o deploy
+        env:
+          PLAYWRIGHT_BASE_URL: https://dagamavasco170-lang.github.io/editalradar/
+          EXPECTED_APP_COMMIT: ${{ github.sha }}
+        run: npm run test:e2e
+      - name: Salvar evidências do teste em produção
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-production-report
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+
+  vercel-production-test:
+    name: Verificar produção na Vercel (opcional)
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: deploy
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verificar disponibilidade da Vercel
+        id: vercel_health
+        continue-on-error: true
+        env:
+          PLAYWRIGHT_BASE_URL: https://editalradar-gamma.vercel.app/
+        run: |
+          curl --fail --location --connect-timeout 5 --max-time 20 --retry 2 --retry-delay 3 --retry-all-errors "$PLAYWRIGHT_BASE_URL"
+      - name: Checkout
+        if: steps.vercel_health.outcome == 'success'
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Configurar Node.js
+        if: steps.vercel_health.outcome == 'success'
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Instalar dependências
+        if: steps.vercel_health.outcome == 'success'
+        run: |
+          if [ ! -f package-lock.json ]; then
+            npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+          fi
+          npm ci --no-audit --no-fund
+      - name: Instalar Chromium
+        if: steps.vercel_health.outcome == 'success'
+        run: npx playwright install --with-deps chromium
+      - name: Conferir se a Vercel publicou o commit esperado
+        id: vercel_version
+        if: steps.vercel_health.outcome == 'success'
+        continue-on-error: true
+        env:
+          PLAYWRIGHT_BASE_URL: https://editalradar-gamma.vercel.app/
+          EXPECTED_APP_COMMIT: ${{ github.sha }}
+        run: npx playwright test e2e/version.spec.js
+      - name: Avisar quando a Vercel estiver indisponível ou em versão antiga
+        if: steps.vercel_health.outcome != 'success' || steps.vercel_version.outcome != 'success'
+        run: echo "::warning::A Vercel não está disponível ou ainda não serve o commit ${{ github.sha }}. O GitHub Pages continua sendo a publicação principal e já foi validado."
+      - name: Executar testes de navegador no domínio da Vercel
+        if: steps.vercel_health.outcome == 'success' && steps.vercel_version.outcome == 'success'
+        env:
+          PLAYWRIGHT_BASE_URL: https://editalradar-gamma.vercel.app/
+          EXPECTED_APP_COMMIT: ${{ github.sha }}
+        run: npm run test:e2e
+      - name: Salvar evidências dos testes na Vercel
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-vercel-production-report
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore

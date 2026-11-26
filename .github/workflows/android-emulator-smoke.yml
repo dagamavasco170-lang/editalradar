@@ -1,0 +1,130 @@
+name: Android emulator smoke test
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "android/app/src/**"
+      - "android/app/build.gradle"
+      - "android/build.gradle"
+      - "android/settings.gradle"
+      - "android/gradle.properties"
+      - "scripts/android-emulator-smoke.sh"
+      - "vite.config.js"
+      - "index.html"
+      - "src/**"
+      - "public/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/android-emulator-smoke.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "android/app/src/**"
+      - "android/app/build.gradle"
+      - "android/build.gradle"
+      - "android/settings.gradle"
+      - "android/gradle.properties"
+      - "scripts/android-emulator-smoke.sh"
+      - "vite.config.js"
+      - "index.html"
+      - "src/**"
+      - "public/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/android-emulator-smoke.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: editalradar-android-emulator-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: Install and launch on Android 10 emulator
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Build the branch web app into debug-only Android assets
+        run: |
+          npm ci
+          npm run build -- --base=/
+          mkdir -p android/app/src/main/assets/www
+          cp -R dist/. android/app/src/main/assets/www/
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: 8.11.1
+
+      - name: Run Android lint
+        working-directory: android
+        run: gradle lintDebug --no-daemon --max-workers=2
+
+      - name: Build debug APK
+        working-directory: android
+        run: gradle assembleDebug --no-daemon --max-workers=2
+
+      - name: Enable KVM when available (software fallback otherwise)
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -e /dev/kvm ]]; then
+            sudo chmod 666 /dev/kvm || true
+          fi
+          if [[ -r /dev/kvm && -w /dev/kvm ]]; then
+            echo "KVM is available; the emulator can use hardware acceleration."
+          else
+            echo "KVM is unavailable; allowing the Android Emulator software TCG fallback."
+            echo "ANDROID_I_WANT_MY_TCG=yes" >> "$GITHUB_ENV"
+          fi
+
+      - name: Install and launch on Android 10 emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 29
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          emulator-boot-timeout: 900
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          script: bash "$GITHUB_WORKSPACE/scripts/android-emulator-smoke.sh"
+      - name: Upload APK debug para instalação manual
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: EditalRadar-Android-APK
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload Android lint and failure diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-smoke-diagnostics
+          path: |
+            android/app/build/reports/lint-results-debug.html
+            android/app/build/reports/lint-results-debug.xml
+            android-smoke-diagnostics/
+          if-no-files-found: ignore
+          retention-days: 14
