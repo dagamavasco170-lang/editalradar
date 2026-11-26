@@ -851,6 +851,19 @@ describe("segunda leva de oportunidades oficiais e pré-editais", () => {
     expect(getVerifiedRegistrationDeadline(drivers, now)).toMatchObject({ state: "upcoming", daysUntilOpen: 5 });
   });
 
+
+  it("mostra os dois PSS de Nova Guarita como cadastro reserva com prazo oficial aberto", () => {
+    const acsAce = concursos.find((item) => item.id === 535);
+    const pss = concursos.find((item) => item.id === 536);
+    const nowOpen = new Date("2026-11-26T13:07:00.000Z");
+    expect(acsAce).toMatchObject({ vagas: 2, vagasTotais: 2, vagasImediatas: 0, cadastroReserva: 2, status: "Inscrições abertas até 08/12/2026" });
+    expect(pss).toMatchObject({ vagas: 43, vagasTotais: 43, vagasImediatas: 0, cadastroReserva: 43, status: "Inscrições abertas até 08/12/2026" });
+    expect(getStatusTone(acsAce.status)).toBe("status-open");
+    expect(getStatusTone(pss.status)).toBe("status-open");
+    expect(getVerifiedRegistrationDeadline(acsAce, nowOpen)).toMatchObject({ state: "open", daysRemaining: 12 });
+    expect(getVerifiedRegistrationDeadline(pss, nowOpen)).toMatchObject({ state: "open", daysRemaining: 12 });
+  });
+
   it("reflete COFEN e COREN-SP com editais publicados, vagas e prazos oficiais", () => {
     const cofen = concursos.find((item) => item.sigla === "COFEN");
     const coren = concursos.find((item) => item.sigla === "COREN-SP");
