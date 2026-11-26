@@ -13,6 +13,13 @@ const loadFocusSessions=(userId)=>{
  catch { return 0; }
 };
 const formatClock=(seconds)=>String(Math.floor(seconds/60)).padStart(2,"0")+":"+String(seconds%60).padStart(2,"0");
+const rightsBasisLabel=value=>({
+ official_publication:"publicação oficial de ato da banca/órgão",
+ public_domain:"domínio público",
+ permission_granted:"autorização expressa",
+ cc_by:"licença CC BY",
+ cc_by_sa:"licença CC BY-SA"
+}[value]||"fundamento revisado");
 
 const loadPlan=(userId)=>{
  try {
@@ -113,7 +120,7 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
     const pageSize=500;
     for(let offset=0;!cancelled;offset+=pageSize){
      const {data,error}=await authClient.from("study_questions")
-      .select("id, discipline, topic, difficulty, board, exam_name, exam_year, prompt, options, source_url, license_status, origin, review_status")
+      .select("id, discipline, topic, difficulty, board, exam_name, exam_year, prompt, options, source_url, license_status, rights_basis, origin, review_status")
       .eq("published",true).order("created_at",{ascending:false}).range(offset,offset+pageSize-1);
      if(error)throw error;
      const page=Array.isArray(data)?data:[];
@@ -122,12 +129,12 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
     }
     if(cancelled)return;
     const rows=records.map(record=>({
-     id:"licensed-"+record.id,databaseId:record.id,origin:record.origin==="ai_generated"?"generated":"licensed",
+     id:"licensed-"+record.id,databaseId:record.id,origin:record.origin==="ai_generated"?"generated":record.origin==="exam_import"?"exam_import":"licensed",
      discipline:record.discipline,topic:record.topic,difficulty:record.difficulty,
      board:record.board,examName:record.exam_name,examYear:record.exam_year,
      prompt:record.prompt,
      options:(Array.isArray(record.options)?record.options:[]).map(option=>[option.text,option.id]),
-     sourceUrl:record.source_url,licenseStatus:record.license_status
+     sourceUrl:record.source_url,licenseStatus:record.license_status,rightsBasis:record.rights_basis
     })).filter(question=>question.options.length>=2);
     setLicensedQuestions(rows);setLicensedQuestionStatus("ready");
    }catch{if(!cancelled){setLicensedQuestions([]);setLicensedQuestionStatus("unavailable");}}
@@ -174,7 +181,7 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
   (discipline==="Todas"||q.discipline===discipline)
   &&(board==="Todas"||q.board===board)
   &&(difficulty==="Todas"||q.difficulty===difficulty)
-  &&(originFilter==="Todas"||(originFilter==="EditalRadar"&&q.origin!=="licensed")||(originFilter==="Provas reais autorizadas"&&q.origin==="licensed"))
+  &&(originFilter==="Todas"||(originFilter==="EditalRadar"&&q.origin!=="licensed"&&q.origin!=="exam_import")||(originFilter==="Provas oficiais e licenciadas"&&(q.origin==="licensed"||q.origin==="exam_import")))
   &&(!questionSearch.trim()||(q.prompt+" "+q.topic+" "+q.discipline+" "+(q.examName||"")).toLocaleLowerCase("pt-BR").includes(questionSearch.trim().toLocaleLowerCase("pt-BR")))
  ),[allQuestions,discipline,board,difficulty,originFilter,questionSearch]);
  const collectionCounts={
@@ -219,7 +226,7 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
    const review=reviewByQuestion.get(String(questionId));
    const question=allQuestions.find(item=>String(item.id)===String(questionId));
    const answerValue=summary.answers[questionId]||"";
-   return {id:summary.id+":"+questionId,questionId,answer:answerValue,correct:Boolean(answerValue&&review?.correct),at:summary.completedAt,source:question?.origin==="generated"?"autoral-gerada":"simulado",simulationId:summary.id};
+   return {id:summary.id+":"+questionId,questionId,answer:answerValue,correct:Boolean(answerValue&&review?.correct),at:summary.completedAt,source:question?.origin==="generated"?"autoral-gerada":question?.origin==="licensed"||question?.origin==="exam_import"?"prova-real":"simulado",simulationId:summary.id};
   });
   const savedSummary={...summary};
   delete savedSummary.review;
@@ -271,7 +278,7 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
    }
    updateQuestionProgress(current=>({
     ...current,
-    attempts:[...current.attempts,{id:"attempt-"+Date.now()+"-"+question.id,questionId:question.id,answer,correct,at:new Date().toISOString(),source:question.origin==="licensed"?"prova-real":question.origin==="generated"?"autoral-gerada":"autoral"}].slice(-500)
+    attempts:[...current.attempts,{id:"attempt-"+Date.now()+"-"+question.id,questionId:question.id,answer,correct,at:new Date().toISOString(),source:question.origin==="licensed"||question.origin==="exam_import"?"prova-real":question.origin==="generated"?"autoral-gerada":"autoral"}].slice(-500)
    }));
    setAnswerFeedback({correct,explanation});setChecked(true);
   }catch(error){setAnswerFeedback({error:"Não foi possível corrigir esta questão. Tente novamente."});}
@@ -350,7 +357,7 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
     <label className="question-filter-field">Disciplina<select aria-label="Filtrar questões por disciplina" value={discipline} onChange={e=>setQuestionFilter(setDiscipline,e.target.value)}><option>Todas</option>{[...new Set(allQuestions.map(q=>q.discipline))].sort().map(x=><option key={x}>{x}</option>)}</select></label>
     <label className="question-filter-field">Banca<select aria-label="Filtrar questões por estilo de banca" value={board} onChange={e=>setQuestionFilter(setBoard,e.target.value)}><option>Todas</option>{[...new Set(allQuestions.map(q=>q.board))].sort().map(x=><option key={x}>{x}</option>)}</select></label>
     <label className="question-filter-field">Dificuldade<select aria-label="Filtrar questões por dificuldade" value={difficulty} onChange={e=>setQuestionFilter(setDifficulty,e.target.value)}><option>Todas</option>{["Fácil","Intermediária","Avançada"].map(x=><option key={x}>{x}</option>)}</select></label>
-    <label className="question-filter-field">Origem<select aria-label="Filtrar questões por origem" value={originFilter} onChange={e=>setQuestionFilter(setOriginFilter,e.target.value)}><option>Todas</option><option>EditalRadar</option><option>Provas reais autorizadas</option></select></label>
+    <label className="question-filter-field">Origem<select aria-label="Filtrar questões por origem" value={originFilter} onChange={e=>setQuestionFilter(setOriginFilter,e.target.value)}><option>Todas</option><option>EditalRadar</option><option>Provas oficiais e licenciadas</option></select></label>
    </div>
    <div className="question-sync-status" role="status">Progresso: {questionSyncStatus==="syncing"?"Salvando progresso…":questionSyncStatus==="synced"?"Progresso salvo":questionSyncStatus==="loading"?"Carregando seu progresso…":"Progresso salvo neste aparelho"}</div>
    <div className="question-collections" role="group" aria-label="Coleções de questões">
@@ -361,7 +368,7 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
    </div>
    {question?<div className="question-card">
     <div className="question-card-heading">
-     <div className="question-meta"><span>{question.discipline}</span><span>{question.origin==="licensed"?"Prova real autorizada":question.origin==="generated"?"Questão autoral · revisada por IA":"Questão autoral · estilo "+question.board}</span><span>{question.origin==="licensed"?(question.examName+" · "+question.examYear):question.topic}</span><span className={"question-difficulty difficulty-"+question.difficulty.toLowerCase().replace("á","a").replace("í","i")}>{question.difficulty}</span></div>
+     <div className="question-meta"><span>{question.discipline}</span><span>{question.origin==="exam_import"?"Prova oficial · importada":question.origin==="licensed"?"Prova real licenciada":question.origin==="generated"?"Questão autoral · revisada por IA":"Questão autoral · estilo "+question.board}</span><span>{question.origin==="licensed"||question.origin==="exam_import"?(question.examName+" · "+question.examYear):question.topic}</span><span className={"question-difficulty difficulty-"+question.difficulty.toLowerCase().replace("á","a").replace("í","i")}>{question.difficulty}</span></div>
      <button type="button" className={"question-bookmark"+(savedQuestions.has(question.id)?" saved":"")} aria-label={savedQuestions.has(question.id)?"Remover questão salva":"Salvar questão"} aria-pressed={savedQuestions.has(question.id)} onClick={toggleSavedQuestion}>{savedQuestions.has(question.id)?"★":"☆"}</button>
     </div>
     <div className="question-index">Questão {index+1} de {filtered.length}{questionAttempt?" · "+(questionAttempt.correct?"Última resposta correta":"Última resposta incorreta"):" · Ainda não respondida"}</div>
@@ -374,7 +381,7 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
     </div>
     {answerFeedback?.error&&<p className="answer bad" role="alert">{answerFeedback.error}</p>}
     {checked&&<p className={"answer "+(answerFeedback?.correct?"good":"bad")} role="status">{answerFeedback?.correct?"Resposta correta. ":"Resposta incorreta. "}{answerFeedback?.explanation}</p>}
-    <small className="study-disclaimer">{question.origin==="licensed"?"Questão real reproduzida sob licença/autorização registrada. Fonte: "+question.sourceUrl:"Questão autoral criada pelo EditalRadar em formato de treino. Não é questão oficial nem reprodução de prova."} Confira sempre o edital e a legislação atualizada.</small>
+    <small className="study-disclaimer">{question.origin==="exam_import"?"Questão extraída de prova oficialmente divulgada. Fundamento registrado: "+rightsBasisLabel(question.rightsBasis)+". Fonte: "+question.sourceUrl:question.origin==="licensed"?"Questão real reproduzida sob licença/autorização registrada. Fonte: "+question.sourceUrl:"Questão autoral criada pelo EditalRadar em formato de treino. Não é questão oficial nem reprodução de prova."} Confira sempre o edital e a legislação atualizada.</small>
    </div>:<div className="question-empty"><strong>Nenhuma questão nesta seleção.</strong><p>Altere os filtros ou escolha outra coleção para continuar praticando.</p><button type="button" className="detail-btn" onClick={()=>{setDiscipline("Todas");setBoard("Todas");setDifficulty("Todas");setQuestionSearch("");setOriginFilter("Todas");selectCollection("all");}}>Limpar filtros</button></div>}
   </section>
  </section>;
