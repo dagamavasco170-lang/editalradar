@@ -215,6 +215,40 @@ function parseAnswerRows(text, questionFormat = "multiple_choice") {
     pendingNumbers = [];
   }
 
+  // FGV PDF text extraction can split a compact table into isolated lines (question
+  // number on one line, answer on the next). Recover that layout without relying on
+  // page-header numbers or prose: only single-token lines are accepted and pairing
+  // must form a plausible sequence of question numbers.
+  if (answers.size < 5) {
+    const streamAnswers = new Map();
+    let pendingNumber = null;
+    for (const rawLine of String(text || "").replace(/\\r/g, "").split("\\n")) {
+      const line = rawLine.trim().replace(/\\*/g, " ANULADA ").toUpperCase();
+      if (!line || /\\bP[AÁ]GINA\\s+\\d+\\s+DE\\s+\\d+\\b/.test(line)) { pendingNumber = null; continue; }
+      const tokens = (line.match(/\\b(?:\\d{1,3}|ANULADA|[A-F]|X)\\b/gi) || []).map(token => token.toUpperCase());
+      const residue = line.replace(/\\b(?:\\d{1,3}|ANULADA|[A-F]|X)\\b/gi, "").replace(/[^A-Za-z0-9]/g, "");
+      if (residue || tokens.length !== 1) { pendingNumber = null; continue; }
+      const token = tokens[0];
+      if (/^\\d{1,3}$/.test(token)) {
+        const number = Number(token);
+        if (number >= 1 && number <= 300) pendingNumber = number;
+        else pendingNumber = null;
+        continue;
+      }
+      if (pendingNumber !== null && isAnswer(token)) {
+        const previous = streamAnswers.get(pendingNumber);
+        if (previous && previous !== token) streamAnswers.delete(pendingNumber);
+        else streamAnswers.set(pendingNumber, token === "X" ? "ANULADA" : token);
+      }
+      pendingNumber = null;
+    }
+    if (streamAnswers.size > answers.size) {
+      answers.clear();
+      for (const [number, answer] of streamAnswers) answers.set(number, answer);
+      conflicts.clear();
+    }
+  }
+
   for (const number of conflicts) answers.delete(number);
   return { answers, conflicts: [...conflicts], parsedCount: answers.size };
 }
