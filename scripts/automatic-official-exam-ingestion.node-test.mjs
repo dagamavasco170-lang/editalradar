@@ -7,7 +7,8 @@ import {
   fetchOfficialResource,
   pairExamWithAnswerKey,
   parseOfficialAnswerKey,
-  validateQuestionForAutoPublication
+  validateQuestionForAutoPublication,
+  variantIdentity
 } from "./automatic-official-exam-ingestion.mjs";
 
 test("extractOfficialPdfLinks keeps only HTTPS links on approved official hosts", () => {
