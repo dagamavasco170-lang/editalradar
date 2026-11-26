@@ -13,7 +13,8 @@
     "monitor:sources": "node scripts/monitor-sources.mjs",
     "test:monitor": "node --test scripts/*.node-test.mjs",
     "publish:discoveries": "node scripts/publish-discoveries.mjs",
-    "auto:resolve": "node scripts/auto-resolve-discoveries.mjs"
+    "auto:resolve": "node scripts/auto-resolve-discoveries.mjs",
+    "import:official-exam": "node scripts/import-official-exam-pdf.mjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.3.4",
