@@ -898,19 +898,32 @@ export function buildRetificationUpdate(existingData, extractedData, discovery, 
     setIfChanged("observacao", formatRetificationObservation(updatedData.observacao, correctionNotes));
   }
 
-  if (!changes.length) {
-    return {
-      updated: false,
-      reason: "Retificação identificada, mas não há campo objetivo que possa ser atualizado com segurança. O item permanece para revisão."
-    };
-  }
-
   const history = Array.isArray(existingData?.historicoAtualizacoes)
     ? existingData.historicoAtualizacoes
     : [];
   const previousVersion = [...history].reverse().find(entry => entry?.documentVersion?.textSnapshot);
   const normalizedDocumentText = normalizePdfVersionText(text);
+  const documentSha256 = normalizedDocumentText
+    ? createHash("sha256").update(normalizedDocumentText).digest("hex")
+    : "";
   const documentTextSnapshot = normalizedDocumentText.slice(0, PDF_VERSION_SNAPSHOT_CHARS);
+  const previousDocumentSha256 = previousVersion
+    ? (previousVersion.documentVersion.sha256
+      || createHash("sha256").update(normalizePdfVersionText(previousVersion.documentVersion.textSnapshot)).digest("hex"))
+    : null;
+
+  // Uma retificação válida pode trazer nova versão sem correção estruturada segura.
+  // Registrar o texto agora preserva a baseline para comparar a próxima publicação,
+  // sem alterar campos do concurso nem duplicar a mesma versão a cada execução.
+  if (!changes.length && (!normalizedDocumentText || documentSha256 === previousDocumentSha256)) {
+    return {
+      updated: false,
+      reason: normalizedDocumentText
+        ? "Retificação identificada, mas não há nova versão nem campo objetivo que possa ser atualizado com segurança. O item permanece para revisão."
+        : "Retificação identificada, mas o texto normalizado está vazio e não há campo objetivo que possa ser atualizado com segurança. O item permanece para revisão."
+    };
+  }
+
   const versionComparison = previousVersion
     ? compareDocumentVersions(previousVersion.documentVersion.textSnapshot, documentTextSnapshot)
     : null;
@@ -926,13 +939,22 @@ export function buildRetificationUpdate(existingData, extractedData, discovery, 
     candidateUrl: normalizeOfficialUrl(discovery?.candidate_url || extractedData?.sourceUrl || ""),
     changes,
     documentVersion: {
-      sha256: createHash("sha256").update(normalizedDocumentText).digest("hex"),
+      sha256: documentSha256,
       textSnapshot: documentTextSnapshot,
       snapshotTruncated: normalizedDocumentText.length > PDF_VERSION_SNAPSHOT_CHARS,
       comparison: versionComparison
     }
   };
   updatedData.historicoAtualizacoes = [...history, historyEntry].slice(-30);
+
+  if (!changes.length) {
+    return {
+      updated: true,
+      data: updatedData,
+      changes: [],
+      reason: "Nova versão da retificação oficial registrada como baseline/comparativo; nenhum campo estruturado foi alterado e o item continua sujeito à revisão."
+    };
+  }
 
   return {
     updated: true,
@@ -941,6 +963,34 @@ export function buildRetificationUpdate(existingData, extractedData, discovery, 
     reason: "Retificação oficial confirmada para o mesmo órgão e cargo; campos objetivos atualizados e versão anterior preservada no histórico."
   };
 }
+export function selectPdfOcrPages(pageCount, pageTexts = [], extractedText = "", maxPages = OCR_MAX_PAGES, minPageText = OCR_MIN_PAGE_TEXT) {
+  const count = Math.max(1, Math.floor(Number(pageCount) || 1));
+  const limit = Math.max(1, Math.min(100, Math.floor(Number(maxPages) || OCR_MAX_PAGES)));
+  const minimumText = Math.max(0, Number(minPageText) || 0);
+  const evenlySample = (items, sampleCount) => {
+    if (sampleCount >= items.length) return [...items];
+    if (sampleCount <= 0) return [];
+    if (sampleCount === 1) return [items[0]];
+    return Array.from({ length: sampleCount }, (_, index) =>
+      items[Math.round(index * (items.length - 1) / (sampleCount - 1))]
+    );
+  };
+
+  if (!String(extractedText || "").trim()) {
+    const firstPages = Array.from({ length: Math.min(3, count) }, (_, index) => index + 1);
+    const remainingPages = Array.from({ length: Math.max(0, count - firstPages.length) }, (_, index) => index + firstPages.length + 1);
+    const remainingSlots = Math.max(0, limit - firstPages.length);
+    return [...new Set([...firstPages, ...evenlySample(remainingPages, remainingSlots)])]
+      .sort((a, b) => a - b);
+  }
+
+  const sparsePages = (Array.isArray(pageTexts) ? pageTexts : [])
+    .map((page, index) => ({ page: index + 1, length: String(page || "").replace(/\s/g, "").length }))
+    .filter(item => item.length < minimumText)
+    .map(item => item.page);
+  return evenlySample(sparsePages, limit).sort((a, b) => a - b);
+}
+
 export async function readPdfText(buffer) {
   let extractedText = "";
   let pageCount = 0;
@@ -957,25 +1007,7 @@ export async function readPdfText(buffer) {
     pageTexts = extractedText.split("\f").map(page => page.trim());
   } catch {}
   if (!pageCount) pageCount = Math.max(1, pageTexts.length);
-  const sparsePages = !extractedText
-    ? Array.from({ length: pageCount }, (_, index) => index + 1)
-    : pageTexts
-      .map((page, index) => ({ page: index + 1, length: page.replace(/\s/g, "").length }))
-      .filter(item => item.length < OCR_MIN_PAGE_TEXT).map(item => item.page);
-  const selected = new Set();
-  if (!extractedText) {
-    for (const page of [1, 2, 3].filter(page => page <= pageCount)) selected.add(page);
-    const slots = Math.min(OCR_MAX_PAGES - selected.size, pageCount - selected.size);
-    for (let index = 1; index <= slots; index += 1) {
-      const page = Math.round(index * pageCount / (slots + 1));
-      if (page >= 1 && page <= pageCount) selected.add(page);
-    }
-  } else {
-    for (const page of sparsePages) {
-      if (selected.size >= OCR_MAX_PAGES) break;
-      selected.add(page);
-    }
-  }
+  const selected = new Set(selectPdfOcrPages(pageCount, pageTexts, extractedText));
   if (!selected.size) return extractedText;
   try {
     directory = await mkdtemp(join(tmpdir(), "editalradar-ocr-"));
