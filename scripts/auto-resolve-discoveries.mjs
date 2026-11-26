@@ -1141,6 +1141,7 @@ export async function fetchCandidateWithRetry(request, candidateUrl, options = {
   const safeStartUrl = validateTrustedOfficialUrl(candidateUrl).href;
   let lastError = null;
   let lastResponse = null;
+  let deferFallbackUntilNextCycle = false;
 
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     lastResponse = null;
@@ -1157,16 +1158,19 @@ export async function fetchCandidateWithRetry(request, candidateUrl, options = {
 
     if (attempt < attempts) {
       const retryAfter = retryAfterMilliseconds(lastResponse?.headers);
-      if (retryAfter !== null && retryAfter > 60000) break;
+      if (retryAfter !== null && retryAfter > 60000) {
+        deferFallbackUntilNextCycle = true;
+        break;
+      }
       const delay = retryAfter ?? retryDelayMs * attempt;
       if (delay > 0) await wait(delay);
     }
   }
 
-  const shouldUseFallback = !lastResponse || (!lastResponse.ok && (
+  const shouldUseFallback = !deferFallbackUntilNextCycle && (!lastResponse || (!lastResponse.ok && (
     lastResponse.status === 403
     || lastResponse.status >= 500
-  ));
+  )));
   if (shouldUseFallback && typeof options.fallbackRequest === "function") {
     try {
       console.warn("Acesso HTTP direto falhou; tentando transporte alternativo para " + safeStartUrl.slice(0, 240) + ".");
