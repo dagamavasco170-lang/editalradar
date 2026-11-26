@@ -233,7 +233,8 @@ export function parseOfficialAnswerKeyVariants(text, questionFormat = "multiple_
   for (let index = 0; index < lines.length; index += 1) {
     const line = normalizeHeadingLine(lines[index]);
     let heading = line.match(headingPattern);
-    if (!heading && index + 1 < lines.length) {
+    const mayBeWrappedHeading = /(?:-\s*\d{1,2}\s*-|\bturno)\s*$/iu.test(line);
+    if (!heading && mayBeWrappedHeading && index + 1 < lines.length) {
       const joined = normalizeHeadingLine(line + " " + lines[index + 1]);
       heading = joined.match(headingPattern);
       if (heading) index += 1;
