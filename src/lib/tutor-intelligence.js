@@ -39,3 +39,12 @@ export function buildAdaptiveQuestionPlan({questions=[],latestAttempts={},now=Da
  });
  return scored.sort((a,b)=>b.score-a.score||a.index-b.index).map(({index,...plan})=>plan);
 }
+
+const tutorLevelRank=value=>({"Fácil":1,"Easy":1,"Médio":2,"Intermediária":2,"Intermediate":2,"Difícil":3,"Avançada":3,"Hard":3}[String(value||"")]||2);
+const tutorLevelName=rank=>["Fácil","Médio","Difícil"][Math.max(1,Math.min(3,rank))-1];
+export function buildAdaptiveTutorFeedback({correct=false,recentTopicAttempts=[],currentLevel="Médio"}={}){
+ const streak=correct?recentTopicAttempts.slice().reverse().reduce((state,item)=>item.correct&&!state.stopped?{count:state.count+1,stopped:false}:{count:state.count,stopped:true},{count:0,stopped:false}).count+1:0;
+ const current=tutorLevelRank(currentLevel);
+ const nextRank=correct?(streak>=3?Math.min(3,current+1):current):Math.max(1,current-1);
+ return {correct,streak,nextLevel:tutorLevelName(nextRank),progression:correct?(streak>=3?"progress":"consolidate"):"recover",recoverySteps:correct?[]:["Releia a explicação e identifique a regra central","Revise o conceito do assunto","Resolva outra questão em nível recomendado "+tutorLevelName(nextRank)]};
+}

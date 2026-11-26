@@ -5,7 +5,7 @@ import { buildQuestionProgressMetrics } from "./lib/question-progress-metrics.js
 import { buildStudyRecommendations } from "./lib/study-recommendations.js";
 import { buildTopicMastery, buildWeeklyStudyProgress } from "./lib/topic-mastery.js";
 import { buildAdaptiveStudySessions } from "./lib/adaptive-study-plan.js";
-import { buildTutorSignals, buildAdaptiveQuestionPlan } from "./lib/tutor-intelligence.js";
+import { buildTutorSignals, buildAdaptiveQuestionPlan, buildAdaptiveTutorFeedback } from "./lib/tutor-intelligence.js";
 
 const SimulatorPanel = React.lazy(() => import("./SimulatorPanel.jsx"));
 const ExamSourcesPanel = React.lazy(() => import("./ExamSourcesPanel.jsx"));
@@ -50,6 +50,7 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
  const [checked,setChecked]=useState(false);
  const [checking,setChecking]=useState(false);
  const [answerFeedback,setAnswerFeedback]=useState(null);
+ const [adaptiveFeedback,setAdaptiveFeedback]=useState(null);
  const [questionProgressReady,setQuestionProgressReady]=useState(!activeUserId || !authClient);
  const [questionSyncStatus,setQuestionSyncStatus]=useState(activeUserId ? "loading" : "local");
  const [questionProgressState,setQuestionProgressState]=useState(()=>({
@@ -70,7 +71,7 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
   setQuestionSyncStatus(activeUserId ? "loading" : "local");
   setLicensedQuestions([]);setLicensedQuestionStatus("loading");
   setDiscipline("Todas");setBoard("Todas");setDifficulty("Todas");setCollection("all");
-  setQuestionSearch("");setOriginFilter("Todas");setIndex(0);setAnswer("");setChecked(false);setAnswerFeedback(null);
+  setQuestionSearch("");setOriginFilter("Todas");setIndex(0);setAnswer("");setChecked(false);setAnswerFeedback(null);setAdaptiveFeedback(null);
   setTimerRunning(false);
   setTimerRemaining(timerMinutes*60);
   setFocusSessions(loadFocusSessions(activeUserId));
@@ -269,7 +270,7 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
     ...current,
     attempts:[...current.attempts,{id:"attempt-"+Date.now()+"-"+question.id,questionId:question.id,answer,correct,at:new Date().toISOString(),source:question.origin==="licensed"||question.origin==="exam_import"?"prova-real":question.origin==="generated"?"autoral-gerada":"autoral"}].slice(-500)
    }));
-   setAnswerFeedback({correct,explanation});setChecked(true);
+   setAdaptiveFeedback(buildAdaptiveTutorFeedback({correct,recentTopicAttempts:topicRecentAttempts,currentLevel:question.difficulty}));setAnswerFeedback({correct,explanation});setChecked(true);
   }catch(error){setAnswerFeedback({error:"Não foi possível corrigir esta questão. Tente novamente."});}
   finally{setChecking(false);}
  };
@@ -379,7 +380,7 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
      <button type="button" className={"question-bookmark"+(savedQuestions.has(question.id)?" saved":"")} aria-label={savedQuestions.has(question.id)?"Remover questão salva":"Salvar questão"} aria-pressed={savedQuestions.has(question.id)} onClick={toggleSavedQuestion}>{savedQuestions.has(question.id)?"★":"☆"}</button>
     </div>
     <div className="question-index">Questão {index+1} de {filtered.length}{questionAttempt?" · "+(questionAttempt.correct?"Última resposta correta":"Última resposta incorreta"):" · Ainda não respondida"}</div>
-    <div className="adaptive-question-coach" aria-label="Tutor adaptativo ativo"><div><strong>🎯 Tutor adaptativo</strong><p>{adaptiveCurrent?.due?"Revisão indicada: vamos reforçar este assunto.":"Ajustando sua prática com base no histórico deste assunto."}</p></div><div className="adaptive-coach-stats"><span><small>Nível sugerido</small><b>{adaptiveCurrent?.level||question.difficulty}</b></span><span><small>Desempenho no tema</small><b>{adaptiveCurrent?.accuracy||0}%</b></span><span><small>Acertos seguidos</small><b>{consecutiveCorrect}</b></span></div><button type="button" className="detail-btn" onClick={nextAdaptiveQuestion} disabled={!filtered.some(q=>adaptiveQuestionPlan.find(p=>p.id===q.id&&q.id!==question.id))}>Seguir trilha adaptativa →</button></div><h3>{question.prompt}</h3>
+    <div className="adaptive-question-coach" aria-label="Tutor adaptativo ativo"><div><strong>🎯 Tutor adaptativo</strong><p>{adaptiveCurrent?.due?"Revisão indicada: vamos reforçar este assunto.":"Ajustando sua prática com base no histórico deste assunto."}</p></div><div className="adaptive-coach-stats"><span><small>Nível sugerido</small><b>{adaptiveCurrent?.level||question.difficulty}</b></span><span><small>Desempenho no tema</small><b>{adaptiveCurrent?.accuracy||0}%</b></span><span><small>Acertos seguidos</small><b>{consecutiveCorrect}</b></span></div><button type="button" className="detail-btn" onClick={nextAdaptiveQuestion} disabled={!filtered.some(q=>adaptiveQuestionPlan.find(p=>p.id===q.id&&q.id!==question.id))}>Seguir trilha adaptativa →</button></div>{checked&&adaptiveFeedback&&<div className="adaptive-progression-message" role="status"><strong>{adaptiveFeedback.correct?(adaptiveFeedback.progression==="progress"?"Nível recomendado aumentado!":"Bom trabalho — consolide este nível."):"Vamos recuperar este assunto antes de avançar."}</strong><span>{adaptiveFeedback.correct?"Próximo nível sugerido: "+adaptiveFeedback.nextLevel:"Nível recomendado para recuperação: "+adaptiveFeedback.nextLevel}</span></div>}<h3>{question.prompt}</h3>
     <div className="question-options">{question.options.map(([label,value])=><button type="button" key={value} disabled={checked||checking} className={"option "+(answer===value?"chosen ":"")+(checked&&answerFeedback?.correct&&answer===value?"correct":checked&&answer===value&&!answerFeedback?.correct?"wrong":"")} onClick={()=>setAnswer(value)}>{label}</button>)}</div>
     <div className="question-actions">
      <button className="primary-btn" type="button" disabled={!answer||checked||checking} onClick={check}>{checking?"Corrigindo…":"Conferir resposta"}</button>

@@ -21,4 +21,11 @@ describe("inteligência do tutor adaptativo",()=>{
   expect(plan[0]).toMatchObject({id:"wrong",due:true,level:"Fácil"});
   expect(plan.find(row=>row.id==="new")).toMatchObject({level:"Fácil",due:true});
  });
-\nit("prioriza recuperação e recomenda níveis adaptativos",()=>{\n const questions=[{id:"a",discipline:"Português",topic:"Crase",difficulty:"Fácil"},{id:"b",discipline:"Português",topic:"Crase",difficulty:"Difícil"},{id:"c",discipline:"Direito",topic:"Controle",difficulty:"Médio"}];\n const plan=buildAdaptiveQuestionPlan({questions,latestAttempts:{a:{correct:true,at:"2026-11-25T10:00:00Z"},b:{correct:false,at:"2026-11-25T11:00:00Z"}},now:Date.parse("2026-11-26T12:00:00Z")});\n expect(plan.find(item=>item.id==="a").level).toBe("Fácil");\n expect(plan.find(item=>item.id==="b").level).toBe("Fácil");\n expect(plan.find(item=>item.id==="c").level).toBe("Fácil");\n});\n
+
+import {buildAdaptiveTutorFeedback} from "./tutor-intelligence.js";
+it("feedback reduz nível após erro e sobe após sequência de três acertos",()=>{
+ const error=buildAdaptiveTutorFeedback({correct:false,currentLevel:"Médio"});
+ expect(error).toMatchObject({progression:"recover",nextLevel:"Fácil"});
+ const success=buildAdaptiveTutorFeedback({correct:true,recentTopicAttempts:[{correct:true},{correct:true}],currentLevel:"Médio"});
+ expect(success).toMatchObject({progression:"progress",streak:3,nextLevel:"Difícil"});
+});
