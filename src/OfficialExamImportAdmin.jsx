@@ -69,8 +69,13 @@ export default function OfficialExamImportAdmin({authClient,userId}){
    }
    if(manifest.imports.length>300)throw new Error("O manifesto excede o limite de 300 questões por envio.");
    const meta=manifest.metadata||{};
-   if(!meta.board||!meta.exam_name||!meta.exam_year||!meta.discipline||!isTrustedOfficialUrl(meta.source_url)||!isTrustedOfficialUrl(meta.exam_pdf_url)){
-    throw new Error("O manifesto precisa conter metadados e URLs HTTPS pertencentes a domínios oficiais permitidos.");
+   const examYear=Number(meta.exam_year);
+   if(!meta.board||String(meta.board).trim().length<2||String(meta.board).length>80
+     ||!meta.exam_name||String(meta.exam_name).trim().length<2||String(meta.exam_name).length>180
+     ||!Number.isInteger(examYear)||examYear<1900||examYear>2200
+     ||!meta.discipline||String(meta.discipline).trim().length<2||String(meta.discipline).length>100
+     ||!isTrustedOfficialUrl(meta.source_url)||!isTrustedOfficialUrl(meta.exam_pdf_url)){
+    throw new Error("O manifesto precisa conter banca, concurso, ano, disciplina válidos e URLs HTTPS em domínios oficiais permitidos.");
    }
    if(!/^[0-9a-f]{64}$/.test(String(manifest.source_document_sha256||""))){
     throw new Error("Hash SHA-256 do PDF ausente ou inválido.");
@@ -79,8 +84,18 @@ export default function OfficialExamImportAdmin({authClient,userId}){
     throw new Error("A publicação oficial precisa estar confirmada nos metadados.");
    }
    for(const item of manifest.imports){
-    if(!item||typeof item.prompt!=="string"||item.prompt.trim().length<20||!Array.isArray(item.options)||item.options.length<2||item.options.length>6){
-     throw new Error("O manifesto contém um item incompleto; corrija o PDF ou refaça a extração.");
+    if(!item||typeof item.prompt!=="string"||item.prompt.trim().length<20||item.prompt.trim().length>5000
+      ||!Array.isArray(item.options)||item.options.length<2||item.options.length>6){
+     throw new Error("O manifesto contém enunciado ou alternativas fora do formato permitido; corrija o PDF ou refaça a extração.");
+    }
+    const normalizedOptions=item.options.map(option=>({
+     id:String(option?.id||"").toLowerCase(),
+     text:String(option?.text||"").trim()
+    }));
+    const expectedIds=normalizedOptions.map((_,index)=>String.fromCharCode(97+index));
+    if(normalizedOptions.some(option=>option.text.length<2)
+      ||normalizedOptions.map(option=>option.id).join(",")!==expectedIds.join(",")){
+     throw new Error("Alternativas incompletas, repetidas ou fora da sequência A-F no item "+(item.source_question_number||"?")+".");
     }
     if(!/^[0-9a-f]{64}$/.test(String(item.fingerprint||"")))throw new Error("Fingerprint inválido no item " +(item.source_question_number||"?")+".");
     if(!Number.isInteger(Number(item.source_page))||Number(item.source_page)<1||!Number.isInteger(Number(item.source_question_number))||Number(item.source_question_number)<1){
@@ -95,7 +110,7 @@ export default function OfficialExamImportAdmin({authClient,userId}){
      difficulty:["Fácil","Intermediária","Avançada"].includes(meta.difficulty)?meta.difficulty:"Intermediária",
      role_name:String(meta.role_name||""),source_url:meta.source_url,exam_pdf_url:meta.exam_pdf_url,
      source_document_sha256:manifest.source_document_sha256,source_page:Number(item.source_page),
-     source_question_number:Number(item.source_question_number),prompt:item.prompt.trim(),options:item.options,
+     source_question_number:Number(item.source_question_number),prompt:item.prompt.trim(),options:normalizedOptions,
      suggested_answer:null,fingerprint:item.fingerprint,rights_basis:meta.rights_basis,
      official_release_verified:meta.official_release_verified===true,rights_holder:meta.rights_holder||null,
      license_proof_url:isHttps(meta.license_proof_url)?meta.license_proof_url:null,
