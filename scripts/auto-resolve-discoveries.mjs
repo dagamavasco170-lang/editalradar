@@ -1128,9 +1128,9 @@ function retryAfterMilliseconds(headers, now = Date.now()) {
   const value = headers?.get?.("retry-after");
   if (!value) return null;
   const seconds = Number(value);
-  if (Number.isFinite(seconds) && seconds >= 0) return Math.min(10000, seconds * 1000);
+  if (Number.isFinite(seconds) && seconds >= 0) return seconds * 1000;
   const date = Date.parse(value);
-  return Number.isFinite(date) ? Math.max(0, Math.min(10000, date - now)) : null;
+  return Number.isFinite(date) ? Math.max(0, date - now) : null;
 }
 
 export async function fetchCandidateWithRetry(request, candidateUrl, options = {}) {
@@ -1143,6 +1143,7 @@ export async function fetchCandidateWithRetry(request, candidateUrl, options = {
   let lastResponse = null;
 
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    lastResponse = null;
     try {
       lastResponse = await requestWithSafeRedirects(request, safeStartUrl, timeoutMs);
       const blockedByProvider = [401, 403].includes(lastResponse.status);
@@ -1156,15 +1157,14 @@ export async function fetchCandidateWithRetry(request, candidateUrl, options = {
 
     if (attempt < attempts) {
       const retryAfter = retryAfterMilliseconds(lastResponse?.headers);
+      if (retryAfter !== null && retryAfter > 60000) break;
       const delay = retryAfter ?? retryDelayMs * attempt;
       if (delay > 0) await wait(delay);
     }
   }
 
   const shouldUseFallback = !lastResponse || (!lastResponse.ok && (
-    lastResponse.status === 401
-    || lastResponse.status === 403
-    || lastResponse.status === 429
+    lastResponse.status === 403
     || lastResponse.status >= 500
   ));
   if (shouldUseFallback && typeof options.fallbackRequest === "function") {
