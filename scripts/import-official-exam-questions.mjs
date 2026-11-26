@@ -98,8 +98,8 @@ export function buildExamSourceCandidates({ catalog = [], officialSources = [], 
     try { safeUrl = validateTrustedOfficialUrl(sourceUrl).href; } catch { return; }
 
     const examName = safeText(
-      raw.exam_name || raw.examName || raw.vinculo ||
-      [raw.orgao || raw.organization, raw.cargo || raw.role_name || raw.role].filter(Boolean).join(" — "),
+      raw.exam_name || raw.examName ||
+      [raw.orgao || raw.organization, raw.vinculo || raw.edital || raw.cargo || raw.role_name || raw.role].filter(Boolean).join(" — "),
       180
     );
     const year = parseYear(raw.exam_year, raw.examYear, raw.ano, raw.vinculo, examName, raw.observacao, raw.notes);
@@ -380,7 +380,7 @@ async function supabaseRequest(url, serviceKey, init = {}) {
     signal: AbortSignal.timeout(20000),
     headers: {
       apikey: serviceKey,
-      Authorization: "Bearer " + serviceKey,
+      ...(serviceKey.startsWith("sb_secret_") ? {} : { Authorization: "Bearer " + serviceKey }),
       ...(init.body ? { "Content-Type": "application/json" } : {}),
       ...(init.headers || {})
     }
@@ -417,6 +417,7 @@ function extractFinalPairFromSourceRow(row) {
   try {
     const exam = validateTrustedOfficialUrl(row.exam_url);
     const answerKey = validateTrustedOfficialUrl(row.answer_key_url);
+    if (!/\.pdf(?:$|[?#])/i.test(exam.href) || !/\.pdf(?:$|[?#])/i.test(answerKey.href)) return [];
     return [{ exam: { url: exam.href, label: "Caderno de prova oficial" }, answerKey: { url: answerKey.href, label: safeText(row.answer_key_url, 240) } }];
   } catch {
     return [];
@@ -641,11 +642,15 @@ async function processPair(candidate, pair, pageMetadata, metrics, options) {
       return { published: 0, skipped: questions.length, reason: skippedReasons.slice(0, 10) };
     }
 
+    const availableSlots = Math.max(0, MAX_QUESTIONS_PER_RUN - metrics.questions_published);
+    const boundedPending = pending.slice(0, availableSlots);
+    metrics.questions_skipped += Math.max(0, pending.length - boundedPending.length);
+    if (!boundedPending.length) return { published: 0, skipped: pending.length, reason: "Limite diário por execução alcançado." };
     const insertUrl = options.supabaseUrl + "/rest/v1/study_exam_question_imports?on_conflict=source_document_sha256,source_question_number";
     const insertedResponse = await supabaseRequest(insertUrl, options.serviceKey, {
       method: "POST",
       headers: { Prefer: "resolution=ignore-duplicates,return=representation" },
-      body: JSON.stringify(pending)
+      body: JSON.stringify(boundedPending)
     });
     const inserted = Array.isArray(insertedResponse) ? insertedResponse : [];
     let published = 0;
@@ -746,16 +751,15 @@ export async function runAutomaticExamImport(options = {}) {
         const result = await processPair(entry.candidate, entry.pair, entry.pageMetadata, metrics, {
           ...options, supabaseUrl, serviceKey
         });
-        if (result.skipped && result.reason) {
-          errors.push({ source: entry.pair.exam.url, error: safeText(typeof result.reason === "string" ? result.reason : JSON.stringify(result.reason), 500) });
-        }
+        // Skips are expected for preliminary keys, incomplete PDFs, visual questions and duplicates.
+        // They are counted separately and do not turn a healthy cycle into a failed run.
       } catch (error) {
         metrics.errors_count += 1;
         errors.push({ source: entry.pair.exam.url, error: safeText(error.message, 500) });
       }
       if (metrics.questions_published >= MAX_QUESTIONS_PER_RUN) break;
     }
-    metrics.errors_count += errors.length;
+    metrics.errors_count = errors.length;
     const status = metrics.errors_count === 0 ? "completed" : (metrics.questions_published ? "partial" : "failed");
     await persistRunFinish(supabaseUrl, serviceKey, runId, metrics, status, {
       errors: errors.slice(0, 60),
