@@ -88,6 +88,13 @@ test("recusa URLs com HTTP, credenciais ou esquema inválido", () => {
   }, documentHash, []), /HTTPS/);
 });
 
+test("recusa URLs de agregadores e domínios fora da lista de fontes oficiais", () => {
+  assert.throws(() => buildImportManifest({
+    ...metadata,
+    source_url: "https://www.pciconcursos.com.br/provas/"
+  }, documentHash, []), /domínio oficial/);
+});
+
 test("exige hash SHA-256 válido no manifesto", () => {
   assert.throws(() => buildImportManifest(metadata, "bad-hash", []), /SHA-256|64/);
 });
