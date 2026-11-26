@@ -97,7 +97,7 @@ test("reconhece questão FGV com enunciado longo antes das alternativas", () => 
       "(C) Terceira alternativa com conteúdo suficientemente extenso.",
       "(D) Quarta alternativa com conteúdo suficientemente extenso.",
       "(E) Quinta alternativa com conteúdo suficientemente extenso."
-    ].join("\\n")
+    ].join("\n")
   }];
   const rows = parseExamPages(pages, documentHash);
   assert.equal(rows.length, 1);
