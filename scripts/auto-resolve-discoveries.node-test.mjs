@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { appendContext, buildPendingDiscoveriesUrl, buildNonActionablePendingDiscoveriesUrl, dismissNonActionablePendingDiscoveries, buildRetificationUpdate, classifyDiscovery, extractDocumentText, extractRoleNamesFromText, extractVacancyDetails, fetchCandidateWithRetry, findMatchingContestForRetification, inferOrganization, mapWithConcurrency, normalizeContestIdentity, prepareDiscoveryDocument, isGenericOfficialLandingPage, countPendingDiscoveries, requestJson, summarizeFetchError, assessNoticeFreshness, extractDeclaredPublisherUrl, resolveGoogleNewsArticleUrl, prioritizePendingDiscoveries, selectDiscoveriesForTriage, isClearlyUnrelatedAdministrativeDiscovery, isTrustedSecondaryNewsHost, extractOfficialReferenceLinks, fetchSecondaryNewsArticle, autoResolvePending } from "./auto-resolve-discoveries.mjs";
+import { appendContext, buildPendingDiscoveriesUrl, buildNonActionablePendingDiscoveriesUrl, dismissNonActionablePendingDiscoveries, buildRetificationUpdate, classifyDiscovery, extractDocumentText, extractRoleNamesFromText, extractVacancyDetails, fetchCandidateWithRetry, findMatchingContestForRetification, inferOrganization, mapWithConcurrency, normalizeContestIdentity, normalizeOfficialUrl, normalizePdfVersionText, compareDocumentVersions, prepareDiscoveryDocument, isGenericOfficialLandingPage, countPendingDiscoveries, requestJson, summarizeFetchError, assessNoticeFreshness, extractDeclaredPublisherUrl, resolveGoogleNewsArticleUrl, prioritizePendingDiscoveries, selectDiscoveriesForTriage, isClearlyUnrelatedAdministrativeDiscovery, isTrustedSecondaryNewsHost, extractOfficialReferenceLinks, fetchSecondaryNewsArticle, autoResolvePending } from "./auto-resolve-discoveries.mjs";
 
 const discovery = {
   id: 1,
@@ -1150,4 +1150,56 @@ test("não altera quantidade de vagas por menção isolada sem indicar valor cor
   );
   assert.equal(result.updated, false);
   assert.equal(existing.vagas, 20);
+});
+
+
+test("normaliza URLs oficiais removendo tracking, fragmentos e diferenças irrelevantes", () => {
+  assert.equal(
+    normalizeOfficialUrl("https://IGACI.AL.GOV.BR:443//concursos/edital-01/?utm_source=facebook&fbclid=abc&ano=2026#documento"),
+    "https://igaci.al.gov.br/concursos/edital-01?ano=2026"
+  );
+  assert.equal(
+    normalizeOfficialUrl("https://igaci.al.gov.br/concursos/edital-01?ano=2026&utm_campaign=x"),
+    normalizeOfficialUrl("https://igaci.al.gov.br/concursos/edital-01?utm_medium=y&ano=2026")
+  );
+  assert.equal(normalizeOfficialUrl("javascript:alert(1)"), "");
+});
+
+test("compara versões textuais de PDF ignorando numeração de página e detectando mudanças críticas", () => {
+  const previous = "EDITAL 01/2026\nPágina 1 de 20\nPeríodo de inscrições: até 10/12/2026\n20 vagas";
+  const current = "EDITAL 01/2026\nPágina 1 de 21\nPeríodo de inscrições: até 20/12/2026\n25 vagas";
+  const result = compareDocumentVersions(previous, current);
+  assert.equal(result.changed, true);
+  assert.equal(result.addedLineCount, 2);
+  assert.equal(result.removedLineCount, 2);
+  assert.ok(result.criticalAreas.includes("prazos"));
+  assert.ok(result.criticalAreas.includes("vagas"));
+  assert.equal(normalizePdfVersionText("Página 2 de 10\nTexto"), "Texto");
+});
+
+test("mantém histórico de versão e resumo comparativo ao registrar retificação subsequente", () => {
+  const previousText = "Retificação do Edital 01/2026\nPrazo de inscrição: até 10/12/2026\n20 vagas";
+  const previous = {
+    orgao: "Prefeitura Municipal de Igaci",
+    cargo: "Agente Administrativo",
+    vagas: 20,
+    prazoInscricao: "10/12/2026",
+    historicoAtualizacoes: [{
+      type: "retificacao",
+      documentVersion: { textSnapshot: previousText, sha256: "baseline" }
+    }]
+  };
+  const result = buildRetificationUpdate(
+    previous,
+    { orgao: previous.orgao, cargo: previous.cargo, vagas: 25 },
+    { ...discovery, title: "Retificação do Edital 01/2026", candidate_url: "https://igaci.al.gov.br/retificacao.pdf?utm_source=x" },
+    { title: "Retificação do Edital 01/2026", text: "Retificação do Edital 01/2026\nOnde se lê: 20 vagas\nLeia-se: 25 vagas\nPrazo de inscrição: até 20/12/2026" }
+  );
+  assert.equal(result.updated, true);
+  const version = result.data.historicoAtualizacoes.at(-1).documentVersion;
+  assert.match(version.sha256, /^[a-f0-9]{64}$/);
+  assert.equal(version.comparison.changed, true);
+  assert.ok(version.comparison.criticalAreas.includes("prazos"));
+  assert.ok(version.comparison.criticalAreas.includes("vagas"));
+  assert.equal(result.data.historicoAtualizacoes.at(-1).candidateUrl, "https://igaci.al.gov.br/retificacao.pdf");
 });
