@@ -589,10 +589,14 @@ function validateContext(record) {
 }
 
 async function processDocument(record, examLink, keyLink, mode, runId, report, fetchImpl = fetch) {
+  const diagnostic = { examUrl: examLink.url, answerKeyUrl: keyLink.url, stage: "download_exam", pages: null, extractedQuestions: 0, answerKeyPages: null, answerKeySections: [], parsedAnswers: 0 };
+  let stage = diagnostic.stage;
   const proof = await fetchOfficialResource(examLink.url, { fetchImpl, maxBytes: MAX_PDF_BYTES });
   if (!proof.isPdf) throw new Error("O link identificado como prova não retornou um PDF válido.");
+  stage = diagnostic.stage = "download_answer_key";
   const answerKeyFile = await fetchOfficialResource(keyLink.url, { fetchImpl, maxBytes: MAX_PDF_BYTES });
   if (!answerKeyFile.isPdf) throw new Error("O link identificado como gabarito não retornou um PDF válido.");
+  stage = diagnostic.stage = "validate_source";
   const sourcePage = await fetchOfficialResource(record.source_url, { fetchImpl, maxBytes: MAX_HTML_BYTES });
   if (sourcePage.isPdf) throw new Error("A página oficial de origem retornou um PDF, não uma página de descoberta.");
   const sourceText = stripTags(sourcePage.bytes.toString("utf8"));
@@ -624,8 +628,12 @@ async function processDocument(record, examLink, keyLink, mode, runId, report, f
       source_terms_url: null,
       source_restrictions: ""
     };
+    stage = diagnostic.stage = "extract_exam_pdf";
     const manifest = await importPdfToManifest({ pdfPath: proofPath, metadata });
+    diagnostic.extractedQuestions = Array.isArray(manifest?.imports) ? manifest.imports.length : 0;
+    stage = diagnostic.stage = "extract_answer_key";
     const keyExtraction = await extractPdfPages(keyPath, questionFormat, { splitColumns: false });
+    diagnostic.answerKeyPages = Array.isArray(keyExtraction?.pages) ? keyExtraction.pages.length : null;
     if (keyExtraction.pages.some(page => page.ocrUsed)) {
       throw new Error("O gabarito definitivo depende de OCR; a resposta não será presumida.");
     }
@@ -633,7 +641,9 @@ async function processDocument(record, examLink, keyLink, mode, runId, report, f
     if (!isDefinitiveAnswerKey(keyLink.label + " " + keyLink.url, definitiveText + " " + sourceText, record.notes)) {
       throw new Error("O conteúdo do PDF não confirmou o caráter definitivo do gabarito.");
     }
+    stage = diagnostic.stage = "parse_answer_key";
     const answerKeySections = parseOfficialAnswerKeyVariants(definitiveText, questionFormat);
+    diagnostic.answerKeySections = answerKeySections.map(section => ({ role: section.role, bookletNumber: section.bookletNumber, shift: section.shift, parsedCount: section.parsedCount }));
     let parsedKey;
     if (answerKeySections.length) {
       const matchedSection = selectAnswerKeySection(examLink, record, answerKeySections);
@@ -695,6 +705,8 @@ async function processDocument(record, examLink, keyLink, mode, runId, report, f
       parsedKey = parseOfficialAnswerKey(definitiveText, questionFormat);
     }
     if (parsedKey.conflicts.length) throw new Error("O gabarito contém respostas conflitantes para questões: " + parsedKey.conflicts.join(", "));
+    stage = diagnostic.stage = "validate_question_answer_matching";
+    diagnostic.parsedAnswers = parsedKey.parsedCount;
     const questions = manifest.imports;
     if (!questions.length) throw new Error("O parser não identificou questões objetivas válidas.");
     const coverage = calculateAnswerKeyCoverage(questions, parsedKey.answers);
@@ -705,6 +717,7 @@ async function processDocument(record, examLink, keyLink, mode, runId, report, f
         + "% do gabarito associado e " + missingAnswers.length + " questão(ões) sem resposta definitiva."
       );
     }
+    stage = diagnostic.stage = "validate_questions";
     const output = [];
     const validations = [];
     for (const question of questions) {
@@ -762,7 +775,18 @@ async function processDocument(record, examLink, keyLink, mode, runId, report, f
     }
     report.processedDocuments += 1;
     report.questionsExtracted += questions.length;
+    diagnostic.stage = "completed";
+    diagnostic.status = output.length ? "eligible" : "quarantined";
+    diagnostic.eligibleQuestions = output.length;
+    diagnostic.coverage = Number(coverage.toFixed(4));
+    report.documentDiagnostics.push(diagnostic);
     return { status: output.length ? "eligible" : "quarantined", extracted: questions.length, eligible: output.length, coverage };
+  } catch (error) {
+    diagnostic.stage = stage;
+    diagnostic.status = "failed";
+    diagnostic.error = String(error?.message || error).slice(0, 1600);
+    report.documentDiagnostics.push(diagnostic);
+    throw error;
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
@@ -888,6 +912,7 @@ function createReport(mode) {
     quarantined: 0,
     annulledOrMissing: 0,
     failures: [],
+    documentDiagnostics: [],
     quarantineReasons: [],
     unmatchedDocuments: [],
     sourceDiagnostics: []
