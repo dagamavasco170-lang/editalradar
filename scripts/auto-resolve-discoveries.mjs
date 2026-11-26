@@ -721,7 +721,6 @@ export function buildRetificationUpdate(existingData, extractedData, discovery, 
   const corrections = extractReadAsCorrections(text);
   const correctionNotes = [];
   const handledVacancyFields = new Set();
-  let explicitInscriptionStatusCorrection = false;
 
   for (const correction of corrections) {
     const correctionText = (correction.oldText + " " + correction.newText).toLocaleLowerCase("pt-BR");
@@ -787,10 +786,10 @@ export function buildRetificationUpdate(existingData, extractedData, discovery, 
     if (/inscriç|inscricao|período de inscrição|periodo de inscricao/i.test(correctionText)) {
       if (/encerrad|finalizad/i.test(correction.newText)) {
         setIfChanged("status", "Edital publicado · inscrições encerradas");
-        explicitInscriptionStatusCorrection = true;
+
       } else if (/abert/i.test(correction.newText)) {
         setIfChanged("status", "Edital publicado · inscrições abertas");
-        explicitInscriptionStatusCorrection = true;
+
       }
     }
   }
