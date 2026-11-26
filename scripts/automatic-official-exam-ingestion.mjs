@@ -390,12 +390,13 @@ function validateContext(record) {
   );
 }
 
-async function processDocument(record, examLink, keyLink, mode, runId, report) {
-  const proof = await fetchOfficialResource(examLink.url, { maxBytes: MAX_PDF_BYTES });
+async function processDocument(record, examLink, keyLink, mode, runId, report, fetchImpl = fetch) {
+  const proof = await fetchOfficialResource(examLink.url, { fetchImpl, maxBytes: MAX_PDF_BYTES });
   if (!proof.isPdf) throw new Error("O link identificado como prova não retornou um PDF válido.");
-  const answerKeyFile = await fetchOfficialResource(keyLink.url, { maxBytes: MAX_PDF_BYTES });
+  const answerKeyFile = await fetchOfficialResource(keyLink.url, { fetchImpl, maxBytes: MAX_PDF_BYTES });
   if (!answerKeyFile.isPdf) throw new Error("O link identificado como gabarito não retornou um PDF válido.");
-  const sourcePage = await fetchOfficialResource(record.source_url, { maxBytes: MAX_HTML_BYTES });
+  const sourcePage = await fetchOfficialResource(record.source_url, { fetchImpl, maxBytes: MAX_HTML_BYTES });
+  if (sourcePage.isPdf) throw new Error("A página oficial de origem retornou um PDF, não uma página de descoberta.");
   const sourceText = stripTags(sourcePage.bytes.toString("utf8"));
   if (!isDefinitiveAnswerKey(keyLink.label + " " + keyLink.url, sourceText, record.notes)) {
     throw new Error("Não foi encontrada evidência inequívoca de que o gabarito é definitivo.");
@@ -654,9 +655,7 @@ export async function runAutomaticOfficialExamIngestion({ mode = "dry-run", limi
           if (!keyLink) continue;
           report.documentsChecked += 1;
           try {
-            const result = await processDocument(record, examLink, keyLink, mode, report.runId, report);
-            report.failures.push();
-            if (result.status === "quarantined") report.quarantined += 1;
+            await processDocument(record, examLink, keyLink, mode, report.runId, report, fetchImpl);
           } catch (error) {
             report.failures.push({
               source: record.source_url,
