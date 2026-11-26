@@ -63,7 +63,8 @@ test("answer-key coverage compares the extracted caderno against all non-annulle
     { source_question_number: 2 }
   ], answers), 2 / 3);
 });
-\ntest("auto-publication gate accepts a complete text question with matching official answer", () => {
+
+test("auto-publication gate accepts a complete text question with matching official answer", () => {
   const question = {
     prompt: "Segundo a Constituição Federal, a administração pública deve observar os princípios expressos no texto constitucional.",
     options: [
