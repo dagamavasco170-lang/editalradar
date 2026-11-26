@@ -4,6 +4,7 @@ import { buildQuestionBankView } from "./lib/question-bank-view.js";
 import { buildQuestionProgressMetrics } from "./lib/question-progress-metrics.js";
 import { buildStudyRecommendations } from "./lib/study-recommendations.js";
 import { buildTopicMastery, buildWeeklyStudyProgress } from "./lib/topic-mastery.js";
+import { buildAdaptiveStudySessions } from "./lib/adaptive-study-plan.js";
 
 const SimulatorPanel = React.lazy(() => import("./SimulatorPanel.jsx"));
 const ExamSourcesPanel = React.lazy(() => import("./ExamSourcesPanel.jsx"));
@@ -196,16 +197,7 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
  const weeklyStudyProgress=useMemo(()=>buildWeeklyStudyProgress({attempts:questionProgress.attempts}),[questionProgress.attempts]);
  const dueTopics=topicMastery.filter(item=>item.due);
  const masteryLabel={starting:"Iniciando",developing:"Em desenvolvimento",strong:"Bom domínio"};
- const sessions=useMemo(()=>{
-  const chosen=plan.days.filter(day=>days.includes(day));
-  const count=chosen.length||1, total=plan.hours*60, base=Math.floor(total/count), rem=total%count;
-  const preferred=/pol[ií]cia|bombeiro|tribunal|procurador/i.test((selected?.cargo||"")+" "+(selected?.orgao||""))
-   ? ["Direito Constitucional","Língua Portuguesa","Raciocínio lógico","Direito Administrativo","Informática"]
-   : /auditor|controle|fiscal|analista/i.test((selected?.cargo||"")+" "+(selected?.orgao||""))
-    ? ["Direito Administrativo","Língua Portuguesa","Direito Constitucional","Raciocínio lógico","Informática"]
-    : subjects;
-  return chosen.map((day,i)=>{const subject=preferred[i%preferred.length];const slug=subject.toLowerCase().replace(/[^a-z0-9]+/g,"-");return {id:day+"-"+slug,day,subject,minutes:base+(i<rem?1:0)};});
- },[plan,selected]);
+ const sessions=useMemo(()=>buildAdaptiveStudySessions({subjects,attempts:questionProgress.attempts,mastery:topicMastery,hours:plan.hours,days:plan.days}),[plan,questionProgress.attempts,topicMastery]);
  const update=(patch)=>setPlan(current=>({...current,...patch}));
  const updateQuestionProgress=(updater)=>{
   setQuestionProgressState(current=>{
