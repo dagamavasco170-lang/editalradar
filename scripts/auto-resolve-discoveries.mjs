@@ -830,10 +830,8 @@ export function buildRetificationUpdate(existingData, extractedData, discovery, 
     if (/inscriç|inscricao|período de inscrição|periodo de inscricao/i.test(correctionText)) {
       if (/encerrad|finalizad/i.test(correction.newText)) {
         setIfChanged("status", "Edital publicado · inscrições encerradas");
-
       } else if (/abert/i.test(correction.newText)) {
         setIfChanged("status", "Edital publicado · inscrições abertas");
-
       }
     }
   }
