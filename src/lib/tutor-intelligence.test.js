@@ -1,5 +1,5 @@
 import {describe,it,expect} from "vitest";
-import {buildTutorSignals} from "./tutor-intelligence.js";
+import {buildTutorSignals,buildAdaptiveQuestionPlan} from "./tutor-intelligence.js";
 describe("inteligência do tutor adaptativo",()=>{
  it("identifica temas frágeis e sugere dificuldade inicial",()=>{
   const result=buildTutorSignals({topics:[
@@ -14,3 +14,10 @@ describe("inteligência do tutor adaptativo",()=>{
   expect(result).toMatchObject({overallAccuracy:80,coverage:50,consistency:50,readiness:62});
  });
 });
+
+ it("monta plano de recuperação por assunto, revisão vencida e nível recomendado",()=>{
+  const questions=[{id:"wrong",discipline:"Português",topic:"Crase",difficulty:"Médio"},{id:"new",discipline:"Português",topic:"Crase",difficulty:"Fácil"},{id:"strong",discipline:"Direito",topic:"Princípios",difficulty:"Difícil"}];
+  const plan=buildAdaptiveQuestionPlan({questions,latestAttempts:{wrong:{correct:false,at:"2026-11-24T12:00:00Z"},strong:{correct:true,at:"2026-11-25T12:00:00Z"}},now:Date.parse("2026-11-26T12:00:00Z")});
+  expect(plan[0]).toMatchObject({id:"wrong",due:true,level:"Fácil"});
+  expect(plan.find(row=>row.id==="new")).toMatchObject({level:"Fácil",due:true});
+ });

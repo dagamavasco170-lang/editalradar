@@ -14,3 +14,28 @@ export function buildTutorSignals({topics=[],simulations=[],weeklyProgress=[]}={
  const readiness=clamp(Math.round(overallAccuracy*0.55+coverage*0.25+consistency*0.1+simulationAccuracy*0.1),0,100);
  return {topics:normalized,overallAccuracy,coverage,consistency,simulationAccuracy,readiness,weakTopics:normalized.filter(t=>t.priority>=50).slice(0,5)};
 }
+
+const difficultyRank=value=>({ "Fácil":1,"Easy":1,"Médio":2,"Intermediária":2,"Intermediate":2,"Difícil":3,"Avançada":3,"Hard":3 }[String(value||"")]||2;
+const normalizeTopic=value=>String(value||"").normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").toLowerCase().trim();
+export function buildAdaptiveQuestionPlan({questions=[],latestAttempts={},now=Date.now()}={}) {
+ const groups=new Map();
+ for(const question of questions){
+  const key=normalizeTopic(question.discipline)+"::"+normalizeTopic(question.topic||question.discipline||"Geral");
+  const group=groups.get(key)||{attempts:0,correct:0,wrong:0,lastAt:null,latestDifficulty:2};
+  const attempt=latestAttempts[question.id];
+  if(attempt){group.attempts++;if(attempt.correct===true)group.correct++;else group.wrong++;
+   const timestamp=Date.parse(attempt.at||"");if(Number.isFinite(timestamp)&&(group.lastAt===null||timestamp>group.lastAt))group.lastAt=timestamp;
+   group.latestDifficulty=difficultyRank(question.difficulty);
+  }
+  groups.set(key,group);
+ }
+ const signalFor=question=>groups.get(normalizeTopic(question.discipline)+"::"+normalizeTopic(question.topic||question.discipline||"Geral"))||{attempts:0,correct:0,wrong:0,lastAt:null,latestDifficulty:2};
+ const scored=questions.map((question,index)=>{
+  const group=signalFor(question),accuracy=group.attempts?group.correct/group.attempts:0;
+  const due=group.lastAt===null||group.lastAt+((accuracy>=.85?7:accuracy>=.65?3:1)*86400000)<=now;
+  const targetDifficulty=group.attempts<3||accuracy<.5?1:accuracy<.75?2:3;
+  const score=(question.id in latestAttempts&&latestAttempts[question.id]?.correct===false?45:question.id in latestAttempts?0:20)+(1-accuracy)*25+(due?20:0)+(group.attempts<3?10:0);
+  return {id:question.id,topic:question.topic||question.discipline||"Geral",discipline:question.discipline||"Outras",score,targetDifficulty,level:["Fácil","Médio","Difícil"][targetDifficulty-1],due,accuracy:Math.round(accuracy*100),attempts:group.attempts,wrong:group.wrong,index};
+ });
+ return scored.sort((a,b)=>b.score-a.score||a.index-b.index).map(({index,...plan})=>plan);
+}

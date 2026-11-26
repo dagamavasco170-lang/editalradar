@@ -20,3 +20,8 @@ describe("fila adaptativa de questões", () => {
     }})).toEqual([]);
   });
 });
+
+ it("prioriza revisão de assuntos com erro recente e dificuldade recomendada não altera questões",()=>{
+  const rows=[{id:"q1",discipline:"Português",topic:"Crase",difficulty:"Médio"},{id:"q2",discipline:"Direito",topic:"Constituição",difficulty:"Difícil"}];
+  expect(buildAdaptiveQuestionQueue({questions:rows,latestAttempts:{q1:{correct:false,at:"2026-11-25"}}})).toEqual(["q1","q2"]);
+ });
