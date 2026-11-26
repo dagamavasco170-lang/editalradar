@@ -3676,3 +3676,68 @@ html[data-theme="dark"] footer{border-color:var(--er-border);color:#8497af}
 @media(prefers-reduced-motion:reduce){
  *,*::before,*::after{scroll-behavior:auto!important;transition-duration:.01ms!important;animation-duration:.01ms!important;animation-iteration-count:1!important}
 }
+
+
+/* EditalRadar — Phase 2: candidate dashboard and opportunity discovery */
+.candidate-dashboard{display:grid;gap:20px;padding:clamp(18px,2.2vw,28px);border:1px solid var(--er-border);background:var(--er-surface);border-radius:20px}
+.candidate-dashboard-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:18px}
+.candidate-dashboard-heading>div{min-width:0}
+.candidate-dashboard-heading .eyebrow{letter-spacing:.12em;font-size:10px;font-weight:800;color:var(--er-primary)}
+.candidate-dashboard-heading h2{font-size:clamp(20px,2vw,26px);line-height:1.25;margin:6px 0 8px}
+.candidate-dashboard-heading p{max-width:620px;color:var(--er-muted);font-size:13px;line-height:1.65;margin:0}
+.candidate-dashboard-heading .recommendations-edit{flex-shrink:0;min-height:40px;padding:9px 13px;border:1px solid var(--er-border);background:var(--er-surface);color:var(--er-primary);font-size:12px;font-weight:700}
+.candidate-dashboard-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.candidate-dashboard-stats .dashboard-stat{min-width:0;display:flex;align-items:center;gap:12px;padding:16px;border:1px solid var(--er-border);border-radius:14px;background:var(--er-bg);text-align:left;transition:transform .15s,border-color .15s,box-shadow .15s}
+.candidate-dashboard-stats .dashboard-stat:hover{transform:translateY(-2px);border-color:#b7ccef;box-shadow:0 6px 18px rgba(30,65,115,.06)}
+.dashboard-stat-icon{display:grid;place-items:center;width:40px;height:40px;flex-shrink:0;border-radius:12px;background:#eaf1ff;color:#285ec6;font-size:20px}
+.dashboard-stat-copy{display:grid;gap:4px;min-width:0}
+.dashboard-stat-copy small{color:var(--er-muted);font-size:11px}
+.dashboard-stat-copy strong{color:var(--er-ink);font-size:22px;line-height:1.15;font-weight:800}
+.candidate-dashboard-stats .dashboard-stat em{font-size:10px;color:var(--er-muted);line-height:1.35;margin-left:auto;max-width:110px}
+.candidate-dashboard-content{grid-template-columns:minmax(0,1.55fr) minmax(260px,.85fr);gap:16px}
+.dashboard-milestones,.dashboard-focus{padding:18px;border:1px solid var(--er-border);border-radius:16px;background:var(--er-surface)}
+.dashboard-section-heading h3,.dashboard-focus h3{font-size:16px;color:var(--er-ink);line-height:1.35}
+.dashboard-section-heading .eyebrow,.dashboard-focus .eyebrow{color:var(--er-primary);font-weight:800;letter-spacing:.11em;font-size:9px}
+.dashboard-section-heading>span{padding:5px 9px;border-radius:999px;background:var(--er-bg);color:var(--er-muted);font-size:10px}
+.dashboard-milestone-list{gap:2px}
+.dashboard-milestone{padding:12px 0;border-top-color:var(--er-border)}
+.dashboard-milestone time{min-width:90px;padding:9px 7px;background:#edf4ff;color:#2b61c4;border-radius:10px;font-size:10px}
+.dashboard-milestone-copy strong{font-size:11px;color:var(--er-primary)}
+.dashboard-milestone-copy span{font-size:12px;color:var(--er-ink);font-weight:600}
+.dashboard-milestone-copy small{font-size:10px;color:var(--er-muted)}
+.dashboard-milestone-open{padding:8px 10px;border-color:var(--er-border);color:var(--er-primary);background:var(--er-surface);font-size:10px}
+.dashboard-milestone-open:hover{background:var(--er-bg);border-color:#b7ccef}
+.dashboard-disclaimer{font-size:9px;color:var(--er-muted);line-height:1.6}
+.dashboard-focus{background:linear-gradient(145deg,#f5f8ff,#f7fbff);justify-content:flex-start}
+.dashboard-focus h3{font-size:18px;margin:8px 0;color:#183654}
+.dashboard-focus p{font-size:12px;line-height:1.7;color:#60758c}
+.dashboard-focus-actions{gap:9px;margin-top:auto;padding-top:4px}
+.dashboard-focus-actions button{min-height:40px;padding:9px 12px;font-size:11px}
+@media(max-width:900px){
+ .candidate-dashboard-content{grid-template-columns:1fr}
+ .dashboard-focus{min-height:0}
+}
+@media(max-width:640px){
+ .candidate-dashboard{gap:15px;padding:15px;border-radius:16px}
+ .candidate-dashboard-heading{display:grid;gap:12px}
+ .candidate-dashboard-heading h2{font-size:21px}
+ .candidate-dashboard-heading p{font-size:12px}
+ .candidate-dashboard-heading .recommendations-edit{justify-self:start}
+ .candidate-dashboard-stats{gap:8px}
+ .candidate-dashboard-stats .dashboard-stat{display:grid;grid-template-columns:32px minmax(0,1fr);gap:7px;padding:11px 9px;border-radius:12px}
+ .dashboard-stat-icon{width:32px;height:32px;font-size:16px;border-radius:9px}
+ .dashboard-stat-copy small{font-size:9px;line-height:1.25}
+ .dashboard-stat-copy strong{font-size:18px}
+ .candidate-dashboard-stats .dashboard-stat em{grid-column:1/-1;margin:0;max-width:none;text-align:left;font-size:9px}
+ .dashboard-milestones,.dashboard-focus{padding:13px;border-radius:13px}
+ .dashboard-milestone{align-items:flex-start;gap:7px}
+ .dashboard-milestone time{min-width:68px;font-size:9px;padding:8px 4px}
+ .dashboard-milestone-copy span{font-size:11px}
+ .dashboard-milestone-open{padding:7px 8px}
+}
+html[data-theme="dark"] .dashboard-stat-icon{background:#203858;color:#a8c7ff}
+html[data-theme="dark"] .dashboard-milestone time{background:#203858;color:#b5d0ff}
+html[data-theme="dark"] .dashboard-focus{background:linear-gradient(145deg,#1a2b40,#19283a)}
+html[data-theme="dark"] .dashboard-focus h3{color:#e2edfc}
+html[data-theme="dark"] .dashboard-focus p{color:#a9bbd1}
+html[data-theme="dark"] .candidate-dashboard-stats .dashboard-stat{background:#132235}
