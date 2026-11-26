@@ -77,7 +77,9 @@ export function extractOfficialPdfLinks(html, pageUrl) {
     if (!href) continue;
     const label = stripTags(match[2]).replace(/\s+/g, " ").trim().slice(0, 240);
     const signal = normalizeDocumentLabel(label + " " + href);
-    if (!/\.pdf(?:$|[?#])|\b(prova|caderno|gab(?:arito)?|respostas?|questoes)\b/.test(signal)) continue;
+    const isPdf = /\.pdf(?:$|[?#])/i.test(href);
+    const hasDocumentSignal = /\b(prova|caderno|gab(?:arito)?|respostas?|questoes|documentos?|arquivos?)\b/.test(signal);
+    if (!isPdf && !hasDocumentSignal) continue;
     if (!found.has(href)) found.set(href, { url: href, label });
   }
   return [...found.values()];
@@ -97,7 +99,7 @@ export function extractOfficialSubpageLinks(html, pageUrl) {
     // Não seguir formulários de inscrição/recursos ou outras áreas operacionais,
     // mesmo que a URL do concurso contenha o termo "provas".
     if (/\b(inscricao|inscricoes|solicitacao|recurso|recursos|login|resultado|edital|home)\b/.test(normalizedUrl)) continue;
-    if (!/\b(provas?|cadernos?|gabaritos?|respostas?|questoes)\b/.test(normalizedLabel)) continue;
+    if (!/\b(provas?|cadernos?|gabaritos?|respostas?|questoes|documentos?|arquivos?)\b/.test(normalizedLabel)) continue;
     if (!found.has(url)) found.set(url, { url, label });
   }
   return [...found.values()];
