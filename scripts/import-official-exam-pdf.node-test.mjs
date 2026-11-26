@@ -31,7 +31,8 @@ const metadata = {
   source_url: "https://www.cebraspe.org.br/concursos/exemplo",
   exam_pdf_url: "https://cdn.cebraspe.org.br/concursos/exemplo/prova.pdf",
   rights_basis: "official_publication",
-  official_release_verified: true
+  official_release_verified: true,
+  question_format: "multiple_choice"
 };
 
 test("normaliza acentos, caixa e espaços para fingerprint estável", () => {
@@ -69,6 +70,48 @@ test("reconhece opções Cebraspe com letra separada por espaço e aspas tipogr�
   assert.deepEqual(rows[0].options.map(option => option.id), ["a", "b", "c", "d"]);
   assert.match(rows[0].options[0].text, /^“O conceito de verdade/);
 });
+
+
+
+test("extrai itens Cebraspe ITEM n como Certo/Errado sem inferir resposta", () => {
+  const pages = [{
+    page: 2,
+    text: [
+      "ITEM 1",
+      "NO QUE SE REFERE AOS FUNDAMENTOS DA ATENÇÃO PRIMÁRIA À SAÚDE, JULGUE O ITEM A SEGUIR.",
+      "Na APS, longitudinalidade se refere ao vínculo e ao acompanhamento ao longo do tempo.",
+      "ITEM 2",
+      "A RESPEITO DA POLÍTICA NACIONAL DE ATENÇÃO BÁSICA, JULGUE O SEGUINTE ITEM.",
+      "A equipe de atenção básica deve atender aos princípios e às diretrizes propostas para a atenção básica.",
+      "ITEM 3",
+      "GABARITO: CERTO",
+      "A respeito do acolhimento no sistema de saúde, julgue o próximo item.",
+      "O acolhimento implica escuta qualificada e responsabilização pelo sofrimento ou necessidade de saúde do usuário."
+    ].join("\\n")
+  }];
+  const rows = parseExamPages(pages, documentHash, { questionFormat: "true_false" });
+  assert.equal(rows.length, 3);
+  assert.deepEqual(rows[0].options, [{ id: "c", text: "Certo" }, { id: "e", text: "Errado" }]);
+  assert.equal(rows[0].suggested_answer, null);
+  assert.equal(rows[2].source_question_number, 3);
+  assert.doesNotMatch(rows[2].prompt, /GABARITO/i);
+});
+
+test("manifesto preserva o formato certo/errado para a fila administrativa", () => {
+  const questions = parseExamPages([{
+    page: 1,
+    text: [
+      "ITEM 7",
+      "JULGUE O ITEM A SEGUIR CONSIDERANDO OS PRINCÍPIOS DA ADMINISTRAÇÃO PÚBLICA.",
+      "A administração pública deve obedecer aos princípios expressos no texto constitucional."
+    ].join("\\n")
+  }], documentHash, { questionFormat: "true_false" });
+  const manifest = buildImportManifest({ ...metadata, question_format: "true_false" }, documentHash, questions);
+  assert.equal(manifest.metadata.question_format, "true_false");
+  assert.equal(manifest.imports[0].question_format, "true_false");
+  assert.deepEqual(manifest.imports[0].options.map(option => option.id), ["c", "e"]);
+});
+
 
 test("deduplica questão repetida no mesmo PDF pelo fingerprint e número", () => {
   const duplicated = [
