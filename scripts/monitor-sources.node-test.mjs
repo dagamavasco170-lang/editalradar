@@ -526,7 +526,7 @@ test("não contorna HTTP 429 em feeds RSS e aguarda ciclo seguinte quando Retry-
   let calls = 0;
   let fallbackCalls = 0;
   const waits = [];
-  const response = await fetchNewsFeedWithRetry("https://concursosnobrasil.com.br/feed/", {
+  const response = await fetchNewsFeedWithRetry(SECONDARY_NEWS_FEEDS[0].feedUrl, {
     attempts: 3,
     retryDelayMs: 5,
     nowMs: Date.parse("2026-11-26T00:00:00Z"),
