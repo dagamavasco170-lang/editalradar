@@ -39,7 +39,7 @@ export default function OfficialExamImportAdmin({authClient,userId}){
   setLoading(true);
   try{
    const {data,error}=await authClient.from("study_exam_question_imports")
-    .select("id,board,exam_name,exam_year,discipline,topic,difficulty,role_name,source_url,exam_pdf_url,source_document_sha256,source_page,source_question_number,prompt,options,suggested_answer,fingerprint,rights_basis,official_release_verified,rights_holder,license_proof_url,source_terms_url,source_restrictions,source_license,source_attribution,rights_review_status,status,review_notes,created_at")
+    .select("id,board,exam_name,exam_year,discipline,topic,difficulty,question_format,role_name,source_url,exam_pdf_url,source_document_sha256,source_page,source_question_number,prompt,options,suggested_answer,fingerprint,rights_basis,official_release_verified,rights_holder,license_proof_url,source_terms_url,source_restrictions,source_license,source_attribution,rights_review_status,status,review_notes,created_at")
     .eq("status","pending").order("created_at",{ascending:false}).limit(100);
    if(error)throw error;
    setRows(data||[]);setTableReady(true);
@@ -70,6 +70,8 @@ export default function OfficialExamImportAdmin({authClient,userId}){
    if(manifest.imports.length>300)throw new Error("O manifesto excede o limite de 300 questões por envio.");
    const meta=manifest.metadata||{};
    const examYear=Number(meta.exam_year);
+   const questionFormat=String(meta.question_format||"multiple_choice");
+   if(!["multiple_choice","true_false"].includes(questionFormat))throw new Error("Formato de questão inválido no manifesto.");
    if(!meta.board||String(meta.board).trim().length<2||String(meta.board).length>80
      ||!meta.exam_name||String(meta.exam_name).trim().length<2||String(meta.exam_name).length>180
      ||!Number.isInteger(examYear)||examYear<1900||examYear>2200
@@ -92,10 +94,14 @@ export default function OfficialExamImportAdmin({authClient,userId}){
      id:String(option?.id||"").toLowerCase(),
      text:String(option?.text||"").trim()
     }));
-    const expectedIds=normalizedOptions.map((_,index)=>String.fromCharCode(97+index));
-    if(normalizedOptions.some(option=>option.text.length<2)
-      ||normalizedOptions.map(option=>option.id).join(",")!==expectedIds.join(",")){
-     throw new Error("Alternativas incompletas, repetidas ou fora da sequência A-F no item "+(item.source_question_number||"?")+".");
+    const optionIds=normalizedOptions.map(option=>option.id).join(",");
+    const expectedIds=normalizedOptions.map((_,index)=>String.fromCharCode(97+index)).join(",");
+    const validMultipleChoice=questionFormat==="multiple_choice"&&optionIds===expectedIds;
+    const validTrueFalse=questionFormat==="true_false"&&optionIds==="c,e"
+      &&normalizedOptions[0].text.toLocaleLowerCase("pt-BR")==="certo"
+      &&normalizedOptions[1].text.toLocaleLowerCase("pt-BR")==="errado";
+    if(normalizedOptions.some(option=>option.text.length<2)||(!validMultipleChoice&&!validTrueFalse)){
+     throw new Error("Alternativas incompletas ou incompatíveis com o formato declarado no item "+(item.source_question_number||"?")+".");
     }
     if(!/^[0-9a-f]{64}$/.test(String(item.fingerprint||"")))throw new Error("Fingerprint inválido no item " +(item.source_question_number||"?")+".");
     if(!Number.isInteger(Number(item.source_page))||Number(item.source_page)<1||!Number.isInteger(Number(item.source_question_number))||Number(item.source_question_number)<1){
@@ -108,6 +114,7 @@ export default function OfficialExamImportAdmin({authClient,userId}){
      board:String(meta.board).trim(),exam_name:String(meta.exam_name).trim(),exam_year:Number(meta.exam_year),
      discipline:String(meta.discipline).trim(),topic:String(meta.topic||"A classificar").trim(),
      difficulty:["Fácil","Intermediária","Avançada"].includes(meta.difficulty)?meta.difficulty:"Intermediária",
+     question_format:questionFormat,
      role_name:String(meta.role_name||""),source_url:meta.source_url,exam_pdf_url:meta.exam_pdf_url,
      source_document_sha256:manifest.source_document_sha256,source_page:Number(item.source_page),
      source_question_number:Number(item.source_question_number),prompt:item.prompt.trim(),options:normalizedOptions,
@@ -209,13 +216,13 @@ export default function OfficialExamImportAdmin({authClient,userId}){
      </div>
      <div className="official-exam-meta"><span>{question.discipline}</span><span>{question.topic}</span><span>{rightsLabel(question.rights_basis)}</span></div>
      <p>{question.prompt}</p>
-     {options.length>0&&<ol type="A">{options.map(option=><li key={option.id}>{option.text}</li>)}</ol>}
+     {options.length>0&&<ul>{options.map(option=><li key={option.id}><strong>{String(option.id).toUpperCase()} — </strong>{option.text}</li>)}</ul>}
      {question.review_notes&&<small>{question.review_notes}</small>}
      <p><a href={question.source_url} target="_blank" rel="noopener noreferrer">Página oficial ↗</a> · <a href={question.exam_pdf_url} target="_blank" rel="noopener noreferrer">PDF original ↗</a></p>
      <label>Gabarito definitivo confirmado
       <select value={answers[String(question.id)]||""} onChange={event=>setAnswers(old=>({...old,[String(question.id)]:event.target.value}))}>
        <option value="">Selecione após conferir o gabarito</option>
-       {options.map(option=><option key={option.id} value={String(option.id).toLowerCase()}>{String(option.id).toUpperCase()}</option>)}
+       {options.map(option=><option key={option.id} value={String(option.id).toLowerCase()}>{String(option.id).toUpperCase()} — {option.text}</option>)}
       </select>
      </label>
      <label>Justificativa do gabarito (opcional)
