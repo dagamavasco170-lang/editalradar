@@ -186,6 +186,22 @@ test("separa colunas de texto extraído com layout e mantém ordem das questões
 });
 
 
+
+
+test("mantém itens Cebraspe numerados com ponto no formato Certo/Errado", () => {
+  const pages = [{
+    page: 6,
+    text: [
+      "1. A administração pública deve observar os princípios constitucionais expressos.",
+      "2) A publicidade é princípio que admite exceções previstas no ordenamento jurídico."
+    ].join("\n")
+  }];
+  const rows = parseExamPages(pages, documentHash, { questionFormat: "true_false" });
+  assert.equal(rows.length, 2);
+  assert.deepEqual(rows.map(row => row.source_question_number), [1, 2]);
+  assert.ok(rows.every(row => row.options.map(option => option.id).join(",") === "c,e"));
+});
+
 test("deduplica questão repetida no mesmo PDF pelo fingerprint e número", () => {
   const duplicated = [
     samplePages[0],
