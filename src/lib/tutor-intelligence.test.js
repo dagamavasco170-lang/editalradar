@@ -1,5 +1,5 @@
 import {describe,it,expect} from "vitest";
-import {buildTutorSignals,buildAdaptiveQuestionPlan,buildConfusionPatterns,buildPersonalizedRecoveryAdvice} from "./tutor-intelligence.js";
+import {buildTutorSignals,buildAdaptiveQuestionPlan,buildConfusionPatterns,buildPersonalizedRecoveryAdvice,buildMisconceptionDiagnosis} from "./tutor-intelligence.js";
 describe("inteligência do tutor adaptativo",()=>{
  it("identifica temas frágeis e sugere dificuldade inicial",()=>{
   const result=buildTutorSignals({topics:[
@@ -37,4 +37,13 @@ it("detecta padrões de erro repetido e recomenda recuperação baseada no hist�
  expect(pattern).toMatchObject({attempts:3,wrong:3,accuracy:0,recentWrong:3});
  expect(pattern.patterns.map(item=>item.id)).toContain("error-streak");
  expect(buildPersonalizedRecoveryAdvice({pattern}).join(" ")).toContain("questão Fácil");
+});
+
+it("diagnostica a alternativa marcada e prepara revisão reflexiva baseada na questão",()=>{
+ const question={topic:"Crase",discipline:"Português",prompt:"Assinale o emprego correto da crase.",options:[["A) à", "a"],["B) a","b"]],explanation:"A crase ocorre na fusão da preposição com o artigo."};
+ const result=buildMisconceptionDiagnosis({question,selectedAnswer:"b"});
+ expect(result).toMatchObject({selectedLabel:"B) a",topic:"Crase"});
+ expect(result.lesson).toContain("fusão");
+ expect(result.reflection).toContain("alternativa escolhida");
+ expect(result.verification).toContain("nova questão");
 });

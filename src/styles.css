@@ -4118,3 +4118,12 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{ou
 .adaptive-confusion-patterns>div{display:grid;gap:4px;margin-top:8px}
 .adaptive-confusion-patterns>div b{font-size:.88rem}
 .adaptive-confusion-patterns>div span{font-size:.84rem;opacity:.85}
+
+/* Tutor pedagógico: diagnóstico do distrator e verificação de aprendizagem */
+.adaptive-concept-diagnosis{display:grid;gap:10px;margin-top:12px;padding:14px;border:1px solid var(--border-color,rgba(128,128,128,.25));border-radius:14px}
+.adaptive-concept-diagnosis>strong{font-size:1rem}
+.adaptive-concept-diagnosis p{margin:5px 0;font-size:.9rem;line-height:1.5}
+.adaptive-concept-lesson,.adaptive-reflection-confirmation{padding:12px;border-radius:10px;background:var(--surface-soft,rgba(128,128,128,.07))}
+.adaptive-reflection-field{display:grid;gap:8px;font-weight:600;font-size:.9rem}
+.adaptive-reflection-field textarea{width:100%;padding:10px;border-radius:8px;border:1px solid var(--border-color,rgba(128,128,128,.3));background:var(--surface,transparent);color:inherit;font:inherit;resize:vertical;line-height:1.5}
+.adaptive-reflection-confirmation{display:grid;gap:8px}
