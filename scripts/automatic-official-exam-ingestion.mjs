@@ -646,7 +646,9 @@ function createReport(mode) {
     quarantined: 0,
     annulledOrMissing: 0,
     failures: [],
-    quarantineReasons: []
+    quarantineReasons: [],
+    unmatchedDocuments: [],
+    sourceDiagnostics: []
   };
 }
 
@@ -683,6 +685,18 @@ export async function runAutomaticOfficialExamIngestion({ mode = "dry-run", limi
         const pageText = stripTags(html);
         const links = extractOfficialPdfLinks(html, page.url);
         const subpages = extractOfficialSubpageLinks(html, page.url).slice(0, MAX_SOURCE_SUBPAGES);
+        const diagnostics = {
+          source: record.source_url,
+          mainPageUrl: page.url,
+          directPdfLinks: links.length,
+          subpagesDiscovered: subpages.length,
+          subpagesVisited: 0,
+          pdfLinksAfterExpansion: 0,
+          examCandidates: 0,
+          definitiveAnswerKeyCandidates: 0,
+          unmatchedExams: 0
+        };
+        report.sourceDiagnostics.push(diagnostics);
         for (const subpage of subpages) {
           try {
             const subpageResource = await fetchOfficialResource(subpage.url, {
@@ -690,6 +704,7 @@ export async function runAutomaticOfficialExamIngestion({ mode = "dry-run", limi
               maxBytes: MAX_HTML_BYTES
             });
             if (subpageResource.isPdf) continue;
+            diagnostics.subpagesVisited += 1;
             const subpageHtml = new TextDecoder("utf-8").decode(subpageResource.bytes);
             links.push(...extractOfficialPdfLinks(subpageHtml, subpageResource.url));
           } catch (error) {
@@ -701,11 +716,22 @@ export async function runAutomaticOfficialExamIngestion({ mode = "dry-run", limi
           await sleep(250);
         }
         const uniqueLinks = [...new Map(links.map(link => [link.url, link])).values()];
+        diagnostics.pdfLinksAfterExpansion = uniqueLinks.length;
         const { exams, keys } = resolveExamAndKeyLinks(record, uniqueLinks, pageText);
+        diagnostics.examCandidates = exams.length;
+        diagnostics.definitiveAnswerKeyCandidates = keys.length;
         for (const examLink of exams) {
           if (report.documentsChecked >= maxDocs) break;
           const keyLink = pairExamWithAnswerKey(examLink, keys, exams.length);
-          if (!keyLink) continue;
+          if (!keyLink) {
+            diagnostics.unmatchedExams += 1;
+            report.unmatchedDocuments.push({
+              source: record.source_url,
+              proof: examLink.url,
+              reason: "Não existe gabarito definitivo associado de forma inequívoca ao caderno."
+            });
+            continue;
+          }
           report.documentsChecked += 1;
           try {
             await processDocument(record, examLink, keyLink, mode, report.runId, report, fetchImpl);
