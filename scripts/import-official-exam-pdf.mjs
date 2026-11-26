@@ -42,14 +42,22 @@ export function selectPdfOcrPages(pages = [], maxPages = MAX_OCR_PAGES) {
   return [...indices].sort((a,b)=>a-b).map(index=>candidates[index]);
 }
 
-function parseQuestionStart(line) {
+function parseQuestionStart(line, questionFormat = "multiple_choice") {
   const item = String(line).match(/^\s*ITEM\s+0*(\d{1,3})\s*[:.)-]?\s*(.*)$/iu);
   if (item) return { number: Number(item[1]), rest: item[2] || "", kind: "true_false" };
   const labelled = String(line).match(/^\s*QUEST(?:Ã|A)O(?:\s+N[º°.]?)?\s*0*(\d{1,3})\s*[:.)-]?\s*(.*)$/iu);
   if (labelled) return { number: Number(labelled[1]), rest: labelled[2] || "", kind: "multiple_choice" };
   const numbered = String(line).match(/^\s*0*(\d{1,3})\s*[.)-]\s*(.*)$/u);
   if (numbered) return { number: Number(numbered[1]), rest: numbered[2] || "", kind: "multiple_choice" };
+  if (questionFormat === "true_false") {
+    const bareItem = String(line).match(/^\s*0*(\d{1,3})(?:\s+(.*\S))?\s*$/u);
+    if (bareItem) return { number: Number(bareItem[1]), rest: bareItem[2] || "", kind: "true_false" };
+  }
   return null;
+}
+
+function isTrueFalseCommandLine(line) {
+  return /^\s*(?:a respeito|no que se refere|acerca de|acerca da|acerca do|em relação|em relacao|com relação|com relacao|considerando|julgue|no tocante|quanto a|no âmbito|no ambito|a propósito|a proposito|relativamente|com base|de acordo com|à luz|a luz|diante de)\b/i.test(String(line || ""));
 }
 
 function parseOption(line) {
@@ -84,6 +92,7 @@ export function parseExamPages(pages, documentSha256, { questionFormat = "multip
   const seenFingerprints = new Set();
   const seenQuestionNumbers = new Set();
   let current = null;
+  let activeCommandLines = [];
 
   const flush = () => {
     if (!current) return;
@@ -140,14 +149,33 @@ export function parseExamPages(pages, documentSha256, { questionFormat = "multip
     const lines = String(page.text || "").replace(/\r/g, "").split("\n");
     for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
       const line = lines[lineIndex];
-      const start = parseQuestionStart(line);
+      const start = parseQuestionStart(line, questionFormat);
       if (start && start.number > 0) {
         flush();
-        current = { number: start.number, kind: start.kind, page: pageNumber, ocrUsed: Boolean(page.ocrUsed), promptLines: [], options: [] };
+        current = {
+          number: start.number,
+          kind: start.kind,
+          page: pageNumber,
+          ocrUsed: Boolean(page.ocrUsed),
+          promptLines: questionFormat === "true_false" ? [...activeCommandLines] : [],
+          options: []
+        };
         if (start.rest.trim()) current.promptLines.push(start.rest.trim());
         continue;
       }
-      if (!current) continue;
+      if (questionFormat === "true_false" && isTrueFalseCommandLine(line)) {
+        if (current && current.promptLines.some(value => value.trim())) {
+          flush();
+        }
+        activeCommandLines = [String(line).trim()];
+        continue;
+      }
+      if (!current) {
+        if (questionFormat === "true_false" && isTrueFalseCommandLine(line)) {
+          activeCommandLines = [String(line).trim()];
+        }
+        continue;
+      }
       let option = parseOption(line);
       if (!option && current.kind !== "true_false") {
         const bareOption = parseBareOption(line);
