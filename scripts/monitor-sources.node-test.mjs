@@ -501,6 +501,33 @@ test("repete falha temporária do feed de notícias e respeita Retry-After", asy
   assert.deepEqual(waits, [2000]);
 });
 
+test("não contorna HTTP 429 em feeds RSS e aguarda ciclo seguinte quando Retry-After é longo", async () => {
+  let calls = 0;
+  let fallbackCalls = 0;
+  const waits = [];
+  const response = await fetchNewsFeedWithRetry("https://concursosnobrasil.com.br/feed/", {
+    attempts: 3,
+    retryDelayMs: 5,
+    nowMs: Date.parse("2026-11-26T00:00:00Z"),
+    sleepImpl: async milliseconds => waits.push(milliseconds),
+    fetchImpl: async url => {
+      calls += 1;
+      return new Response("rate limited", {
+        status: 429,
+        headers: { "Retry-After": "120" }
+      });
+    },
+    fallbackFetch: async url => {
+      fallbackCalls += 1;
+      return new Response("<rss/>", { status: 200 });
+    }
+  });
+  assert.equal(response.status, 429);
+  assert.equal(calls, 1);
+  assert.equal(fallbackCalls, 0);
+  assert.deepEqual(waits, []);
+});
+
 test("repete erro de rede e HTTP 429, mas não repete erros definitivos", async () => {
   const waits = [];
   let calls = 0;
