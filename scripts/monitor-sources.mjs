@@ -75,7 +75,7 @@ const retryAfterMilliseconds = (headers, now = Date.now()) => {
   const seconds = Number(value);
   if (Number.isFinite(seconds) && seconds >= 0) return Math.min(10000, seconds * 1000);
   const date = Date.parse(value);
-  return Number.isFinite(date) ? Math.max(0, Math.min(10000, date - now)) : null;
+  return Number.isFinite(date) ? Math.max(0, date - now) : null;
 };
 
 export function buildSourceConditionalHeaders(previous) {
@@ -244,24 +244,26 @@ export async function fetchOfficialSource(url, options = {}) {
       let result = null;
       let usedFallbackTransport = false;
       for (let redirectCount = 0; redirectCount <= maxRedirects; redirectCount += 1) {
+        const conditionalHeaders = currentUrl === startUrl ? (options.conditionalHeaders || {}) : {};
         let response = await request(currentUrl, {
           redirect: "manual",
           signal: AbortSignal.timeout(timeoutMs),
           headers: {
             "User-Agent": "EditalRadar-SourceMonitor/1.0 (+https://github.com/dagamavasco170-lang/editalradar)",
             Accept: "text/html,application/xhtml+xml,application/pdf;q=0.9,*/*;q=0.7",
-            ...(options.conditionalHeaders || {})
+            ...conditionalHeaders
           }
         });
-        if ([401, 403, 429].includes(response.status) && typeof options.fallbackFetch === "function") {
+        if (response.status === 403 && typeof options.fallbackFetch === "function") {
           try {
             const fallbackResponse = await options.fallbackFetch(currentUrl, {
               timeoutMs,
+              conditionalHeaders,
               headers: {
                 "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 EditalRadar/1.0",
                 Accept: "text/html,application/xhtml+xml,application/pdf;q=0.9,*/*;q=0.7",
                 "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
-                ...(options.conditionalHeaders || {})
+                ...conditionalHeaders
               }
             });
             if (fallbackResponse && ![401, 403].includes(fallbackResponse.status)) {
@@ -290,6 +292,7 @@ export async function fetchOfficialSource(url, options = {}) {
       if (!RETRYABLE_SOURCE_STATUSES.has(result.response.status) || attempt === attempts) return result;
       lastError = new Error("HTTP " + result.response.status);
       const retryAfter = retryAfterMilliseconds(result.response.headers);
+      if (retryAfter !== null && retryAfter > 60000) return result;
       await wait(retryAfter ?? retryDelayMs * (2 ** (attempt - 1)));
     } catch (error) {
       if (error?.code === "UNSAFE_REDIRECT") throw error;
@@ -473,7 +476,9 @@ export function compareSource(url, previous, current) {
         type: "restricted",
         url,
         status,
-        message: "Acesso automatizado bloqueado ou limitado (HTTP " + status + "); isso não confirma que a página oficial esteja fora do ar."
+        message: current.restricted
+          ? "A fonte respondeu HTTP 200 com uma página de desafio/bloqueio WAF; isso não confirma que o conteúdo oficial esteja inalterado."
+          : "Acesso automatizado bloqueado ou limitado (HTTP " + status + "); isso não confirma que a página oficial esteja fora do ar."
       };
     }
     return { type: "unavailable", url, status: status || null, message: current.error || "Falha ao consultar a fonte." };
