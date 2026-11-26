@@ -218,6 +218,23 @@ export async function fetchOfficialSource(url, options = {}) {
   throw lastError || new Error("Falha de rede sem detalhes adicionais.");
 }
 
+export function normalizeOfficialSourceUrl(value) {
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:" || !isTrustedOfficialHost(url.hostname) || url.username || url.password) return "";
+    url.hostname = url.hostname.toLowerCase().replace(/\.$/, "");
+    if (url.port === "443") url.port = "";
+    url.hash = "";
+    url.pathname = url.pathname.replace(/\/{2,}/g, "/").replace(/\/+$/, "") || "/";
+    const trackingKeys = /^(?:utm_[a-z0-9_]+|fbclid|gclid|dclid|msclkid|mc_cid|mc_eid|_ga|_gl|yclid|vero_id|ref_src|ref_url)$/i;
+    for (const key of [...url.searchParams.keys()]) if (trackingKeys.test(key)) url.searchParams.delete(key);
+    url.searchParams.sort();
+    return url.toString();
+  } catch {
+    return "";
+  }
+}
+
 export function collectSourceUrls(items = concursos, additionalSources = sourceRegistry) {
   const sourceItems = [
     ...(Array.isArray(items) ? items : []),
@@ -227,14 +244,7 @@ export function collectSourceUrls(items = concursos, additionalSources = sourceR
     item?.sourceUrl,
     item?.periodoInscricao?.fonteUrl
   ]);
-  return [...new Set(candidateUrls.filter((value) => {
-    try {
-      const url = new URL(value);
-      return url.protocol === "https:" && isTrustedOfficialHost(url.hostname);
-    } catch {
-      return false;
-    }
-  }))].sort();
+  return [...new Set(candidateUrls.map(normalizeOfficialSourceUrl).filter(Boolean))].sort();
 }
 export function normalizeHtml(html) {
   return String(html)
@@ -295,8 +305,8 @@ export function extractOpportunityLinks(html, sourceUrl) {
         && /(20\d{2}|cargo|vagas?|publicad[oa]|abert[oa]|edital)/i.test(pathAndTitle);
       const contestPage = /\/concursos?\/[a-z0-9_-]+/i.test(candidateUrl.pathname);
       if (registrationLink || (!keywords.test(pathAndTitle) && !explicitContest && !contestPage)) continue;
-      candidateUrl.hash = "";
-      const normalizedUrl = candidateUrl.toString();
+      const normalizedUrl = normalizeOfficialSourceUrl(candidateUrl.href);
+      if (!normalizedUrl) continue;
       if (normalizedUrl === new URL(sourceUrl).toString()) continue;
       if (!found.has(normalizedUrl)) {
         found.set(normalizedUrl, {
