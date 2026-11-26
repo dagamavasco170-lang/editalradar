@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   calculateAnswerKeyCoverage,
+  compareQuestionNumberCoverage,
   enforceWholeBookletGate,
   classifyOfficialPdfLink,
   extractOfficialPdfLinks,
@@ -306,9 +307,45 @@ test("official resource fetch verifies PDF signature and returns bounded bytes",
   assert.equal(result.bytes.subarray(0, 5).toString("ascii"), "%PDF-");
 });
 
-test("whole-booklet gate blocks every item when one question fails", () => {
+test("whole-booklet gate remains strict by default", () => {
   assert.deepEqual(enforceWholeBookletGate([{ approved: true }, { approved: false }, { approved: true }]), { approved: false, total: 3, rejected: 1 });
   assert.deepEqual(enforceWholeBookletGate([{ approved: true }, { approved: true }]), { approved: true, total: 2, rejected: 0 });
+});
+
+test("allows only individually approved questions when exact booklet coverage is proven", () => {
+  assert.deepEqual(
+    enforceWholeBookletGate(
+      [{ approved: true }, { approved: false }, { approved: true }],
+      { allowValidatedSubset: true }
+    ),
+    { approved: true, total: 3, rejected: 1, eligible: 2, mode: "validated_subset" }
+  );
+  assert.deepEqual(
+    enforceWholeBookletGate([{ approved: false }, { approved: false }], { allowValidatedSubset: true }),
+    { approved: false, total: 2, rejected: 2 }
+  );
+});
+
+test("requires an exact unique number set including annulled answer-key positions", () => {
+  const answerMap = new Map([[1, "A"], [2, "ANULADA"], [3, "C"]]);
+  assert.equal(compareQuestionNumberCoverage([
+    { source_question_number: 1 },
+    { source_question_number: 2 },
+    { source_question_number: 3 }
+  ], answerMap).complete, true);
+  const missing = compareQuestionNumberCoverage([
+    { source_question_number: 1 },
+    { source_question_number: 3 }
+  ], answerMap);
+  assert.equal(missing.complete, false);
+  assert.deepEqual(missing.missing, [2]);
+  const duplicate = compareQuestionNumberCoverage([
+    { source_question_number: 1 },
+    { source_question_number: 2 },
+    { source_question_number: 2 }
+  ], answerMap);
+  assert.equal(duplicate.complete, false);
+  assert.deepEqual(duplicate.duplicates, [2]);
 });
 
 
