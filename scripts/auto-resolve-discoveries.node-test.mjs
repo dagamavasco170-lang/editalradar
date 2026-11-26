@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { appendContext, buildPendingDiscoveriesUrl, buildNonActionablePendingDiscoveriesUrl, dismissNonActionablePendingDiscoveries, buildRetificationUpdate, classifyDiscovery, extractDocumentText, extractRoleNamesFromText, extractVacancyDetails, fetchCandidateWithRetry, readBoundedResponseBytes, selectPdfOcrPages, findMatchingContestForRetification, inferOrganization, mapWithConcurrency, normalizeContestIdentity, normalizeOfficialUrl, normalizePdfVersionText, compareDocumentVersions, prepareDiscoveryDocument, isGenericOfficialLandingPage, countPendingDiscoveries, requestJson, summarizeFetchError, assessNoticeFreshness, extractDeclaredPublisherUrl, resolveGoogleNewsArticleUrl, prioritizePendingDiscoveries, selectDiscoveriesForTriage, isClearlyUnrelatedAdministrativeDiscovery, isTrustedSecondaryNewsHost, extractOfficialReferenceLinks, fetchSecondaryNewsArticle, autoResolvePending } from "./auto-resolve-discoveries.mjs";
+import { appendContext, buildPendingDiscoveriesUrl, buildNonActionablePendingDiscoveriesUrl, dismissNonActionablePendingDiscoveries, buildRetificationUpdate, classifyDiscovery, extractDocumentText, extractRoleNamesFromText, extractVacancyDetails, fetchCandidateWithRetry, readBoundedResponseBytes, selectPdfOcrPages, shouldPublishRetification, findMatchingContestForRetification, inferOrganization, mapWithConcurrency, normalizeContestIdentity, normalizeOfficialUrl, normalizePdfVersionText, compareDocumentVersions, prepareDiscoveryDocument, isGenericOfficialLandingPage, countPendingDiscoveries, requestJson, summarizeFetchError, assessNoticeFreshness, extractDeclaredPublisherUrl, resolveGoogleNewsArticleUrl, prioritizePendingDiscoveries, selectDiscoveriesForTriage, isClearlyUnrelatedAdministrativeDiscovery, isTrustedSecondaryNewsHost, extractOfficialReferenceLinks, fetchSecondaryNewsArticle, autoResolvePending } from "./auto-resolve-discoveries.mjs";
 
 const discovery = {
   id: 1,
@@ -1252,6 +1252,13 @@ test("normaliza URLs oficiais removendo tracking, fragmentos e diferenças irrel
     normalizeOfficialUrl("https://igaci.al.gov.br/concursos/edital-01?utm_medium=y&ano=2026")
   );
   assert.equal(normalizeOfficialUrl("javascript:alert(1)"), "");
+});
+
+test("só publica retificação quando pelo menos um campo objetivo foi alterado", () => {
+  assert.equal(shouldPublishRetification({ updated: false, changes: [] }), false);
+  assert.equal(shouldPublishRetification({ updated: true, changes: [] }), false);
+  assert.equal(shouldPublishRetification({ updated: true, changes: [{ field: "prazoInscricao" }] }), true);
+  assert.equal(shouldPublishRetification({ updated: true, changes: null }), false);
 });
 
 test("distribui OCR por todo PDF digitalizado sem exceder 12 páginas", () => {
