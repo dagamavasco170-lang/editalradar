@@ -6,6 +6,7 @@ import { existsSync, statSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { isTrustedOfficialUrl } from "../src/lib/official-sources.js";
 
 export const MAX_PDF_BYTES = 25 * 1024 * 1024;
 export const MAX_PDF_PAGES = 300;
@@ -131,6 +132,9 @@ function validateMetadata(metadata) {
     try { url = new URL(metadata[field]); } catch { throw new Error("URL inválida em " + field + "."); }
     if (url.protocol !== "https:" || url.username || url.password) {
       throw new Error(field + " deve ser uma URL HTTPS sem credenciais.");
+    }
+    if ((field === "source_url" || field === "exam_pdf_url") && !isTrustedOfficialUrl(url.href)) {
+      throw new Error(field + " precisa pertencer ao domínio oficial da banca/órgão ou a um provedor oficial autorizado.");
     }
   }
   const rightsBasis = String(metadata.rights_basis || "official_publication");
