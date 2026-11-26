@@ -8,6 +8,8 @@ import {
   fetchOfficialResource,
   pairExamWithAnswerKey,
   parseOfficialAnswerKey,
+  parseOfficialAnswerKeyVariants,
+  selectAnswerKeySection,
   validateQuestionForAutoPublication,
   variantIdentity
 } from "./automatic-official-exam-ingestion.mjs";
@@ -58,16 +60,69 @@ test("extracts a booklet variant from caderno and answer-key labels", () => {
   assert.equal(variantIdentity("TREGO08_Gab_Definitivo_001_1.PDF"), "");
 });
 
-test("does not pair one unversioned answer key with multiple cadernos", () => {
+test("one consolidated official answer key is only a candidate until its section is matched", () => {
   const answerKey = {
-    label: "Gabarito definitivo",
-    url: "https://cdn.cebraspe.org.br/gabarito-definitivo.pdf"
+    label: "Gabarito Oficial Definitivo",
+    url: "https://conhecimento.fgv.br/sites/default/files/concursos/gabaritos-definitivos-v3.pdf"
   };
-  const examA = { label: "Caderno tipo A", url: "https://cdn.cebraspe.org.br/prova-tipo-a.pdf" };
-  const examB = { label: "Caderno tipo B", url: "https://cdn.cebraspe.org.br/prova-tipo-b.pdf" };
-  assert.equal(pairExamWithAnswerKey(examA, [answerKey], 2), null);
-  assert.equal(pairExamWithAnswerKey(examB, [answerKey], 2), null);
-  assert.equal(pairExamWithAnswerKey(examA, [{ label: "Gabarito tipo A definitivo", url: "https://cdn.cebraspe.org.br/gabarito-tipo-a-definitivo.pdf" }], 2).label, "Gabarito tipo A definitivo");
+  const examA = { label: "Tipo 1", url: "https://conhecimento.fgv.br/sites/default/files/concursos/cns201-agente-de-policia-judiciaria-cns201-tipo-1.pdf" };
+  const examB = { label: "Tipo 2", url: "https://conhecimento.fgv.br/sites/default/files/concursos/cns201-agente-de-policia-judiciaria-cns201-tipo-2.pdf" };
+  assert.equal(pairExamWithAnswerKey(examA, [answerKey], 15).requiresSectionMatch, true);
+  assert.equal(pairExamWithAnswerKey(examB, [answerKey], 15).requiresSectionMatch, true);
+  assert.equal(pairExamWithAnswerKey(examA, [{ label: "Gabarito tipo 2 definitivo", url: "https://cdn.cebraspe.org.br/gabarito-tipo-2-definitivo.pdf" }], 2), null);
+  assert.equal(pairExamWithAnswerKey(examA, [{ label: "Gabarito tipo 1 definitivo", url: "https://cdn.cebraspe.org.br/gabarito-tipo-1-definitivo.pdf" }], 2).label, "Gabarito tipo 1 definitivo");
+});
+
+test("parses consolidated final keys by role and booklet, including annulled items", () => {
+  const text = `
+GABARITOS DEFINITIVOS — POLÍCIA CIVIL DO ESTADO DO PARANÁ
+Agente de Polícia Judiciária - 1 - Turno Tarde
+1
+D
+2
+B
+3
+*
+Agente de Polícia Judiciária - 2 - Turno Tarde
+1
+E
+2
+A
+3
+C
+Delegado de Polícia - 1 - Turno Tarde
+1
+A
+2
+C
+3
+D
+`;
+  const sections = parseOfficialAnswerKeyVariants(text);
+  assert.equal(sections.length, 3);
+  assert.equal(sections[0].answers.get(1), "D");
+  assert.equal(sections[0].answers.get(2), "B");
+  assert.equal(sections[0].answers.get(3), "ANULADA");
+  assert.equal(sections[1].answers.get(1), "E");
+  assert.equal(sections[2].answers.get(2), "C");
+
+  const record = { role_name: "", exam_name: "Polícia Civil do Estado do Paraná" };
+  const agentType1 = {
+    label: "Tipo 1",
+    url: "https://conhecimento.fgv.br/sites/default/files/concursos/cns201-agente-de-policia-judiciaria-cns201-tipo-1.pdf"
+  };
+  const agentType2 = {
+    label: "Tipo 2",
+    url: "https://conhecimento.fgv.br/sites/default/files/concursos/cns201-agente-de-policia-judiciaria-cns201-tipo-2.pdf"
+  };
+  const delegateType1 = {
+    label: "Tipo 1",
+    url: "https://conhecimento.fgv.br/sites/default/files/concursos/cns101-delegado-de-policia-cns101-tipo-1.pdf"
+  };
+  assert.equal(selectAnswerKeySection(agentType1, record, sections)?.bookletNumber, "1");
+  assert.equal(selectAnswerKeySection(agentType2, record, sections)?.answers.get(1), "E");
+  assert.equal(selectAnswerKeySection(delegateType1, record, sections)?.role, "Delegado de Polícia");
+  assert.equal(selectAnswerKeySection({ label: "Tipo 4", url: "https://conhecimento.fgv.br/cns201-agente-de-policia-judiciaria-tipo-4.pdf" }, record, sections), null);
 });
 
 test("parses definitive multiple-choice answer keys with one or multiple entries per line", () => {
