@@ -10,7 +10,7 @@ import { isTrustedOfficialUrl } from "../src/lib/official-sources.js";
 
 export const MAX_PDF_BYTES = 25 * 1024 * 1024;
 export const MAX_PDF_PAGES = 300;
-export const MAX_OCR_PAGES = 12;
+export const MAX_OCR_PAGES = 60;
 const RIGHTS_BASES = new Set([
   "official_publication", "public_domain", "permission_granted", "cc_by", "cc_by_sa", "other_reviewed"
 ]);
@@ -28,6 +28,18 @@ export function normalizeQuestionText(value) {
 
 export function sha256(value) {
   return createHash("sha256").update(value).digest("hex");
+}
+
+export function selectPdfOcrPages(pages = [], maxPages = MAX_OCR_PAGES) {
+  const candidates = (Array.isArray(pages) ? pages : [])
+    .filter(page => String(page?.text || "").replace(/\s/g, "").length < 40);
+  const limit = Math.max(1, Math.min(MAX_PDF_PAGES, Number(maxPages) || MAX_OCR_PAGES));
+  if (candidates.length <= limit) return candidates;
+  if (limit === 1) return [candidates[0]];
+  const indices = new Set(Array.from({ length: limit }, (_, index) =>
+    Math.round(index * (candidates.length - 1) / (limit - 1))
+  ));
+  return [...indices].sort((a,b)=>a-b).map(index=>candidates[index]);
 }
 
 function parseQuestionStart(line) {
@@ -263,13 +275,14 @@ export async function extractPdfPages(pdfPath) {
   while (pageTexts.length < pageCount) pageTexts.push("");
   const pages = pageTexts.slice(0, pageCount).map((text, index) => ({ page: index + 1, text }));
   const sparsePages = pages.filter((page) => page.text.replace(/\s/g, "").length < 40);
+  const selectedOcrPages = selectPdfOcrPages(pages, MAX_OCR_PAGES);
   const warnings = [];
 
-  if (sparsePages.length) {
+  if (selectedOcrPages.length) {
     const tempDir = await mkdtemp(path.join(os.tmpdir(), "editalradar-pdf-"));
     try {
       let ocrCount = 0;
-      for (const page of sparsePages.slice(0, MAX_OCR_PAGES)) {
+      for (const page of selectedOcrPages) {
         const prefix = path.join(tempDir, "page-" + page.page);
         try {
           command("pdftoppm", ["-f", String(page.page), "-l", String(page.page), "-r", "120", "-singlefile", "-png", pdfPath, prefix], { timeout: 12000 });
@@ -286,7 +299,7 @@ export async function extractPdfPages(pdfPath) {
         }
       }
       if (sparsePages.length > MAX_OCR_PAGES) {
-        warnings.push("Limite de OCR aplicado: " + MAX_OCR_PAGES + " de " + sparsePages.length + " páginas sem camada textual foram processadas. Documento não deve ser considerado integralmente extraído.");
+        warnings.push("Limite de OCR aplicado: " + MAX_OCR_PAGES + " de " + sparsePages.length + " páginas sem camada textual foram processadas, com amostragem distribuída. Documento não deve ser considerado integralmente extraído.");
       }
       if (ocrCount) warnings.push(String(ocrCount) + " página(s) sem camada textual receberam OCR em português/inglês a 120 DPI.");
     } finally {
