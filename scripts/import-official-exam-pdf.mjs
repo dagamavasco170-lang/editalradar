@@ -453,22 +453,27 @@ export async function importPdfToManifest({ pdfPath, metadata }) {
   }
   const manifest = buildImportManifest(metadata, documentSha256, questions, warnings);
   manifest.extractionDiagnostics = pages.map(page => {
-    const lines = String(page.text || "").replace(/\\r/g, "").split("\\n");
+    const lines = String(page.text || "").replace(/\r/g, "").split("\n");
     const starts = [];
     for (let index = 0; index < lines.length; index += 1) {
-      const line = lines[index];
-      const labelled = line.match(/^\\s*(?:QUEST(?:Ã|A)O(?:\\s+N[º°.]?)?|ITEM)\\s+0*(\\d{1,3})\\b/iu);
-      const numbered = line.match(/^\\s*0*(\\d{1,3})\\s*[.)-](?:\\s|$)/u);
-      const bare = line.match(/^\\s*0*(\\d{1,3})\\s*$/u);
-      const match = labelled || numbered || bare;
-      if (match) starts.push({ line: index + 1, number: Number(match[1]), style: labelled ? "labelled" : numbered ? "numbered" : "bare" });
+      const candidate = parseQuestionStart(lines[index], metadata.question_format || "multiple_choice");
+      if (candidate && candidate.number > 0) {
+        starts.push({
+          line: index + 1,
+          number: candidate.number,
+          style: candidate.style || "multiple_choice",
+          acceptedByParser: candidate.style !== "bare_multiple_choice"
+            || hasQuestionOptionSequenceAfterNumber(lines, index)
+        });
+      }
     }
     return {
       page: Number(page.page),
       characters: String(page.text || "").length,
       ocrUsed: Boolean(page.ocrUsed),
       questionStartCandidates: starts,
-      optionLabelLines: lines.reduce((count, line) => count + (/^\\s*(?:[A-F][).:]|[A-F]\\s{2,})/i.test(line) ? 1 : 0), 0)
+      optionLabelLines: lines.reduce((count, line) =>
+        count + (parseOption(line) || parseBareOption(line) ? 1 : 0), 0)
     };
   });
   return manifest;
