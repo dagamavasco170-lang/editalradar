@@ -619,9 +619,23 @@ async function processDocument(record, examLink, keyLink, mode, runId, report, f
           .map(line => line.trim())
           .filter(line => /agente|delegado|papiloscopista|turno/i.test(line))
           .slice(0, 12);
+        const sectionDiagnostics = answerKeySections.slice(0, 20).map(section => ({
+          role: section.role,
+          bookletNumber: section.bookletNumber,
+          shift: section.shift,
+          parsedCount: section.parsedCount
+        }));
+        const debugExam = {
+          label: examLink.label,
+          roleName: record.role_name || "",
+          variant: variantIdentity([examLink.label, examLink.url].join(" ")),
+          normalizedSignal: normalizeDocumentLabel([examLink.label, examLink.url, record.role_name, record.exam_name].join(" "))
+        };
         const error = new Error(
           "O gabarito definitivo consolidado não contém uma única seção que corresponda ao cargo e caderno desta prova. "
-          + "Cabeçalhos candidatos: " + candidates.join(" | ").slice(0, 900)
+          + "Exame: " + JSON.stringify(debugExam).slice(0, 700)
+          + " | Seções: " + JSON.stringify(sectionDiagnostics).slice(0, 1800)
+          + " | Cabeçalhos: " + candidates.join(" | ").slice(0, 500)
         );
         error.code = "UNMATCHED_ANSWER_KEY_SECTION";
         throw error;
