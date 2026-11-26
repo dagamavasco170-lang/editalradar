@@ -388,9 +388,56 @@ export function calculateAnswerKeyCoverage(questions, answerMap) {
   return validAnswers.filter(([number]) => questionNumbers.has(Number(number))).length / validAnswers.length;
 }
 
-export function enforceWholeBookletGate(validatedQuestions) {
+export function compareQuestionNumberCoverage(questions, answerMap) {
+  const expectedNumbers = answerMap instanceof Map
+    ? [...answerMap.keys()].map(Number).filter(number => Number.isInteger(number) && number > 0).sort((a, b) => a - b)
+    : [];
+  const extractedNumbers = (Array.isArray(questions) ? questions : [])
+    .map(question => Number(question?.source_question_number))
+    .filter(number => Number.isInteger(number) && number > 0);
+  const expectedSet = new Set(expectedNumbers);
+  const extractedSet = new Set(extractedNumbers);
+  const seen = new Set();
+  const duplicateSet = new Set();
+  for (const number of extractedNumbers) {
+    if (seen.has(number)) duplicateSet.add(number);
+    seen.add(number);
+  }
+  const missing = expectedNumbers.filter(number => !extractedSet.has(number));
+  const unexpected = [...extractedSet].filter(number => !expectedSet.has(number)).sort((a, b) => a - b);
+  const duplicates = [...duplicateSet].sort((a, b) => a - b);
+  const complete = expectedNumbers.length > 0
+    && expectedSet.size === expectedNumbers.length
+    && extractedNumbers.length === (Array.isArray(questions) ? questions.length : 0)
+    && extractedNumbers.length === expectedNumbers.length
+    && extractedSet.size === expectedSet.size
+    && missing.length === 0
+    && unexpected.length === 0
+    && duplicates.length === 0;
+  return {
+    complete,
+    expectedCount: expectedNumbers.length,
+    extractedCount: extractedNumbers.length,
+    uniqueExtractedCount: extractedSet.size,
+    missing,
+    unexpected,
+    duplicates
+  };
+}
+
+export function enforceWholeBookletGate(validatedQuestions, { allowValidatedSubset = false } = {}) {
   const items = Array.isArray(validatedQuestions) ? validatedQuestions : [];
   const rejected = items.filter(item => !item?.approved);
+  const approved = items.length - rejected.length;
+  if (allowValidatedSubset && approved > 0 && rejected.length > 0) {
+    return {
+      approved: true,
+      total: items.length,
+      rejected: rejected.length,
+      eligible: approved,
+      mode: "validated_subset"
+    };
+  }
   return { approved: items.length > 0 && rejected.length === 0, total: items.length, rejected: rejected.length };
 }
 
@@ -806,11 +853,17 @@ async function processDocument(record, examLink, keyLink, mode, runId, report, f
     diagnostic.extractedQuestionPages = [...new Set(questions.map(question => Number(question.source_page)).filter(Number.isInteger))].sort((a, b) => a - b);
     diagnostic.answerKeyQuestionNumbers = [...parsedKey.answers.keys()].map(Number).sort((a, b) => a - b);
     const coverage = calculateAnswerKeyCoverage(questions, parsedKey.answers);
+    const numberCoverage = compareQuestionNumberCoverage(questions, parsedKey.answers);
+    diagnostic.questionNumberCompleteness = numberCoverage;
     const missingAnswers = questions.filter(question => !parsedKey.answers.has(Number(question.source_question_number)));
-    if (missingAnswers.length || coverage < MIN_GABARITO_COVERAGE) {
+    if (missingAnswers.length || coverage < MIN_GABARITO_COVERAGE || !numberCoverage.complete) {
       throw new Error(
         "Correspondência prova/gabarito insuficiente: " + Math.round(coverage * 100)
-        + "% do gabarito associado e " + missingAnswers.length + " questão(ões) sem resposta definitiva."
+        + "% do gabarito associado, " + missingAnswers.length + " questão(ões) sem resposta definitiva"
+        + "; conjunto numérico completo: " + numberCoverage.complete
+        + "; faltantes: " + numberCoverage.missing.join(",")
+        + "; duplicados: " + numberCoverage.duplicates.join(",")
+        + "; inesperados: " + numberCoverage.unexpected.join(",") + "."
       );
     }
     stage = diagnostic.stage = "validate_questions";
@@ -827,7 +880,7 @@ async function processDocument(record, examLink, keyLink, mode, runId, report, f
       validations.push({ approved: validation.approved, questionNumber: question.source_question_number, reasons: validation.reasons });
       if (!validation.approved) {
         report.quarantined += 1;
-        report.quarantineReasons.push({ question: question.source_question_number, reasons: validation.reasons });
+        report.quarantineReasons.push({ booklet: examLink.url, question: question.source_question_number, reasons: validation.reasons });
         continue;
       }
       output.push({
@@ -848,12 +901,24 @@ async function processDocument(record, examLink, keyLink, mode, runId, report, f
         }
       });
     }
-    const bookletGate = enforceWholeBookletGate(validations);
+    // When the exact complete question-number set is matched to the definitive
+    // answer key, keep individually approved text-only questions eligible while
+    // quarantining only items that depend on visual material or untrusted OCR.
+    const bookletGate = enforceWholeBookletGate(validations, {
+      allowValidatedSubset: numberCoverage.complete && coverage >= MIN_GABARITO_COVERAGE
+    });
+    diagnostic.validationSummary = {
+      totalValidated: bookletGate.total,
+      rejected: bookletGate.rejected,
+      eligible: bookletGate.eligible ?? (bookletGate.total - bookletGate.rejected),
+      mode: bookletGate.mode || (bookletGate.approved ? "all_questions_validated" : "blocked"),
+      questionNumberSetComplete: numberCoverage.complete
+    };
     if (!bookletGate.approved) {
       report.quarantined += output.length;
       report.quarantineReasons.push({
         booklet: examLink.url,
-        reason: "Caderno inteiro bloqueado: pelo menos uma questão falhou na validação automática.",
+        reason: "Caderno bloqueado: a validação individual não aprovou nenhuma questão, ou o conjunto numérico não está completo.",
         rejectedQuestions: bookletGate.rejected,
         totalQuestions: bookletGate.total
       });
@@ -872,7 +937,9 @@ async function processDocument(record, examLink, keyLink, mode, runId, report, f
     report.processedDocuments += 1;
     report.questionsExtracted += questions.length;
     diagnostic.stage = "completed";
-    diagnostic.status = output.length ? "eligible" : "quarantined";
+    diagnostic.status = output.length
+      ? (bookletGate.mode === "validated_subset" ? "eligible_with_quarantine" : "eligible")
+      : "quarantined";
     diagnostic.eligibleQuestions = output.length;
     diagnostic.coverage = Number(coverage.toFixed(4));
     report.documentDiagnostics.push(diagnostic);
