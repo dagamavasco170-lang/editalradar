@@ -54,6 +54,35 @@ test("extrai itens objetivos e preserva página/número sem inventar gabarito", 
 });
 
 
+test("reconhece questões FGV com o número isolado antes do enunciado", () => {
+  const pages = [{
+    page: 3,
+    text: [
+      "3",
+      "CNS201 - AGENTE DE POLÍCIA JUDICIÁRIA – TARDE TIPO 1 – PÁGINA 4",
+      "1",
+      "Leia o texto a seguir e assinale a alternativa que apresenta a interpretação correta do trecho.",
+      "A) Primeira alternativa com conteúdo textual suficientemente extenso.",
+      "B) Segunda alternativa com conteúdo textual suficientemente extenso.",
+      "C) Terceira alternativa com conteúdo textual suficientemente extenso.",
+      "D) Quarta alternativa com conteúdo textual suficientemente extenso.",
+      "E) Quinta alternativa com conteúdo textual suficientemente extenso.",
+      "2",
+      "Observe a seguir o cartaz de campanha e assinale a alternativa correta sobre os componentes verbais e visuais.",
+      "A) Primeira alternativa com conteúdo textual suficientemente extenso.",
+      "B) Segunda alternativa com conteúdo textual suficientemente extenso.",
+      "C) Terceira alternativa com conteúdo textual suficientemente extenso.",
+      "D) Quarta alternativa com conteúdo textual suficientemente extenso.",
+      "E) Quinta alternativa com conteúdo textual suficientemente extenso."
+    ].join("\n")
+  }];
+  const rows = parseExamPages(pages, documentHash);
+  assert.equal(rows.length, 2);
+  assert.deepEqual(rows.map(row => row.source_question_number), [1, 2]);
+  assert.equal(rows[0].options.length, 5);
+  assert.match(rows[1].review_notes, /dependência de imagem/);
+});
+
 test("reconhece opções Cebraspe com letra separada por espaço e aspas tipográficas", () => {
   const pages = [{
     page: 1,
