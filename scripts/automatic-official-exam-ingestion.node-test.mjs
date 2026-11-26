@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   calculateAnswerKeyCoverage,
+  enforceWholeBookletGate,
   classifyOfficialPdfLink,
   extractOfficialPdfLinks,
   extractOfficialSubpageLinks,
@@ -268,4 +269,9 @@ test("official resource fetch verifies PDF signature and returns bounded bytes",
   const result = await fetchOfficialResource("https://cdn.cebraspe.org.br/exemplo.pdf", { fetchImpl });
   assert.equal(result.isPdf, true);
   assert.equal(result.bytes.subarray(0, 5).toString("ascii"), "%PDF-");
+});
+
+test("whole-booklet gate blocks every item when one question fails", () => {
+  assert.deepEqual(enforceWholeBookletGate([{ approved: true }, { approved: false }, { approved: true }]), { approved: false, total: 3, rejected: 1 });
+  assert.deepEqual(enforceWholeBookletGate([{ approved: true }, { approved: true }]), { approved: true, total: 2, rejected: 0 });
 });
