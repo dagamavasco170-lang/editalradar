@@ -54,13 +54,15 @@ Execute:
 
 O utilitário é local/offline: recebe um arquivo PDF já obtido, não faz scraping nem requisições HTTP e não grava no Supabase. Ele calcula SHA-256, extrai texto com layout, tenta OCR apenas em páginas com camada textual ausente/insuficiente, respeita limites de tamanho/páginas/OCR e gera um manifesto JSON. O envio do manifesto pela área administrativa apenas cria rascunhos na tabela de staging.
 
+A ingestão automática por service_role não faz parte desta versão: não há worker de importação no workflow nem comando de publicação automática. O Supabase recebe apenas as ações do administrador autenticado ao enviar o manifesto e aprovar cada questão.
+
 A publicação usa a função SQL publish_study_exam_question_import. Ela bloqueia o registro pendente, confere permissões/fundamento e alternativa escolhida e grava questão, gabarito separado e status da fila na mesma transação PostgreSQL. Em caso de erro, toda a operação é revertida.
 
 Nesta versão, a única entrada ativa é PDF local → manifesto → fila administrativa → confirmação humana → publicação transacional. A rotina de ingestão automática com SUPABASE_SERVICE_ROLE_KEY não é ativada pelo workflow nem possui comando operacional no package.json. O módulo auxiliar de descoberta/validação falha de forma segura quando sua função de execução automática é invocada.
 
 ## Revisão obrigatória
 
-O parser é heurístico: reconhece questões numeradas com alternativas A-F e, quando question_format="true_false", itens Cebraspe identificados como ITEM N, criando as opções C/Certo e E/Errado sem preencher o gabarito. Não é um OCR jurídico nem garante que toda questão foi reconhecida. Para provas Cebraspe de julgamento, informe question_format="true_false" nos metadados; para provas de múltipla escolha, use "multiple_choice". O manifesto não preenche gabarito (suggested_answer permanece null). Itens com figuras, tabelas, gráficos, mapas ou texto externo recebem alerta de revisão visual.
+O parser é heurístico: reconhece questões numeradas com alternativas A-F e, quando question_format="true_false", itens Cebraspe identificados por ITEM N ou por numeração simples N texto, criando as opções C/Certo e E/Errado sem preencher o gabarito. Não é um OCR jurídico nem garante que toda questão foi reconhecida. Para provas Cebraspe de julgamento, informe question_format="true_false" nos metadados; para provas de múltipla escolha, use "multiple_choice". O manifesto não preenche gabarito (suggested_answer permanece null). Itens com figuras, tabelas, gráficos, mapas ou texto externo recebem alerta de revisão visual.
 
 Antes de inserir/publicar:
 1. confira todas as páginas do PDF, especialmente páginas que receberam OCR;
