@@ -106,7 +106,10 @@ D
   assert.equal(sections[1].answers.get(1), "E");
   assert.equal(sections[2].answers.get(2), "C");
 
-  const record = { role_name: "", exam_name: "Polícia Civil do Estado do Paraná" };
+  const record = {
+    role_name: "Delegado de Polícia, Agente de Polícia Judiciária e Papiloscopista Policial",
+    exam_name: "Polícia Civil do Estado do Paraná"
+  };
   const agentType1 = {
     label: "Tipo 1",
     url: "https://conhecimento.fgv.br/sites/default/files/concursos/cns201-agente-de-policia-judiciaria-cns201-tipo-1.pdf"
@@ -122,6 +125,11 @@ D
   assert.equal(selectAnswerKeySection(agentType1, record, sections)?.bookletNumber, "1");
   assert.equal(selectAnswerKeySection(agentType2, record, sections)?.answers.get(1), "E");
   assert.equal(selectAnswerKeySection(delegateType1, record, sections)?.role, "Delegado de Polícia");
+  const papiloscopistaType1 = {
+    label: "Tipo 1",
+    url: "https://conhecimento.fgv.br/sites/default/files/concursos/cns201-papiloscopista-policial-cns201-tipo-1.pdf"
+  };
+  assert.equal(selectAnswerKeySection(papiloscopistaType1, record, sections)?.role, "Papiloscopista Policial");
   assert.equal(selectAnswerKeySection({ label: "Tipo 4", url: "https://conhecimento.fgv.br/cns201-agente-de-policia-judiciaria-tipo-4.pdf" }, record, sections), null);
 });
 
