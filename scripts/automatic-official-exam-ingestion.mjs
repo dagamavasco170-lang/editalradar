@@ -215,24 +215,21 @@ function parseAnswerRows(text, questionFormat = "multiple_choice") {
     pendingNumbers = [];
   }
 
-  // FGV PDF text extraction can split a compact table into isolated lines (question
-  // number on one line, answer on the next). Recover that layout without relying on
-  // page-header numbers or prose: only single-token lines are accepted and pairing
-  // must form a plausible sequence of question numbers.
+  // FGV extraction can split a compact table into isolated lines (number then answer).
+  // Only single-token lines are paired, and page headers are explicitly ignored.
   if (answers.size < 5) {
     const streamAnswers = new Map();
     let pendingNumber = null;
-    for (const rawLine of String(text || "").replace(/\\r/g, "").split("\\n")) {
-      const line = rawLine.trim().replace(/\\*/g, " ANULADA ").toUpperCase();
-      if (!line || /\\bP[AÁ]GINA\\s+\\d+\\s+DE\\s+\\d+\\b/.test(line)) { pendingNumber = null; continue; }
-      const tokens = (line.match(/\\b(?:\\d{1,3}|ANULADA|[A-F]|X)\\b/gi) || []).map(token => token.toUpperCase());
-      const residue = line.replace(/\\b(?:\\d{1,3}|ANULADA|[A-F]|X)\\b/gi, "").replace(/[^A-Za-z0-9]/g, "");
+    for (const rawLine of String(text || "").replace(/\r/g, "").split("\n")) {
+      const line = rawLine.trim().replace(/\*/g, " ANULADA ").toUpperCase();
+      if (!line || /\bP[AÁ]GINA\s+\d+\s+DE\s+\d+\b/.test(line)) { pendingNumber = null; continue; }
+      const tokens = (line.match(/\b(?:\d{1,3}|ANULADA|[A-F]|X)\b/gi) || []).map(token => token.toUpperCase());
+      const residue = line.replace(/\b(?:\d{1,3}|ANULADA|[A-F]|X)\b/gi, "").replace(/[^A-Za-z0-9]/g, "");
       if (residue || tokens.length !== 1) { pendingNumber = null; continue; }
       const token = tokens[0];
-      if (/^\\d{1,3}$/.test(token)) {
+      if (/^\d{1,3}$/.test(token)) {
         const number = Number(token);
-        if (number >= 1 && number <= 300) pendingNumber = number;
-        else pendingNumber = null;
+        pendingNumber = number >= 1 && number <= 300 ? number : null;
         continue;
       }
       if (pendingNumber !== null && isAnswer(token)) {
