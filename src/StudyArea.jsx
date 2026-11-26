@@ -5,7 +5,7 @@ import { buildQuestionProgressMetrics } from "./lib/question-progress-metrics.js
 import { buildStudyRecommendations } from "./lib/study-recommendations.js";
 import { buildTopicMastery, buildWeeklyStudyProgress } from "./lib/topic-mastery.js";
 import { buildAdaptiveStudySessions } from "./lib/adaptive-study-plan.js";
-import { buildTutorSignals } from "./lib/tutor-intelligence.js";
+import { buildTutorSignals, buildAdaptiveQuestionPlan } from "./lib/tutor-intelligence.js";
 
 const SimulatorPanel = React.lazy(() => import("./SimulatorPanel.jsx"));
 const ExamSourcesPanel = React.lazy(() => import("./ExamSourcesPanel.jsx"));
@@ -192,7 +192,7 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
  const question=filtered.length?filtered[index%filtered.length]:null;
  const questionAttempt=question?latestAttempts[question.id]:null;
  const progressMetrics=useMemo(()=>buildQuestionProgressMetrics({attempts:questionProgress.attempts,questions:allQuestions}),[questionProgress.attempts,allQuestions]);
- const {totalAttempts,totalCorrect,accuracy,uniqueAnswered}=progressMetrics;
+ const {totalAttempts,totalCorrect,accuracy,uniqueAnswered}=progressMetrics;\n const adaptiveQuestionPlan=useMemo(()=>buildAdaptiveQuestionPlan({questions:allQuestions,latestAttempts}),[allQuestions,latestAttempts]);\n const adaptiveCurrent=question?adaptiveQuestionPlan.find(item=>item.id===question.id):null;\n const topicRecentAttempts=question?questionProgress.attempts.filter(item=>allQuestions.find(q=>q.id===item.questionId)?.topic===question.topic).slice(-5):[];\n const consecutiveCorrect=topicRecentAttempts.slice().reverse().reduce((state,item)=>item.correct&&!state.stopped?{count:state.count+1,stopped:false}:{count:state.count,stopped:true},{count:0,stopped:false}).count;\n const nextAdaptiveQuestion=()=>{const candidates=adaptiveQuestionPlan.filter(item=>item.id!==question?.id&&filtered.some(q=>q.id===item.id));if(!candidates.length)return;const target=filtered.findIndex(q=>q.id===candidates[0].id);if(target>=0){setIndex(target);setAnswer("");setChecked(false);setAnswerFeedback(null);}};
  const studyRecommendations=useMemo(()=>buildStudyRecommendations({questions:allQuestions,attempts:questionProgress.attempts}),[allQuestions,questionProgress.attempts]);
  const topicMastery=useMemo(()=>buildTopicMastery({questions:allQuestions,attempts:questionProgress.attempts}),[allQuestions,questionProgress.attempts]);
  const weeklyStudyProgress=useMemo(()=>buildWeeklyStudyProgress({attempts:questionProgress.attempts}),[questionProgress.attempts]);
@@ -379,7 +379,7 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
      <button type="button" className={"question-bookmark"+(savedQuestions.has(question.id)?" saved":"")} aria-label={savedQuestions.has(question.id)?"Remover questão salva":"Salvar questão"} aria-pressed={savedQuestions.has(question.id)} onClick={toggleSavedQuestion}>{savedQuestions.has(question.id)?"★":"☆"}</button>
     </div>
     <div className="question-index">Questão {index+1} de {filtered.length}{questionAttempt?" · "+(questionAttempt.correct?"Última resposta correta":"Última resposta incorreta"):" · Ainda não respondida"}</div>
-    <h3>{question.prompt}</h3>
+    <div className="adaptive-question-coach" aria-label="Tutor adaptativo ativo"><div><strong>🎯 Tutor adaptativo</strong><p>{adaptiveCurrent?.due?"Revisão indicada: vamos reforçar este assunto.":"Ajustando sua prática com base no histórico deste assunto."}</p></div><div className="adaptive-coach-stats"><span><small>Nível sugerido</small><b>{adaptiveCurrent?.level||question.difficulty}</b></span><span><small>Desempenho no tema</small><b>{adaptiveCurrent?.accuracy||0}%</b></span><span><small>Acertos seguidos</small><b>{consecutiveCorrect}</b></span></div><button type="button" className="detail-btn" onClick={nextAdaptiveQuestion} disabled={!filtered.some(q=>adaptiveQuestionPlan.find(p=>p.id===q.id&&q.id!==question.id))}>Seguir trilha adaptativa →</button></div><h3>{question.prompt}</h3>
     <div className="question-options">{question.options.map(([label,value])=><button type="button" key={value} disabled={checked||checking} className={"option "+(answer===value?"chosen ":"")+(checked&&answerFeedback?.correct&&answer===value?"correct":checked&&answer===value&&!answerFeedback?.correct?"wrong":"")} onClick={()=>setAnswer(value)}>{label}</button>)}</div>
     <div className="question-actions">
      <button className="primary-btn" type="button" disabled={!answer||checked||checking} onClick={check}>{checking?"Corrigindo…":"Conferir resposta"}</button>
@@ -387,7 +387,7 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
      <button className="detail-btn" type="button" onClick={randomQuestion} disabled={filtered.length<2}>Questão aleatória</button>
     </div>
     {answerFeedback?.error&&<p className="answer bad" role="alert">{answerFeedback.error}</p>}
-    {checked&&<p className={"answer "+(answerFeedback?.correct?"good":"bad")} role="status">{answerFeedback?.correct?"Resposta correta. ":"Resposta incorreta. "}{answerFeedback?.explanation}</p>}
+    {checked&&<><p className={"answer "+(answerFeedback?.correct?"good":"bad")} role="status">{answerFeedback?.correct?"Resposta correta. ":"Resposta incorreta. "}{answerFeedback?.explanation}</p>{!answerFeedback?.correct&&<div className="adaptive-recovery-card"><strong>Reforço de aprendizagem</strong><p>Revise a explicação, identifique o conceito que levou ao erro e tente outra questão do mesmo assunto em nível recomendado {adaptiveCurrent?.level||"Fácil"}.</p><button type="button" className="detail-btn" onClick={nextAdaptiveQuestion}>Praticar outro exercício adaptado</button></div>}</>}
     <small className="study-disclaimer">{question.origin==="exam_import"?"Questão extraída de prova oficialmente divulgada. Fundamento registrado: "+rightsBasisLabel(question.rightsBasis)+". Fonte: "+question.sourceUrl:question.origin==="licensed"?"Questão real reproduzida sob licença/autorização registrada. Fonte: "+question.sourceUrl:"Questão autoral criada pelo EditalRadar em formato de treino. Não é questão oficial nem reprodução de prova."} Confira sempre o edital e a legislação atualizada.</small>
    </div>:<div className="question-empty"><strong>Nenhuma questão nesta seleção.</strong><p>Altere os filtros ou escolha outra coleção para continuar praticando.</p><button type="button" className="detail-btn" onClick={()=>{setDiscipline("Todas");setBoard("Todas");setDifficulty("Todas");setQuestionSearch("");setOriginFilter("Todas");selectCollection("all");}}>Limpar filtros</button></div>}
   </section>
