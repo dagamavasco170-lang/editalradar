@@ -133,6 +133,23 @@ test("registra o motivo estrutural de uma questão rejeitada", () => {
   ));
 });
 
+test("não marca um trecho textual incluído no enunciado como dependência visual", () => {
+  const rows = parseExamPages([{
+    page: 10,
+    text: [
+      "QUESTÃO 22",
+      "Leia o texto a seguir: A segurança pública exige integração entre instituições e transparência na atuação estatal.",
+      "O texto destaca a importância da cooperação e da prevenção para a proteção da sociedade.",
+      "(A) A integração institucional contribui para a prevenção e a proteção social.",
+      "(B) A atuação isolada substitui a cooperação entre as instituições públicas.",
+      "(C) A transparência impede a prestação de serviços de segurança pública.",
+      "(D) A prevenção dispensa o planejamento das políticas públicas."
+    ].join("\n")
+  }], documentHash);
+  assert.equal(rows.length, 1);
+  assert.doesNotMatch(rows[0].review_notes, /dependência de imagem|dependência visual/i);
+});
+
 test("reconhece questões FGV com o número isolado antes do enunciado", () => {
   const pages = [{
     page: 3,
