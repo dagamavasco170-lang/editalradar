@@ -78,6 +78,76 @@ const retryAfterMilliseconds = (headers, now = Date.now()) => {
   return Number.isFinite(date) ? Math.max(0, Math.min(10000, date - now)) : null;
 };
 
+export function buildSourceConditionalHeaders(previous) {
+  const headers = {};
+  const etag = previous?.etag;
+  const lastModified = previous?.lastModified;
+  const safeHeaderValue = value => typeof value === "string" && value.length > 0
+    && value.length <= 512 && !value.includes("\r") && !value.includes("\n") && !value.includes("\0");
+  if (safeHeaderValue(etag)) headers["If-None-Match"] = etag;
+  if (safeHeaderValue(lastModified) && lastModified.length <= 128 && Number.isFinite(Date.parse(lastModified))) {
+    headers["If-Modified-Since"] = lastModified;
+  }
+  return headers;
+}
+
+export async function readResponseBytes(response, maxBytes = MAX_BYTES) {
+  const contentLength = Number(response?.headers?.get?.("content-length") || 0);
+  if (Number.isFinite(contentLength) && contentLength > maxBytes) {
+    throw new Error("Resposta excede o limite de " + Math.round(maxBytes / (1024 * 1024)) + " MB.");
+  }
+  const reader = response?.body?.getReader?.();
+  if (!reader) {
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    if (bytes.byteLength > maxBytes) {
+      throw new Error("Resposta excede o limite de " + Math.round(maxBytes / (1024 * 1024)) + " MB.");
+    }
+    return bytes;
+  }
+
+  const chunks = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = value instanceof Uint8Array ? value : new Uint8Array(value);
+      total += chunk.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel().catch(() => {});
+        throw new Error("Resposta excede o limite de " + Math.round(maxBytes / (1024 * 1024)) + " MB.");
+      }
+      chunks.push(chunk);
+    }
+  } catch (error) {
+    await reader.cancel().catch(() => {});
+    throw error;
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return bytes;
+}
+
+function hasPdfSignature(bytes) {
+  return new TextDecoder("latin1")
+    .decode(bytes.subarray(0, Math.min(bytes.byteLength, 1024)))
+    .includes("%PDF-");
+}
+
+function isLikelyAntiBotHtml(html) {
+  const sample = String(html || "").slice(0, 64 * 1024).toLowerCase();
+  return [
+    "cf-chl-", "cloudflare ray id", "just a moment", "checking your browser",
+    "verify you are human", "captcha challenge", "access denied", "request blocked",
+    "automated requests", "bot detection", "incapsula", "perimeterx",
+    "akamai bot manager", "ddos-guard"
+  ].some(marker => sample.includes(marker));
+}
+
 export async function fetchOfficialSourceWithCurl(url, options = {}) {
   const safeUrl = validateTrustedOfficialUrl(url).href;
   const timeoutMs = Math.max(1000, Number(options.timeoutMs) || 20000);
@@ -97,6 +167,13 @@ export async function fetchOfficialSourceWithCurl(url, options = {}) {
       "--header", "Accept: text/html,application/xhtml+xml,application/pdf;q=0.9,*/*;q=0.7",
       "--header", "Accept-Language: pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
       "--header", "Cache-Control: no-cache",
+      ...Object.entries(options.conditionalHeaders || {}).flatMap(([name, value]) =>
+        /^(?:if-none-match|if-modified-since)$/i.test(name)
+          && typeof value === "string" && value.length <= 512
+          && !value.includes("\r") && !value.includes("\n") && !value.includes("\0")
+          ? ["--header", name + ": " + value]
+          : []
+      ),
       "--dump-header", headersPath,
       "--output", bodyPath,
       "--write-out", "%{http_code}\n%{url_effective}\n%{content_type}",
@@ -169,7 +246,8 @@ export async function fetchOfficialSource(url, options = {}) {
           signal: AbortSignal.timeout(timeoutMs),
           headers: {
             "User-Agent": "EditalRadar-SourceMonitor/1.0 (+https://github.com/dagamavasco170-lang/editalradar)",
-            Accept: "text/html,application/xhtml+xml,application/pdf;q=0.9,*/*;q=0.7"
+            Accept: "text/html,application/xhtml+xml,application/pdf;q=0.9,*/*;q=0.7",
+            ...(options.conditionalHeaders || {})
           }
         });
         if ([401, 403, 429].includes(response.status) && typeof options.fallbackFetch === "function") {
@@ -179,7 +257,8 @@ export async function fetchOfficialSource(url, options = {}) {
               headers: {
                 "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 EditalRadar/1.0",
                 Accept: "text/html,application/xhtml+xml,application/pdf;q=0.9,*/*;q=0.7",
-                "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7"
+                "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
+                ...(options.conditionalHeaders || {})
               }
             });
             if (fallbackResponse && ![401, 403].includes(fallbackResponse.status)) {
@@ -386,7 +465,7 @@ export function wasSourceAccessRestricted(previous) {
 export function compareSource(url, previous, current) {
   if (!current.ok) {
     const status = Number(current.status || String(current.error || "").match(/\bHTTP\s+(\d{3})\b/i)?.[1] || 0);
-    if ([401, 403, 429].includes(status)) {
+    if (current.restricted || [401, 403, 429].includes(status)) {
       return {
         type: "restricted",
         url,
@@ -409,34 +488,88 @@ export function pruneSourceState(sources = {}, monitoredUrls = []) {
   return { sources: retained, removed };
 }
 
-async function fetchSource(url) {
-  const { response, finalUrl, usedFallbackTransport } = await fetchOfficialSource(url, {
-    fallbackFetch: fetchOfficialSourceWithCurl
-  });
+export async function fetchSource(url, previous = null, options = {}) {
+  const fallbackFetch = options.fallbackFetch || fetchOfficialSourceWithCurl;
+  const conditionalHeaders = buildSourceConditionalHeaders(previous);
+  const fetchOptions = { ...options, fallbackFetch, conditionalHeaders };
+  const { response, finalUrl, usedFallbackTransport } = await fetchOfficialSource(url, fetchOptions);
+
+  if (response.status === 304) {
+    if (typeof previous?.sha256 === "string" && previous.sha256) {
+      const {
+        lastFailureType, lastStatus, lastError, lastCheckedAt,
+        ...stablePrevious
+      } = previous;
+      return {
+        ...stablePrevious,
+        ok: true,
+        notModified: true,
+        status: 304,
+        finalUrl: finalUrl || previous.finalUrl || url,
+        etag: response.headers?.get?.("etag") || previous.etag || null,
+        lastModified: response.headers?.get?.("last-modified") || previous.lastModified || null,
+        transport: usedFallbackTransport ? "curl-fallback" : "fetch",
+        checkedAt: new Date().toISOString()
+      };
+    }
+    throw new Error("A fonte respondeu HTTP 304 sem uma versão anterior válida para reutilizar.");
+  }
+
   if (!response.ok) {
     const error = new Error("HTTP " + response.status + " " + response.statusText);
     error.status = response.status;
     throw error;
   }
 
-  const contentType = response.headers.get("content-type") || "application/octet-stream";
-  const contentLength = Number(response.headers.get("content-length") || 0);
-  if (contentLength > MAX_BYTES) throw new Error("Resposta excede o limite de 12 MB.");
-  const bytes = new Uint8Array(await response.arrayBuffer());
-  if (bytes.byteLength > MAX_BYTES) throw new Error("Resposta excede o limite de 12 MB.");
-  const content = /html|text\//i.test(contentType) ? new TextDecoder("utf-8").decode(bytes) : bytes;
-  const opportunityLinks = /html/i.test(contentType)
+  const bytes = await readResponseBytes(response, MAX_BYTES);
+  let contentType = response.headers.get("content-type") || "";
+  const mediaType = contentType.split(";")[0].trim().toLowerCase();
+  const pdf = hasPdfSignature(bytes);
+  const preview = new TextDecoder("utf-8").decode(bytes.subarray(0, Math.min(bytes.byteLength, 2048))).trimStart().toLowerCase();
+  const looksHtml = preview.startsWith("<!doctype html")
+    || ["<html", "<head", "<body"].some(prefix => preview.startsWith(prefix));
+  const textTypes = new Set([
+    "text/html", "text/plain", "text/xml", "application/xhtml+xml",
+    "application/xml", "application/rss+xml", "application/atom+xml"
+  ]);
+  const isText = mediaType.startsWith("text/") || textTypes.has(mediaType);
+  const isPdf = mediaType === "application/pdf" || pdf;
+
+  if (!mediaType && looksHtml) contentType = "text/html";
+  else if (!isText && !isPdf) {
+    const error = new Error("Tipo de conteúdo não suportado para monitoramento: " + (mediaType || "não informado") + ".");
+    error.status = response.status;
+    error.code = "UNSUPPORTED_SOURCE_CONTENT_TYPE";
+    throw error;
+  }
+  if (mediaType === "application/pdf" && !pdf) {
+    const error = new Error("A fonte declarou PDF, mas a resposta não contém uma assinatura PDF válida.");
+    error.status = response.status;
+    error.code = "INVALID_SOURCE_DOCUMENT";
+    throw error;
+  }
+
+  const content = isText || looksHtml
+    ? new TextDecoder("utf-8").decode(bytes)
+    : bytes;
+  if ((/html|xhtml/i.test(contentType) || looksHtml) && isLikelyAntiBotHtml(content)) {
+    const error = new Error("A fonte respondeu HTTP 200 com uma página de bloqueio/WAF; a coleta não será considerada bem-sucedida.");
+    error.status = response.status;
+    error.code = "SOURCE_RESTRICTED";
+    throw error;
+  }
+  const opportunityLinks = (/html|xhtml/i.test(contentType) || looksHtml)
     ? extractOpportunityLinks(content, finalUrl)
     : [];
 
   return {
     ok: true,
-    sha256: fingerprintContent(content, contentType),
+    sha256: fingerprintContent(content, contentType || (pdf ? "application/pdf" : "text/plain")),
     opportunityLinks,
     opportunityLinkFilterVersion: 6,
     status: response.status,
     finalUrl,
-    contentType,
+    contentType: contentType || (pdf ? "application/pdf" : "text/plain"),
     transport: usedFallbackTransport ? "curl-fallback" : "fetch",
     etag: response.headers.get("etag"),
     lastModified: response.headers.get("last-modified"),
@@ -1094,8 +1227,17 @@ async function runMonitor() {
   const firstRun = Object.keys(oldState.sources).length === 0;
   const concurrency = Math.max(1, Math.min(8, Number(process.env.MONITOR_CONCURRENCY) || 4));
   const checked = await mapWithConcurrency(urls, concurrency, async (url) => {
-    try { return { url, current: await fetchSource(url) }; }
-    catch (error) { return { url, current: { ok: false, status: Number(error?.status) || null, error: error.message, checkedAt: new Date().toISOString() } }; }
+    const previous = oldState.sources[url];
+    try { return { url, current: await fetchSource(url, previous) }; }
+    catch (error) {
+      return { url, current: {
+        ok: false,
+        status: Number(error?.status) || null,
+        restricted: error?.code === "SOURCE_RESTRICTED",
+        error: error.message,
+        checkedAt: new Date().toISOString()
+      } };
+    }
   });
 
   const nextSources = { ...oldState.sources };
