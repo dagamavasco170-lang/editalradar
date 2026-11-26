@@ -78,6 +78,29 @@ test("reutiliza snapshot em HTTP 304 e envia ETag/Last-Modified na próxima cole
   assert.equal(current.lastError, undefined);
 });
 
+test("não contorna HTTP 429 com curl nem repete antes de Retry-After longo", async () => {
+  let primaryCalls = 0;
+  let fallbackCalls = 0;
+  const waits = [];
+  const result = await fetchOfficialSource("https://orgao.gov.br/concursos", {
+    attempts: 3,
+    retryDelayMs: 5,
+    sleepImpl: async milliseconds => waits.push(milliseconds),
+    fetchImpl: async url => {
+      primaryCalls += 1;
+      return { status: 429, headers: new Headers({ "retry-after": "120" }), url };
+    },
+    fallbackFetch: async url => {
+      fallbackCalls += 1;
+      return { status: 200, headers: new Headers(), url };
+    }
+  });
+  assert.equal(result.response.status, 429);
+  assert.equal(primaryCalls, 1);
+  assert.equal(fallbackCalls, 0);
+  assert.deepEqual(waits, []);
+});
+
 test("não aceita HTTP 304 sem baseline e não inventa hash", async () => {
   await assert.rejects(() => fetchSource("https://orgao.gov.br/concursos", null, {
     fetchImpl: async () => new Response(null, { status: 304 })
