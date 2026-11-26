@@ -263,7 +263,8 @@ export function parseOfficialAnswerKeyVariants(text, questionFormat = "multiple_
       shift: section.shift,
       answers: parsed.answers,
       conflicts: parsed.conflicts,
-      parsedCount: parsed.parsedCount
+      parsedCount: parsed.parsedCount,
+      sampleLines: section.lines.slice(0, 24).map(line => String(line).trim()).filter(Boolean)
     };
   });
 }
@@ -955,7 +956,7 @@ export async function runAutomaticOfficialExamIngestion({ mode = "dry-run", limi
                 source: record.source_url,
                 proof: examLink.url,
                 answerKey: keyLink.url,
-                reason: String(error?.message || error).slice(0, 500)
+                reason: String(error?.message || error).slice(0, 1600)
               });
             } else {
               report.failures.push({
