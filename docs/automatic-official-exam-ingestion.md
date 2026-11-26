@@ -11,7 +11,7 @@ O worker descobre documentos publicados em fontes oficiais, extrai questões, as
 3. **Download**: valida novamente cada redirect, rejeita destino fora da allowlist, aplica limite de 5 MB para páginas HTML e 25 MB para PDFs, timeout e tentativas limitadas. Não contorna WAF, CAPTCHA, login, paywall, robots nem 401/403/429. PDFs devem conter assinatura `%PDF-`.
 4. **Extração**: usa Poppler e Tesseract português, com os limites do importador existente (até 300 páginas e até 60 páginas selecionadas para OCR). Preserva página e numeração de origem. Nesta versão, qualquer questão extraída por OCR é inelegível para autopublicação.
 5. **Gabarito**: só aceita gabarito cuja publicação definitiva esteja indicada por evidência na URL, página ou notas do registro e confirmada no próprio conteúdo. O parser suporta linhas numeradas, tabelas textuais e gabaritos consolidados por cargo/caderno/turno; `*` é tratado como questão anulada. A seção é associada ao PDF da prova por cargo e tipo do caderno, e só é aceita quando existe exatamente uma correspondência. Gabarito preliminar, conflito, associação ambígua, layout não reconhecido ou OCR no gabarito impedem a publicação. A resposta nunca é inferida pelo enunciado.
-6. **Validação**: verifica enunciado, alternativas, identificadores, dependência de imagens/tabelas/gráficos/mapas/texto externo, hashes, fingerprints, respostas anuladas e correspondência de **100% das respostas não anuladas do gabarito** com as questões extraídas. Se faltar uma questão ou resposta, o caderno inteiro não é autopublicado.
+6. **Validação**: verifica enunciado, alternativas, identificadores, dependência de imagens/tabelas/gráficos/mapas/texto externo, hashes, fingerprints, respostas anuladas e correspondência de **100% do conjunto numérico do gabarito**, incluindo posições anuladas, com as questões extraídas, sem faltantes, duplicatas ou números inesperados. Se a cobertura do caderno não for integral, nada desse caderno é autopublicado. Com cobertura integral comprovada, somente questões que passam individualmente em todos os controles ficam elegíveis; itens com dependência visual, externa ou OCR permanecem em quarentena.
 7. **Publicação**: no modo `publish`, registra auditoria e staging e chama a RPC `publish_study_exam_question_import_automated`. A RPC confirma proveniência, hashes, URL, evidências, resposta e execução ativa, e grava questão, gabarito e status numa transação. Duplicatas não criam novas questões.
 8. **Relatório**: registra fontes, links intermediários, candidatos a prova/gabarito, documentos sem associação, erros de rede, questões extraídas, duplicatas, quarentena e publicações.
 
@@ -22,8 +22,9 @@ Todos devem passar:
 - prova e gabarito definitivo em PDF válido, sem OCR;
 - correspondência inequívoca do caderno/versão;
 - parser íntegro, questão textual completa e alternativas sequenciais;
-- nenhum conteúdo visual ou externo necessário para resolver a questão;
-- gabarito sem conflito, com 100% de cobertura das questões não anuladas;
+- nenhum conteúdo visual ou externo necessário para resolver a questão individual;
+- gabarito sem conflito e conjunto exato de 100% dos números de questão, incluindo anuladas;
+- publicação limitada ao subconjunto de questões aprovadas individualmente, apenas quando a cobertura integral do caderno estiver comprovada;
 - hashes, fingerprints e proveniência vinculados no staging;
 - RPC transacional e execução de auditoria válidas.
 
@@ -34,7 +35,7 @@ Falhou qualquer gate, o worker não publica a questão. Não existe fallback par
 - A descoberta depende de `study_exam_sources` e dos concursos já listados; não é um crawler genérico de todos os concursos do Brasil.
 - A expansão segue somente uma camada de até três páginas intermediárias por página cadastrada. Páginas dinâmicas, formulários, links sem texto útil ou portais que bloqueiam acesso podem não ser descobertos.
 - O parser de gabaritos é heurístico: reconhece linhas numeradas, pares questão/resposta e tabelas textuais onde números e respostas aparecem em linhas consecutivas, além de seções por cargo/caderno/turno. Formatos de imagem, layouts não reconhecidos e associações ambíguas são recusados.
-- Questões com OCR, elementos gráficos, charges, tabelas, mapas, texto externo ou ambiguidades não são autopublicadas.
+- Questões com OCR, elementos gráficos, charges, tabelas, mapas, texto externo ou ambiguidades ficam em quarentena; outras questões do mesmo caderno só podem ficar elegíveis quando todos os 100 números do gabarito estiverem extraídos uma única vez e associados sem conflito.
 - Ainda não há dois verificadores de IA independentes. O score 100 na RPC representa a aprovação de todos os gates determinísticos; não é uma nota de IA.
 - Ainda não há reconciliação automática de retificações posteriores, mudanças de gabarito nem notificação de usuários afetados.
 - Ainda faltam validação de DNS contra DNS rebinding, uso de ETag/Last-Modified e testes integrados da RPC em banco descartável.
