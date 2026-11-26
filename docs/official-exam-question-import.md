@@ -56,6 +56,12 @@ O utilitário é local/offline: recebe um arquivo PDF já obtido, não faz scrap
 
 A publicação usa a função SQL publish_study_exam_question_import. Ela bloqueia o registro pendente, confere permissões/fundamento e alternativa escolhida e grava questão, gabarito separado e status da fila na mesma transação PostgreSQL. Em caso de erro, toda a operação é revertida.
 
+## Limite da automação
+
+A descoberta/ingestão automática com credencial de serviço e publicação automática está desativada nesta entrega. O workflow de monitoramento não chama o publicador automático, e o módulo auxiliar `scripts/import-official-exam-questions.mjs` falha de forma segura quando executado diretamente. Ele mantém apenas utilitários de parsing/validação usados por testes. Não configurar `service_role` para executar esse fluxo.
+
+A única rota de entrada nesta versão é: PDF local → manifesto → fila administrativa → confirmação humana → função SQL transacional. A migration não cria a tabela de métricas de ingestão agendada nem permissões de escrita para um worker automático.
+
 ## Revisão obrigatória
 
 O parser é heurístico: reconhece questões numeradas com alternativas A-F e, quando question_format="true_false", itens Cebraspe identificados como ITEM N, criando as opções C/Certo e E/Errado sem preencher o gabarito. Não é um OCR jurídico nem garante que toda questão foi reconhecida. Para provas Cebraspe de julgamento, informe question_format="true_false" nos metadados; para provas de múltipla escolha, use "multiple_choice". O manifesto não preenche gabarito (suggested_answer permanece null). Itens com figuras, tabelas, gráficos, mapas ou texto externo recebem alerta de revisão visual.
