@@ -2,7 +2,7 @@ import test from "node:test";
 import { buildSourceMonitorIssueReport, sourceMonitorIssueNeedsUpdate } from "./source-monitor-issue-report.mjs";
 import assert from "node:assert/strict";
 import { concursos } from "../src/data/concursos.js";
-import { collectSourceUrls, compareSource, wasSourceAccessRestricted, fingerprintContent, normalizeHtml, extractOpportunityLinks, buildDiscoveriesForSource, fetchOfficialSource, fetchNewsFeedWithRetry, isTrustedOfficialHost, pruneSourceState, buildGoogleNewsRssUrl, parseGoogleNewsRss, searchInternetForContestLeads, filterUnseenWebSearchDiscoveries, INTERNET_SEARCH_QUERIES, classifyContestLead, SECONDARY_NEWS_FEEDS, parseSecondaryNewsRss, isActionableSecondaryNewsLead, fetchNewsFeedWithCurl, isSameTrustedSecondaryFeedPublisher, resolveTrustedSecondaryFeedRedirect } from "./monitor-sources.mjs";
+import { collectSourceUrls, compareSource, summarizeSourceChecks, wasSourceAccessRestricted, fingerprintContent, normalizeHtml, extractOpportunityLinks, buildDiscoveriesForSource, fetchOfficialSource, fetchNewsFeedWithRetry, isTrustedOfficialHost, pruneSourceState, buildGoogleNewsRssUrl, parseGoogleNewsRss, searchInternetForContestLeads, filterUnseenWebSearchDiscoveries, INTERNET_SEARCH_QUERIES, classifyContestLead, SECONDARY_NEWS_FEEDS, parseSecondaryNewsRss, isActionableSecondaryNewsLead, fetchNewsFeedWithCurl, isSameTrustedSecondaryFeedPublisher, resolveTrustedSecondaryFeedRedirect } from "./monitor-sources.mjs";
 
 test("coleta URLs principais e fontes oficiais de prazos, somente HTTPS e sem duplicatas", () => {
   const urls = collectSourceUrls([
@@ -234,6 +234,51 @@ test("identifica alteração, falha real e primeira leitura", () => {
   assert.equal(compareSource("https://example.gov.br", { sha256: "old" }, { ok: true, sha256: "new" }).type, "changed");
   assert.equal(compareSource("https://example.gov.br", { sha256: "old" }, { ok: false, status: 503, error: "HTTP 503" }).type, "unavailable");
   assert.equal(compareSource("https://example.gov.br", null, { ok: true, sha256: "new" }).type, "new_baseline");
+});
+
+test("classifica fontes oficiais sem confundir NO_CHANGE com falha de coleta", () => {
+  const urlA = "https://a.gov.br/concursos";
+  const urlB = "https://b.gov.br/concursos";
+
+  assert.equal(summarizeSourceChecks().outcome, "FAILED");
+  assert.equal(summarizeSourceChecks({
+    checked: [{ url: urlA, current: { ok: false, status: 503 } }],
+    unavailable: [{ url: urlA, status: 503 }]
+  }).outcome, "FAILED");
+
+  const partial = summarizeSourceChecks({
+    checked: [
+      { url: urlA, current: { ok: true, sha256: "same" } },
+      { url: urlB, current: { ok: false, status: 403 } }
+    ],
+    previousSources: { [urlA]: { sha256: "same" } },
+    restricted: [{ url: urlB, status: 403 }]
+  });
+  assert.equal(partial.outcome, "PARTIAL");
+  assert.equal(partial.successful, 1);
+  assert.equal(partial.unchanged, 1);
+  assert.equal(partial.restricted, 1);
+
+  const noChange = summarizeSourceChecks({
+    checked: [{ url: urlA, current: { ok: true, sha256: "same" } }],
+    previousSources: { [urlA]: { sha256: "same" } }
+  });
+  assert.equal(noChange.outcome, "NO_CHANGE");
+  assert.equal(noChange.unchanged, 1);
+
+  const changed = summarizeSourceChecks({
+    checked: [{ url: urlA, current: { ok: true, sha256: "new" } }],
+    previousSources: { [urlA]: { sha256: "old" } },
+    changed: [{ url: urlA }]
+  });
+  assert.equal(changed.outcome, "SUCCESS");
+  assert.equal(changed.changed, 1);
+
+  const baseline = summarizeSourceChecks({
+    checked: [{ url: urlA, current: { ok: true, sha256: "initial" } }]
+  });
+  assert.equal(baseline.outcome, "SUCCESS");
+  assert.equal(baseline.baseline, 1);
 });
 
 test("distingue bloqueio do robô de indisponibilidade real e detecta recuperação", () => {
