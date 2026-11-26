@@ -180,6 +180,140 @@ comment on column public.study_exam_question_imports.suggested_answer is
   'Gabarito apenas sugerido pelo parser; deve ser confirmado por administrador contra a versão definitiva da banca.';
 
 
+-- Publicação atômica: questão, gabarito e fila são confirmados em uma transação SQL.
+create or replace function public.publish_study_exam_question_import(
+  p_import_id bigint,
+  p_answer text,
+  p_explanation text default '',
+  p_review_notes text default '',
+  p_admin_confirmation boolean default false
+)
+returns bigint
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $
+declare
+  v_import public.study_exam_question_imports%rowtype;
+  v_question_id bigint;
+  v_license_status text;
+  v_now timestamptz := now();
+  v_answer text := lower(btrim(coalesce(p_answer, '')));
+begin
+  if auth.uid() is null
+     or coalesce((auth.jwt() -> 'app_metadata' ->> 'role'), '') <> 'admin' then
+    raise exception 'Apenas administradores podem publicar questões importadas.'
+      using errcode = '42501';
+  end if;
+
+  if p_admin_confirmation is distinct from true then
+    raise exception 'A revisão humana precisa ser confirmada antes da publicação.'
+      using errcode = '22023';
+  end if;
+
+  select *
+    into v_import
+    from public.study_exam_question_imports
+   where id = p_import_id
+     and status = 'pending'
+   for update;
+
+  if not found then
+    raise exception 'Importação inexistente ou já processada.'
+      using errcode = 'P0002';
+  end if;
+
+  v_license_status := case v_import.rights_basis
+    when 'official_publication' then 'official_publication'
+    when 'public_domain' then 'public_domain'
+    when 'permission_granted' then 'permission_granted'
+    when 'cc_by' then 'cc_by'
+    when 'cc_by_sa' then 'cc_by_sa'
+    else null
+  end;
+
+  if v_license_status is null then
+    raise exception 'O fundamento exige classificação jurídica adicional antes da publicação.'
+      using errcode = '22023';
+  end if;
+
+  if v_import.rights_basis = 'official_publication'
+     and v_import.official_release_verified is not true then
+    raise exception 'A divulgação oficial do documento não foi confirmada.'
+      using errcode = '22023';
+  end if;
+
+  if v_import.rights_basis in ('permission_granted','cc_by','cc_by_sa')
+     and (
+       v_import.license_proof_url is null
+       or v_import.license_proof_url !~ '^https://'
+     ) then
+    raise exception 'O fundamento selecionado exige comprovante HTTPS de licença/autorização.'
+      using errcode = '22023';
+  end if;
+
+  if char_length(coalesce(p_explanation, '')) > 5000
+     or char_length(coalesce(p_review_notes, '')) > 4000 then
+    raise exception 'Justificativa ou observações excedem o limite permitido.'
+      using errcode = '22023';
+  end if;
+
+  if not exists (
+    select 1
+      from jsonb_array_elements(v_import.options) as option_row(value)
+     where lower(coalesce(option_row.value ->> 'id', '')) = v_answer
+  ) then
+    raise exception 'O gabarito informado não corresponde a uma alternativa da questão.'
+      using errcode = '22023';
+  end if;
+
+  insert into public.study_questions (
+    exam_name, exam_year, board, discipline, topic, difficulty,
+    prompt, options, source_url, rights_holder, license_status,
+    license_proof_url, source_license, source_attribution, rights_basis,
+    source_document_sha256, source_page, source_question_number, source_fingerprint,
+    origin, review_status, reviewed_at, published, created_by
+  ) values (
+    v_import.exam_name, v_import.exam_year, v_import.board, v_import.discipline,
+    v_import.topic, v_import.difficulty, v_import.prompt, v_import.options,
+    v_import.exam_pdf_url, coalesce(nullif(btrim(v_import.rights_holder), ''), 'Não identificado'),
+    v_license_status, v_import.license_proof_url, v_import.source_license,
+    v_import.source_attribution, v_import.rights_basis,
+    v_import.source_document_sha256, v_import.source_page, v_import.source_question_number,
+    v_import.fingerprint, 'exam_import', 'admin_approved', v_now, false, auth.uid()
+  )
+  returning id into v_question_id;
+
+  insert into public.study_question_answers (
+    question_id, answer, explanation, created_by
+  ) values (
+    v_question_id, v_answer,
+    coalesce(nullif(btrim(p_explanation), ''), 'Gabarito conferido pelo administrador na publicação oficial da banca.'),
+    auth.uid()
+  );
+
+  update public.study_questions
+     set published = true,
+         updated_at = v_now
+   where id = v_question_id;
+
+  update public.study_exam_question_imports
+     set status = 'published',
+         rights_review_status = 'accepted',
+         reviewed_by = auth.uid(),
+         reviewed_at = v_now,
+         published_question_id = v_question_id,
+         review_notes = left(coalesce(p_review_notes, ''), 4000),
+         updated_at = v_now
+   where id = v_import.id;
+
+  return v_question_id;
+end;
+$;
+
+revoke all on function public.publish_study_exam_question_import(bigint, text, text, text, boolean) from public, anon;
+grant execute on function public.publish_study_exam_question_import(bigint, text, text, text, boolean) to authenticated;
+
 -- Questões importadas de atos oficiais publicamente divulgados têm fluxo explícito
 -- e só aparecem no banco público após revisão administrativa.
 drop policy if exists "Read published licensed questions or admin review"
