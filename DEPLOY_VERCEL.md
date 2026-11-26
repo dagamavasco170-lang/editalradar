@@ -1,6 +1,8 @@
-# Publicar o EditalRadar gratuitamente na Vercel
+# Vercel como hospedagem alternativa do EditalRadar
 
-O repositório continua sendo o GitHub (`dagamavasco170-lang/editalradar`). A Vercel será apenas a hospedagem do site, com publicação automática a cada atualização na branch `main`.
+O repositório continua sendo o GitHub (`dagamavasco170-lang/editalradar`). **A produção principal definida pelo workflow atual é o GitHub Pages**: `.github/workflows/build.yml` compila, publica e testa `https://dagamavasco170-lang.github.io/editalradar/`. A Vercel é uma hospedagem secundária opcional; o workflow verifica o endereço Vercel configurado, mas não depende dele para considerar a publicação principal válida.
+
+Não altere o `Site URL` do Supabase nem os retornos OAuth para a Vercel enquanto o GitHub Pages continuar sendo o endereço canônico. Para migrar a produção para a Vercel, faça uma mudança coordenada e valide autenticação, links de retorno, Service Worker e versão publicada antes de trocar o endereço principal.
 
 ## 1. Importar o repositório
 
@@ -24,6 +26,8 @@ A Vercel atribui um endereço gratuito terminado em `.vercel.app`. O endereço e
 
 ## 2. Configurar a autenticação no Supabase
 
+A configuração abaixo só deve ser aplicada durante uma migração intencional da origem canônica para a Vercel. Enquanto o GitHub Pages for a produção principal, mantenha o `Site URL` atual no domínio canônico e adicione a Vercel apenas como URL de retorno permitida, caso precise testar o login.
+
 Depois que a Vercel mostrar o domínio de produção (por exemplo, `https://editalradar.vercel.app`):
 
 1. No Supabase, abra **Authentication → URL Configuration**.
@@ -43,8 +47,8 @@ O Client Secret continua apenas no Supabase, nunca na Vercel como variável púb
 
 ## 4. Como ficam os endereços
 
-- Vercel: endereço principal, menor e sem `/editalradar/`.
-- GitHub Pages: pode continuar publicado como alternativa.
+- GitHub Pages: endereço canônico de produção, com o caminho `/editalradar/`.
+- Vercel: endereço secundário opcional, na raiz do domínio.
 - GitHub: continua sendo o repositório e o histórico de código.
 
 O projeto detecta o ambiente de build: mantém `/editalradar/` no GitHub Pages e usa `/` na Vercel. O arquivo `vercel.json` encaminha rotas do aplicativo para o React.
