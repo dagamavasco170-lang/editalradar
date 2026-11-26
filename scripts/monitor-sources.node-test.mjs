@@ -4,6 +4,32 @@ import assert from "node:assert/strict";
 import { concursos } from "../src/data/concursos.js";
 import { collectSourceUrls, compareSource, wasSourceAccessRestricted, fingerprintContent, normalizeHtml, extractOpportunityLinks, buildDiscoveriesForSource, fetchOfficialSource, fetchNewsFeedWithRetry, isTrustedOfficialHost, pruneSourceState, buildGoogleNewsRssUrl, parseGoogleNewsRss, searchInternetForContestLeads, filterUnseenWebSearchDiscoveries, INTERNET_SEARCH_QUERIES, classifyContestLead, SECONDARY_NEWS_FEEDS, parseSecondaryNewsRss, isActionableSecondaryNewsLead, fetchNewsFeedWithCurl, isSameTrustedSecondaryFeedPublisher, resolveTrustedSecondaryFeedRedirect } from "./monitor-sources.mjs";
 
+
+test("COFEN e COREN-SP refletem editais oficiais publicados e inscrições abertas", () => {
+  const cofen = concursos.find(item => item.id === 531);
+  const coren = concursos.find(item => item.id === 532);
+  assert.ok(cofen);
+  assert.ok(coren);
+
+  assert.equal(cofen.vagas, 6);
+  assert.equal(cofen.vagasTotais, 450);
+  assert.equal(cofen.vagasImediatas, 6);
+  assert.equal(cofen.periodoInscricao.inicio, "2026-11-26");
+  assert.equal(cofen.periodoInscricao.fim, "2027-01-11");
+  assert.match(cofen.status, /Inscrições abertas/);
+  assert.ok(isTrustedOfficialHost(new URL(cofen.sourceUrl).hostname));
+  assert.ok(cofen.documentos.some(doc => doc.url === "https://cofen.gov.br/wp-content/uploads/2026/11/Edital-01-2026-Concurso-Cofen.pdf"));
+
+  assert.equal(coren.vagas, 76);
+  assert.equal(coren.vagasTotais, 280);
+  assert.equal(coren.vagasImediatas, 76);
+  assert.equal(coren.periodoInscricao.inicio, "2026-11-26");
+  assert.equal(coren.periodoInscricao.fim, "2027-01-11");
+  assert.match(coren.status, /Inscrições abertas/);
+  assert.ok(isTrustedOfficialHost(new URL(coren.sourceUrl).hostname));
+  assert.ok(coren.documentos.some(doc => doc.url === "https://anexos-r2.selecao.net.br/uploads/861/concursos/3075/anexos/a10260c5-f08b-4290-9ee3-b3be6d126724.pdf"));
+});
+
 test("coleta URLs principais e fontes oficiais de prazos, somente HTTPS e sem duplicatas", () => {
   const urls = collectSourceUrls([
     { sourceUrl: "https://example.gov.br/a" },
