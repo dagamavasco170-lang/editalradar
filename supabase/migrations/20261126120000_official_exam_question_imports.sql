@@ -52,10 +52,16 @@ alter table public.study_questions
     ));
 
 create unique index if not exists study_questions_exam_import_document_item_uidx
-  on public.study_questions(source_document_sha256, source_question_number)
+  on public.study_questions(source_document_sha256, source_page, source_question_number)
   where origin = 'exam_import'
     and source_document_sha256 is not null
+    and source_page is not null
     and source_question_number is not null;
+
+create unique index if not exists study_questions_exam_import_fingerprint_uidx
+  on public.study_questions(source_fingerprint)
+  where origin = 'exam_import'
+    and source_fingerprint is not null;
 
 create unique index if not exists study_questions_exam_import_fingerprint_uidx
   on public.study_questions(board, exam_name, exam_year, source_fingerprint)
@@ -118,7 +124,7 @@ create table if not exists public.study_exam_question_imports (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint study_exam_question_imports_document_item_unique
-    unique (source_document_sha256, source_question_number),
+    unique (source_document_sha256, source_page, source_question_number),
   constraint study_exam_question_imports_exam_fingerprint_unique
     unique (board, exam_name, exam_year, fingerprint),
   constraint study_exam_question_imports_official_release_check
