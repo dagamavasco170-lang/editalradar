@@ -2,7 +2,7 @@ import test from "node:test";
 import { buildSourceMonitorIssueReport, sourceMonitorIssueNeedsUpdate } from "./source-monitor-issue-report.mjs";
 import assert from "node:assert/strict";
 import { concursos } from "../src/data/concursos.js";
-import { collectSourceUrls, compareSource, wasSourceAccessRestricted, fingerprintContent, normalizeHtml, extractOpportunityLinks, buildDiscoveriesForSource, fetchOfficialSource, fetchNewsFeedWithRetry, isTrustedOfficialHost, pruneSourceState, buildGoogleNewsRssUrl, parseGoogleNewsRss, searchInternetForContestLeads, filterUnseenWebSearchDiscoveries, INTERNET_SEARCH_QUERIES, classifyContestLead, SECONDARY_NEWS_FEEDS, parseSecondaryNewsRss, isActionableSecondaryNewsLead, fetchNewsFeedWithCurl, isSameTrustedSecondaryFeedPublisher, resolveTrustedSecondaryFeedRedirect, normalizeOfficialSourceUrl } from "./monitor-sources.mjs";
+import { collectSourceUrls, compareSource, wasSourceAccessRestricted, fingerprintContent, normalizeHtml, extractOpportunityLinks, buildDiscoveriesForSource, fetchOfficialSource, fetchNewsFeedWithRetry, isTrustedOfficialHost, pruneSourceState, buildGoogleNewsRssUrl, parseGoogleNewsRss, searchInternetForContestLeads, filterUnseenWebSearchDiscoveries, INTERNET_SEARCH_QUERIES, classifyContestLead, SECONDARY_NEWS_FEEDS, parseSecondaryNewsRss, isActionableSecondaryNewsLead, fetchNewsFeedWithCurl, isSameTrustedSecondaryFeedPublisher, resolveTrustedSecondaryFeedRedirect, normalizeOfficialSourceUrl, fetchSource, readResponseBytes } from "./monitor-sources.mjs";
 
 test("coleta URLs principais e fontes oficiais de prazos, somente HTTPS e sem duplicatas", () => {
   const urls = collectSourceUrls([
@@ -48,6 +48,70 @@ test("segue somente redirecionamentos para domínios HTTPS oficiais autorizados"
 });
 
 
+
+test("reutiliza snapshot em HTTP 304 e envia ETag/Last-Modified na próxima coleta", async () => {
+  const requested = [];
+  const previous = {
+    sha256: "a".repeat(64),
+    etag: '"versao-1"',
+    lastModified: "Wed, 21 Oct 2015 07:28:00 GMT",
+    contentType: "text/html",
+    opportunityLinks: [{ candidate_url: "https://orgao.gov.br/edital-01", title: "Edital" }],
+    opportunityLinkFilterVersion: 6,
+    lastFailureType: "restricted",
+    lastError: "HTTP 403"
+  };
+  const current = await fetchSource("https://orgao.gov.br/concursos", previous, {
+    fetchImpl: async (url, options) => {
+      requested.push(options.headers);
+      return new Response(null, { status: 304, headers: { etag: '"versao-1"' } });
+    }
+  });
+  assert.equal(requested.length, 1);
+  assert.equal(requested[0]["If-None-Match"], '"versao-1"');
+  assert.equal(requested[0]["If-Modified-Since"], "Wed, 21 Oct 2015 07:28:00 GMT");
+  assert.equal(current.ok, true);
+  assert.equal(current.notModified, true);
+  assert.equal(current.sha256, previous.sha256);
+  assert.deepEqual(current.opportunityLinks, previous.opportunityLinks);
+  assert.equal(current.lastFailureType, undefined);
+  assert.equal(current.lastError, undefined);
+});
+
+test("não aceita HTTP 304 sem baseline e não inventa hash", async () => {
+  await assert.rejects(() => fetchSource("https://orgao.gov.br/concursos", null, {
+    fetchImpl: async () => new Response(null, { status: 304 })
+  }), /HTTP 304 sem uma versão anterior válida/);
+});
+
+test("classifica challenge/WAF servido com HTTP 200 como acesso restrito", async () => {
+  await assert.rejects(() => fetchSource("https://orgao.gov.br/concursos", null, {
+    fetchImpl: async () => new Response("<html><title>Just a moment...</title><p>Checking your browser before accessing</p><div>Cloudflare Ray ID</div></html>", {
+      status: 200,
+      headers: { "content-type": "text/html; charset=utf-8" }
+    })
+  }), error => error.code === "SOURCE_RESTRICTED" && error.status === 200);
+});
+
+test("não considera JSON inesperado como coleta oficial válida", async () => {
+  await assert.rejects(() => fetchSource("https://orgao.gov.br/concursos", null, {
+    fetchImpl: async () => new Response('{"error":"upstream unavailable"}', {
+      status: 200,
+      headers: { "content-type": "application/json" }
+    })
+  }), error => error.code === "UNSUPPORTED_SOURCE_CONTENT_TYPE");
+});
+
+test("limita o tamanho do corpo durante leitura do stream", async () => {
+  const stream = new ReadableStream({
+    start(controller) {
+      controller.enqueue(new Uint8Array(8));
+      controller.enqueue(new Uint8Array(8));
+      controller.close();
+    }
+  });
+  await assert.rejects(() => readResponseBytes({ headers: new Headers(), body: stream }, 12), /Resposta excede o limite/);
+});
 
 test("repete consulta após HTTP 503 e respeita Retry-After antes de aceitar 200", async () => {
   const requested = [];
