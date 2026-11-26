@@ -69,6 +69,29 @@ test("extrai itens objetivos e preserva página/número sem inventar gabarito", 
 });
 
 
+test("FGV não confunde artigo A no início do enunciado com alternativa", () => {
+  const pages = [{
+    page: 6,
+    text: [
+      "7",
+      "A Polícia Civil do Paraná atende crianças e adolescentes vítimas de crimes.",
+      "O objetivo é que as vítimas sejam atendidas com profissionalismo e cuidado.",
+      "(A) Primeira alternativa com conteúdo suficientemente extenso para validação.",
+      "(B) Segunda alternativa com conteúdo suficientemente extenso para validação.",
+      "(C) Terceira alternativa com conteúdo suficientemente extenso para validação.",
+      "(D) Quarta alternativa com conteúdo suficientemente extenso para validação.",
+      "(E) Quinta alternativa com conteúdo suficientemente extenso para validação."
+    ].join("\\n")
+  }];
+  const rows = parseExamPages(pages, documentHash, {
+    allowNumberedMultipleChoice: false,
+    allowBareOptions: false
+  });
+  assert.equal(rows.length, 1);
+  assert.match(rows[0].prompt, /^A Polícia Civil do Paraná/);
+  assert.deepEqual(rows[0].options.map(option => option.id), ["a", "b", "c", "d", "e"]);
+});
+
 test("FGV ignora numeração interna no formato número-ponto-texto", () => {
   const pages = [{
     page: 3,
