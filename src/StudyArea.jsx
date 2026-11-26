@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { loadQuestionProgress, mergeQuestionProgress, questionBank, questionProgressStorageKey } from "./lib/question-bank.js";
 import { buildQuestionBankView } from "./lib/question-bank-view.js";
+import { buildQuestionProgressMetrics } from "./lib/question-progress-metrics.js";
 
 const SimulatorPanel = React.lazy(() => import("./SimulatorPanel.jsx"));
 const ExamSourcesPanel = React.lazy(() => import("./ExamSourcesPanel.jsx"));
@@ -186,10 +187,8 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
  const filtered=questionBankView.filtered;
  const question=filtered.length?filtered[index%filtered.length]:null;
  const questionAttempt=question?latestAttempts[question.id]:null;
- const totalAttempts=questionProgress.attempts.length;
- const totalCorrect=questionProgress.attempts.filter(attempt=>attempt.correct).length;
- const accuracy=totalAttempts?Math.round(totalCorrect/totalAttempts*100):0;
- const uniqueAnswered=Object.keys(latestAttempts).length;
+ const progressMetrics=useMemo(()=>buildQuestionProgressMetrics({attempts:questionProgress.attempts,questions:allQuestions}),[questionProgress.attempts,allQuestions]);
+ const {totalAttempts,totalCorrect,accuracy,uniqueAnswered}=progressMetrics;
  const sessions=useMemo(()=>{
   const chosen=plan.days.filter(day=>days.includes(day));
   const count=chosen.length||1, total=plan.hours*60, base=Math.floor(total/count), rem=total%count;
@@ -340,7 +339,8 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
     <div className="question-stat"><strong>{totalAttempts}</strong><span>tentativas registradas</span></div>
     <div className="question-stat"><strong>{accuracy}%</strong><span>taxa de acerto</span></div>
    </div>
-   <div className="question-toolbar">
+   {progressMetrics.byDiscipline.length>0&&<div className="question-discipline-metrics" aria-label="Desempenho por disciplina"><strong>Desempenho por disciplina</strong>{progressMetrics.byDiscipline.slice(0,4).map(row=><div className="question-discipline-row" key={row.discipline}><span>{row.discipline}</span><span>{row.correct}/{row.attempts} · {row.accuracy}%</span><div className="question-discipline-track"><i style={{width:row.accuracy+"%"}}/></div></div>)}</div>}
+   <div className="question-toolbar>
     <label className="question-search">Buscar questão<input aria-label="Buscar no banco de questões" placeholder="Tema, assunto ou enunciado..." value={questionSearch} onChange={e=>setQuestionFilter(setQuestionSearch,e.target.value)}/></label>
     <label className="question-filter-field">Disciplina<select aria-label="Filtrar questões por disciplina" value={discipline} onChange={e=>setQuestionFilter(setDiscipline,e.target.value)}><option>Todas</option>{[...new Set(allQuestions.map(q=>q.discipline))].sort().map(x=><option key={x}>{x}</option>)}</select></label>
     <label className="question-filter-field">Banca<select aria-label="Filtrar questões por estilo de banca" value={board} onChange={e=>setQuestionFilter(setBoard,e.target.value)}><option>Todas</option>{[...new Set(allQuestions.map(q=>q.board))].sort().map(x=><option key={x}>{x}</option>)}</select></label>
