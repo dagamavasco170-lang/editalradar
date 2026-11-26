@@ -8,6 +8,8 @@ import {
   extractOfficialPdfLinks,
   extractOfficialSubpageLinks,
   fetchOfficialResource,
+  decodeHtmlEntities,
+  isPublicIpAddress,
   pairExamWithAnswerKey,
   parseOfficialAnswerKey,
   parseOfficialAnswerKeyVariants,
@@ -15,6 +17,75 @@ import {
   validateQuestionForAutoPublication,
   variantIdentity
 } from "./automatic-official-exam-ingestion.mjs";
+
+
+test("decodes HTML entities once, without recursive ampersand decoding", () => {
+  assert.equal(decodeHtmlEntities("&amp;#x2e; &amp;amp; &#x2e; &gt;"), "&#x2e; &amp; . >");
+});
+
+test("classifies only public IPv4 and global-unicast IPv6 as routable", () => {
+  assert.equal(isPublicIpAddress("93.184.216.34"), true);
+  assert.equal(isPublicIpAddress("2606:4700:4700::1111"), true);
+  for (const address of [
+    "0.0.0.0", "10.0.0.1", "100.64.0.1", "127.0.0.1", "169.254.1.1",
+    "172.16.0.1", "192.168.1.1", "198.18.0.1", "224.0.0.1",
+    "::", "::1", "fc00::1", "fe80::1", "2001:db8::1", "2002::1"
+  ]) assert.equal(isPublicIpAddress(address), false, address);
+});
+
+test("pins each official redirect hop to a freshly validated public DNS address", async () => {
+  const resolvedHosts = [];
+  const requests = [];
+  const response = await fetchOfficialResource(
+    "https://cdn.cebraspe.org.br/prova.pdf",
+    {
+      lookupImpl: async hostname => {
+        resolvedHosts.push(hostname);
+        return [{ address: hostname.startsWith("cdn.") ? "93.184.216.34" : "93.184.216.35", family: 4 }];
+      },
+      requestImpl: async (url, options) => {
+        requests.push({ url, address: options.address, family: options.family });
+        if (url.endsWith("/prova.pdf")) {
+          return { statusCode: 302, headers: { location: "https://www.cebraspe.org.br/arquivo.pdf" }, bytes: Buffer.alloc(0) };
+        }
+        return {
+          statusCode: 200,
+          headers: { "content-type": "application/pdf" },
+          bytes: Buffer.from("%PDF-1.7\\nfixture")
+        };
+      }
+    }
+  );
+  assert.equal(response.isPdf, true);
+  assert.equal(response.url, "https://www.cebraspe.org.br/arquivo.pdf");
+  assert.deepEqual(resolvedHosts, ["cdn.cebraspe.org.br", "www.cebraspe.org.br"]);
+  assert.deepEqual(requests.map(item => item.address), ["93.184.216.34", "93.184.216.35"]);
+});
+
+test("blocks an official hostname when any DNS answer is private or reserved", async () => {
+  let requested = false;
+  await assert.rejects(
+    fetchOfficialResource("https://cdn.cebraspe.org.br/prova.pdf", {
+      lookupImpl: async () => [
+        { address: "93.184.216.34", family: 4 },
+        { address: "127.0.0.1", family: 4 }
+      ],
+      requestImpl: async () => {
+        requested = true;
+        throw new Error("A conexão não deveria acontecer.");
+      }
+    }),
+    /SSRF_BLOCKED/
+  );
+  assert.equal(requested, false);
+});
+
+test("rejects a nonstandard HTTPS port even on an approved official host", async () => {
+  await assert.rejects(
+    fetchOfficialResource("https://cdn.cebraspe.org.br:8443/prova.pdf"),
+    /URL inicial não é HTTPS/
+  );
+});
 
 test("extractOfficialPdfLinks keeps only HTTPS links on approved official hosts", () => {
   const html = `
