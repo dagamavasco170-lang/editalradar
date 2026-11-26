@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  calculateAnswerKeyCoverage,\n  classifyOfficialPdfLink,
+  calculateAnswerKeyCoverage,
+  classifyOfficialPdfLink,
   extractOfficialPdfLinks,
   fetchOfficialResource,
   parseOfficialAnswerKey,
@@ -18,12 +19,14 @@ test("extractOfficialPdfLinks keeps only HTTPS links on approved official hosts"
   const links = extractOfficialPdfLinks(html, "https://www.cebraspe.org.br/concursos/exemplo");
   assert.equal(links.length, 3);
   assert.ok(links.some(link => link.url === "https://www.cebraspe.org.br/arquivos/caderno-prova.pdf"));
-  assert.ok(links.some(link => link.url.includes("gabarito-definitivo.pdf")));\n  assert.ok(links.some(link => link.url.includes("Gab_Definitivo")));
+  assert.ok(links.some(link => link.url.includes("gabarito-definitivo.pdf")));
+  assert.ok(links.some(link => link.url.includes("Gab_Definitivo")));
 });
 
 test("classifies prova, gabarito definitivo and preliminary key separately", () => {
   assert.equal(classifyOfficialPdfLink({ label: "Caderno de prova", url: "https://cdn.cebraspe.org.br/prova.pdf" }), "exam_pdf");
-  assert.equal(classifyOfficialPdfLink({ label: "Gabarito definitivo", url: "https://cdn.cebraspe.org.br/gab_def.pdf" }), "definitive_answer_key");\n  assert.equal(classifyOfficialPdfLink({ label: "TREGO08_Gab_Definitivo_001_1.PDF", url: "https://cdn.cebraspe.org.br/TREGO08_Gab_Definitivo_001_1.PDF" }), "definitive_answer_key");
+  assert.equal(classifyOfficialPdfLink({ label: "Gabarito definitivo", url: "https://cdn.cebraspe.org.br/gab_def.pdf" }), "definitive_answer_key");
+  assert.equal(classifyOfficialPdfLink({ label: "TREGO08_Gab_Definitivo_001_1.PDF", url: "https://cdn.cebraspe.org.br/TREGO08_Gab_Definitivo_001_1.PDF" }), "definitive_answer_key");
   assert.equal(classifyOfficialPdfLink({ label: "Gabarito preliminar", url: "https://cdn.cebraspe.org.br/gab_preliminar.pdf" }), "preliminary_answer_key");
   assert.equal(classifyOfficialPdfLink({ label: "Edital", url: "https://cdn.cebraspe.org.br/edital.pdf" }), "other");
 });
