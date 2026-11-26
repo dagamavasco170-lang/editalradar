@@ -5,6 +5,7 @@ import { buildQuestionProgressMetrics } from "./lib/question-progress-metrics.js
 import { buildStudyRecommendations } from "./lib/study-recommendations.js";
 import { buildTopicMastery, buildWeeklyStudyProgress } from "./lib/topic-mastery.js";
 import { buildAdaptiveStudySessions } from "./lib/adaptive-study-plan.js";
+import { buildTutorSignals } from "./lib/tutor-intelligence.js";
 
 const SimulatorPanel = React.lazy(() => import("./SimulatorPanel.jsx"));
 const ExamSourcesPanel = React.lazy(() => import("./ExamSourcesPanel.jsx"));
@@ -196,6 +197,7 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
  const topicMastery=useMemo(()=>buildTopicMastery({questions:allQuestions,attempts:questionProgress.attempts}),[allQuestions,questionProgress.attempts]);
  const weeklyStudyProgress=useMemo(()=>buildWeeklyStudyProgress({attempts:questionProgress.attempts}),[questionProgress.attempts]);
  const dueTopics=topicMastery.filter(item=>item.due);
+ const tutorSignals=useMemo(()=>buildTutorSignals({topics:topicMastery,weeklyProgress:weeklyStudyProgress,simulations:questionProgress.simulations}),[topicMastery,weeklyStudyProgress,questionProgress.simulations]);
  const masteryLabel={starting:"Iniciando",developing:"Em desenvolvimento",strong:"Bom domínio"};
  const sessions=useMemo(()=>buildAdaptiveStudySessions({subjects,attempts:questionProgress.attempts,mastery:topicMastery,hours:plan.hours,days:plan.days}),[plan,questionProgress.attempts,topicMastery]);
  const dailyGoals=useMemo(()=>buildDailyAdaptiveGoals({sessions,days:plan.days}),[sessions,plan.days]);
@@ -340,6 +342,13 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
     <div className="question-stat"><strong>{accuracy}%</strong><span>taxa de acerto</span></div>
    </div>
    {progressMetrics.byDiscipline.length>0&&<div className="question-discipline-metrics" aria-label="Desempenho por disciplina"><strong>Desempenho por disciplina</strong>{progressMetrics.byDiscipline.slice(0,4).map(row=><div className="question-discipline-row" key={row.discipline}><span>{row.discipline}</span><span>{row.correct}/{row.attempts} · {row.accuracy}%</span><div className="question-discipline-track"><i style={{width:row.accuracy+"%"}}/></div></div>)}</div>}
+   <div className="tutor-readiness-panel" aria-label="Indicador de prontidão para prova">
+    <div className="tutor-readiness-head"><div><strong>Tutor adaptativo · preparação para prova</strong><p>Estimativa de evolução baseada em desempenho, cobertura de assuntos, consistência e simulados.</p></div><div className="tutor-readiness-score"><strong>{tutorSignals.readiness}%</strong><small>prontidão estimada</small></div></div>
+    <div className="tutor-readiness-track"><i style={{width:tutorSignals.readiness+"%"}}/></div>
+    <div className="tutor-readiness-metrics"><span><strong>{tutorSignals.overallAccuracy}%</strong><small>acertos nos assuntos</small></span><span><strong>{tutorSignals.coverage}%</strong><small>cobertura estudada</small></span><span><strong>{tutorSignals.consistency}%</strong><small>dias ativos na semana</small></span><span><strong>{tutorSignals.simulationAccuracy}%</strong><small>simulados (indicador)</small></span></div>
+    {tutorSignals.weakTopics.length>0&&<div className="tutor-weak-topics"><strong>Foco imediato</strong>{tutorSignals.weakTopics.slice(0,3).map(item=><div key={item.discipline+"::"+item.topic}><span>{item.topic}<small>{item.discipline} · {item.status} · {item.suggestedDifficulty}</small></span><b>{item.priority}</b></div>)}</div>}
+    <small className="tutor-readiness-disclaimer">Indicador de preparação, não previsão nem garantia de aprovação. O tutor recomenda nível de prática; não altera a dificuldade original das questões.</small>
+   </div>
    <div className="study-mastery-panel" aria-label="Mapa de domínio e revisões">
     <div className="study-mastery-heading"><div><strong>Mapa de domínio dos assuntos</strong><p>Seu desempenho define o nível de domínio e o intervalo sugerido para revisar.</p></div><span>{dueTopics.length} revisão(ões) pendente(s)</span></div>
     <div className="study-mastery-list">{topicMastery.slice(0,6).map(item=><div className="study-mastery-row" key={item.discipline+"::"+item.topic}>
