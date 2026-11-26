@@ -39,11 +39,15 @@ test("discovers only official intermediate pages for exams and answer keys", () 
   assert.equal(links.length, 1);
   assert.equal(links[0].url, "https://www.cebraspe.org.br/concursos/sesau_al_26/provas");
 });
-test("classifies prova, gabarito definitivo and preliminary key separately", () => {
+test("classifies prova, cadernos FGV, definitive and preliminary answer keys", () => {
   assert.equal(classifyOfficialPdfLink({ label: "Caderno de prova", url: "https://cdn.cebraspe.org.br/prova.pdf" }), "exam_pdf");
+  assert.equal(classifyOfficialPdfLink({ label: "Tipo 1", url: "https://conhecimento.fgv.br/sites/default/files/concursos/cns201-tipo-1.pdf" }, "Prova objetiva e cadernos de prova do concurso"), "exam_pdf");
+  assert.equal(classifyOfficialPdfLink({ label: "Tipo 2", url: "https://conhecimento.fgv.br/sites/default/files/concursos/cns201-tipo-2.pdf" }, "Prova objetiva e cadernos de prova do concurso"), "exam_pdf");
   assert.equal(classifyOfficialPdfLink({ label: "Gabarito definitivo", url: "https://cdn.cebraspe.org.br/gab_def.pdf" }), "definitive_answer_key");
+  assert.equal(classifyOfficialPdfLink({ label: "Gabarito Oficial Definitivo da Prova Objetiva", url: "https://conhecimento.fgv.br/sites/default/files/concursos/gabaritos-definitivos-v3.pdf" }, "A etapa de gabarito preliminar já foi publicada"), "definitive_answer_key");
   assert.equal(classifyOfficialPdfLink({ label: "TREGO08_Gab_Definitivo_001_1.PDF", url: "https://cdn.cebraspe.org.br/TREGO08_Gab_Definitivo_001_1.PDF" }), "definitive_answer_key");
   assert.equal(classifyOfficialPdfLink({ label: "Gabarito preliminar", url: "https://cdn.cebraspe.org.br/gab_preliminar.pdf" }), "preliminary_answer_key");
+  assert.equal(classifyOfficialPdfLink({ label: "Resultado Preliminar da Prova Objetiva", url: "https://cdn.cebraspe.org.br/resultado.pdf" }, "Prova objetiva"), "other");
   assert.equal(classifyOfficialPdfLink({ label: "Edital", url: "https://cdn.cebraspe.org.br/edital.pdf" }), "other");
 });
 
