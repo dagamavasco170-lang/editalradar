@@ -62,3 +62,24 @@ describe("prática autoral e checagem de raciocínio",()=>{
   expect(evaluateGeneratedReasoning({text:"Sim, porque."}).complete).toBe(false);
  });
 });
+
+import {buildGeneratedPractice,evaluateGeneratedReasoning,updateConceptMastery} from "./tutor-generated-practice.js";
+describe("tutor: exercício autoral, avaliação orientativa e domínio",()=>{
+ it("extrai critérios do texto de referência e gera proposta aberta",()=>{
+  const practice=buildGeneratedPractice({question:{topic:"Crase"},explanation:"A crase ocorre na fusão de preposição e artigo feminino."});
+  expect(practice.criteria).toContain("crase");
+  expect(practice.prompt).toContain("Crase");
+ });
+ it("avalia presença de termos essenciais e estrutura sem afirmar semântica",()=>{
+  const reference="A crase ocorre na fusão de preposição e artigo feminino.";
+  const result=evaluateGeneratedReasoning({text:"A crase ocorre na fusão de preposição e artigo feminino porque essa regra se aplica neste exemplo. Portanto, a regra explica a situação apresentada.",reference});
+  expect(result.coverage).toBeGreaterThan(0);
+  expect(result.score).not.toBeNull();
+  expect(result.feedback).toContain("aproximada");
+ });
+ it("atualiza domínio estimado com suavização e limites",()=>{
+  expect(updateConceptMastery(50,{score:100})).toBe(68);
+  expect(updateConceptMastery(95,{score:100})).toBeLessThanOrEqual(100);
+  expect(updateConceptMastery(10,{score:0})).toBeGreaterThanOrEqual(0);
+ });
+});
