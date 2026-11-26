@@ -413,7 +413,7 @@ export function validateQuestionForAutoPublication(question, answer, questionFor
   if (/imagem|figura|grafico|tabela|mapa|charge|tirinha|texto externo|extracao incompleta|revisao visual/.test(notes)) {
     reasons.push("possível dependência de conteúdo visual ou externo");
   }
-  if (/\b(figura|imagem|grafico|tabela|mapa|charge|tirinha|texto a seguir|texto acima)\b/i.test(prompt)) {
+  if (/\b(figura|imagem|grafico|tabela|mapa|charge|tirinha|texto acima)\b/i.test(prompt)) {
     reasons.push("enunciado depende de figura, tabela, gráfico ou texto externo");
   }
   return { approved: reasons.length === 0, reasons, checks: {
