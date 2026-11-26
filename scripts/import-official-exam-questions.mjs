@@ -339,10 +339,13 @@ export function validateQuestionForAutomaticPublication(question, answerKey, opt
   const textQuality = [prompt, ...alternatives.map(option => String(option?.text || ""))]
     .every(value => value.length >= 2 && !value.includes("\uFFFD") && !/[\x00-\x08\x0B\x0C\x0E-\x1F]/.test(value));
   const hasOCR = Boolean(question?.ocr_used);
+  const trueFalseLabels = ids.join(",") === "c,e"
+    && normalizeQuestionText(alternatives[0]?.text) === "certo"
+    && normalizeQuestionText(alternatives[1]?.text) === "errado";
   const plausibleOCR = !hasOCR || (
     prompt.length >= 60
-    && alternatives.every(option => String(option.text || "").length >= 12)
-    && !/[|]{2,}|[_]{5,}|[^\p{L}\p{N}\s.,;:!?()[\]{}'"%ºª-]{5,}/u.test(prompt)
+    && (trueFalseLabels || alternatives.every(option => String(option.text || "").length >= 12))
+    && !/[|]{2,}|[_]{5,}|[^\p{L}\p{N}\s.,;:!?()[\]{}'"'%ºª-]{5,}/u.test(prompt)
   );
   const multipleChoiceStructure = [4,5].includes(alternatives.length)
     && ids.join(",") === expectedIds.join(",");
@@ -724,7 +727,7 @@ async function processPair(candidate, pair, pageMetadata, metrics, options) {
     const boundedPending = pending.slice(0, availableSlots);
     metrics.questions_skipped += Math.max(0, pending.length - boundedPending.length);
     if (!boundedPending.length) return { published: 0, skipped: pending.length, reason: "Limite diário por execução alcançado." };
-    const insertUrl = options.supabaseUrl + "/rest/v1/study_exam_question_imports?on_conflict=source_document_sha256,source_question_number";
+    const insertUrl = options.supabaseUrl + "/rest/v1/study_exam_question_imports?on_conflict=source_document_sha256,source_page,source_question_number";
     const insertedResponse = await supabaseRequest(insertUrl, options.serviceKey, {
       method: "POST",
       headers: { Prefer: "resolution=ignore-duplicates,return=representation" },
