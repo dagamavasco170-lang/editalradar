@@ -31,6 +31,7 @@ describe("simulados com questões adicionais do banco",()=>{
     fireEvent.click(screen.getByRole("button",{name:"Iniciar simulado"}));
     fireEvent.click(screen.getByRole("button",{name:"B. Alternativa B"}));
     fireEvent.click(screen.getByRole("button",{name:"Finalizar e corrigir"}));
+    fireEvent.click(screen.getByRole("button",{name:"Finalizar mesmo assim"}));
 
     await screen.findByText("1 de 20 acertos");
     await waitFor(()=>expect(onComplete).toHaveBeenCalledTimes(1));
@@ -51,6 +52,7 @@ describe("simulados com questões adicionais do banco",()=>{
     fireEvent.click(screen.getByRole("button",{name:"Iniciar simulado"}));
     fireEvent.click(screen.getByRole("button",{name:"B. Alternativa B"}));
     fireEvent.click(screen.getByRole("button",{name:"Finalizar e corrigir"}));
+    fireEvent.click(screen.getByRole("button",{name:"Finalizar mesmo assim"}));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Não foi possível corrigir o simulado. Confira sua conexão e tente novamente.");
     expect(screen.getByRole("button",{name:"Tentar corrigir novamente"})).toBeInTheDocument();

@@ -4091,3 +4091,9 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{ou
 .question-progress-track{height:5px;margin:0 0 12px;overflow:hidden;border-radius:999px;background:#e7eee9}
 .question-progress-track>span{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#168364,#52b99b);transition:width .25s ease}
 @media(prefers-reduced-motion:reduce){.question-progress-track>span{transition:none}}
+
+.simulator-finish-confirm{margin:12px 0;padding:12px;border:1px solid #e9c46b;border-radius:10px;background:#fff9eb;color:#805d1b;display:grid;gap:8px}
+.simulator-finish-confirm strong{font-size:12px}
+.simulator-finish-confirm p{margin:0;font-size:11px;line-height:1.55}
+.simulator-finish-confirm>div{display:flex;gap:8px;flex-wrap:wrap}
+.simulator-finish-confirm button{min-height:34px}
