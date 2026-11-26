@@ -104,7 +104,7 @@ export function buildExamSourceCandidates({ catalog = [], officialSources = [], 
     );
     const year = parseYear(raw.exam_year, raw.examYear, raw.ano, raw.vinculo, examName, raw.observacao, raw.notes);
     if (!examName || !year) return;
-    if (kind === "catalog" && !officialPageHasExamEvidence(raw)) return;
+    if ((kind === "catalog" || kind === "static_catalog") && !officialPageHasExamEvidence(raw)) return;
 
     const board = inferBoard(raw.board || raw.banca || raw.bancaOrganizadora || raw.organizer)
       || inferBoardFromOfficialUrl(safeUrl);
@@ -670,7 +670,10 @@ async function processPair(candidate, pair, pageMetadata, metrics, options) {
           p_validation_checks: row.validation_checks
         })
       });
-      if (!result) throw new Error("A função de publicação não confirmou o ID da questão.");
+      if (result === null) {
+        metrics.questions_skipped += 1;
+        continue;
+      }
       published += 1;
       metrics.questions_published += 1;
     }
@@ -775,7 +778,10 @@ export async function runAutomaticExamImport(options = {}) {
 }
 
 async function main() {
-  const result = await runAutomaticExamImport();
+  const result = await runAutomaticExamImport({
+    concurrency: Number(process.env.EXAM_IMPORT_CONCURRENCY) || 3,
+    maxPairs: Number(process.env.EXAM_IMPORT_MAX_PAIRS) || 20
+  });
   const summary = [
     "## Importação automática de questões oficiais",
     "",
