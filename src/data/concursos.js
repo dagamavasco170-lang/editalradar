@@ -1459,44 +1459,6 @@ export const concursos = [
     "observacao": "Concurso exclusivamente para formação de cadastro de reserva, sem quantitativo de vagas imediatas divulgado e sem garantia de nomeação. Abrange os cargos de Delegado de Polícia, Agente de Polícia Judiciária e Papiloscopista Policial, com distribuição por macrorregião conforme o edital. Inscrições de 14/07/2026 às 16h até 12/08/2026 às 16h. A prova objetiva ocorreu em 11/10/2026 e a FGV publicou o resultado preliminar em 13/11/2026; recursos foram previstos até 16/11/2026."
   },
 
-]; 
-
-export const sourceRegistry = [
-  { label: "Cebraspe — concursos com inscrições abertas", sourceUrl: "https://www.cebraspe.org.br/concursos/inscricoes-abertas" },
-  { label: "FGV Conhecimento — concursos", sourceUrl: "https://conhecimento.fgv.br/concursos" },
-  { label: "Fundação Carlos Chagas — concursos em andamento", sourceUrl: "https://www.concursosfcc.com.br/concursoAndamento.html" },
-  { label: "Fundação Vunesp — inscrições abertas", sourceUrl: "https://www.vunesp.com.br/busca/concurso/inscricoesabertas" },
-  { label: "Instituto AOCP — inscrições abertas", sourceUrl: "https://www.institutoaocp.org.br/concursos/status/inscricoes-abertas" },
-  { label: "Instituto AOCP — concursos em andamento", sourceUrl: "https://www.institutoaocp.org.br/concursos/status/em-andamento" },
-  { label: "IBFC — concursos abertos", sourceUrl: "https://concursos.ibfc.org.br/index/abertos/" },
-  { label: "IGEDUC — concursos abertos", sourceUrl: "https://www.igeduc.org.br/index/abertos/" },
-  { label: "Instituto Federal de Goiás — concursos e seleções", sourceUrl: "https://www.ifg.edu.br/institucional/17-ifg/ultimas-noticias/48695-concurso-tae-ifg-26" },
-  { label: "Instituto Quadrix — todos os concursos", sourceUrl: "https://quadrix.org.br/index/todos/" },
-  { label: "Fundação La Salle — concursos em andamento", sourceUrl: "https://fundacaolasalle.org.br/concursos/?filtro=em-andamento" }
-];
-
-export const materias = [
-  {
-    "nome": "Língua Portuguesa",
-    "descricao": "Interpretação e gramática",
-    "icon": "Aa"
-  },
-  {
-    "nome": "Raciocínio lógico",
-    "descricao": "Lógica e matemática",
-    "icon": "∑"
-  },
-  {
-    "nome": "Direito constitucional",
-    "descricao": "Princípios e fundamentos",
-    "icon": "§"
-  },
-  {
-    "nome": "Informática",
-    "descricao": "Conceitos e ferramentas",
-    "icon": "⌘"
-  },
-
   {
     "id": 535,
     "sigla": "NOVA-GUARITA-ACS-ACE-2026",
@@ -1563,4 +1525,43 @@ export const materias = [
     ],
     "observacao": "Edital 002/2026 — PSS para 18 funções, 43 posições em cadastro reserva e nenhuma contratação imediata. Remunerações de R$ 2.471,70 a R$ 7.415,10; taxas de R$ 40, R$ 70 e R$ 100 conforme escolaridade. Inscrições 24/11–08/12/2026, pagamento até 09/12 e isenção 24–27/11. Prova objetiva de 40 questões prevista para 17/01/2027, das 8h às 12h, em Nova Guarita; prova de títulos para nível superior. Validade de 12 meses, prorrogável. Dados da publicação oficial municipal."
   }
+]; 
+
+export const sourceRegistry = [
+  { label: "Cebraspe — concursos com inscrições abertas", sourceUrl: "https://www.cebraspe.org.br/concursos/inscricoes-abertas" },
+  { label: "FGV Conhecimento — concursos", sourceUrl: "https://conhecimento.fgv.br/concursos" },
+  { label: "Fundação Carlos Chagas — concursos em andamento", sourceUrl: "https://www.concursosfcc.com.br/concursoAndamento.html" },
+  { label: "Fundação Vunesp — inscrições abertas", sourceUrl: "https://www.vunesp.com.br/busca/concurso/inscricoesabertas" },
+  { label: "Instituto AOCP — inscrições abertas", sourceUrl: "https://www.institutoaocp.org.br/concursos/status/inscricoes-abertas" },
+  { label: "Instituto AOCP — concursos em andamento", sourceUrl: "https://www.institutoaocp.org.br/concursos/status/em-andamento" },
+  { label: "IBFC — concursos abertos", sourceUrl: "https://concursos.ibfc.org.br/index/abertos/" },
+  { label: "IGEDUC — concursos abertos", sourceUrl: "https://www.igeduc.org.br/index/abertos/" },
+  { label: "Instituto Federal de Goiás — concursos e seleções", sourceUrl: "https://www.ifg.edu.br/institucional/17-ifg/ultimas-noticias/48695-concurso-tae-ifg-26" },
+  { label: "Instituto Quadrix — todos os concursos", sourceUrl: "https://quadrix.org.br/index/todos/" },
+  { label: "Fundação La Salle — concursos em andamento", sourceUrl: "https://fundacaolasalle.org.br/concursos/?filtro=em-andamento" }
+];
+
+export const materias = [
+  {
+    "nome": "Língua Portuguesa",
+    "descricao": "Interpretação e gramática",
+    "icon": "Aa"
+  },
+  {
+    "nome": "Raciocínio lógico",
+    "descricao": "Lógica e matemática",
+    "icon": "∑"
+  },
+  {
+    "nome": "Direito constitucional",
+    "descricao": "Princípios e fundamentos",
+    "icon": "§"
+  },
+  {
+    "nome": "Informática",
+    "descricao": "Conceitos e ferramentas",
+    "icon": "⌘"
+  },
+
+
 ];
