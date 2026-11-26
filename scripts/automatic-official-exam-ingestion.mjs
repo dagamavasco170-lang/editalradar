@@ -26,7 +26,6 @@ if (SERVICE_KEY && !SERVICE_KEY.startsWith("sb_secret_")) authHeaders.Authorizat
 function decodeEntities(value) {
   return String(value || "")
     .replace(/&nbsp;|&#160;/gi, " ")
-    .replace(/&amp;/gi, "&")
     .replace(/&quot;|&#34;/gi, '"')
     .replace(/&apos;|&#39;/gi, "'")
     .replace(/&lt;/gi, "<")
@@ -38,7 +37,8 @@ function decodeEntities(value) {
     .replace(/&#x([\da-f]+);/gi, (_match, digits) => {
       const code = Number.parseInt(digits, 16);
       return Number.isInteger(code) && code >= 0 && code <= 0x10ffff ? String.fromCodePoint(code) : "";
-    });
+    })
+    .replace(/&amp;/gi, "&");
 }
 
 function stripTags(value) {
@@ -307,6 +307,12 @@ export function calculateAnswerKeyCoverage(questions, answerMap) {
   const validAnswers = entries.filter(([, answer]) => answer !== "ANULADA");
   if (!validAnswers.length) return 0;
   return validAnswers.filter(([number]) => questionNumbers.has(Number(number))).length / validAnswers.length;
+}
+
+export function enforceWholeBookletGate(validatedQuestions) {
+  const items = Array.isArray(validatedQuestions) ? validatedQuestions : [];
+  const rejected = items.filter(item => !item?.approved);
+  return { approved: items.length > 0 && rejected.length === 0, total: items.length, rejected: rejected.length };
 }
 
 export function validateQuestionForAutoPublication(question, answer, questionFormat, { ocrAllowed = false } = {}) {
@@ -687,6 +693,7 @@ async function processDocument(record, examLink, keyLink, mode, runId, report, f
       );
     }
     const output = [];
+    const validations = [];
     for (const question of questions) {
       const officialAnswer = parsedKey.answers.get(Number(question.source_question_number));
       if (!officialAnswer || officialAnswer === "ANULADA") {
@@ -695,6 +702,7 @@ async function processDocument(record, examLink, keyLink, mode, runId, report, f
       }
       const answer = officialAnswer.toLowerCase();
       const validation = validateQuestionForAutoPublication(question, answer, questionFormat);
+      validations.push({ approved: validation.approved, questionNumber: question.source_question_number, reasons: validation.reasons });
       if (!validation.approved) {
         report.quarantined += 1;
         report.quarantineReasons.push({ question: question.source_question_number, reasons: validation.reasons });
@@ -717,6 +725,17 @@ async function processDocument(record, examLink, keyLink, mode, runId, report, f
           sourceHostValidated: true
         }
       });
+    }
+    const bookletGate = enforceWholeBookletGate(validations);
+    if (!bookletGate.approved) {
+      report.quarantined += output.length;
+      report.quarantineReasons.push({
+        booklet: examLink.url,
+        reason: "Caderno inteiro bloqueado: pelo menos uma questão falhou na validação automática.",
+        rejectedQuestions: bookletGate.rejected,
+        totalQuestions: bookletGate.total
+      });
+      output.length = 0;
     }
     if (mode === "publish" && output.length) {
       if (!runId) throw new Error("Execução de publicação sem identificador de auditoria.");
