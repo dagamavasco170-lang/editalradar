@@ -90,6 +90,7 @@ export function parseExamPages(pages, documentSha256, { questionFormat = "multip
           options,
           suggested_answer: null,
           fingerprint,
+          ocr_used: Boolean(current.ocrUsed),
           review_notes: issues.join(" ") || "Extração automática; conferir enunciado, alternativas, imagens e gabarito oficial."
         });
         seenFingerprints.add(fingerprint);
@@ -106,7 +107,7 @@ export function parseExamPages(pages, documentSha256, { questionFormat = "multip
       const start = parseQuestionStart(line);
       if (start && start.number > 0) {
         flush();
-        current = { number: start.number, kind: start.kind, page: pageNumber, promptLines: [], options: [] };
+        current = { number: start.number, kind: start.kind, page: pageNumber, ocrUsed: Boolean(page.ocrUsed), promptLines: [], options: [] };
         if (start.rest.trim()) current.promptLines.push(start.rest.trim());
         continue;
       }
@@ -218,7 +219,7 @@ function command(commandName, args, options = {}) {
   });
 }
 
-async function extractPdfPages(pdfPath) {
+export async function extractPdfPages(pdfPath) {
   const info = command("pdfinfo", [pdfPath]);
   const pageCount = Number(info.match(/^Pages:\s+(\d+)/m)?.[1] || 0);
   if (!pageCount || pageCount > MAX_PDF_PAGES) {
@@ -244,6 +245,7 @@ async function extractPdfPages(pdfPath) {
           const ocrText = command("tesseract", [imagePath, "stdout", "-l", "por+eng", "--psm", "6"], { timeout: 8000 });
           if (ocrText.trim().length > page.text.trim().length) {
             page.text = ocrText;
+            page.ocrUsed = true;
             ocrCount += 1;
           }
         } catch {
