@@ -39,7 +39,7 @@ function parseQuestionStart(line) {
 }
 
 function parseOption(line) {
-  const match = String(line).match(/^\s*(?:\(([A-F])\)|([A-F])[\).:-])\s*(.*?)\s*$/iu);
+  const match = String(line).match(/^\s*(?:\(([A-F])\)|([A-F])(?:[\).:-]|\s+))\s*(.*?)\s*$/iu);
   if (!match) return null;
   return { id: String(match[1] || match[2]).toLowerCase(), text: String(match[3] || "").trim() };
 }
