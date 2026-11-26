@@ -38,7 +38,7 @@ export function buildTopicMastery({questions=[],attempts=[],now=Date.now()}={}) 
     for(let i=history.length-1;i>=0;i--){if(history[i].correct===true)streak++;else break;}
     const accuracy=row.attempts?Math.round(row.correct/row.attempts*100):0;
     const mastery=row.attempts<2?"starting":accuracy>=80?"strong":"developing";
-    const intervalDays=row.attempts===0?0:streak>=5&&accuracy>=85?14:streak>=3&&accuracy>=80?7:accuracy>=65?3:1;
+    const intervalDays=row.attempts===0?0:streak>=5&&accuracy>=85?14:streak>=3&&accuracy>=80?7:accuracy>=85?7:accuracy>=65?3:1;
     const unlockedLevel=streak>=5&&accuracy>=85?"Difícil":streak>=3&&accuracy>=70?"Médio":"Fácil";
     const nextLevel=unlockedLevel==="Fácil"?"Médio":unlockedLevel==="Médio"?"Difícil":"Difícil";
     const dueAt=row.lastActivity===null?now:row.lastActivity+intervalDays*DAY_MS;
