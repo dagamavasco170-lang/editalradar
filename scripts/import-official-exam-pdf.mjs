@@ -11,6 +11,7 @@ import { isTrustedOfficialUrl } from "../src/lib/official-sources.js";
 export const MAX_PDF_BYTES = 25 * 1024 * 1024;
 export const MAX_PDF_PAGES = 300;
 export const MAX_OCR_PAGES = 60;
+export const MAX_BARE_QUESTION_LOOKAHEAD_LINES = 180;
 const RIGHTS_BASES = new Set([
   "official_publication", "public_domain", "permission_granted", "cc_by", "cc_by_sa", "other_reviewed"
 ]);
@@ -139,7 +140,7 @@ function parseBareOption(line) {
 function hasFollowingBareOptionSequence(lines, startIndex) {
   let expected = "b";
   let matched = 0;
-  const end = Math.min(lines.length, startIndex + 41);
+  const end = Math.min(lines.length, startIndex + MAX_BARE_QUESTION_LOOKAHEAD_LINES + 1);
   for (let index = startIndex + 1; index < end; index += 1) {
     if (parseQuestionStart(lines[index])) break;
     const option = parseOption(lines[index]) || parseBareOption(lines[index]);
@@ -152,7 +153,7 @@ function hasFollowingBareOptionSequence(lines, startIndex) {
 }
 
 function hasQuestionOptionSequenceAfterNumber(lines, startIndex) {
-  const end = Math.min(lines.length, startIndex + 41);
+  const end = Math.min(lines.length, startIndex + MAX_BARE_QUESTION_LOOKAHEAD_LINES + 1);
   for (let index = startIndex + 1; index < end; index += 1) {
     if (parseQuestionStart(lines[index])) break;
     const option = parseOption(lines[index]) || parseBareOption(lines[index]);
