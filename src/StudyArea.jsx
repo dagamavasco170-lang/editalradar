@@ -185,8 +185,8 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
   question.origin!=="licensed"&&(!question.databaseId||Boolean(activeUserId&&authClient))
  ),[allQuestions,activeUserId,authClient]);
  const questionBankView=useMemo(()=>buildQuestionBankView({
-  questions:allQuestions,discipline,board,difficulty,originFilter,questionSearch,collection,latestAttempts,savedQuestions
- }),[allQuestions,discipline,board,difficulty,originFilter,questionSearch,collection,latestAttempts,savedQuestions]);
+  questions:allQuestions,discipline,board,difficulty,originFilter,questionSearch,collection,latestAttempts,savedQuestions,attempts:questionProgress.attempts
+ }),[allQuestions,discipline,board,difficulty,originFilter,questionSearch,collection,latestAttempts,savedQuestions,questionProgress.attempts]);
  const questionBase=questionBankView.base;
  const collectionCounts=questionBankView.counts;
  const filtered=questionBankView.filtered;
@@ -384,6 +384,7 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
     <button type="button" className={collection==="unanswered"?"active":""} aria-pressed={collection==="unanswered"} onClick={()=>selectCollection("unanswered")}>Não respondidas <span>{collectionCounts.unanswered}</span></button>
     <button type="button" className={collection==="wrong"?"active":""} aria-pressed={collection==="wrong"} onClick={()=>selectCollection("wrong")}>Caderno de erros <span>{collectionCounts.wrong}</span></button>
     <button type="button" className={collection==="saved"?"active":""} aria-pressed={collection==="saved"} onClick={()=>selectCollection("saved")}>Salvas <span>{collectionCounts.saved}</span></button>
+    <button type="button" className={collection==="due"?"active":""} aria-pressed={collection==="due"} onClick={()=>selectCollection("due")}>Revisão hoje <span>{collectionCounts.due}</span></button>
    </div>
    {question?<div className="question-card" tabIndex={0} aria-label="Área de resolução da questão. Atalhos: números para escolher alternativa, Enter para conferir resposta.">
     <div className="question-card-heading">
