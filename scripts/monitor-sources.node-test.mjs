@@ -259,6 +259,16 @@ test("classifica fontes oficiais sem confundir NO_CHANGE com falha de coleta", (
   assert.equal(partial.unchanged, 1);
   assert.equal(partial.restricted, 1);
 
+  const incomplete = summarizeSourceChecks({
+    checked: [
+      { url: urlA, current: { ok: true, sha256: "same" } },
+      { url: urlB, current: { ok: false, status: 503 } }
+    ],
+    previousSources: { [urlA]: { sha256: "same" } }
+  });
+  assert.equal(incomplete.outcome, "PARTIAL");
+  assert.equal(incomplete.failed, 1);
+
   const noChange = summarizeSourceChecks({
     checked: [{ url: urlA, current: { ok: true, sha256: "same" } }],
     previousSources: { [urlA]: { sha256: "same" } }
