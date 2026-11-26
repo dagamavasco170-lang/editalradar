@@ -87,7 +87,7 @@ test("extrai itens Cebraspe ITEM n como Certo/Errado sem inferir resposta", () =
       "GABARITO: CERTO",
       "A respeito do acolhimento no sistema de saúde, julgue o próximo item.",
       "O acolhimento implica escuta qualificada e responsabilização pelo sofrimento ou necessidade de saúde do usuário."
-    ].join("\\n")
+    ].join("\n")
   }];
   const rows = parseExamPages(pages, documentHash, { questionFormat: "true_false" });
   assert.equal(rows.length, 3);
@@ -104,7 +104,7 @@ test("manifesto preserva o formato certo/errado para a fila administrativa", () 
       "ITEM 7",
       "JULGUE O ITEM A SEGUIR CONSIDERANDO OS PRINCÍPIOS DA ADMINISTRAÇÃO PÚBLICA.",
       "A administração pública deve obedecer aos princípios expressos no texto constitucional."
-    ].join("\\n")
+    ].join("\n")
   }], documentHash, { questionFormat: "true_false" });
   const manifest = buildImportManifest({ ...metadata, question_format: "true_false" }, documentHash, questions);
   assert.equal(manifest.metadata.question_format, "true_false");
