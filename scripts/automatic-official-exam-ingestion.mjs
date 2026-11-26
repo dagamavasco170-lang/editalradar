@@ -519,10 +519,12 @@ export function pairExamWithAnswerKey(exam, keys, examCount = 1) {
   if (keys.length === 1) {
     const examVariant = variantIdentity(exam.label + " " + exam.url);
     const keyVariant = variantIdentity(keys[0].label + " " + keys[0].url);
-    if (examVariant !== keyVariant) return null;
-    // Um único gabarito sem identificação de caderno não pode ser associado
-    // automaticamente quando a página oferece múltiplas provas.
-    if (!examVariant && Number(examCount) !== 1) return null;
+    if (keyVariant && keyVariant !== examVariant) return null;
+    if (Number(examCount) > 1) {
+      // Um único PDF pode conter seções por cargo e caderno. A associação
+      // só será aceita depois de localizar exatamente uma seção no conteúdo.
+      return { ...keys[0], requiresSectionMatch: true };
+    }
     return keys[0];
   }
   const variant = variantIdentity(exam.label + " " + exam.url);
@@ -592,7 +594,33 @@ async function processDocument(record, examLink, keyLink, mode, runId, report, f
     if (!isDefinitiveAnswerKey(keyLink.label + " " + keyLink.url, definitiveText + " " + sourceText, record.notes)) {
       throw new Error("O conteúdo do PDF não confirmou o caráter definitivo do gabarito.");
     }
-    const parsedKey = parseOfficialAnswerKey(definitiveText, questionFormat);
+    const answerKeySections = parseOfficialAnswerKeyVariants(definitiveText, questionFormat);
+    let parsedKey;
+    if (answerKeySections.length) {
+      const matchedSection = selectAnswerKeySection(examLink, record, answerKeySections);
+      if (!matchedSection) {
+        const error = new Error("O gabarito definitivo consolidado não contém uma única seção que corresponda ao cargo e caderno desta prova.");
+        error.code = "UNMATCHED_ANSWER_KEY_SECTION";
+        throw error;
+      }
+      parsedKey = {
+        answers: matchedSection.answers,
+        conflicts: matchedSection.conflicts,
+        parsedCount: matchedSection.parsedCount,
+        selectedSection: {
+          role: matchedSection.role,
+          bookletNumber: matchedSection.bookletNumber,
+          shift: matchedSection.shift
+        }
+      };
+    } else {
+      if (keyLink.requiresSectionMatch) {
+        const error = new Error("O gabarito único exige associação por seção, mas o PDF não expõe seções identificáveis.");
+        error.code = "UNMATCHED_ANSWER_KEY_SECTION";
+        throw error;
+      }
+      parsedKey = parseOfficialAnswerKey(definitiveText, questionFormat);
+    }
     if (parsedKey.conflicts.length) throw new Error("O gabarito contém respostas conflitantes para questões: " + parsedKey.conflicts.join(", "));
     const questions = manifest.imports;
     if (!questions.length) throw new Error("O parser não identificou questões objetivas válidas.");
@@ -629,6 +657,7 @@ async function processDocument(record, examLink, keyLink, mode, runId, report, f
           proofUrl: proof.url,
           answerKeyUrl: answerKeyFile.url,
           answerKeyType: "official_final",
+          answerKeySection: parsedKey.selectedSection || null,
           parser: "editalradar-exam-parser-v1",
           parserOcrUsed: Boolean(question.ocr_used),
           sourceHostValidated: true
@@ -868,12 +897,21 @@ export async function runAutomaticOfficialExamIngestion({ mode = "dry-run", limi
           try {
             await processDocument(record, examLink, keyLink, mode, report.runId, report, fetchImpl);
           } catch (error) {
-            report.failures.push({
-              source: record.source_url,
-              proof: examLink.url,
-              answerKey: keyLink.url,
-              reason: String(error?.message || error).slice(0, 500)
-            });
+            if (error?.code === "UNMATCHED_ANSWER_KEY_SECTION") {
+              report.unmatchedDocuments.push({
+                source: record.source_url,
+                proof: examLink.url,
+                answerKey: keyLink.url,
+                reason: String(error?.message || error).slice(0, 500)
+              });
+            } else {
+              report.failures.push({
+                source: record.source_url,
+                proof: examLink.url,
+                answerKey: keyLink.url,
+                reason: String(error?.message || error).slice(0, 500)
+              });
+            }
           }
           await sleep(350);
         }
