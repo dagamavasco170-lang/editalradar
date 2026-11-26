@@ -166,6 +166,11 @@ begin
      or coalesce(v_evidence ->> 'parserTextOnly', 'false') <> 'true'
      or coalesce(v_evidence ->> 'noVisualDependency', 'false') <> 'true'
      or coalesce(v_import.auto_validation_evidence ->> 'answerKeyType', '') <> 'official_final'
+     or coalesce(v_import.auto_validation_evidence ->> 'sourceHostValidated', 'false') <> 'true'
+     or v_import.auto_validation_evidence ->> 'proofUrl' is distinct from v_import.exam_pdf_url
+     or v_import.auto_validation_evidence ->> 'answerKeyUrl' is distinct from v_import.gabarito_source_url
+     or v_import.auto_validation_evidence ->> 'proofSha256' is distinct from v_import.source_document_sha256
+     or v_import.auto_validation_evidence ->> 'answerKeySha256' is distinct from v_import.gabarito_document_sha256
      or coalesce((v_import.auto_validation_evidence ->> 'gabaritoCoverage')::numeric, 0) < 0.95 then
     raise exception 'Evidências automáticas incompletas ou inconsistentes.'
       using errcode = '22023';
@@ -176,10 +181,15 @@ begin
       using errcode = '22023';
   end if;
 
+  if lower(coalesce(v_import.suggested_answer, '')) <> lower(v_answer) then
+    raise exception 'A resposta não corresponde à extração do gabarito oficial validado.'
+      using errcode = '22023';
+  end if;
+
   if not exists (
     select 1
       from jsonb_array_elements(v_import.options) as option_row(value)
-     where upper(coalesce(option_row.value ->> 'id', '')) = v_answer
+     where lower(coalesce(option_row.value ->> 'id', '')) = lower(v_answer)
   ) then
     raise exception 'O gabarito definitivo não corresponde a uma alternativa da questão.'
       using errcode = '22023';
