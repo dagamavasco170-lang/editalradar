@@ -4054,3 +4054,22 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{ou
 .study-recommendation-meter{display:flex;align-items:center;gap:10px;min-width:100px}
 .study-recommendation-meter .question-discipline-track{width:84px;margin:0}
 @media(max-width:600px){.study-recommendation-row{align-items:flex-start;flex-direction:column}.study-recommendation-meter{width:100%}.study-recommendation-meter .question-discipline-track{flex:1}}
+
+.study-mastery-panel,.study-weekly-panel{margin:16px 0;padding:16px;border:1px solid var(--border,#e5e7eb);border-radius:14px;background:var(--surface-soft,#f8fafc)}
+.study-mastery-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.study-mastery-heading p,.study-weekly-panel>p{margin:4px 0 12px;color:var(--text-muted,#64748b);font-size:.86rem}
+.study-mastery-heading>span{font-size:.78rem;font-weight:700;color:var(--primary,#3478c4);white-space:nowrap}
+.study-mastery-list{display:grid;gap:0}
+.study-mastery-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:11px 0;border-top:1px solid var(--border,#e5e7eb)}
+.study-mastery-topic,.study-mastery-status{display:grid;gap:4px}
+.study-mastery-topic small,.study-mastery-status small{font-size:.78rem;color:var(--text-muted,#64748b)}
+.study-mastery-status{justify-items:end}
+.mastery-level{font-size:.72rem;font-weight:700;border-radius:99px;padding:4px 8px;background:#eef2f7;color:#475569}
+.mastery-developing{background:#fff4df;color:#9a5b00}.mastery-strong{background:#e8f7ef;color:#187447}
+.study-weekly-bars{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px;align-items:end;padding-top:8px}
+.study-weekly-day{display:grid;justify-items:center;gap:5px;font-size:.72rem;color:var(--text-muted,#64748b)}
+.study-weekly-bar{height:76px;width:min(100%,30px);border-radius:8px;background:#e8eef5;position:relative;overflow:hidden;display:flex;align-items:flex-end}
+.study-weekly-bar i,.study-weekly-bar b{position:absolute;bottom:0;left:0;width:100%;background:#8db5e5}
+.study-weekly-bar b{background:#2476c5;z-index:1}
+.study-weekly-day em{font-style:normal;font-weight:700;color:var(--text,#334155)}
+@media(max-width:600px){.study-mastery-heading{flex-direction:column}.study-mastery-row{align-items:flex-start}.study-weekly-bars{gap:5px}}

@@ -3,6 +3,7 @@ import { loadQuestionProgress, mergeQuestionProgress, questionBank, questionProg
 import { buildQuestionBankView } from "./lib/question-bank-view.js";
 import { buildQuestionProgressMetrics } from "./lib/question-progress-metrics.js";
 import { buildStudyRecommendations } from "./lib/study-recommendations.js";
+import { buildTopicMastery, buildWeeklyStudyProgress } from "./lib/topic-mastery.js";
 
 const SimulatorPanel = React.lazy(() => import("./SimulatorPanel.jsx"));
 const ExamSourcesPanel = React.lazy(() => import("./ExamSourcesPanel.jsx"));
@@ -191,6 +192,10 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
  const progressMetrics=useMemo(()=>buildQuestionProgressMetrics({attempts:questionProgress.attempts,questions:allQuestions}),[questionProgress.attempts,allQuestions]);
  const {totalAttempts,totalCorrect,accuracy,uniqueAnswered}=progressMetrics;
  const studyRecommendations=useMemo(()=>buildStudyRecommendations({questions:allQuestions,attempts:questionProgress.attempts}),[allQuestions,questionProgress.attempts]);
+ const topicMastery=useMemo(()=>buildTopicMastery({questions:allQuestions,attempts:questionProgress.attempts}),[allQuestions,questionProgress.attempts]);
+ const weeklyStudyProgress=useMemo(()=>buildWeeklyStudyProgress({attempts:questionProgress.attempts}),[questionProgress.attempts]);
+ const dueTopics=topicMastery.filter(item=>item.due);
+ const masteryLabel={starting:"Iniciando",developing:"Em desenvolvimento",strong:"Bom domínio"};
  const sessions=useMemo(()=>{
   const chosen=plan.days.filter(day=>days.includes(day));
   const count=chosen.length||1, total=plan.hours*60, base=Math.floor(total/count), rem=total%count;
@@ -342,6 +347,14 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
     <div className="question-stat"><strong>{accuracy}%</strong><span>taxa de acerto</span></div>
    </div>
    {progressMetrics.byDiscipline.length>0&&<div className="question-discipline-metrics" aria-label="Desempenho por disciplina"><strong>Desempenho por disciplina</strong>{progressMetrics.byDiscipline.slice(0,4).map(row=><div className="question-discipline-row" key={row.discipline}><span>{row.discipline}</span><span>{row.correct}/{row.attempts} · {row.accuracy}%</span><div className="question-discipline-track"><i style={{width:row.accuracy+"%"}}/></div></div>)}</div>}
+   <div className="study-mastery-panel" aria-label="Mapa de domínio e revisões">
+    <div className="study-mastery-heading"><div><strong>Mapa de domínio dos assuntos</strong><p>Seu desempenho define o nível de domínio e o intervalo sugerido para revisar.</p></div><span>{dueTopics.length} revisão(ões) pendente(s)</span></div>
+    <div className="study-mastery-list">{topicMastery.slice(0,6).map(item=><div className="study-mastery-row" key={item.discipline+"::"+item.topic}>
+     <div className="study-mastery-topic"><strong>{item.topic}</strong><small>{item.discipline} · {item.attempts} respondida(s) · {item.unanswered} pendente(s)</small></div>
+     <div className="study-mastery-status"><span className={"mastery-level mastery-"+item.mastery}>{masteryLabel[item.mastery]}</span><strong>{item.accuracy}%</strong><small>{item.attempts===0?"Praticar agora":item.due?"Revisão indicada agora":"Revisar em "+item.intervalDays+" dia(s)"}</small></div>
+    </div>)}</div>
+   </div>
+   <div className="study-weekly-panel" aria-label="Atividade dos últimos sete dias"><strong>Ritmo dos últimos 7 dias</strong><p>Questões respondidas por dia, com acertos destacados nos indicadores.</p><div className="study-weekly-bars">{weeklyStudyProgress.map(day=><div className="study-weekly-day" key={day.date}><div className="study-weekly-bar" title={day.attempts+" tentativa(s), "+day.correct+" acerto(s)"}><i style={{height:(day.attempts?Math.max(8,day.attempts/Math.max(1,...weeklyStudyProgress.map(x=>x.attempts))*100):0)+"%"}}/><b style={{height:(day.attempts?day.correct/day.attempts*100:0)+"%"}}/></div><small>{new Date(day.date+"T12:00:00").toLocaleDateString("pt-BR",{weekday:"short"}).replace(".","")}</small><em>{day.attempts}</em></div>)}</div></div>
    {studyRecommendations.length>0&&<div className="study-recommendation-panel" aria-label="Recomendações de estudo"><strong>Próximos assuntos para revisar</strong><p>Recomendações baseadas no seu histórico de respostas e questões pendentes.</p>{studyRecommendations.slice(0,4).map(item=><div className="study-recommendation-row" key={item.discipline+"::"+item.topic}><div><span>{item.topic}</span><small>{item.discipline} · {item.wrong} erro(s) · {item.unanswered} pendente(s)</small></div><div className="study-recommendation-meter"><strong>{item.accuracy}%</strong><div className="question-discipline-track"><i style={{width:item.accuracy+"%"}}/></div></div></div>)}</div>}
    <div className="question-toolbar">
     <label className="question-search">Buscar questão<input aria-label="Buscar no banco de questões" placeholder="Tema, assunto ou enunciado..." value={questionSearch} onChange={e=>setQuestionFilter(setQuestionSearch,e.target.value)}/></label>
