@@ -181,6 +181,16 @@ test("parses FGV answer-key tables with rows of question numbers and aligned ans
   assert.equal(parsed.answers.get(40), "E");
 });
 
+test("recovers FGV answer keys when PDF extraction puts each number and answer on separate lines", () => {
+  const text = ["Agente de Polícia Judiciária - 1 - Turno Tarde", "Página 1 de 7", ...Array.from({ length: 20 }, (_, i) => [String(i + 1), i === 12 ? "*" : ["D","B","C","E","A"][i % 5]]).flat()].join("\\n");
+  const parsed = parseOfficialAnswerKey(text);
+  assert.equal(parsed.parsedCount, 20);
+  assert.equal(parsed.answers.get(1), "D");
+  assert.equal(parsed.answers.get(13), "ANULADA");
+  assert.equal(parsed.answers.get(20), "A");
+});
+
+
 test("parses definitive multiple-choice answer keys with one or multiple entries per line", () => {
   const parsed = parseOfficialAnswerKey("GABARITO DEFINITIVO\n1 - A\n02 B 03 C\nQUESTÃO 4: D\n5 ANULADA");
   assert.equal(parsed.conflicts.length, 0);
