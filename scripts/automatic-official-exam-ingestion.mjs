@@ -371,11 +371,14 @@ function variantIdentity(value) {
   return match ? match[1] : "";
 }
 
-function pairExamWithAnswerKey(exam, keys) {
+export function pairExamWithAnswerKey(exam, keys, examCount = 1) {
   if (keys.length === 1) {
     const examVariant = variantIdentity(exam.label + " " + exam.url);
     const keyVariant = variantIdentity(keys[0].label + " " + keys[0].url);
-    if (examVariant && keyVariant && examVariant !== keyVariant) return null;
+    if (examVariant !== keyVariant) return null;
+    // Um único gabarito sem identificação de caderno não pode ser associado
+    // automaticamente quando a página oferece múltiplas provas.
+    if (!examVariant && Number(examCount) !== 1) return null;
     return keys[0];
   }
   const variant = variantIdentity(exam.label + " " + exam.url);
@@ -665,7 +668,7 @@ export async function runAutomaticOfficialExamIngestion({ mode = "dry-run", limi
         const { exams, keys } = resolveExamAndKeyLinks(record, links, pageText);
         for (const examLink of exams) {
           if (report.documentsChecked >= maxDocs) break;
-          const keyLink = pairExamWithAnswerKey(examLink, keys);
+          const keyLink = pairExamWithAnswerKey(examLink, keys, exams.length);
           if (!keyLink) continue;
           report.documentsChecked += 1;
           try {
