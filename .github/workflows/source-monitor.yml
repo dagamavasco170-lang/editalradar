@@ -97,17 +97,6 @@ jobs:
           TRIAGE_EXTERNAL_COOLDOWN_HOURS: 6
           TRIAGE_MAX_ITEMS: 40
 
-      - name: Importar e publicar questões oficiais automaticamente
-        id: exam_import
-        if: always() && steps.monitor.outcome == 'success'
-        timeout-minutes: 25
-        run: npm run import:official-exams
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          EXAM_IMPORT_CONCURRENCY: 3
-          EXAM_IMPORT_MAX_PAIRS: 20
-
       - name: Salvar histórico da verificação
         uses: actions/cache/save@v6
         with:
@@ -115,7 +104,7 @@ jobs:
           key: source-monitor-${{ runner.os }}-${{ github.run_id }}
 
       - name: Preparar relatório e fingerprint do monitor
-        if: always() && (steps.monitor.outputs.changed_count != '0' || steps.monitor.outputs.failed_count != '0' || steps.monitor.outputs.new_restricted_count != '0' || steps.monitor.outputs.web_search_failed_count != '0' || steps.publish_discoveries.outcome == 'failure' || steps.resolve.outcome == 'failure' || steps.resolve.outputs.pending_count != '0' || steps.exam_import.outcome == 'failure')
+        if: always() && (steps.monitor.outputs.changed_count != '0' || steps.monitor.outputs.failed_count != '0' || steps.monitor.outputs.new_restricted_count != '0' || steps.monitor.outputs.web_search_failed_count != '0' || steps.publish_discoveries.outcome == 'failure' || steps.resolve.outcome == 'failure' || steps.resolve.outputs.pending_count != '0')
         run: node scripts/source-monitor-issue-report.mjs
         env:
           REPORT_PATH: .cache/source-monitor-report.json
@@ -133,19 +122,12 @@ jobs:
           TRIAGE_PENDING: ${{ steps.resolve.outputs.pending_count }}
           TRIAGE_PENDING_TOTAL: ${{ steps.resolve.outputs.pending_total_count }}
           TRIAGE_ERRORS: ${{ steps.resolve.outputs.error_count }}
-          EXAM_IMPORT_OUTCOME: ${{ steps.exam_import.outcome }}
-          EXAM_IMPORT_STATUS: ${{ steps.exam_import.outputs.status }}
-          EXAM_IMPORT_PUBLISHED: ${{ steps.exam_import.outputs.published }}
-          EXAM_IMPORT_RETRIED: ${{ steps.exam_import.outputs.retried }}
-          EXAM_IMPORT_SKIPPED: ${{ steps.exam_import.outputs.skipped }}
-          EXAM_IMPORT_ERRORS: ${{ steps.exam_import.outputs.errors }}
-          EXAM_IMPORT_RUN_ID: ${{ steps.exam_import.outputs.run_id }}
           TRIAGE_BASELINES_DISMISSED: ${{ steps.resolve.outputs.baseline_dismissed_count }}
           WEB_SEARCH_COUNT: ${{ steps.monitor.outputs.web_search_count }}
           WEB_SEARCH_FAILED: ${{ steps.monitor.outputs.web_search_failed_count }}
 
       - name: Abrir ou atualizar issue para revisão e falhas
-        if: always() && (steps.monitor.outputs.changed_count != '0' || steps.monitor.outputs.failed_count != '0' || steps.monitor.outputs.new_restricted_count != '0' || steps.monitor.outputs.web_search_failed_count != '0' || steps.publish_discoveries.outcome == 'failure' || steps.resolve.outcome == 'failure' || steps.resolve.outputs.pending_count != '0' || steps.exam_import.outcome == 'failure')
+        if: always() && (steps.monitor.outputs.changed_count != '0' || steps.monitor.outputs.failed_count != '0' || steps.monitor.outputs.new_restricted_count != '0' || steps.monitor.outputs.web_search_failed_count != '0' || steps.publish_discoveries.outcome == 'failure' || steps.resolve.outcome == 'failure' || steps.resolve.outputs.pending_count != '0')
         uses: actions/github-script@v8
         env:
           ISSUE_REPORT_PATH: .cache/source-monitor-issue.json
@@ -199,7 +181,7 @@ jobs:
             core.info("Issue #" + existing.number + " atualizada; fingerprint " + fingerprint + ".");
             
       - name: Encerrar automaticamente alerta quando a triagem se recuperar
-        if: always() && steps.monitor.outcome == 'success' && steps.monitor.outputs.changed_count == '0' && steps.monitor.outputs.failed_count == '0' && steps.monitor.outputs.restricted_count == '0' && steps.monitor.outputs.web_search_failed_count == '0' && steps.publish_discoveries.outcome != 'failure' && steps.resolve.outcome == 'success' && steps.resolve.outputs.pending_count == '0' && steps.resolve.outputs.pending_total_count == '0' && steps.resolve.outputs.error_count == '0' && steps.exam_import.outcome == 'success'
+        if: always() && steps.monitor.outcome == 'success' && steps.monitor.outputs.changed_count == '0' && steps.monitor.outputs.failed_count == '0' && steps.monitor.outputs.restricted_count == '0' && steps.monitor.outputs.web_search_failed_count == '0' && steps.publish_discoveries.outcome != 'failure' && steps.resolve.outcome == 'success' && steps.resolve.outputs.pending_count == '0' && steps.resolve.outputs.pending_total_count == '0' && steps.resolve.outputs.error_count == '0'
         uses: actions/github-script@v8
         with:
           script: |
