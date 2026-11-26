@@ -382,7 +382,7 @@ export function validateQuestionForAutomaticPublication(question, answerKey, opt
  */
 export async function runAutomaticExamImport() {
   throw new Error(
-    "A publicação automática de questões está desativada. " +
+    "A ingestão automática e a publicação de questões estão desativadas. " +
     "Gere um manifesto com o importador local e envie-o à fila de revisão administrativa."
   );
 }
