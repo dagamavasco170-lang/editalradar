@@ -302,7 +302,40 @@ export function parseOfficialAnswerKeyVariants(text, questionFormat = "multiple_
 
   if (current) sections.push(current);
   return sections.map(section => {
-    const parsed = parseAnswerRows(section.lines.join("\n"), questionFormat);
+    const sectionText = section.lines.join("\n");
+    let parsed = parseAnswerRows(sectionText, questionFormat);
+
+    // FGV consolidated keys may expose a clean two-row matrix (question numbers,
+    // then alternatives) while the general parser rejects the PDF's column spacing.
+    // Use this strict positional fallback only when the general parser found nothing.
+    if (parsed.parsedCount === 0) {
+      const allowed = questionFormat === "true_false" ? new Set(["C", "E", "X", "*"]) : new Set(["A", "B", "C", "D", "E", "F", "X", "*"]);
+      const rows = String(sectionText).replace(/\r/g, "").split("\n").map(line => line.trim()).filter(Boolean);
+      const recovered = new Map();
+      const conflicts = new Set();
+      const addAligned = (numbers, values) => {
+        if (numbers.length < 5 || numbers.length !== values.length) return false;
+        numbers.forEach((number, index) => {
+          const answer = values[index] === "*" || values[index] === "X" ? "ANULADA" : values[index];
+          const previous = recovered.get(Number(number));
+          if (previous && previous !== answer) conflicts.add(Number(number));
+          else recovered.set(Number(number), answer);
+        });
+        return true;
+      };
+      for (let index = 0; index + 1 < rows.length; index += 1) {
+        const numberTokens = rows[index].match(/\d{1,3}/g) || [];
+        const numberResidue = rows[index].replace(/\d{1,3}/g, "").replace(/[\s|.,;:_-]/g, "");
+        if (numberTokens.length < 5 || numberResidue) continue;
+        const answerTokens = rows[index + 1].toUpperCase().match(/[A-FX*]/g) || [];
+        const answerResidue = rows[index + 1].toUpperCase().replace(/[A-FX*]/g, "").replace(/[\s|.,;:_-]/g, "");
+        if (answerResidue || !answerTokens.every(token => allowed.has(token))) continue;
+        if (addAligned(numberTokens, answerTokens)) index += 1;
+      }
+      for (const number of conflicts) recovered.delete(number);
+      if (recovered.size) parsed = { answers: recovered, conflicts: [...conflicts], parsedCount: recovered.size };
+    }
+
     return {
       role: section.role,
       bookletNumber: section.bookletNumber,
