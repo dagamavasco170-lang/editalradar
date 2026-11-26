@@ -723,6 +723,11 @@ export async function runAutomaticOfficialExamIngestion({ mode = "dry-run", limi
         }
         const uniqueLinks = [...new Map(links.map(link => [link.url, link])).values()];
         diagnostics.pdfLinksAfterExpansion = uniqueLinks.length;
+        diagnostics.pdfLinkCandidates = uniqueLinks.slice(0, 30).map(link => ({
+          label: link.label,
+          url: link.url,
+          kind: classifyOfficialPdfLink(link, pageText, record.notes)
+        }));
         const { exams, keys } = resolveExamAndKeyLinks(record, uniqueLinks, pageText);
         diagnostics.examCandidates = exams.length;
         diagnostics.definitiveAnswerKeyCandidates = keys.length;
