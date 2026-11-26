@@ -54,7 +54,9 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
  const [answerFeedback,setAnswerFeedback]=useState(null);
  const [adaptiveFeedback,setAdaptiveFeedback]=useState(null);
  const [recoveryTopic,setRecoveryTopic]=useState(null);
- const [recoveryConfirmed,setRecoveryConfirmed]=useState(false);\n const [recoveryReflection,setRecoveryReflection]=useState("");\n const [recoveryReflectionConfirmed,setRecoveryReflectionConfirmed]=useState(false);
+ const [recoveryConfirmed,setRecoveryConfirmed]=useState(false);
+ const [recoveryReflection,setRecoveryReflection]=useState("");
+ const [recoveryReflectionConfirmed,setRecoveryReflectionConfirmed]=useState(false);
  const [questionProgressReady,setQuestionProgressReady]=useState(!activeUserId || !authClient);
  const [questionSyncStatus,setQuestionSyncStatus]=useState(activeUserId ? "loading" : "local");
  const [questionProgressState,setQuestionProgressState]=useState(()=>({
@@ -207,7 +209,8 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
  const recoveryQueue=useMemo(()=>buildAdaptiveQuestionQueue({questions:allQuestions,latestAttempts,attempts:questionProgress.attempts}),[allQuestions,latestAttempts,questionProgress.attempts]);
  const adaptiveCurrent=question?adaptiveQuestionPlan.find(item=>item.id===question.id):null;
  const confusionPattern=useMemo(()=>question?buildConfusionPatterns({questions:allQuestions,attempts:questionProgress.attempts,topic:question.topic||question.discipline,discipline:question.discipline}):null,[question,allQuestions,questionProgress.attempts]);
- const personalizedRecoveryAdvice=useMemo(()=>buildPersonalizedRecoveryAdvice({pattern:confusionPattern||{},explanation:answerFeedback?.explanation||""}),[confusionPattern,answerFeedback]);\n const misconceptionDiagnosis=useMemo(()=>!answerFeedback?.correct&&question?buildMisconceptionDiagnosis({question,selectedAnswer:answer,explanation:answerFeedback?.explanation||""}):null,[question,answer,answerFeedback]);
+ const personalizedRecoveryAdvice=useMemo(()=>buildPersonalizedRecoveryAdvice({pattern:confusionPattern||{},explanation:answerFeedback?.explanation||""}),[confusionPattern,answerFeedback]);
+ const misconceptionDiagnosis=useMemo(()=>!answerFeedback?.correct&&question?buildMisconceptionDiagnosis({question,selectedAnswer:answer,explanation:answerFeedback?.explanation||""}):null,[question,answer,answerFeedback]);
  const topicRecentAttempts=question?questionProgress.attempts.filter(item=>allQuestions.find(q=>q.id===item.questionId)?.topic===question.topic).slice(-5):[];
  const consecutiveCorrect=topicRecentAttempts.slice().reverse().reduce((state,item)=>item.correct&&!state.stopped?{count:state.count+1,stopped:false}:{count:state.count,stopped:true},{count:0,stopped:false}).count;
  const nextAdaptiveQuestion=()=>{const candidates=adaptiveQuestionPlan.filter(item=>item.id!==question?.id&&filtered.some(q=>q.id===item.id));const sameTopic=candidates.filter(item=>allQuestions.find(q=>q.id===item.id)?.topic===question?.topic);const target=(sameTopic.length?sameTopic:candidates)[0];if(!target)return;const position=filtered.findIndex(q=>q.id===target.id);if(position>=0){setIndex(position);setAnswer("");setChecked(false);setAnswerFeedback(null);setAdaptiveFeedback(null);setRecoveryReflection("");setRecoveryReflectionConfirmed(false);}};
