@@ -111,7 +111,7 @@ export function parseExamPages(pages, documentSha256, { questionFormat = "multip
         continue;
       }
       if (!current) continue;
-      const option = parseOption(line);
+      const option = current.kind === "true_false" ? null : parseOption(line);
       if (option) {
         current.options.push(option);
       } else if (current.options.length) {
@@ -173,6 +173,7 @@ export function buildImportManifest(metadata, documentSha256, questions, warning
       exam_year: verifiedMetadata.exam_year,
       discipline: String(verifiedMetadata.discipline).trim(),
       topic: String(verifiedMetadata.topic || "A classificar").trim(),
+      question_format: verifiedMetadata.question_format,
       role_name: String(verifiedMetadata.role_name || "").trim(),
       source_url: verifiedMetadata.source_url,
       exam_pdf_url: verifiedMetadata.exam_pdf_url,
@@ -197,6 +198,7 @@ export function buildImportManifest(metadata, documentSha256, questions, warning
       exam_year: verifiedMetadata.exam_year,
       discipline: String(verifiedMetadata.discipline).trim(),
       topic: String(verifiedMetadata.topic || "A classificar").trim(),
+      question_format: verifiedMetadata.question_format,
       role_name: String(verifiedMetadata.role_name || "").trim(),
       source_url: verifiedMetadata.source_url,
       exam_pdf_url: verifiedMetadata.exam_pdf_url,
