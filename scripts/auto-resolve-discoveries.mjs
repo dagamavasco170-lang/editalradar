@@ -21,6 +21,44 @@ const OCR_MIN_PAGE_TEXT = 45;
 const PDF_VERSION_SNAPSHOT_CHARS = 24000;
 const OCR_PAGE_TIMEOUT_MS = 6000;
 
+export async function readBoundedResponseBytes(response, maxBytes = MAX_BYTES, label = "Resposta") {
+  const contentLength = Number(response?.headers?.get?.("content-length") || 0);
+  if (Number.isFinite(contentLength) && contentLength > maxBytes) {
+    throw new Error(label + " excede o limite de " + Math.round(maxBytes / (1024 * 1024)) + " MB.");
+  }
+  const reader = response?.body?.getReader?.();
+  if (!reader) {
+    let bytes;
+    if (typeof response?.arrayBuffer === "function") bytes = new Uint8Array(await response.arrayBuffer());
+    else if (typeof response?.text === "function") bytes = new TextEncoder().encode(await response.text());
+    else throw new Error(label + " não disponibilizou um corpo legível.");
+    if (bytes.byteLength > maxBytes) {
+      throw new Error(label + " excede o limite de " + Math.round(maxBytes / (1024 * 1024)) + " MB.");
+    }
+    return Buffer.from(bytes);
+  }
+
+  const chunks = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = value instanceof Uint8Array ? value : new Uint8Array(value);
+      total += chunk.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel().catch(() => {});
+        throw new Error(label + " excede o limite de " + Math.round(maxBytes / (1024 * 1024)) + " MB.");
+      }
+      chunks.push(Buffer.from(chunk));
+    }
+  } catch (error) {
+    await reader.cancel().catch(() => {});
+    throw error;
+  }
+  return Buffer.concat(chunks, total);
+}
+
 const DEFAULT_OFFICIAL_RETRY_COOLDOWN_MS = 6 * 60 * 60 * 1000;
 const DEFAULT_EXTERNAL_RETRY_COOLDOWN_MS = 6 * 60 * 60 * 1000;
 const PENDING_DISCOVERY_TYPES = new Set(["new_link", "page_change", "web_search_lead"]);
@@ -112,11 +150,8 @@ export async function fetchSecondaryNewsArticle(articleUrl, request = fetch, opt
     if (!/(text\/html|application\/xhtml\+xml)/i.test(contentType)) {
       throw new Error("A página da notícia não retornou HTML.");
     }
-    const length = Number(response.headers?.get?.("content-length") || 0);
-    if (length > MAX_BYTES) throw new Error("A página da notícia excede o limite de 4 MB.");
-    const bytes = new Uint8Array(await response.arrayBuffer());
-    if (bytes.byteLength > MAX_BYTES) throw new Error("A página da notícia excede o limite de 4 MB.");
-    return { officialUrl: null, html: new TextDecoder("utf-8").decode(bytes), finalUrl };
+    const bytes = await readBoundedResponseBytes(response, MAX_BYTES, "A página da notícia");
+    return { officialUrl: null, html: bytes.toString("utf8"), finalUrl };
   }
   throw new Error("Não foi possível abrir a notícia secundária.");
 }
@@ -975,8 +1010,7 @@ export async function readPdfText(buffer) {
   }
 }
 async function extractCandidateDocument(response, item, finalUrl, contentType) {
-  const bytes = Buffer.from(await response.arrayBuffer());
-  if (bytes.byteLength > MAX_BYTES) return null;
+  const bytes = await readBoundedResponseBytes(response, MAX_BYTES, "O documento oficial");
   const isPdf = /application\/pdf/i.test(contentType) || /\.pdf(?:$|[?#])/i.test(finalUrl);
   if (isPdf) {
     const text = await readPdfText(bytes);
@@ -1090,10 +1124,20 @@ async function requestWithSafeRedirects(request, startUrl, timeoutMs) {
   throw new Error("Não foi possível resolver o endereço oficial.");
 }
 
+function retryAfterMilliseconds(headers, now = Date.now()) {
+  const value = headers?.get?.("retry-after");
+  if (!value) return null;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds) && seconds >= 0) return Math.min(10000, seconds * 1000);
+  const date = Date.parse(value);
+  return Number.isFinite(date) ? Math.max(0, Math.min(10000, date - now)) : null;
+}
+
 export async function fetchCandidateWithRetry(request, candidateUrl, options = {}) {
   const attempts = Math.max(1, Number(options.attempts) || 1);
   const timeoutMs = Math.max(1000, Number(options.timeoutMs) || TIMEOUT_MS);
   const retryDelayMs = Math.max(0, Number(options.retryDelayMs ?? 500));
+  const wait = options.sleepImpl || (milliseconds => new Promise(resolveDelay => setTimeout(resolveDelay, milliseconds)));
   const safeStartUrl = validateTrustedOfficialUrl(candidateUrl).href;
   let lastError = null;
   let lastResponse = null;
@@ -1110,8 +1154,10 @@ export async function fetchCandidateWithRetry(request, candidateUrl, options = {
       lastError = error;
     }
 
-    if (attempt < attempts && retryDelayMs > 0) {
-      await new Promise(resolveDelay => setTimeout(resolveDelay, retryDelayMs * attempt));
+    if (attempt < attempts) {
+      const retryAfter = retryAfterMilliseconds(lastResponse?.headers);
+      const delay = retryAfter ?? retryDelayMs * attempt;
+      if (delay > 0) await wait(delay);
     }
   }
 
