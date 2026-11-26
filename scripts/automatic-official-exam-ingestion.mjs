@@ -232,7 +232,8 @@ function parseAnswerRows(text, questionFormat = "multiple_choice") {
         pendingNumber = number >= 1 && number <= 300 ? number : null;
         continue;
       }
-      if (pendingNumber !== null && isAnswer(token)) {
+      const isStreamAnswer = token => allowed.has(token) || token === "X";
+      if (pendingNumber !== null && isStreamAnswer(token)) {
         const previous = streamAnswers.get(pendingNumber);
         if (previous && previous !== token) streamAnswers.delete(pendingNumber);
         else streamAnswers.set(pendingNumber, token === "X" ? "ANULADA" : token);
