@@ -1,7 +1,11 @@
 #!/usr/bin/env node
 import { createHash, randomUUID } from "node:crypto";
+import { lookup } from "node:dns/promises";
 import { execFileSync } from "node:child_process";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { constants as fsConstants } from "node:fs";
+import { BlockList, isIP } from "node:net";
+import { request as httpsRequest } from "node:https";
+import { mkdtemp, open, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -23,26 +27,29 @@ const SERVICE_KEY = String(process.env.SUPABASE_SERVICE_ROLE_KEY || "");
 const authHeaders = { apikey: SERVICE_KEY, "Content-Type": "application/json" };
 if (SERVICE_KEY && !SERVICE_KEY.startsWith("sb_secret_")) authHeaders.Authorization = "Bearer " + SERVICE_KEY;
 
-function decodeEntities(value) {
-  return String(value || "")
-    .replace(/&nbsp;|&#160;/gi, " ")
-    .replace(/&quot;|&#34;/gi, '"')
-    .replace(/&apos;|&#39;/gi, "'")
-    .replace(/&lt;/gi, "<")
-    .replace(/&gt;/gi, ">")
-    .replace(/&#(\d+);/g, (_match, digits) => {
-      const code = Number(digits);
-      return Number.isInteger(code) && code >= 0 && code <= 0x10ffff ? String.fromCodePoint(code) : "";
-    })
-    .replace(/&#x([\da-f]+);/gi, (_match, digits) => {
-      const code = Number.parseInt(digits, 16);
-      return Number.isInteger(code) && code >= 0 && code <= 0x10ffff ? String.fromCodePoint(code) : "";
-    })
-    .replace(/&amp;/gi, "&");
+export function decodeHtmlEntities(value) {
+  const named = {
+    amp: "&",
+    nbsp: " ",
+    quot: '"',
+    apos: "'",
+    lt: "<",
+    gt: ">"
+  };
+  // A substituição única impede decodificar novamente uma entidade produzida.
+  return String(value || "").replace(/&(#x[a-f0-9]+|#[0-9]+|amp|nbsp|quot|apos|lt|gt);/gi, (entity, token) => {
+    const normalized = String(token).toLowerCase();
+    if (normalized in named) return named[normalized];
+    const code = normalized.startsWith("#x")
+      ? Number.parseInt(normalized.slice(2), 16)
+      : Number(normalized.slice(1));
+    if (!Number.isInteger(code) || code < 0 || code > 0x10ffff || (code >= 0xd800 && code <= 0xdfff)) return "�";
+    return String.fromCodePoint(code);
+  });
 }
 
 function stripTags(value) {
-  return decodeEntities(String(value || "")
+  return decodeHtmlEntities(String(value || "")
     .replace(/<(script|style|noscript|svg|iframe|nav|footer|header|aside|form)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, " ")
     .replace(/<!--[\s\S]*?-->/g, " ")
     .replace(/<br\s*\/?>|<\/(?:p|div|li|tr|h[1-6]|section|article|main)\s*>/gi, "\n")
@@ -55,14 +62,20 @@ function stripTags(value) {
 }
 
 export function normalizeDocumentLabel(value) {
-  return decodeEntities(value).normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
+  return String(value || "").normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
     .toLocaleLowerCase("pt-BR").replace(/[^a-z0-9]+/g, " ").trim();
 }
 
 function safeOfficialUrl(value, base) {
   let url;
   try { url = base ? new URL(value, base) : new URL(value); } catch { return null; }
-  if (url.protocol !== "https:" || url.username || url.password || !isTrustedOfficialUrl(url.href)) return null;
+  if (
+    url.protocol !== "https:"
+    || url.username
+    || url.password
+    || (url.port && url.port !== "443")
+    || !isTrustedOfficialUrl(url.href)
+  ) return null;
   url.hash = "";
   return url.href;
 }
@@ -73,7 +86,7 @@ export function extractOfficialPdfLinks(html, pageUrl) {
   for (const match of source.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a\s*>/gi)) {
     const hrefMatch = match[1].match(/\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i);
     if (!hrefMatch) continue;
-    const href = safeOfficialUrl(decodeEntities(hrefMatch[1] ?? hrefMatch[2] ?? hrefMatch[3]), pageUrl);
+    const href = safeOfficialUrl(decodeHtmlEntities(hrefMatch[1] ?? hrefMatch[2] ?? hrefMatch[3]), pageUrl);
     if (!href) continue;
     const label = stripTags(match[2]).replace(/\s+/g, " ").trim().slice(0, 240);
     const signal = normalizeDocumentLabel(label + " " + href);
@@ -90,7 +103,7 @@ export function extractOfficialSubpageLinks(html, pageUrl) {
   for (const match of String(html || "").matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a\s*>/gi)) {
     const hrefMatch = match[1].match(/\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i);
     if (!hrefMatch) continue;
-    const rawHref = decodeEntities(hrefMatch[1] ?? hrefMatch[2] ?? hrefMatch[3]);
+    const rawHref = decodeHtmlEntities(hrefMatch[1] ?? hrefMatch[2] ?? hrefMatch[3]);
     const url = safeOfficialUrl(rawHref, pageUrl);
     if (!url || /\.pdf(?:$|[?#])/i.test(url) || url === pageUrl) continue;
     const label = stripTags(match[2]).replace(/\s+/g, " ").trim().slice(0, 240);
@@ -599,23 +612,185 @@ async function readBoundedBody(response, maxBytes) {
   return Buffer.concat(chunks, size);
 }
 
-export async function fetchOfficialResource(initialUrl, { fetchImpl = fetch, maxBytes = MAX_HTML_BYTES, attempts = 2 } = {}) {
-  let startUrl = safeOfficialUrl(initialUrl);
+const blockedIPv4 = new BlockList();
+for (const [subnet, prefix] of [
+  ["0.0.0.0", 8], ["10.0.0.0", 8], ["100.64.0.0", 10], ["127.0.0.0", 8],
+  ["169.254.0.0", 16], ["172.16.0.0", 12], ["192.0.0.0", 24], ["192.0.2.0", 24],
+  ["192.88.99.0", 24], ["192.168.0.0", 16], ["198.18.0.0", 15],
+  ["198.51.100.0", 24], ["203.0.113.0", 24], ["224.0.0.0", 4], ["240.0.0.0", 4]
+]) blockedIPv4.addSubnet(subnet, prefix, "ipv4");
+
+const blockedIPv6 = new BlockList();
+for (const [subnet, prefix] of [
+  ["2001:0::", 23], ["2001:db8::", 32], ["2002::", 16],
+  ["3fff::", 20], ["fc00::", 7], ["fe80::", 10], ["ff00::", 8]
+]) blockedIPv6.addSubnet(subnet, prefix, "ipv6");
+
+export function isPublicIpAddress(address) {
+  const family = isIP(String(address || ""));
+  if (family === 4) return !blockedIPv4.check(address, "ipv4");
+  if (family !== 6) return false;
+  const firstGroup = Number.parseInt(String(address).split(":")[0] || "0", 16);
+  if (!Number.isInteger(firstGroup) || firstGroup < 0x2000 || firstGroup > 0x3fff) return false;
+  return !blockedIPv6.check(address, "ipv6");
+}
+
+function responseHeaders(headers = {}) {
+  return {
+    get(name) {
+      const value = headers[String(name).toLowerCase()];
+      return Array.isArray(value) ? String(value[0] ?? "") : value == null ? null : String(value);
+    }
+  };
+}
+
+async function requestPinnedHttpsResponse(targetUrl, { address, family, maxBytes, timeoutMs = 25000 }) {
+  const url = new URL(targetUrl);
+  if (url.protocol !== "https:" || !isPublicIpAddress(address)) {
+    throw new Error("SSRF_BLOCKED: destino HTTPS ou endereço de rede não público.");
+  }
+
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    let size = 0;
+    const chunks = [];
+    const finish = (callback, value) => {
+      if (settled) return;
+      settled = true;
+      callback(value);
+    };
+    const request = httpsRequest(url, {
+      method: "GET",
+      agent: false,
+      servername: url.hostname,
+      headers: {
+        "User-Agent": "EditalRadar-OfficialExamIngestion/1.0",
+        Accept: "text/html,application/xhtml+xml,application/pdf;q=0.9"
+      },
+      // Pin the resolved IP while preserving hostname-based TLS SNI and Host.
+      lookup: (_hostname, _options, callback) => callback(null, address, family)
+    }, response => {
+      const declaredLength = Number(response.headers["content-length"] || 0);
+      if (declaredLength > maxBytes) {
+        const error = new Error("Documento excede o limite de " + maxBytes + " bytes.");
+        response.destroy();
+        request.destroy();
+        finish(reject, error);
+        return;
+      }
+      response.on("data", chunk => {
+        if (settled) return;
+        const buffer = Buffer.from(chunk);
+        size += buffer.length;
+        if (size > maxBytes) {
+          const error = new Error("Documento excede o limite de " + maxBytes + " bytes.");
+          response.destroy();
+          request.destroy();
+          finish(reject, error);
+          return;
+        }
+        chunks.push(buffer);
+      });
+      response.on("end", () => finish(resolve, {
+        statusCode: response.statusCode || 0,
+        headers: response.headers,
+        bytes: Buffer.concat(chunks, size)
+      }));
+      response.on("error", error => finish(reject, error));
+      response.on("aborted", () => finish(reject, new Error("A conexão da fonte oficial foi interrompida.")));
+    });
+    request.setTimeout(timeoutMs, () => request.destroy(new Error("Tempo limite ao baixar a fonte oficial.")));
+    request.on("error", error => finish(reject, error));
+    request.end();
+  });
+}
+
+async function requestOfficialHop(targetUrl, { fetchImpl, lookupImpl, requestImpl, maxBytes }) {
+  // fetchImpl is an explicit test seam. Production uses the pinned HTTPS transport.
+  if (typeof fetchImpl === "function") {
+    const response = await fetchImpl(targetUrl, {
+      method: "GET",
+      redirect: "manual",
+      headers: {
+        "User-Agent": "EditalRadar-OfficialExamIngestion/1.0",
+        Accept: "text/html,application/xhtml+xml,application/pdf;q=0.9"
+      },
+      signal: AbortSignal.timeout(25000)
+    });
+    const redirected = [301, 302, 303, 307, 308].includes(response.status);
+    return {
+      status: response.status,
+      ok: response.ok,
+      headers: response.headers,
+      url: response.url || targetUrl,
+      bytes: redirected ? Buffer.alloc(0) : await readBoundedBody(response, maxBytes)
+    };
+  }
+
+  const url = new URL(targetUrl);
+  let addresses;
+  try {
+    addresses = await lookupImpl(url.hostname, { all: true, verbatim: true });
+  } catch {
+    throw new Error("DNS_LOOKUP_FAILED: não foi possível resolver o host oficial.");
+  }
+  if (!Array.isArray(addresses) || addresses.length === 0
+    || addresses.some(record => !isPublicIpAddress(record?.address))) {
+    throw new Error("SSRF_BLOCKED: DNS do host oficial retornou endereço IP não público.");
+  }
+  const selected = addresses[0];
+  const response = await requestImpl(targetUrl, {
+    address: selected.address,
+    family: selected.family,
+    maxBytes,
+    timeoutMs: 25000
+  });
+  const status = Number(response.statusCode || 0);
+  return {
+    status,
+    ok: status >= 200 && status < 300,
+    headers: responseHeaders(response.headers),
+    url: targetUrl,
+    bytes: Buffer.isBuffer(response.bytes) ? response.bytes : Buffer.from(response.bytes || "")
+  };
+}
+
+async function writeValidatedDownloadedPdf(directory, filename, resource, maxBytes = MAX_PDF_BYTES) {
+  if (!["exam.pdf", "answer-key.pdf"].includes(filename)) {
+    throw new Error("Nome de arquivo temporário não permitido.");
+  }
+  const bytes = resource?.bytes;
+  if (!Buffer.isBuffer(bytes) || bytes.length < 8 || bytes.length > maxBytes
+    || bytes.subarray(0, 5).toString("ascii") !== "%PDF-") {
+    throw new Error("Documento remoto não passou pela validação de tamanho e assinatura PDF.");
+  }
+  const destination = path.join(directory, filename);
+  const flags = fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL | (fsConstants.O_NOFOLLOW || 0);
+  const handle = await open(destination, flags, 0o600);
+  try {
+    await handle.writeFile(bytes);
+    await handle.sync();
+  } finally {
+    await handle.close();
+  }
+  return destination;
+}
+
+export async function fetchOfficialResource(initialUrl, {
+  fetchImpl = null,
+  lookupImpl = lookup,
+  requestImpl = requestPinnedHttpsResponse,
+  maxBytes = MAX_HTML_BYTES,
+  attempts = 2
+} = {}) {
+  const startUrl = safeOfficialUrl(initialUrl);
   if (!startUrl) throw new Error("URL inicial não é HTTPS ou não pertence a um host oficial autorizado.");
   let lastError;
   for (let attempt = 1; attempt <= Math.max(1, attempts); attempt += 1) {
     try {
       let currentUrl = startUrl;
       for (let redirects = 0; redirects <= MAX_REDIRECTS; redirects += 1) {
-        const response = await fetchImpl(currentUrl, {
-          method: "GET",
-          redirect: "manual",
-          headers: {
-            "User-Agent": "EditalRadar-OfficialExamIngestion/1.0",
-            Accept: "text/html,application/xhtml+xml,application/pdf;q=0.9"
-          },
-          signal: AbortSignal.timeout(25000)
-        });
+        const response = await requestOfficialHop(currentUrl, { fetchImpl, lookupImpl, requestImpl, maxBytes });
         if ([301, 302, 303, 307, 308].includes(response.status)) {
           if (redirects === MAX_REDIRECTS) throw new Error("Limite de redirecionamentos oficiais excedido.");
           const location = response.headers.get("location");
@@ -636,7 +811,7 @@ export async function fetchOfficialResource(initialUrl, { fetchImpl = fetch, max
         if (!response.ok) throw new Error("Fonte oficial respondeu HTTP " + response.status + ".");
         const finalUrl = safeOfficialUrl(response.url || currentUrl);
         if (!finalUrl) throw new Error("Resposta terminou fora da lista de hosts oficiais.");
-        const bytes = await readBoundedBody(response, maxBytes);
+        const bytes = response.bytes;
         return {
           url: finalUrl,
           contentType: String(response.headers.get("content-type") || "").toLowerCase(),
@@ -646,7 +821,7 @@ export async function fetchOfficialResource(initialUrl, { fetchImpl = fetch, max
       }
     } catch (error) {
       lastError = error;
-      if (/HTTP_429|SOURCE_RESTRICTED|não pertence|não autorizado|redirecionamento/i.test(error.message)) throw error;
+      if (/SSRF_BLOCKED|HTTP_429|SOURCE_RESTRICTED|não pertence|não autorizado|redirecionamento/i.test(error.message)) throw error;
       if (attempt < attempts) await sleep(attempt * 1000);
     }
   }
@@ -708,7 +883,7 @@ function validateContext(record) {
   );
 }
 
-async function processDocument(record, examLink, keyLink, mode, runId, report, fetchImpl = fetch) {
+async function processDocument(record, examLink, keyLink, mode, runId, report, fetchImpl = null) {
   const diagnostic = { examUrl: examLink.url, answerKeyUrl: keyLink.url, stage: "download_exam", extractedQuestions: 0, answerKeyPages: null, answerKeySections: [], parsedAnswers: 0 };
   let stage = diagnostic.stage;
   let proof;
@@ -740,10 +915,8 @@ async function processDocument(record, examLink, keyLink, mode, runId, report, f
 
   const tempDir = await mkdtemp(path.join(os.tmpdir(), "editalradar-official-ingestion-"));
   try {
-    const proofPath = path.join(tempDir, "exam.pdf");
-    const keyPath = path.join(tempDir, "answer-key.pdf");
-    await writeFile(proofPath, proof.bytes, { flag: "wx" });
-    await writeFile(keyPath, answerKeyFile.bytes, { flag: "wx" });
+    const proofPath = await writeValidatedDownloadedPdf(tempDir, "exam.pdf", proof);
+    const keyPath = await writeValidatedDownloadedPdf(tempDir, "answer-key.pdf", answerKeyFile);
     const proofHash = sha256(proof.bytes);
     const keyHash = sha256(answerKeyFile.bytes);
     const questionFormat = questionFormatFor(record, examLink);
@@ -1082,7 +1255,7 @@ function createReport(mode) {
   };
 }
 
-export async function runAutomaticOfficialExamIngestion({ mode = "dry-run", limit = MAX_DOCUMENTS_PER_RUN, fetchImpl = fetch } = {}) {
+export async function runAutomaticOfficialExamIngestion({ mode = "dry-run", limit = MAX_DOCUMENTS_PER_RUN, fetchImpl = null } = {}) {
   if (!["dry-run", "publish"].includes(mode)) throw new Error("Modo inválido; use dry-run ou publish.");
   if (mode === "publish") {
     if (process.env.EXAM_IMPORT_AUTOPUBLISH_ENABLED !== "true") {
