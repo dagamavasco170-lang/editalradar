@@ -1497,4 +1497,70 @@ export const materias = [
     "icon": "⌘"
   },
 
+  {
+    "id": 535,
+    "sigla": "NOVA-GUARITA-ACS-ACE-2026",
+    "cargo": "Agente Comunitário de Saúde (Microárea 05 — PSF 01) e Agente de Combate às Endemias — cadastro reserva",
+    "orgao": "Prefeitura Municipal de Nova Guarita — Secretaria Municipal de Saúde",
+    "vinculo": "Processo seletivo público · Edital nº 001/2026",
+    "nivel": "Médio",
+    "vagas": 2,
+    "vagasTotais": 2,
+    "vagasImediatas": 0,
+    "cadastroReserva": 2,
+    "atoOficial": "Edital nº 001/2026 — Prefeitura de Nova Guarita",
+    "status": "Inscrições abertas até 08/12/2026",
+    "area": "Municipal",
+    "estado": "Mato Grosso",
+    "localidade": "Nova Guarita",
+    "sourceUrl": "https://www.novaguarita.mt.gov.br/Noticias/Nova-guarita-abre-processo-seletivo-publico-para-agente-comunitario-de-saude-e-agente-de-combate-as-endemias-1335/",
+    "periodoInscricao": {
+      "inicio": "2026-11-24",
+      "fim": "2026-12-08",
+      "fonteUrl": "https://www.novaguarita.mt.gov.br/Noticias/Nova-guarita-abre-processo-seletivo-publico-para-agente-comunitario-de-saude-e-agente-de-combate-as-endemias-1335/",
+      "fonteDescricao": "Prefeitura de Nova Guarita — publicação oficial do Edital 001/2026",
+      "verificadoEm": "2026-11-26"
+    },
+    "documentos": [
+      {
+        "title": "Edital 001/2026 — publicação oficial da Prefeitura",
+        "url": "https://www.novaguarita.mt.gov.br/Noticias/Nova-guarita-abre-processo-seletivo-publico-para-agente-comunitario-de-saude-e-agente-de-combate-as-endemias-1335/",
+        "description": "Notícia oficial com funções, cadastro reserva, requisitos, remuneração, inscrição e data da prova."
+      }
+    ],
+    "observacao": "Edital 001/2026 forma cadastro reserva, sem contratação imediata: 1 posição para Agente Comunitário de Saúde (Microárea 05 — PSF 01) e 1 para Agente de Combate às Endemias. Ambos exigem ensino médio, 40h e remuneração de R$ 3.262,64. Inscrições 24/11–08/12/2026, taxa de R$ 70 e pagamento até 09/12; isenção 24–27/11. Prova objetiva com 40 questões prevista para 17/01/2027 em Nova Guarita. Dados da publicação oficial municipal."
+  },
+  {
+    "id": 536,
+    "sigla": "NOVA-GUARITA-PSS-002-2026",
+    "cargo": "18 funções — 43 posições de cadastro reserva",
+    "orgao": "Prefeitura Municipal de Nova Guarita",
+    "vinculo": "Processo seletivo simplificado · Edital nº 002/2026",
+    "nivel": "Diversos níveis",
+    "vagas": 43,
+    "vagasTotais": 43,
+    "vagasImediatas": 0,
+    "cadastroReserva": 43,
+    "atoOficial": "Edital nº 002/2026 — Prefeitura de Nova Guarita",
+    "status": "Inscrições abertas até 08/12/2026",
+    "area": "Municipal",
+    "estado": "Mato Grosso",
+    "localidade": "Nova Guarita",
+    "sourceUrl": "https://www.novaguarita.mt.gov.br/Noticias/Nova-guarita-abre-inscricoes-para-processo-seletivo-simplificado-com-oportunidades-em-diversas-areas-1336/",
+    "periodoInscricao": {
+      "inicio": "2026-11-24",
+      "fim": "2026-12-08",
+      "fonteUrl": "https://www.novaguarita.mt.gov.br/Noticias/Nova-guarita-abre-inscricoes-para-processo-seletivo-simplificado-com-oportunidades-em-diversas-areas-1336/",
+      "fonteDescricao": "Prefeitura de Nova Guarita — publicação oficial do Edital 002/2026",
+      "verificadoEm": "2026-11-26"
+    },
+    "documentos": [
+      {
+        "title": "Edital 002/2026 — publicação oficial da Prefeitura",
+        "url": "https://www.novaguarita.mt.gov.br/Noticias/Nova-guarita-abre-inscricoes-para-processo-seletivo-simplificado-com-oportunidades-em-diversas-areas-1336/",
+        "description": "Notícia oficial com 18 funções, 43 posições em cadastro reserva, salários, taxas, inscrições e prova."
+      }
+    ],
+    "observacao": "Edital 002/2026 — PSS para 18 funções, 43 posições em cadastro reserva e nenhuma contratação imediata. Remunerações de R$ 2.471,70 a R$ 7.415,10; taxas de R$ 40, R$ 70 e R$ 100 conforme escolaridade. Inscrições 24/11–08/12/2026, pagamento até 09/12 e isenção 24–27/11. Prova objetiva de 40 questões prevista para 17/01/2027, das 8h às 12h, em Nova Guarita; prova de títulos para nível superior. Validade de 12 meses, prorrogável. Dados da publicação oficial municipal."
+  }
 ];
