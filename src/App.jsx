@@ -4,6 +4,7 @@ import { safeGetItem, safeSetItem } from "./lib/storage.js";
 import { concursos, sourceUrl, sourceUpdated, fetchedAt } from "./data/concursos";
 import { detectCatalogNotifications, dismissNotificationById, dismissNotificationHistory, getVisibleNotifications, mergeNotificationHistory } from "./lib/notifications";
 import { applyCatalogOverrides } from "./lib/catalog";
+import { matchesContestCatalogFilters, isPreliminaryContest } from "./lib/catalog-filters.js";
 import { isTrustedOfficialUrl, officialSourceLabel, parseHttpsUrl } from "./lib/official-sources.js";
 import { getUpcomingMilestones } from "./lib/dashboard";
 import { classifyRecommendationPriority } from "./lib/recommendation-priority.js";
@@ -56,24 +57,6 @@ const isMissingNotificationsColumn = (error) =>
   ["42703", "PGRST204"].includes(error?.code)
   || /notifications.*(column|schema cache)|column.*notifications/i.test(error?.message || "");
 
-const matchesFilters = (item, filters) => {
-  const text = [item.sigla, item.cargo, item.orgao, item.vinculo, item.atoOficial, item.nivel, item.area, item.estado, item.localidade, item.status].join(" ").toLowerCase();
-  const status = (item.status || "").toLowerCase();
-  const matchesSituation = filters.situacao === "Todas as situações"
-    || (filters.situacao === "Pré-edital / anunciado" && /(autorizado|anunciado|pré-edital)/.test(status))
-    || (filters.situacao === "Inscrições abertas" && /inscrições abertas/.test(status))
-    || (filters.situacao === "Inscrições encerradas" && /inscrições encerradas/.test(status))
-    || (filters.situacao === "Provas / resultados" && /(prova|resultado|provas realizadas)/.test(status));
-
-  return text.includes((filters.query || "").toLowerCase())
-    && (filters.nivel === "Todos os níveis" || item.nivel === filters.nivel)
-    && (filters.esfera === "Todas as esferas" || (item.area || "Federal") === filters.esfera)
-    && (filters.estado === "Todos os estados" || (item.estado || "Brasil") === filters.estado)
-    && (filters.localidade === "Todas as cidades" || (item.localidade || "Brasil") === filters.localidade)
-    && matchesSituation
-    && (!filters.ocultarPreliminares || !isPreliminary(item));
-};
-
 const describeAlert = (filters) => {
   const parts = [filters.estado, filters.localidade, filters.esfera, filters.nivel, filters.situacao, filters.query]
     .filter((value) => value && ![
@@ -83,7 +66,7 @@ const describeAlert = (filters) => {
   return parts.length ? parts.join(" · ") : "Todos os concursos";
 };
 
-const isPreliminary = (item) => /concurso listado\s*·\s*verificar/i.test(item?.status || "");
+const isPreliminary = isPreliminaryContest;
 const isTemporarySelection = (item) => /processo seletivo simplificado|contratação temporária/i.test([item?.vinculo, item?.atoOficial].filter(Boolean).join(" "));
 export const getStatusTone = (value = "") => {
   const status = String(value).toLocaleLowerCase("pt-BR");
@@ -1152,7 +1135,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     setOcultarPreliminares(false);
   };
   const filtered = useMemo(
-    () => catalog.filter((item) => matchesFilters(item, currentFilters)),
+    () => catalog.filter((item) => matchesContestCatalogFilters(item, currentFilters)),
     [catalog, query, nivel, esfera, estado, localidade, situacao, ocultarPreliminares]
   );
   const visibleCatalog = useMemo(() => {
@@ -1442,7 +1425,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     setAuthMessageType("success");
   };
 
-  const matchingAlert = (alert) => catalog.filter((item) => matchesFilters(item, alert.filters)).length;
+  const matchingAlert = (alert) => catalog.filter((item) => matchesContestCatalogFilters(item, alert.filters)).length;
   const currentAlertName = describeAlert(currentFilters);
   const alertAlreadySaved = alerts.some((alert) => JSON.stringify(alert.filters) === JSON.stringify(currentFilters));
   const saveCurrentAlert = () => {
