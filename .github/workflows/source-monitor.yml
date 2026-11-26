@@ -14,8 +14,6 @@ on:
       - scripts/auto-resolve-discoveries.node-test.mjs
       - scripts/import-official-exam-pdf.mjs
       - scripts/import-official-exam-pdf.node-test.mjs
-      - scripts/import-official-exam-questions.mjs
-      - scripts/import-official-exam-questions.node-test.mjs
       - supabase/migrations/20261126120000_official_exam_question_imports.sql
       - src/OfficialExamImportAdmin.jsx
       - scripts/google-news-url-resolver.mjs
