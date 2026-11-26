@@ -269,22 +269,32 @@ export function parseOfficialAnswerKeyVariants(text, questionFormat = "multiple_
 }
 
 export function selectAnswerKeySection(examLink, record, sections) {
-  const examSignal = normalizeDocumentLabel([
-    examLink?.label,
-    examLink?.url,
-    record?.role_name,
-    record?.exam_name
-  ].join(" "));
-  const examVariant = variantIdentity([examLink?.label, examLink?.url].join(" "));
-  const matches = (Array.isArray(sections) ? sections : []).filter(section => {
+  const documentSignal = normalizeDocumentLabel([examLink?.label, examLink?.url].join(" "));
+  const registeredRole = normalizeDocumentLabel(record?.role_name || "");
+  const registeredRoleWords = registeredRole.split(" ").filter(word => word.length > 2);
+  const roleCandidates = (Array.isArray(sections) ? sections : []).filter(section => {
     const role = normalizeDocumentLabel(section.role);
     const roleWords = role.split(" ").filter(word => word.length > 2);
-    const roleMatches = Boolean(role) && (
-      examSignal.includes(role) || (roleWords.length >= 2 && roleWords.every(word => examSignal.includes(word)))
+    return Boolean(role) && (
+      documentSignal.includes(role)
+      || (roleWords.length >= 2 && roleWords.every(word => documentSignal.includes(word)))
     );
-    const variantMatches = !examVariant || String(section.bookletNumber) === String(Number(examVariant));
-    return roleMatches && variantMatches;
   });
+
+  // O nome do PDF é a evidência de cargo mais específica. Só recorremos ao
+  // campo geral do concurso quando ele aponta para um único cargo/seção.
+  let roleMatches = roleCandidates;
+  if (!roleMatches.length && registeredRoleWords.length >= 2) {
+    roleMatches = (Array.isArray(sections) ? sections : []).filter(section => {
+      const roleWords = normalizeDocumentLabel(section.role).split(" ").filter(word => word.length > 2);
+      return roleWords.length >= 2 && roleWords.every(word => registeredRoleWords.includes(word));
+    });
+  }
+
+  const examVariant = variantIdentity([examLink?.label, examLink?.url].join(" "));
+  const matches = roleMatches.filter(section =>
+    !examVariant || String(section.bookletNumber) === String(Number(examVariant))
+  );
   return matches.length === 1 ? matches[0] : null;
 }
 
