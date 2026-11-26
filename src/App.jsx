@@ -475,6 +475,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     jumpToCatalogRef.current = page !== "concursos";
     if (page === "concursos") {
       catalogResultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      catalogResultsRef.current?.focus({ preventScroll: true });
       return;
     }
     setPage("concursos");
@@ -484,6 +485,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     if (page !== "concursos" || !jumpToCatalogRef.current) return;
     jumpToCatalogRef.current = false;
     catalogResultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    catalogResultsRef.current?.focus({ preventScroll: true });
   }, [page]);
 
   useEffect(() => {
@@ -2402,7 +2404,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                 ))}</div>
               </section>
             )}
-            <div className="section-title" ref={catalogResultsRef}>
+            <div className="section-title" ref={catalogResultsRef} tabIndex={-1} aria-label="Resultados do catálogo">
               <div><div className="eyebrow">{page === "favoritos" ? "SUA LISTA PESSOAL" : "CATÁLOGO DE OPORTUNIDADES"}</div><h2>{page === "favoritos" ? "Seus concursos favoritos" : "Concursos e avisos no catálogo"}</h2></div>
               <div className="section-heading-actions">
                 <span className="results" role="status" aria-live="polite" aria-atomic="true">{visibleCatalog.length} registros</span>

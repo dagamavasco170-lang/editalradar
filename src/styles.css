@@ -4081,3 +4081,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{ou
 .adaptive-progression-message{display:flex;flex-direction:column;gap:5px;border-radius:10px;padding:12px 14px;margin:10px 0;background:#eef7f2;border:1px solid #d8e9df;color:#23644b}.adaptive-progression-message strong{font-size:12px}.adaptive-progression-message span{font-size:10px;line-height:1.45;color:#547465}
 
 .mastery-progression{display:block;color:var(--text-muted,#667085);font-size:11px;margin-top:4px}
+
+/* Accessibility and motion preferences for keyboard and vestibular comfort. */
+:where(button, a, input, select, textarea, [tabindex]):focus-visible{outline:3px solid #1f9a77;outline-offset:3px}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto!important}*,*::before,*::after{scroll-behavior:auto!important;transition-duration:.01ms!important;animation-duration:.01ms!important;animation-iteration-count:1!important}}
