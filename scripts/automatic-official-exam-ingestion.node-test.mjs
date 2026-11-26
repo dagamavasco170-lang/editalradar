@@ -125,6 +125,27 @@ D
   assert.equal(selectAnswerKeySection({ label: "Tipo 4", url: "https://conhecimento.fgv.br/cns201-agente-de-policia-judiciaria-tipo-4.pdf" }, record, sections), null);
 });
 
+test("recognizes wrapped and typographic section headings in consolidated answer keys", () => {
+  const sections = parseOfficialAnswerKeyVariants([
+    "Agente de Polícia Judiciária – 1 – Turno Tarde",
+    "1",
+    "D",
+    "2",
+    "B",
+    "Delegado de Polícia - 1 -",
+    "Turno Tarde",
+    "1",
+    "C",
+    "2",
+    "A"
+  ].join("\n"));
+  assert.equal(sections.length, 2);
+  assert.equal(sections[0].role, "Agente de Polícia Judiciária");
+  assert.equal(sections[0].answers.get(1), "D");
+  assert.equal(sections[1].role, "Delegado de Polícia");
+  assert.equal(sections[1].answers.get(2), "A");
+});
+
 test("parses definitive multiple-choice answer keys with one or multiple entries per line", () => {
   const parsed = parseOfficialAnswerKey("GABARITO DEFINITIVO\n1 - A\n02 B 03 C\nQUESTÃO 4: D\n5 ANULADA");
   assert.equal(parsed.conflicts.length, 0);
