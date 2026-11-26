@@ -51,6 +51,25 @@ test("extrai itens objetivos e preserva página/número sem inventar gabarito", 
   assert.equal(rows[1].options.length, 2);
 });
 
+
+test("reconhece opções Cebraspe com letra separada por espaço e aspas tipográficas", () => {
+  const pages = [{
+    page: 1,
+    text: [
+      "QUESTÃO 1",
+      "Assinale a opção correspondente à frase do texto que representa a síntese de suas ideias.",
+      "A “O conceito de verdade tem sido abordado e compreendido de diferentes formas por diversos pensadores.”",
+      "B “Os filósofos gregos começaram a buscar a verdade em relação ou oposição à falsidade.”",
+      "C “Assim, um elemento necessário à verdade era a visão inteligível.”",
+      "D “A formulação do problema do critério de verdade ocupou os adeptos da gnosiologia.”"
+    ].join("\\n")
+  }];
+  const rows = parseExamPages(pages, documentHash);
+  assert.equal(rows.length, 1);
+  assert.deepEqual(rows[0].options.map(option => option.id), ["a", "b", "c", "d"]);
+  assert.match(rows[0].options[0].text, /^“O conceito de verdade/);
+});
+
 test("deduplica questão repetida no mesmo PDF pelo fingerprint e número", () => {
   const duplicated = [
     samplePages[0],
