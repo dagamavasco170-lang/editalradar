@@ -98,7 +98,7 @@ test("registra o motivo estrutural de uma questão rejeitada", () => {
     page: 8,
     text: [
       "7",
-      "Enunciado muito curto.",
+      "Curto.",
       "A) Primeira alternativa suficientemente identificável.",
       "B) Segunda alternativa suficientemente identificável.",
       "C) Terceira alternativa suficientemente identificável."
