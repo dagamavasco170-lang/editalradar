@@ -697,7 +697,7 @@ async function processDocument(record, examLink, keyLink, mode, runId, report, f
     }
     stage = diagnostic.stage = "parse_answer_key";
     const answerKeySections = parseOfficialAnswerKeyVariants(definitiveText, questionFormat);
-    diagnostic.answerKeySections = answerKeySections.map(section => ({ role: section.role, bookletNumber: section.bookletNumber, shift: section.shift, parsedCount: section.parsedCount }));
+    diagnostic.answerKeySections = answerKeySections.map(section => ({ role: section.role, bookletNumber: section.bookletNumber, shift: section.shift, parsedCount: section.parsedCount, sampleLines: section.sampleLines }));
     let parsedKey;
     if (answerKeySections.length) {
       const matchedSection = selectAnswerKeySection(examLink, record, answerKeySections);
