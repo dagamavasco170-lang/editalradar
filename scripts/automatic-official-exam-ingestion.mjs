@@ -658,9 +658,16 @@ async function processDocument(record, examLink, keyLink, mode, runId, report, f
         throw error;
       }
       if (!matchedSection.parsedCount) {
+        // Diagnóstico estrutural, sem divulgar o texto integral do gabarito nos logs.
+        const tokenPattern = /\\b(?:\\d{1,3}|ANULADA|[A-F]|X)\\b/gi;
+        const structuralSamples = matchedSection.sampleLines.slice(0, 12).map(line => {
+          const tokens = (String(line).match(tokenPattern) || []).map(token => token.toUpperCase());
+          return { length: String(line).length, tokens, separatorShape: String(line).replace(tokenPattern, "#").replace(/[A-Za-zÀ-ÿ]+/g, "T").slice(0, 140) };
+        });
         throw new Error(
           "A seção do gabarito foi localizada (" + matchedSection.role + ", caderno "
-          + matchedSection.bookletNumber + "), mas nenhuma resposta foi extraída do bloco."
+          + matchedSection.bookletNumber + "), mas nenhuma resposta foi extraída do bloco. "
+          + "Diagnóstico estrutural: " + JSON.stringify(structuralSamples).slice(0, 1600)
         );
       }
       parsedKey = {
