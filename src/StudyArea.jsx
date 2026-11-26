@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { loadQuestionProgress, mergeQuestionProgress, questionBank, questionProgressStorageKey } from "./lib/question-bank.js";
+import { buildQuestionBankView } from "./lib/question-bank-view.js";
 
 const SimulatorPanel = React.lazy(() => import("./SimulatorPanel.jsx"));
 const ExamSourcesPanel = React.lazy(() => import("./ExamSourcesPanel.jsx"));
@@ -177,25 +178,12 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
  const simulatorQuestions=useMemo(()=>allQuestions.filter(question=>
   question.origin!=="licensed"&&(!question.databaseId||Boolean(activeUserId&&authClient))
  ),[allQuestions,activeUserId,authClient]);
- const questionBase=useMemo(()=>allQuestions.filter(q=>
-  (discipline==="Todas"||q.discipline===discipline)
-  &&(board==="Todas"||q.board===board)
-  &&(difficulty==="Todas"||q.difficulty===difficulty)
-  &&(originFilter==="Todas"||(originFilter==="EditalRadar"&&q.origin!=="licensed"&&q.origin!=="exam_import")||(originFilter==="Provas oficiais e licenciadas"&&(q.origin==="licensed"||q.origin==="exam_import")))
-  &&(!questionSearch.trim()||(q.prompt+" "+q.topic+" "+q.discipline+" "+(q.examName||"")).toLocaleLowerCase("pt-BR").includes(questionSearch.trim().toLocaleLowerCase("pt-BR")))
- ),[allQuestions,discipline,board,difficulty,originFilter,questionSearch]);
- const collectionCounts={
-  all:questionBase.length,
-  unanswered:questionBase.filter(q=>!latestAttempts[q.id]).length,
-  wrong:questionBase.filter(q=>latestAttempts[q.id]?.correct===false).length,
-  saved:questionBase.filter(q=>savedQuestions.has(q.id)).length
- };
- const filtered=useMemo(()=>questionBase.filter(q=>{
-  if(collection==="unanswered")return !latestAttempts[q.id];
-  if(collection==="wrong")return latestAttempts[q.id]?.correct===false;
-  if(collection==="saved")return savedQuestions.has(q.id);
-  return true;
- }),[questionBase,collection,latestAttempts,savedQuestions]);
+ const questionBankView=useMemo(()=>buildQuestionBankView({
+  questions:allQuestions,discipline,board,difficulty,originFilter,questionSearch,collection,latestAttempts,savedQuestions
+ }),[allQuestions,discipline,board,difficulty,originFilter,questionSearch,collection,latestAttempts,savedQuestions]);
+ const questionBase=questionBankView.base;
+ const collectionCounts=questionBankView.counts;
+ const filtered=questionBankView.filtered;
  const question=filtered.length?filtered[index%filtered.length]:null;
  const questionAttempt=question?latestAttempts[question.id]:null;
  const totalAttempts=questionProgress.attempts.length;
