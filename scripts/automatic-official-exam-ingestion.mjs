@@ -85,15 +85,15 @@ export function extractOfficialPdfLinks(html, pageUrl) {
 
 export function extractOfficialSubpageLinks(html, pageUrl) {
   const found = new Map();
-  for (const match of String(html || "").matchAll(/<a\\b([^>]*)>([\\s\\S]*?)<\\/a\\s*>/gi)) {
-    const hrefMatch = match[1].match(/\\bhref\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))/i);
+  for (const match of String(html || "").matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a\s*>/gi)) {
+    const hrefMatch = match[1].match(/\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i);
     if (!hrefMatch) continue;
     const rawHref = decodeEntities(hrefMatch[1] ?? hrefMatch[2] ?? hrefMatch[3]);
     const url = safeOfficialUrl(rawHref, pageUrl);
-    if (!url || /\\.pdf(?:$|[?#])/i.test(url) || url === pageUrl) continue;
-    const label = stripTags(match[2]).replace(/\\s+/g, " ").trim().slice(0, 240);
+    if (!url || /\.pdf(?:$|[?#])/i.test(url) || url === pageUrl) continue;
+    const label = stripTags(match[2]).replace(/\s+/g, " ").trim().slice(0, 240);
     const signal = normalizeDocumentLabel(label + " " + url);
-    if (!/\\b(provas?|cadernos?|gabaritos?|respostas?|questoes|questoes e gabaritos)\\b/.test(signal)) continue;
+    if (!/\b(provas?|cadernos?|gabaritos?|respostas?|questoes|questoes e gabaritos)\b/.test(signal)) continue;
     if (!found.has(url)) found.set(url, { url, label });
   }
   return [...found.values()];
