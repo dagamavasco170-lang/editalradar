@@ -62,7 +62,7 @@ test("reconhece opções Cebraspe com letra separada por espaço e aspas tipogr�
       "B “Os filósofos gregos começaram a buscar a verdade em relação ou oposição à falsidade.”",
       "C “Assim, um elemento necessário à verdade era a visão inteligível.”",
       "D “A formulação do problema do critério de verdade ocupou os adeptos da gnosiologia.”"
-    ].join("\\n")
+    ].join("\n")
   }];
   const rows = parseExamPages(pages, documentHash);
   assert.equal(rows.length, 1);
