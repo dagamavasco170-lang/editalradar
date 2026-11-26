@@ -30,6 +30,30 @@ test("COFEN e COREN-SP refletem editais oficiais publicados e inscrições abert
   assert.ok(coren.documentos.some(doc => doc.url === "https://anexos-r2.selecao.net.br/uploads/861/concursos/3075/anexos/a10260c5-f08b-4290-9ee3-b3be6d126724.pdf"));
 });
 
+
+test("Nova Guarita 001 e 002 são cadastro reserva e usam fontes oficiais", () => {
+  const acsAce = concursos.find(item => item.id === 535);
+  const pss = concursos.find(item => item.id === 536);
+  assert.ok(acsAce);
+  assert.ok(pss);
+
+  assert.equal(acsAce.vagas, 2);
+  assert.equal(acsAce.vagasTotais, 2);
+  assert.equal(acsAce.vagasImediatas, 0);
+  assert.equal(acsAce.cadastroReserva, 2);
+  assert.equal(acsAce.periodoInscricao.inicio, "2026-11-24");
+  assert.equal(acsAce.periodoInscricao.fim, "2026-12-08");
+  assert.ok(isTrustedOfficialHost(new URL(acsAce.sourceUrl).hostname));
+
+  assert.equal(pss.vagas, 43);
+  assert.equal(pss.vagasTotais, 43);
+  assert.equal(pss.vagasImediatas, 0);
+  assert.equal(pss.cadastroReserva, 43);
+  assert.equal(pss.periodoInscricao.inicio, "2026-11-24");
+  assert.equal(pss.periodoInscricao.fim, "2026-12-08");
+  assert.ok(isTrustedOfficialHost(new URL(pss.sourceUrl).hostname));
+});
+
 test("coleta URLs principais e fontes oficiais de prazos, somente HTTPS e sem duplicatas", () => {
   const urls = collectSourceUrls([
     { sourceUrl: "https://example.gov.br/a" },
