@@ -65,6 +65,8 @@ create table if not exists public.study_exam_question_imports (
   discipline text not null check (char_length(btrim(discipline)) between 2 and 100),
   topic text not null default 'A classificar' check (char_length(btrim(topic)) between 2 and 160),
   difficulty text not null default 'Intermediária' check (difficulty in ('Fácil','Intermediária','Avançada')),
+  question_format text not null default 'multiple_choice'
+    check (question_format in ('multiple_choice','true_false')),
   role_name text not null default '',
   source_url text not null check (source_url ~ '^https://'),
   exam_pdf_url text not null check (exam_pdf_url ~ '^https://'),
@@ -203,6 +205,8 @@ comment on column public.study_exam_question_imports.license_proof_url is
   'Opcional para hipóteses sem licença individual; preenchido quando houver licença/autorização específica.';
 comment on column public.study_exam_question_imports.source_restrictions is
   'Restrições específicas verificadas nos termos/edital/contrato da banca ou do órgão.';
+comment on column public.study_exam_question_imports.question_format is
+  'Formato do item: múltipla escolha ou julgamento Certo/Errado.';
 comment on column public.study_exam_question_imports.suggested_answer is
   'Gabarito extraído automaticamente do gabarito definitivo publicado pela banca.';
 comment on column public.study_exam_question_imports.validation_checks is
