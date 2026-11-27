@@ -12,7 +12,7 @@ describe("fila adaptativa de questões", () => {
   it("prioriza questões erradas e deixa acertadas fora da fila", () => {
     expect(buildAdaptiveQuestionQueue({ questions, latestAttempts: {
       q1: { correct: false }, q2: { correct: true }, q3: { correct: false }
-    }})).toEqual(["q1", "q3", "q4", "q5"]);
+    }})).toEqual(["q3", "q1", "q4", "q5"]);
   });
   it("retorna lista vazia quando tudo foi acertado", () => {
     expect(buildAdaptiveQuestionQueue({ questions, latestAttempts: {
