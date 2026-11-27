@@ -1,22 +1,50 @@
 import { buildAdaptiveQuestionQueue } from "./adaptive-question-queue.js";
 import { buildTopicMastery } from "./topic-mastery.js";
 
-const normalizeSearch = (value) => String(value || "").trim().toLocaleLowerCase("pt-BR");
+const normalizeSearch = (value) => String(value || "")
+  .normalize("NFD")
+  .replace(/[\u0300-\u036f]/g, "")
+  .toLocaleLowerCase("pt-BR")
+  .replace(/\s+/g, " ")
+  .trim();
 
-export function buildQuestionBankView({ questions = [], discipline = "Todas", board = "Todas", difficulty = "Todas", originFilter = "Todas", questionSearch = "", collection = "all", latestAttempts = {}, savedQuestions = new Set(), attempts = [] } = {}) {
+export function buildQuestionBankView({
+  questions = [],
+  discipline = "Todas",
+  board = "Todas",
+  topic = "Todos os assuntos",
+  examYear = "Todos",
+  difficulty = "Todas",
+  originFilter = "Todas",
+  questionSearch = "",
+  collection = "all",
+  latestAttempts = {},
+  savedQuestions = new Set(),
+  attempts = []
+} = {}) {
   const search = normalizeSearch(questionSearch);
-  const base = questions.filter((question) =>
-    (discipline === "Todas" || question.discipline === discipline)
-    && (board === "Todas" || question.board === board)
-    && (difficulty === "Todas" || question.difficulty === difficulty)
-    && (originFilter === "Todas"
-      || (originFilter === "EditalRadar" && question.origin !== "licensed" && question.origin !== "exam_import")
-      || (originFilter === "Provas oficiais e licenciadas" && (question.origin === "licensed" || question.origin === "exam_import")))
-    && (!search || normalizeSearch([question.prompt, question.topic, question.discipline, question.examName].join(" ")).includes(search))
-  );
+  const base = questions.filter((question) => {
+    const searchableText = normalizeSearch([
+      question.prompt,
+      question.topic,
+      question.discipline,
+      question.board,
+      question.examName,
+      question.examYear
+    ].join(" "));
+    return (discipline === "Todas" || question.discipline === discipline)
+      && (board === "Todas" || question.board === board)
+      && (topic === "Todos os assuntos" || question.topic === topic)
+      && (examYear === "Todos" || String(question.examYear || "") === String(examYear))
+      && (difficulty === "Todas" || question.difficulty === difficulty)
+      && (originFilter === "Todas"
+        || (originFilter === "EditalRadar" && question.origin !== "licensed" && question.origin !== "exam_import")
+        || (originFilter === "Provas oficiais e licenciadas" && (question.origin === "licensed" || question.origin === "exam_import")))
+      && (!search || searchableText.includes(search));
+  });
 
   const adaptiveIds = new Set(buildAdaptiveQuestionQueue({ questions: base, latestAttempts }));
-  const dueTopicIds = new Set(buildTopicMastery({ questions: base, attempts }).filter((topic) => topic.due).flatMap((topic) => topic.questionIds));
+  const dueTopicIds = new Set(buildTopicMastery({ questions: base, attempts }).filter((topicRow) => topicRow.due).flatMap((topicRow) => topicRow.questionIds));
   const counts = {
     adaptive: adaptiveIds.size,
     all: base.length,

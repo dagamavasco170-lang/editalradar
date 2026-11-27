@@ -41,4 +41,35 @@ describe("visão do banco de questões", () => {
   it("tolera campos de texto ausentes", () => {
     expect(buildQuestionBankView({ questions: [{ id: "q", discipline: "X" }], questionSearch: "tema" }).base).toEqual([]);
   });
+
+  it("busca sem diferenciar acentos e também encontra banca e ano", () => {
+    const datedQuestion = { ...questions[0], examYear: 2024 };
+    expect(buildQuestionBankView({ questions: [datedQuestion], questionSearch: "lingua portuguesa" }).base.map(question => question.id)).toEqual(["q1"]);
+    expect(buildQuestionBankView({ questions: [datedQuestion], questionSearch: "fcc 2024" }).base).toHaveLength(1);
+  });
+
+  it("filtra por assunto e ano da prova sem alterar as contagens das coleções", () => {
+    const datedQuestions = [
+      { ...questions[0], examYear: 2023 },
+      { ...questions[1], examYear: 2024 },
+      { ...questions[2], examYear: 2024 }
+    ];
+    const view = buildQuestionBankView({
+      questions: datedQuestions,
+      topic: "Direitos",
+      examYear: "2024",
+      latestAttempts: { q2: { correct: false } }
+    });
+    expect(view.base.map(question => question.id)).toEqual(["q2"]);
+    expect(view.counts).toMatchObject({ all: 1, wrong: 1, unanswered: 0 });
+  });
+
+  it("mantém compatibilidade quando as questões não possuem ano ou assunto", () => {
+    const view = buildQuestionBankView({
+      questions: [{ id: "legacy", discipline: "Direito", prompt: "Constituição" }],
+      topic: "Todos os assuntos",
+      examYear: "Todos"
+    });
+    expect(view.filtered.map(question => question.id)).toEqual(["legacy"]);
+  });
 });
