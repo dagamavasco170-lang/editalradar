@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildStudyRecommendations } from "./study-recommendations.js";
+import { buildStudyRecommendations } from "./study-recommendations.ts";
 const questions=[{id:"q1",discipline:"Português",topic:"Crase"},{id:"q2",discipline:"Português",topic:"Crase"},{id:"q3",discipline:"Direito",topic:"Direitos fundamentais"},{id:"q4",discipline:"Direito",topic:"Direitos fundamentais"},{id:"q5",discipline:"Direito",topic:"Direitos fundamentais"}];
 describe("recomendações de estudo por assunto",()=>{
  it("identifica assuntos com erros, domínio e pendências",()=>{
