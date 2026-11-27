@@ -2,7 +2,7 @@
 -- Catalog-only assertions: no production data is read or modified.
 begin;
 
-select plan(45);
+select plan(47);
 
 select ok(
   not has_schema_privilege('anon', 'pgmq', 'USAGE'),
@@ -349,6 +349,47 @@ select ok(
       and a.privilege_type = 'EXECUTE'
   ),
   'postgres does not default-grant pgmq function EXECUTE to clients or PUBLIC'
+);
+
+-- Service/admin-only push and diagnostics tables: RLS is enabled and client roles have no table grants.
+select ok(
+  (
+    select count(*) = 4
+    from pg_class c
+    join pg_namespace n on n.oid = c.relnamespace
+    where (n.nspname, c.relname) in (
+      ('private','push_worker_runs'),
+      ('public','app_diagnostics'),
+      ('public','push_delivery_failures'),
+      ('public','push_devices')
+    )
+      and c.relrowsecurity
+  ),
+  'push worker and diagnostics tables all have RLS enabled'
+);
+select ok(
+  not exists (
+    select 1
+    from pg_class c
+    join pg_namespace n on n.oid = c.relnamespace
+    where (n.nspname, c.relname) in (
+      ('private','push_worker_runs'),
+      ('public','app_diagnostics'),
+      ('public','push_delivery_failures'),
+      ('public','push_devices')
+    )
+      and (
+        has_table_privilege('anon', c.oid, 'SELECT')
+        or has_table_privilege('anon', c.oid, 'INSERT')
+        or has_table_privilege('anon', c.oid, 'UPDATE')
+        or has_table_privilege('anon', c.oid, 'DELETE')
+        or has_table_privilege('authenticated', c.oid, 'SELECT')
+        or has_table_privilege('authenticated', c.oid, 'INSERT')
+        or has_table_privilege('authenticated', c.oid, 'UPDATE')
+        or has_table_privilege('authenticated', c.oid, 'DELETE')
+      )
+  ),
+  'push worker and diagnostics tables grant no direct access to client roles'
 );
 
 -- Behavioral RLS/RPC checks with transaction-local fixtures. All rows roll back below.
