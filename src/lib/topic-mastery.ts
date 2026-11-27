@@ -54,7 +54,6 @@ export function buildTopicMastery({
   attempts = [],
   now = Date.now()
 }: TopicMasteryInput = {}): TopicMasteryRow[] {
-  const questionById = new Map(questions.map(question => [String(question.id), question]));
   const latest = new Map<string, StudyAttempt>();
 
   for (const attempt of attempts) {
