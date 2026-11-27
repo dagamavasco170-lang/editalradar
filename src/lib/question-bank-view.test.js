@@ -21,7 +21,7 @@ describe("visão do banco de questões", () => {
 
   it("contabiliza todas, não respondidas, erradas e salvas sobre os filtros base", () => {
     const view = buildQuestionBankView({ questions, latestAttempts: { q1: { correct: true }, q2: { correct: false } }, savedQuestions: new Set(["q3"]) });
-    expect(view.counts).toEqual({ adaptive: 2, all: 3, unanswered: 1, wrong: 1, saved: 1 });
+    expect(view.counts).toEqual({ adaptive: 2, all: 3, unanswered: 1, wrong: 1, saved: 1, due: 3 });
   });
 
   it("retorna coleção não respondida, caderno de erros ou salvas", () => {
@@ -34,7 +34,7 @@ describe("visão do banco de questões", () => {
   it("mantém resultado vazio para filtro sem correspondência", () => {
     const view = buildQuestionBankView({ questions, discipline: "Matemática" });
     expect(view.base).toEqual([]);
-    expect(view.counts).toEqual({ adaptive: 0, all: 0, unanswered: 0, wrong: 0, saved: 0 });
+    expect(view.counts).toEqual({ adaptive: 0, all: 0, unanswered: 0, wrong: 0, saved: 0, due: 0 });
     expect(view.filtered).toEqual([]);
   });
 
