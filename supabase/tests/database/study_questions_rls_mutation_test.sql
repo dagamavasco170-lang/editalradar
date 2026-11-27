@@ -26,18 +26,24 @@ select is(
 
 update public.study_questions set prompt='Unauthorized mutation'
 where exam_name='ER RLS MUTATION fixture';
+reset role;
 select is(
   (select prompt from public.study_questions where exam_name='ER RLS MUTATION fixture'),
   'Prompt used only by transactional RLS tests',
   'non-admin UPDATE is blocked by RLS'
 );
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated","app_metadata":{}}';
 
 delete from public.study_questions where exam_name='ER RLS MUTATION fixture';
+reset role;
 select is(
   (select count(*) from public.study_questions where exam_name='ER RLS MUTATION fixture'),
   1::bigint,
   'non-admin DELETE is blocked by RLS'
 );
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated","app_metadata":{}}';
 
 select throws_ok(
   $$insert into public.study_questions
@@ -47,17 +53,18 @@ select throws_ok(
     'https://example.com/fixture','Fixture','public_domain',false,'manual','not_required',
     '11111111-1111-1111-1111-111111111111')$$,
   '42501',
+  'new row violates row-level security policy for table "study_questions"',
   'non-admin INSERT is rejected by policy'
 );
 
 delete from public.study_question_answers
 where question_id in (select id from public.study_questions where exam_name='ER RLS MUTATION fixture');
+reset role;
 select is(
   (select count(*) from public.study_question_answers a join public.study_questions q on q.id=a.question_id where q.exam_name='ER RLS MUTATION fixture'),
   1::bigint,
   'non-admin cannot DELETE answer row'
 );
-reset role;
 
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated","app_metadata":{"role":"admin"}}';
