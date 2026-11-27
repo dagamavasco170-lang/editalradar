@@ -1,5 +1,14 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { loadQuestionProgress, mergeQuestionProgress, questionBank, questionProgressStorageKey } from "./lib/question-bank.js";
+import { buildQuestionBankView } from "./lib/question-bank-view.js";
+import { buildQuestionProgressMetrics } from "./lib/question-progress-metrics.js";
+import { buildStudyRecommendations } from "./lib/study-recommendations.js";
+import { buildTopicMastery, buildWeeklyStudyProgress } from "./lib/topic-mastery.js";
+import { buildAdaptiveStudySessions, buildDailyAdaptiveGoals } from "./lib/adaptive-study-plan.js";
+import { buildTutorSignals, buildAdaptiveQuestionPlan, buildAdaptiveTutorFeedback } from "./lib/tutor-intelligence.js";
+import { buildAdaptiveQuestionQueue } from "./lib/adaptive-question-queue.js";
+import { buildConfusionPatterns, buildPersonalizedRecoveryAdvice, buildMisconceptionDiagnosis } from "./lib/tutor-intelligence.js";
+import { buildGeneratedPractice, evaluateGeneratedReasoning, loadConceptMastery, saveConceptMastery, mergeConceptMastery } from "./lib/tutor-generated-practice.js";
 
 const SimulatorPanel = React.lazy(() => import("./SimulatorPanel.jsx"));
 const ExamSourcesPanel = React.lazy(() => import("./ExamSourcesPanel.jsx"));
@@ -33,6 +42,8 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
  const [plan,setPlan]=useState(()=>loadPlan(activeUserId));
  const [discipline,setDiscipline]=useState("Todas");
  const [board,setBoard]=useState("Todas");
+ const [topic,setTopic]=useState("Todos os assuntos");
+ const [examYear,setExamYear]=useState("Todos");
  const [difficulty,setDifficulty]=useState("Todas");
  const [collection,setCollection]=useState("all");
  const [questionSearch,setQuestionSearch]=useState("");
@@ -44,6 +55,21 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
  const [checked,setChecked]=useState(false);
  const [checking,setChecking]=useState(false);
  const [answerFeedback,setAnswerFeedback]=useState(null);
+ const [adaptiveFeedback,setAdaptiveFeedback]=useState(null);
+ const [recoveryTopic,setRecoveryTopic]=useState(null);
+ const [recoveryConfirmed,setRecoveryConfirmed]=useState(false);
+ const [recoveryReflection,setRecoveryReflection]=useState("");
+ const [recoveryReflectionConfirmed,setRecoveryReflectionConfirmed]=useState(false);
+ const [generatedReasoning,setGeneratedReasoning]=useState("");
+ const [generatedAssessment,setGeneratedAssessment]=useState(null);
+ const [conceptMasteryState,setConceptMasteryState]=useState(()=>({userId:activeUserId,data:loadConceptMastery(activeUserId)}));
+ const [conceptMasteryReady,setConceptMasteryReady]=useState(!activeUserId||!authClient);
+ const [conceptMasterySyncStatus,setConceptMasterySyncStatus]=useState(activeUserId&&authClient?"loading":"local");
+ const conceptMastery=conceptMasteryState.userId===activeUserId?conceptMasteryState.data:loadConceptMastery(activeUserId);
+ const setConceptMastery=(updater)=>setConceptMasteryState(current=>{
+  const base=current.userId===activeUserId?current.data:loadConceptMastery(activeUserId);
+  return {userId:activeUserId,data:typeof updater==="function"?updater(base):updater};
+ });
  const [questionProgressReady,setQuestionProgressReady]=useState(!activeUserId || !authClient);
  const [questionSyncStatus,setQuestionSyncStatus]=useState(activeUserId ? "loading" : "local");
  const [questionProgressState,setQuestionProgressState]=useState(()=>({
@@ -64,7 +90,7 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
   setQuestionSyncStatus(activeUserId ? "loading" : "local");
   setLicensedQuestions([]);setLicensedQuestionStatus("loading");
   setDiscipline("Todas");setBoard("Todas");setDifficulty("Todas");setCollection("all");
-  setQuestionSearch("");setOriginFilter("Todas");setIndex(0);setAnswer("");setChecked(false);setAnswerFeedback(null);
+  setQuestionSearch("");setOriginFilter("Todas");setIndex(0);setAnswer("");setChecked(false);setAnswerFeedback(null);setAdaptiveFeedback(null);
   setTimerRunning(false);
   setTimerRemaining(timerMinutes*60);
   setFocusSessions(loadFocusSessions(activeUserId));
@@ -84,6 +110,55 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
   setTimerNotice("Sessão concluída! Faça uma pausa e volte com energia.");
  },[timerRunning,timerRemaining,activeUserId]);
  useEffect(()=>{try{localStorage.setItem(storageKey(activeUserId),JSON.stringify(plan));}catch{}},[plan,activeUserId]);
+ useEffect(()=>{
+  setConceptMasteryState({userId:activeUserId,data:loadConceptMastery(activeUserId)});
+  setConceptMasteryReady(!activeUserId||!authClient);
+  setConceptMasterySyncStatus(activeUserId&&authClient?"loading":"local");
+  setGeneratedReasoning("");setGeneratedAssessment(null);
+ },[activeUserId,authClient]);
+ useEffect(()=>{
+  if(conceptMasteryState.userId!==activeUserId)return;
+  saveConceptMastery(activeUserId,conceptMasteryState.data);
+ },[conceptMasteryState,activeUserId]);
+ useEffect(()=>{
+  let cancelled=false;
+  if(!activeUserId||!authClient){setConceptMasteryReady(true);setConceptMasterySyncStatus("local");return undefined;}
+  setConceptMasteryReady(false);setConceptMasterySyncStatus("loading");
+  const loadCloudMastery=async()=>{
+   try{
+    const {data,error}=await authClient.from("user_data").select("concept_mastery").eq("user_id",activeUserId).maybeSingle();
+    if(error)throw error;
+    if(cancelled)return;
+    const local=loadConceptMastery(activeUserId);
+    const merged=mergeConceptMastery(data?.concept_mastery,local);
+    setConceptMasteryState({userId:activeUserId,data:merged});
+    setConceptMasterySyncStatus("synced");
+   }catch{
+    if(!cancelled)setConceptMasterySyncStatus("local");
+   }finally{
+    if(!cancelled)setConceptMasteryReady(true);
+   }
+  };
+  void loadCloudMastery();
+  return()=>{cancelled=true;};
+ },[activeUserId,authClient]);
+ useEffect(()=>{
+  if(!activeUserId||!authClient||!conceptMasteryReady||conceptMasteryState.userId!==activeUserId)return undefined;
+  let cancelled=false;
+  const timeout=window.setTimeout(async()=>{
+   setConceptMasterySyncStatus("syncing");
+   try{
+    const {error}=await authClient.from("user_data").upsert({
+     user_id:activeUserId,concept_mastery:conceptMasteryState.data,updated_at:new Date().toISOString()
+    });
+    if(error)throw error;
+    if(!cancelled)setConceptMasterySyncStatus("synced");
+   }catch{
+    if(!cancelled)setConceptMasterySyncStatus("local");
+   }
+  },500);
+  return()=>{cancelled=true;window.clearTimeout(timeout);};
+ },[activeUserId,authClient,conceptMasteryReady,conceptMasteryState]);
 
 
  useEffect(()=>{
@@ -177,41 +252,40 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
  const simulatorQuestions=useMemo(()=>allQuestions.filter(question=>
   question.origin!=="licensed"&&(!question.databaseId||Boolean(activeUserId&&authClient))
  ),[allQuestions,activeUserId,authClient]);
- const questionBase=useMemo(()=>allQuestions.filter(q=>
-  (discipline==="Todas"||q.discipline===discipline)
-  &&(board==="Todas"||q.board===board)
-  &&(difficulty==="Todas"||q.difficulty===difficulty)
-  &&(originFilter==="Todas"||(originFilter==="EditalRadar"&&q.origin!=="licensed"&&q.origin!=="exam_import")||(originFilter==="Provas oficiais e licenciadas"&&(q.origin==="licensed"||q.origin==="exam_import")))
-  &&(!questionSearch.trim()||(q.prompt+" "+q.topic+" "+q.discipline+" "+(q.examName||"")).toLocaleLowerCase("pt-BR").includes(questionSearch.trim().toLocaleLowerCase("pt-BR")))
- ),[allQuestions,discipline,board,difficulty,originFilter,questionSearch]);
- const collectionCounts={
-  all:questionBase.length,
-  unanswered:questionBase.filter(q=>!latestAttempts[q.id]).length,
-  wrong:questionBase.filter(q=>latestAttempts[q.id]?.correct===false).length,
-  saved:questionBase.filter(q=>savedQuestions.has(q.id)).length
- };
- const filtered=useMemo(()=>questionBase.filter(q=>{
-  if(collection==="unanswered")return !latestAttempts[q.id];
-  if(collection==="wrong")return latestAttempts[q.id]?.correct===false;
-  if(collection==="saved")return savedQuestions.has(q.id);
-  return true;
- }),[questionBase,collection,latestAttempts,savedQuestions]);
+ const questionBankView=useMemo(()=>buildQuestionBankView({
+  questions:allQuestions,discipline,board,topic,examYear,difficulty,originFilter,questionSearch,collection,latestAttempts,savedQuestions,attempts:questionProgress.attempts
+ }),[allQuestions,discipline,board,topic,examYear,difficulty,originFilter,questionSearch,collection,latestAttempts,savedQuestions,questionProgress.attempts]);
+ const questionBase=questionBankView.base;
+ const collectionCounts=questionBankView.counts;
+ const filtered=questionBankView.filtered;
  const question=filtered.length?filtered[index%filtered.length]:null;
  const questionAttempt=question?latestAttempts[question.id]:null;
- const totalAttempts=questionProgress.attempts.length;
- const totalCorrect=questionProgress.attempts.filter(attempt=>attempt.correct).length;
- const accuracy=totalAttempts?Math.round(totalCorrect/totalAttempts*100):0;
- const uniqueAnswered=Object.keys(latestAttempts).length;
- const sessions=useMemo(()=>{
-  const chosen=plan.days.filter(day=>days.includes(day));
-  const count=chosen.length||1, total=plan.hours*60, base=Math.floor(total/count), rem=total%count;
-  const preferred=/pol[ií]cia|bombeiro|tribunal|procurador/i.test((selected?.cargo||"")+" "+(selected?.orgao||""))
-   ? ["Direito Constitucional","Língua Portuguesa","Raciocínio lógico","Direito Administrativo","Informática"]
-   : /auditor|controle|fiscal|analista/i.test((selected?.cargo||"")+" "+(selected?.orgao||""))
-    ? ["Direito Administrativo","Língua Portuguesa","Direito Constitucional","Raciocínio lógico","Informática"]
-    : subjects;
-  return chosen.map((day,i)=>{const subject=preferred[i%preferred.length];const slug=subject.toLowerCase().replace(/[^a-z0-9]+/g,"-");return {id:day+"-"+slug,day,subject,minutes:base+(i<rem?1:0)};});
- },[plan,selected]);
+ const filteredAnsweredCount=useMemo(()=>{
+  const filteredIds=new Set(filtered.map(item=>item.id));
+  const answeredIds=new Set(questionProgress.attempts.filter(item=>filteredIds.has(item.questionId)).map(item=>item.questionId));
+  return answeredIds.size;
+ },[filtered,questionProgress.attempts]);
+ const progressMetrics=useMemo(()=>buildQuestionProgressMetrics({attempts:questionProgress.attempts,questions:allQuestions}),[questionProgress.attempts,allQuestions]);
+ const {totalAttempts,totalCorrect,accuracy,uniqueAnswered}=progressMetrics;
+ const adaptiveQuestionPlan=useMemo(()=>buildAdaptiveQuestionPlan({questions:allQuestions,latestAttempts}),[allQuestions,latestAttempts]);
+ const recoveryQueue=useMemo(()=>buildAdaptiveQuestionQueue({questions:allQuestions,latestAttempts,attempts:questionProgress.attempts}),[allQuestions,latestAttempts,questionProgress.attempts]);
+ const adaptiveCurrent=question?adaptiveQuestionPlan.find(item=>item.id===question.id):null;
+ const confusionPattern=useMemo(()=>question?buildConfusionPatterns({questions:allQuestions,attempts:questionProgress.attempts,topic:question.topic||question.discipline,discipline:question.discipline}):null,[question,allQuestions,questionProgress.attempts]);
+ const personalizedRecoveryAdvice=useMemo(()=>buildPersonalizedRecoveryAdvice({pattern:confusionPattern||{},explanation:answerFeedback?.explanation||""}),[confusionPattern,answerFeedback]);
+ const misconceptionDiagnosis=useMemo(()=>!answerFeedback?.correct&&question?buildMisconceptionDiagnosis({question,selectedAnswer:answer,explanation:answerFeedback?.explanation||""}):null,[question,answer,answerFeedback]);
+ const topicRecentAttempts=question?questionProgress.attempts.filter(item=>allQuestions.find(q=>q.id===item.questionId)?.topic===question.topic).slice(-5):[];
+ const consecutiveCorrect=topicRecentAttempts.slice().reverse().reduce((state,item)=>item.correct&&!state.stopped?{count:state.count+1,stopped:false}:{count:state.count,stopped:true},{count:0,stopped:false}).count;
+ const nextAdaptiveQuestion=()=>{const candidates=adaptiveQuestionPlan.filter(item=>item.id!==question?.id&&filtered.some(q=>q.id===item.id));const sameTopic=candidates.filter(item=>allQuestions.find(q=>q.id===item.id)?.topic===question?.topic);const target=(sameTopic.length?sameTopic:candidates)[0];if(!target)return;const position=filtered.findIndex(q=>q.id===target.id);if(position>=0){setIndex(position);setAnswer("");setChecked(false);setAnswerFeedback(null);setAdaptiveFeedback(null);setRecoveryReflection("");setRecoveryReflectionConfirmed(false);}};
+ const startTopicRecovery=(topic)=>{const candidates=recoveryQueue.filter(item=>allQuestions.find(q=>q.id===item)?.topic===topic&&filtered.some(q=>q.id===item));const target=candidates[0];if(!target)return;const position=filtered.findIndex(q=>q.id===target);if(position<0)return;setRecoveryTopic(topic);setRecoveryConfirmed(false);setIndex(position);setAnswer("");setChecked(false);setAnswerFeedback(null);setAdaptiveFeedback(null);setRecoveryReflection("");setRecoveryReflectionConfirmed(false);};
+ const nextRecoveryQuestion=()=>{if(!recoveryTopic)return;const candidates=recoveryQueue.filter(item=>allQuestions.find(q=>q.id===item)?.topic===recoveryTopic&&item!==question?.id&&filtered.some(q=>q.id===item));const target=candidates[0];if(!target)return;const position=filtered.findIndex(q=>q.id===target);if(position>=0){setIndex(position);setAnswer("");setChecked(false);setAnswerFeedback(null);setAdaptiveFeedback(null);setRecoveryConfirmed(false);}};
+ const studyRecommendations=useMemo(()=>buildStudyRecommendations({questions:allQuestions,attempts:questionProgress.attempts}),[allQuestions,questionProgress.attempts]);
+ const topicMastery=useMemo(()=>buildTopicMastery({questions:allQuestions,attempts:questionProgress.attempts}),[allQuestions,questionProgress.attempts]);
+ const weeklyStudyProgress=useMemo(()=>buildWeeklyStudyProgress({attempts:questionProgress.attempts}),[questionProgress.attempts]);
+ const dueTopics=topicMastery.filter(item=>item.due);
+ const tutorSignals=useMemo(()=>buildTutorSignals({topics:topicMastery,weeklyProgress:weeklyStudyProgress,simulations:questionProgress.simulations}),[topicMastery,weeklyStudyProgress,questionProgress.simulations]);
+ const masteryLabel={starting:"Iniciando",developing:"Em desenvolvimento",strong:"Bom domínio"};
+ const sessions=useMemo(()=>buildAdaptiveStudySessions({subjects,attempts:questionProgress.attempts,mastery:topicMastery,hours:plan.hours,days:plan.days}),[plan,questionProgress.attempts,topicMastery]);
+ const dailyGoals=useMemo(()=>buildDailyAdaptiveGoals({sessions,days:plan.days}),[sessions,plan.days]);
  const update=(patch)=>setPlan(current=>({...current,...patch}));
  const updateQuestionProgress=(updater)=>{
   setQuestionProgressState(current=>{
@@ -280,12 +354,13 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
     ...current,
     attempts:[...current.attempts,{id:"attempt-"+Date.now()+"-"+question.id,questionId:question.id,answer,correct,at:new Date().toISOString(),source:question.origin==="licensed"||question.origin==="exam_import"?"prova-real":question.origin==="generated"?"autoral-gerada":"autoral"}].slice(-500)
    }));
-   setAnswerFeedback({correct,explanation});setChecked(true);
+   setAdaptiveFeedback(buildAdaptiveTutorFeedback({correct,recentTopicAttempts:topicRecentAttempts,currentLevel:question.difficulty}));setAnswerFeedback({correct,explanation});setChecked(true);
   }catch(error){setAnswerFeedback({error:"Não foi possível corrigir esta questão. Tente novamente."});}
   finally{setChecking(false);}
  };
  const next=()=>{
-  setIndex(i=>(i+1)%Math.max(filtered.length,1));
+  if(index>=filtered.length-1)return;
+  setIndex(i=>Math.min(i+1,Math.max(filtered.length-1,0)));
   setAnswer("");setChecked(false);setAnswerFeedback(null);
  };
  const randomQuestion=()=>{
@@ -332,7 +407,7 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
   </section>
   <div className="study-grid">
    <div className="panel progress-panel"><div className="panel-head"><div><div className="eyebrow">VISÃO GERAL</div><h2>Seu progresso diário</h2></div><span className="soft-pill">Hoje</span></div><div className="progress-number">{progress}%</div><div className="progress-track"><div style={{width:progress+"%"}}/></div><p className="muted">{tasks.filter(Boolean).length} de {tasks.length} atividades concluídas</p><div className="task-list">{["Revisar português","Resolver 10 questões","Estudar direito constitucional","Fazer uma revisão rápida"].map((task,i)=><label className="task" key={task}><input type="checkbox" checked={Boolean(tasks[i])} onChange={()=>onToggleTask(i)}/><span className={tasks[i]?"task-done":""}>{task}</span><small>{[25,30,40,15][i]} min</small></label>)}</div></div>
-   <div className="panel study-plan-panel"><div className="panel-head"><div><div className="eyebrow">PLANEJAMENTO SEMANAL</div><h2>Monte sua rotina</h2></div><span className="soft-pill">{plan.hours} h/semana</span></div><label className="study-field">Carga horária semanal<select aria-label="Carga horária semanal" value={plan.hours} onChange={e=>update({hours:Number(e.target.value)})}>{[5,8,10,15,20].map(h=><option key={h} value={h}>{h} horas</option>)}</select></label><div className="study-days"><span>Dias disponíveis</span><div>{days.map(day=><label key={day}><input type="checkbox" checked={plan.days.includes(day)} onChange={()=>toggleDay(day)}/>{day}</label>)}</div></div><div className="study-session-list">{sessions.map(s=><label className="study-session" key={s.id}><input type="checkbox" checked={plan.done.includes(s.id)} onChange={()=>update({done:plan.done.includes(s.id)?plan.done.filter(x=>x!==s.id):[...plan.done,s.id]})}/><span><strong>{s.day} · {s.subject}</strong><small>{s.minutes} minutos · teoria, revisão e questões</small></span><small>{plan.done.includes(s.id)?"Concluído":"Pendente"}</small></label>)}</div><p className="study-disclaimer">A distribuição das atividades é uma sugestão e não substitui o edital.</p></div>
+   <div className="panel study-plan-panel"><div className="panel-head"><div><div className="eyebrow">PLANEJAMENTO SEMANAL</div><h2>Monte sua rotina</h2></div><span className="soft-pill">{plan.hours} h/semana</span></div><label className="study-field">Carga horária semanal<select aria-label="Carga horária semanal" value={plan.hours} onChange={e=>update({hours:Number(e.target.value)})}>{[5,8,10,15,20].map(h=><option key={h} value={h}>{h} horas</option>)}</select></label><div className="study-days"><span>Dias disponíveis</span><div>{days.map(day=><label key={day}><input type="checkbox" checked={plan.days.includes(day)} onChange={()=>toggleDay(day)}/>{day}</label>)}</div></div><div className="adaptive-daily-goals" aria-label="Metas diárias recalculadas">{dailyGoals.map(goal=><div className="adaptive-daily-goal" key={goal.day}><strong>{goal.day}</strong><span>{goal.minutes} min</span><small>{goal.subjects.join(" · ")||"Sem sessão"}</small></div>)}</div><div className="study-session-list">{sessions.map(s=><label className="study-session" key={s.id}><input type="checkbox" checked={plan.done.includes(s.id)} onChange={()=>update({done:plan.done.includes(s.id)?plan.done.filter(x=>x!==s.id):[...plan.done,s.id]})}/><span><strong>{s.day} · {s.subject}</strong><small>{s.minutes} minutos · teoria, revisão e questões</small></span><small>{plan.done.includes(s.id)?"Concluído":"Pendente"}</small></label>)}</div><p className="study-disclaimer">A distribuição das atividades é uma sugestão e não substitui o edital.</p></div>
   </div>
 
   <React.Suspense fallback={<section className="panel simulator-panel"><p className="muted">Carregando simulados…</p></section>}>
@@ -352,37 +427,62 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
     <div className="question-stat"><strong>{totalAttempts}</strong><span>tentativas registradas</span></div>
     <div className="question-stat"><strong>{accuracy}%</strong><span>taxa de acerto</span></div>
    </div>
+   {progressMetrics.byDiscipline.length>0&&<div className="question-discipline-metrics" aria-label="Desempenho por disciplina"><strong>Desempenho por disciplina</strong>{progressMetrics.byDiscipline.slice(0,4).map(row=><div className="question-discipline-row" key={row.discipline}><span>{row.discipline}</span><span>{row.correct}/{row.attempts} · {row.accuracy}%</span><div className="question-discipline-track"><i style={{width:row.accuracy+"%"}}/></div></div>)}</div>}
+   <div className="tutor-readiness-panel" aria-label="Indicador de prontidão para prova">
+    <div className="tutor-readiness-head"><div><strong>Tutor adaptativo · preparação para prova</strong><p>Estimativa de evolução baseada em desempenho, cobertura de assuntos, consistência e simulados.</p></div><div className="tutor-readiness-score"><strong>{tutorSignals.readiness}%</strong><small>prontidão estimada</small></div></div>
+    <div className="tutor-readiness-track"><i style={{width:tutorSignals.readiness+"%"}}/></div>
+    <div className="tutor-readiness-metrics"><span><strong>{tutorSignals.overallAccuracy}%</strong><small>acertos nos assuntos</small></span><span><strong>{tutorSignals.coverage}%</strong><small>cobertura estudada</small></span><span><strong>{tutorSignals.consistency}%</strong><small>dias ativos na semana</small></span><span><strong>{tutorSignals.simulationAccuracy}%</strong><small>simulados (indicador)</small></span></div>
+    {tutorSignals.weakTopics.length>0&&<div className="tutor-weak-topics"><strong>Foco imediato</strong>{tutorSignals.weakTopics.slice(0,3).map(item=><div key={item.discipline+"::"+item.topic}><span>{item.topic}<small>{item.discipline} · {item.status} · {item.suggestedDifficulty}</small></span><b>{item.priority}</b></div>)}</div>}
+    <small className="tutor-readiness-disclaimer">Indicador de preparação, não previsão nem garantia de aprovação. O tutor recomenda nível de prática; não altera a dificuldade original das questões.</small>
+   </div>
+<div className="adaptive-recovery-session" aria-label="Sessão guiada de recuperação"><div className="adaptive-recovery-session-head"><strong>Recuperação guiada</strong><p>Comece pelo assunto que mais precisa de reforço. A sessão acompanha o histórico e não repete questões já dominadas.</p></div>{recoveryTopic&&<div className="adaptive-recovery-active" role="status"><span>Trilha ativa: <strong>{recoveryTopic}</strong></span><button type="button" className="detail-btn" onClick={()=>{setRecoveryTopic(null);setRecoveryConfirmed(false);}}>Encerrar trilha</button></div>}<div className="adaptive-recovery-topic-list">{tutorSignals.weakTopics.slice(0,5).map(item=><div key={item.discipline+"::"+item.topic}><span><strong>{item.topic}</strong><small>{item.discipline} · {item.accuracy}% de acerto · {item.wrong} erro(s)</small></span><button type="button" className="detail-btn" disabled={!recoveryQueue.some(id=>allQuestions.find(q=>q.id===id)?.topic===item.topic&&filtered.some(q=>q.id===id))} onClick={()=>startTopicRecovery(item.topic)}>Treinar tema</button></div>)}</div>{recoveryTopic&&<><div className="recovery-mastery-confirmation"><strong>Verificação de domínio</strong><p>Avance após explicar o conceito sem consultar a resposta. Recomendação: pelo menos 2 acertos seguidos no tema.</p><button type="button" className="primary-btn" disabled={consecutiveCorrect<2} onClick={()=>setRecoveryConfirmed(true)}>{recoveryConfirmed?"Tema confirmado nesta sessão":"Confirmar domínio (2 acertos)"}</button>{recoveryConfirmed&&<span role="status">Tema marcado como consolidado nesta sessão. Escolha outro assunto para continuar.</span>}</div><div className="adaptive-recovery-session-actions"><span>{recoveryQueue.filter(id=>allQuestions.find(q=>q.id===id)?.topic===recoveryTopic&&filtered.some(q=>q.id===id)).length} questão(ões) restante(s) na trilha</span><button type="button" className="primary-btn" onClick={nextRecoveryQuestion} disabled={!recoveryQueue.some(id=>allQuestions.find(q=>q.id===id)?.topic===recoveryTopic&&id!==question?.id&&filtered.some(q=>q.id===id))}>Próxima questão de reforço</button></div></>}</div>
+      <div className="study-mastery-panel" aria-label="Mapa de domínio e revisões">
+    <div className="study-mastery-heading"><div><strong>Mapa de domínio dos assuntos</strong><p>Seu desempenho define o nível de domínio e o intervalo sugerido para revisar.</p></div><span>{dueTopics.length} revisão(ões) pendente(s)</span></div>
+    <div className="study-mastery-list">{topicMastery.slice(0,6).map(item=><div className="study-mastery-row" key={item.discipline+"::"+item.topic}>
+     <div className="study-mastery-topic"><strong>{item.topic}</strong><small>{item.discipline} · {item.attempts} respondida(s) · {item.unanswered} pendente(s)</small></div>
+     <div className="study-mastery-status"><span className={"mastery-level mastery-"+item.mastery}>{masteryLabel[item.mastery]}</span><strong>{item.accuracy}%</strong><small>{item.attempts===0?"Praticar agora":item.due?"Revisão indicada agora":"Revisar em "+item.intervalDays+" dia(s)"}</small><small className="mastery-progression">Nível liberado: {item.unlockedLevel} · sequência: {item.streak} · próximo: {item.nextLevel}</small></div>
+    </div>)}</div>
+   </div>
+   <div className="study-weekly-panel" aria-label="Atividade dos últimos sete dias"><strong>Ritmo dos últimos 7 dias</strong><p>Questões respondidas por dia, com acertos destacados nos indicadores.</p><div className="study-weekly-bars">{weeklyStudyProgress.map(day=><div className="study-weekly-day" key={day.date}><div className="study-weekly-bar" title={day.attempts+" tentativa(s), "+day.correct+" acerto(s)"}><i style={{height:(day.attempts?Math.max(8,day.attempts/Math.max(1,...weeklyStudyProgress.map(x=>x.attempts))*100):0)+"%"}}/><b style={{height:(day.attempts?day.correct/day.attempts*100:0)+"%"}}/></div><small>{new Date(day.date+"T12:00:00").toLocaleDateString("pt-BR",{weekday:"short"}).replace(".","")}</small><em>{day.attempts}</em></div>)}</div></div>
+   {studyRecommendations.length>0&&<div className="study-recommendation-panel" aria-label="Recomendações de estudo"><strong>Próximos assuntos para revisar</strong><p>Recomendações baseadas no seu histórico de respostas e questões pendentes.</p>{studyRecommendations.slice(0,4).map(item=><div className="study-recommendation-row" key={item.discipline+"::"+item.topic}><div><span>{item.topic}</span><small>{item.discipline} · {item.wrong} erro(s) · {item.unanswered} pendente(s)</small></div><div className="study-recommendation-meter"><strong>{item.accuracy}%</strong><div className="question-discipline-track"><i style={{width:item.accuracy+"%"}}/></div></div></div>)}</div>}
    <div className="question-toolbar">
     <label className="question-search">Buscar questão<input aria-label="Buscar no banco de questões" placeholder="Tema, assunto ou enunciado..." value={questionSearch} onChange={e=>setQuestionFilter(setQuestionSearch,e.target.value)}/></label>
     <label className="question-filter-field">Disciplina<select aria-label="Filtrar questões por disciplina" value={discipline} onChange={e=>setQuestionFilter(setDiscipline,e.target.value)}><option>Todas</option>{[...new Set(allQuestions.map(q=>q.discipline))].sort().map(x=><option key={x}>{x}</option>)}</select></label>
     <label className="question-filter-field">Banca<select aria-label="Filtrar questões por estilo de banca" value={board} onChange={e=>setQuestionFilter(setBoard,e.target.value)}><option>Todas</option>{[...new Set(allQuestions.map(q=>q.board))].sort().map(x=><option key={x}>{x}</option>)}</select></label>
+    <label className="question-filter-field">Assunto<select aria-label="Filtrar questões por assunto" value={topic} onChange={e=>setQuestionFilter(setTopic,e.target.value)}><option>Todos os assuntos</option>{[...new Set(allQuestions.map(q=>q.topic).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"pt-BR")).map(x=><option key={x}>{x}</option>)}</select></label>
+    <label className="question-filter-field">Ano<select aria-label="Filtrar questões por ano da prova" value={examYear} onChange={e=>setQuestionFilter(setExamYear,e.target.value)}><option>Todos</option>{[...new Set(allQuestions.map(q=>q.examYear).filter(value=>value!==null&&value!==undefined&&String(value).trim()!=="").map(String))].sort((a,b)=>Number(b)-Number(a)).map(x=><option key={x}>{x}</option>)}</select></label>
     <label className="question-filter-field">Dificuldade<select aria-label="Filtrar questões por dificuldade" value={difficulty} onChange={e=>setQuestionFilter(setDifficulty,e.target.value)}><option>Todas</option>{["Fácil","Intermediária","Avançada"].map(x=><option key={x}>{x}</option>)}</select></label>
     <label className="question-filter-field">Origem<select aria-label="Filtrar questões por origem" value={originFilter} onChange={e=>setQuestionFilter(setOriginFilter,e.target.value)}><option>Todas</option><option>EditalRadar</option><option>Provas oficiais e licenciadas</option></select></label>
    </div>
+   <div className="question-sync-status" role="status">Domínio dos conceitos: {conceptMasterySyncStatus==="syncing"?"Salvando na conta…":conceptMasterySyncStatus==="synced"?"Sincronizado na sua conta":conceptMasterySyncStatus==="loading"?"Carregando da conta…":"Salvo neste aparelho"}</div>
    <div className="question-sync-status" role="status">Progresso: {questionSyncStatus==="syncing"?"Salvando progresso…":questionSyncStatus==="synced"?"Progresso salvo":questionSyncStatus==="loading"?"Carregando seu progresso…":"Progresso salvo neste aparelho"}</div>
    <div className="question-collections" role="group" aria-label="Coleções de questões">
+    <button type="button" className={collection==="adaptive"?"active":""} aria-pressed={collection==="adaptive"} onClick={()=>selectCollection("adaptive")}>Recomendadas <span>{collectionCounts.adaptive}</span></button>
     <button type="button" className={collection==="all"?"active":""} aria-pressed={collection==="all"} onClick={()=>selectCollection("all")}>Todas <span>{collectionCounts.all}</span></button>
     <button type="button" className={collection==="unanswered"?"active":""} aria-pressed={collection==="unanswered"} onClick={()=>selectCollection("unanswered")}>Não respondidas <span>{collectionCounts.unanswered}</span></button>
     <button type="button" className={collection==="wrong"?"active":""} aria-pressed={collection==="wrong"} onClick={()=>selectCollection("wrong")}>Caderno de erros <span>{collectionCounts.wrong}</span></button>
     <button type="button" className={collection==="saved"?"active":""} aria-pressed={collection==="saved"} onClick={()=>selectCollection("saved")}>Salvas <span>{collectionCounts.saved}</span></button>
+    <button type="button" className={collection==="due"?"active":""} aria-pressed={collection==="due"} onClick={()=>selectCollection("due")}>Revisão hoje <span>{collectionCounts.due}</span></button>
    </div>
-   {question?<div className="question-card">
+   {question?<div className="question-card" tabIndex={0} aria-label="Área de resolução da questão. Atalhos: números para escolher alternativa, Enter para conferir resposta.">
     <div className="question-card-heading">
      <div className="question-meta"><span>{question.discipline}</span><span>{question.origin==="exam_import"?"Prova oficial · importada":question.origin==="licensed"?"Prova real licenciada":question.origin==="generated"?"Questão autoral · revisada por IA":"Questão autoral · estilo "+question.board}</span><span>{question.origin==="licensed"||question.origin==="exam_import"?(question.examName+" · "+question.examYear):question.topic}</span><span className={"question-difficulty difficulty-"+question.difficulty.toLowerCase().replace("á","a").replace("í","i")}>{question.difficulty}</span></div>
      <button type="button" className={"question-bookmark"+(savedQuestions.has(question.id)?" saved":"")} aria-label={savedQuestions.has(question.id)?"Remover questão salva":"Salvar questão"} aria-pressed={savedQuestions.has(question.id)} onClick={toggleSavedQuestion}>{savedQuestions.has(question.id)?"★":"☆"}</button>
     </div>
-    <div className="question-index">Questão {index+1} de {filtered.length}{questionAttempt?" · "+(questionAttempt.correct?"Última resposta correta":"Última resposta incorreta"):" · Ainda não respondida"}</div>
-    <h3>{question.prompt}</h3>
-    <div className="question-options">{question.options.map(([label,value])=><button type="button" key={value} disabled={checked||checking} className={"option "+(answer===value?"chosen ":"")+(checked&&answerFeedback?.correct&&answer===value?"correct":checked&&answer===value&&!answerFeedback?.correct?"wrong":"")} onClick={()=>setAnswer(value)}>{label}</button>)}</div>
+    <div className="question-progress-summary"><div className="question-index">Questão {index+1} de {filtered.length}{questionAttempt?" · "+(questionAttempt.correct?"Última resposta correta":"Última resposta incorreta"):" · Ainda não respondida"}</div><span>{filtered.length?Math.round((filteredAnsweredCount/filtered.length)*100):0}% respondidas</span></div><div className="question-progress-track" role="progressbar" aria-label="Questões respondidas neste conjunto" aria-valuemin={0} aria-valuemax={filtered.length} aria-valuenow={filteredAnsweredCount}><span style={{width:(filtered.length?(filteredAnsweredCount/filtered.length)*100:0)+"%"}} /></div>
+    <div className="adaptive-question-coach" aria-label="Tutor adaptativo ativo"><div><strong>🎯 Tutor adaptativo</strong><p>{adaptiveCurrent?.due?"Revisão indicada: vamos reforçar este assunto.":"Ajustando sua prática com base no histórico deste assunto."}</p></div><div className="adaptive-coach-stats"><span><small>Nível sugerido</small><b>{adaptiveCurrent?.level||question.difficulty}</b></span><span><small>Desempenho no tema</small><b>{adaptiveCurrent?.accuracy||0}%</b></span><span><small>Acertos seguidos</small><b>{consecutiveCorrect}</b></span></div><button type="button" className="detail-btn" onClick={nextAdaptiveQuestion} disabled={!filtered.some(q=>adaptiveQuestionPlan.find(p=>p.id===q.id&&q.id!==question.id))}>Seguir trilha adaptativa →</button></div>{checked&&adaptiveFeedback&&<div className="adaptive-progression-message" role="status"><strong>{adaptiveFeedback.correct?(adaptiveFeedback.progression==="progress"?"Nível recomendado aumentado!":"Bom trabalho — consolide este nível."):"Vamos recuperar este assunto antes de avançar."}</strong><span>{adaptiveFeedback.correct?"Próximo nível sugerido: "+adaptiveFeedback.nextLevel:"Nível recomendado para recuperação: "+adaptiveFeedback.nextLevel}</span></div>}<h3>{question.prompt}</h3>
+    <div className="question-options" onKeyDown={event=>{if(event.target.closest("input,textarea,select"))return;if(event.altKey||event.ctrlKey||event.metaKey)return;if(/^[1-5]$/.test(event.key)){const option=question.options[Number(event.key)-1];if(option&&!checked&&!checking){event.preventDefault();setAnswer(option[1]);}}else if(event.key==="Enter"&&answer&&!checked&&!checking){event.preventDefault();check();}}}>{question.options.map(([label,value],optionIndex)=><button type="button" key={value} disabled={checked||checking} className={"option "+(answer===value&&!checked?"chosen ":"")+(checked&&answerFeedback?.correct&&answer===value?"correct":checked&&!answerFeedback?.correct&&!question.databaseId&&question.answer===value?"correct":checked&&answer===value&&!answerFeedback?.correct?"wrong":"")} aria-pressed={answer===value} onClick={()=>setAnswer(value)}><span className="option-shortcut" aria-hidden="true">{optionIndex+1}</span>{label}</button>)}</div>
+    <div className="question-keyboard-hints" aria-label="Atalhos de teclado"><span>Atalhos</span><kbd>1–5</kbd> escolher alternativa <kbd>Enter</kbd> conferir resposta</div>
     <div className="question-actions">
      <button className="primary-btn" type="button" disabled={!answer||checked||checking} onClick={check}>{checking?"Corrigindo…":"Conferir resposta"}</button>
-     <button className="detail-btn" type="button" onClick={next}>Próxima questão</button>
+     <button className="detail-btn" type="button" disabled={index>=filtered.length-1} onClick={next}>{index>=filtered.length-1?"Última questão":"Próxima questão"}</button>
      <button className="detail-btn" type="button" onClick={randomQuestion} disabled={filtered.length<2}>Questão aleatória</button>
     </div>
     {answerFeedback?.error&&<p className="answer bad" role="alert">{answerFeedback.error}</p>}
-    {checked&&<p className={"answer "+(answerFeedback?.correct?"good":"bad")} role="status">{answerFeedback?.correct?"Resposta correta. ":"Resposta incorreta. "}{answerFeedback?.explanation}</p>}
+    {checked&&<><p className={"answer "+(answerFeedback?.correct?"good":"bad")} role="status">{answerFeedback?.correct?"Resposta correta. ":"Resposta incorreta. "}{answerFeedback?.explanation}</p><section className="question-review-card" aria-label="Revisão da resposta"><div className="question-review-heading"><strong>{answerFeedback?.correct?"Consolide o aprendizado":"Entenda o erro"}</strong><span>{answerFeedback?.correct?"✓ Acertou":"↻ Revisão"}</span></div><p>{answerFeedback?.explanation||"Esta questão ainda não possui uma explicação detalhada cadastrada. Revise o conceito do assunto e consulte seu material de referência."}</p><div className="question-review-tip"><strong>Como aproveitar esta revisão</strong><span>{answerFeedback?.correct?"Explique mentalmente por que a alternativa escolhida está correta antes de seguir.":"Identifique o conceito-chave, compare com sua resposta e tente uma nova questão do mesmo assunto."}</span></div><div className="question-review-actions">{answerFeedback?.correct?<button type="button" className="primary-btn" disabled={index>=filtered.length-1} onClick={next}>{index>=filtered.length-1?"Fim do conjunto":"Continuar para próxima questão"}</button>:<button type="button" className="primary-btn" onClick={nextAdaptiveQuestion} disabled={!filtered.some(q=>adaptiveQuestionPlan.find(p=>p.id===q.id&&q.id!==question.id))}>Reforçar com outra questão</button>}</div>{!answerFeedback?.correct&&<div className="adaptive-recovery-card"><strong>Mini-aula de recuperação · {question.topic||question.discipline}</strong><div className="adaptive-confusion-patterns" aria-label="Padrões observados no histórico"><strong>O que seu histórico mostra</strong><p>{confusionPattern?.attempts?confusionPattern.wrong+" erro(s) em "+confusionPattern.attempts+" tentativa(s) recente(s) · "+confusionPattern.accuracy+"% de acerto":"Ainda não há histórico suficiente para identificar um padrão."}</p>{confusionPattern?.patterns?.map(item=><div key={item.id}><b>{item.label}</b><span>{item.detail}</span></div>)}</div><div className="adaptive-personalized-advice"><strong>Orientação adaptada</strong>{personalizedRecoveryAdvice.map((item,i)=><p key={i}>{item}</p>)}</div><div className="adaptive-generated-practice" aria-label="Desafio autoral"><strong>Desafio de aplicação · {question.topic||question.discipline}</strong><p>{buildGeneratedPractice({question,explanation:answerFeedback?.explanation||""}).prompt}</p><small>Termos essenciais sugeridos: {buildGeneratedPractice({question,explanation:answerFeedback?.explanation||""}).criteria.join(", ")||"consulte a fonte oficial"}</small></div><div className="adaptive-generated-practice" aria-label="Avaliação orientativa e domínio do conceito"><label className="adaptive-reflection-field">Sua explicação<textarea value={generatedReasoning} onChange={event=>{setGeneratedReasoning(event.target.value);setGeneratedAssessment(null);}} rows={4} placeholder="Explique a regra, crie um exemplo e justifique sua aplicação..." /></label><button type="button" className="primary-btn" disabled={generatedReasoning.trim().length<15} onClick={()=>setGeneratedAssessment(evaluateGeneratedReasoning({text:generatedReasoning,reference:answerFeedback?.explanation||question.explanation||""}))}>Avaliar meu raciocínio</button>{generatedAssessment&&<div className="adaptive-generated-feedback" role="status"><strong>{generatedAssessment.score===null?"Autoavaliação orientativa":generatedAssessment.score+"% · avaliação aproximada"}</strong><p>{generatedAssessment.feedback}</p>{generatedAssessment.criteria.length>0&&<p>Termos-chave encontrados: {generatedAssessment.matched.join(", ")||"nenhum identificado"} · {generatedAssessment.matched.length}/{generatedAssessment.criteria.length}</p>}<p>Domínio estimado do conceito: {conceptMastery[question.topic||question.discipline]||0}%</p><button type="button" className="detail-btn" disabled={generatedAssessment.score===null} onClick={()=>setConceptMastery(current=>({...current,[question.topic||question.discipline]:updateConceptMastery(current[question.topic||question.discipline]||0,generatedAssessment)}))}>Registrar progresso do conceito</button></div>}</div>
+    <div className="adaptive-concept-diagnosis"><strong>Diagnóstico da resposta</strong><p>Você marcou: <b>{misconceptionDiagnosis?.selectedLabel}</b></p><p><b>Pista para revisar:</b> identifique no enunciado o que está sendo pedido — {misconceptionDiagnosis?.clue}.</p><div className="adaptive-concept-lesson"><strong>Revisão do conceito</strong><p>{misconceptionDiagnosis?.lesson}</p></div><label className="adaptive-reflection-field">Explique com suas palavras por que a alternativa escolhida não resolve o enunciado<textarea value={recoveryReflection} onChange={event=>{setRecoveryReflection(event.target.value);setRecoveryReflectionConfirmed(false);}} rows={3} placeholder="Escreva o conceito e a pista que você deveria ter percebido..." /></label><button type="button" className="detail-btn" disabled={recoveryReflection.trim().length<20} onClick={()=>setRecoveryReflectionConfirmed(true)}>Confirmar minha explicação</button>{recoveryReflectionConfirmed&&<div className="adaptive-reflection-confirmation" role="status"><b>Reflexão registrada nesta sessão.</b><p>Agora teste o conceito em uma nova questão do mesmo assunto, sem consultar esta revisão.</p><button type="button" className="primary-btn" onClick={nextAdaptiveQuestion}>Verificar aprendizado com outra questão</button></div>}</div><div className="recovery-lesson-step"><b>1. Retome o conceito</b><p>{answerFeedback?.explanation||"A explicação detalhada ainda não está disponível. Consulte seu material de referência para revisar este conceito antes de tentar novamente."}</p></div><div className="recovery-lesson-step"><b>2. Identifique a pista</b><p>Observe no enunciado qual regra, definição ou exceção do assunto {question.topic||question.discipline} está sendo cobrada. Evite responder apenas por palavras parecidas.</p></div><div className="recovery-lesson-step"><b>3. Reforce sem decorar</b><p>Explique o raciocínio com suas próprias palavras e tente outra questão do mesmo tema. Se errar novamente, volte à fonte e revise o ponto específico.</p></div><button type="button" className="detail-btn" onClick={nextAdaptiveQuestion}>Praticar outra questão do mesmo tema</button></div>}</section></>}
     <small className="study-disclaimer">{question.origin==="exam_import"?"Questão extraída de prova oficialmente divulgada. Fundamento registrado: "+rightsBasisLabel(question.rightsBasis)+". Fonte: "+question.sourceUrl:question.origin==="licensed"?"Questão real reproduzida sob licença/autorização registrada. Fonte: "+question.sourceUrl:"Questão autoral criada pelo EditalRadar em formato de treino. Não é questão oficial nem reprodução de prova."} Confira sempre o edital e a legislação atualizada.</small>
-   </div>:<div className="question-empty"><strong>Nenhuma questão nesta seleção.</strong><p>Altere os filtros ou escolha outra coleção para continuar praticando.</p><button type="button" className="detail-btn" onClick={()=>{setDiscipline("Todas");setBoard("Todas");setDifficulty("Todas");setQuestionSearch("");setOriginFilter("Todas");selectCollection("all");}}>Limpar filtros</button></div>}
+   </div>:<div className="question-empty"><strong>Nenhuma questão nesta seleção.</strong><p>Altere os filtros ou escolha outra coleção para continuar praticando.</p><button type="button" className="detail-btn" onClick={()=>{setDiscipline("Todas");setBoard("Todas");setTopic("Todos os assuntos");setExamYear("Todos");setDifficulty("Todas");setQuestionSearch("");setOriginFilter("Todas");selectCollection("all");}}>Limpar filtros</button></div>}
   </section>
  </section>;
 }

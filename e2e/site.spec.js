@@ -260,7 +260,7 @@ test("monta plano semanal e pratica uma questão autoral filtrada por disciplina
  await expect(page.getByText(/Questão autoral · estilo Cebraspe/)).toBeVisible();
  await page.getByRole("button",{name:"Certo"}).click();
  await page.getByRole("button",{name:"Conferir resposta"}).click();
- await expect(page.getByText(/art\. 5º, IV/)).toBeVisible();
+ await expect(page.getByText("É o que determina o art. 5º, IV, da Constituição Federal.",{exact:true})).toBeVisible();
 });
 
 
@@ -498,6 +498,8 @@ test("simulados completos permitem iniciar, finalizar e analisar o desempenho", 
   await expect(simulator.getByRole("timer")).toBeVisible();
   await expect(simulator.getByText(/Questão 1 de 20/)).toBeVisible();
   await simulator.getByRole("button", { name: /Finalizar e corrigir/ }).click();
+  await expect(simulator.getByRole("alertdialog", { name: "Confirmar finalização do simulado" })).toBeVisible();
+  await simulator.getByRole("button", { name: "Finalizar mesmo assim" }).click();
   await expect(simulator.getByRole("heading", { name: /de 20 acertos/ })).toBeVisible();
   await simulator.getByRole("button", { name: /Revisar questões/ }).click();
   await expect(simulator.getByText(/Gabarito:/).first()).toBeVisible();

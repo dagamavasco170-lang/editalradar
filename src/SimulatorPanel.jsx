@@ -18,6 +18,7 @@ export default function SimulatorPanel({questionBank,history=[],onComplete,userI
   const [reviewOpen,setReviewOpen]=useState(false);
   const [finishing,setFinishing]=useState(false);
   const [finishError,setFinishError]=useState("");
+  const [confirmFinish,setConfirmFinish]=useState(false);
   const finishLock=useRef(false);
   const current=run?.questions?.[run.currentIndex]||null;
   const answered=run?Object.keys(run.answers).length:0;
@@ -96,7 +97,13 @@ export default function SimulatorPanel({questionBank,history=[],onComplete,userI
     if(!run||run.finished||!current||finishing)return;
     setRun(old=>({...old,answers:{...old.answers,[current.id]:value}}));
   };
-  const reset=()=>{clearActiveSimulation(userId);setRun(null);setResult(null);setRemaining(minutes*60);setReviewOpen(false);setFinishError("");};
+  const reset=()=>{clearActiveSimulation(userId);setRun(null);setResult(null);setRemaining(minutes*60);setReviewOpen(false);setFinishError("");setConfirmFinish(false);};
+  const requestFinish=()=>{
+    if(!run||run.finished||finishing)return;
+    const unanswered=run.questions.length-Object.keys(run.answers).length;
+    if(unanswered>0){setConfirmFinish(true);return;}
+    void finish("manual");
+  };
 
   return <section className="panel simulator-panel" aria-label="Simulados completos">
     <div className="panel-head"><div><div className="eyebrow">TREINO EM CONDIÇÕES DE PROVA</div><h2>Simulados completos</h2><p className="question-bank-subtitle">Questões autorais sorteadas sem repetição dentro de cada prova.</p><small className="question-bank-subtitle">Banco atual: {questionBank.length} questões autorais disponíveis para simulados.</small></div><span className="soft-pill">20 · 40 · 80 questões</span></div>
@@ -116,7 +123,8 @@ export default function SimulatorPanel({questionBank,history=[],onComplete,userI
         <div className="simulator-question-main"><div className="question-meta"><span>{current.discipline}</span><span>{current.topic}</span><span>Questão {run.currentIndex+1} de {run.questions.length}</span></div>
           <h3>{current.prompt}</h3>
           <div className="question-options">{current.options.map(([label,value])=><button type="button" key={value} disabled={finishing} className={"option "+(run.answers[current.id]===value?"chosen":"")} onClick={()=>setAnswer(value)}>{label}</button>)}</div>
-          <div className="simulator-navigation"><button type="button" className="detail-btn" disabled={run.currentIndex===0||finishing} onClick={()=>setRun(old=>({...old,currentIndex:old.currentIndex-1}))}>Anterior</button><button type="button" className="detail-btn" disabled={run.currentIndex===run.questions.length-1||finishing} onClick={()=>setRun(old=>({...old,currentIndex:old.currentIndex+1}))}>Próxima</button><button type="button" className="primary-btn" disabled={finishing} onClick={()=>void finish("manual")}>{finishing?"Corrigindo…":finishError?"Tentar corrigir novamente":"Finalizar e corrigir"}</button></div>
+          <div className="simulator-navigation"><button type="button" className="detail-btn" disabled={run.currentIndex===0||finishing} onClick={()=>setRun(old=>({...old,currentIndex:old.currentIndex-1}))}>Anterior</button><button type="button" className="detail-btn" disabled={run.currentIndex===run.questions.length-1||finishing} onClick={()=>setRun(old=>({...old,currentIndex:old.currentIndex+1}))}>Próxima</button><button type="button" className="primary-btn" disabled={finishing} onClick={requestFinish}>{finishing?"Corrigindo…":finishError?"Tentar corrigir novamente":"Finalizar e corrigir"}</button></div>
+          {confirmFinish&&!finishing&&<div className="simulator-finish-confirm" role="alertdialog" aria-label="Confirmar finalização do simulado"><strong>Você deixou {run.questions.length-answered} questão(ões) sem resposta.</strong><p>Se finalizar agora, as questões em branco serão contabilizadas como erros. Deseja continuar?</p><div><button type="button" className="detail-btn" onClick={()=>setConfirmFinish(false)}>Voltar à prova</button><button type="button" className="primary-btn" onClick={()=>{setConfirmFinish(false);void finish("manual");}}>Finalizar mesmo assim</button></div></div>}
           {finishError&&<p className="answer bad" role="alert">{finishError}</p>}
         </div>
         <aside className="simulator-question-map" aria-label="Navegação pelas questões"><strong>Ir para questão</strong><div>{run.questions.map((question,index)=><button type="button" key={question.id} disabled={finishing} className={(index===run.currentIndex?"current ":"")+(run.answers[question.id]?"answered":"")} aria-label={"Ir para questão "+(index+1)} aria-current={index===run.currentIndex?"step":undefined} onClick={()=>setRun(old=>({...old,currentIndex:index}))}>{index+1}</button>)}</div><small>{run.questions.length-answered} sem resposta</small></aside>

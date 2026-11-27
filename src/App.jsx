@@ -4,9 +4,12 @@ import { safeGetItem, safeSetItem } from "./lib/storage.js";
 import { concursos, sourceUrl, sourceUpdated, fetchedAt } from "./data/concursos";
 import { detectCatalogNotifications, dismissNotificationById, dismissNotificationHistory, getVisibleNotifications, mergeNotificationHistory } from "./lib/notifications";
 import { applyCatalogOverrides } from "./lib/catalog";
+import { matchesContestCatalogFilters, isPreliminaryContest } from "./lib/catalog-filters.js";
 import { isTrustedOfficialUrl, officialSourceLabel, parseHttpsUrl } from "./lib/official-sources.js";
 import { getUpcomingMilestones } from "./lib/dashboard";
 import { classifyRecommendationPriority } from "./lib/recommendation-priority.js";
+import { scoreRecommendation, getRecommendationReasons } from "./lib/recommendation-matching.js";
+export { scoreRecommendation, getRecommendationReasons } from "./lib/recommendation-matching.js";
 import { parseBrazilianNumber } from "./lib/brazilian-numbers.js";
 import { buildCsv } from "./lib/csv-export.js";
 import { buildContestChangeHistory, describeContestHistoryEntry, formatContestHistoryDate } from "./lib/admin-history.js";
@@ -16,24 +19,6 @@ const StudyArea = React.lazy(() => import("./StudyArea.jsx"));
 const StudyQuestionAdmin = React.lazy(() => import("./StudyQuestionAdmin.jsx"));
 const PushHealthPanel = React.lazy(() => import("./PushHealthPanel.jsx"));
 
-export const scoreRecommendation = (item, profile = {}) => {
- const area=(profile.interest_area||"").toLowerCase(), text=[item.cargo,item.orgao,item.area,item.nivel,item.estado,item.localidade,item.status].join(" ").toLowerCase();
- const keywords={administrativa:["administr","assistente","técnico","tecnico","analista"],policial:["polícia","policia","policial","segurança","seguranca"],tribunais:["tribunal","judiciário","judiciario","justiça","justica"],"fiscal e controle":["auditor","fiscal","receita","controle","cgu"],bancária:["banco","bancário","bancaria","bacen","central"],educação:["professor","educação","educacao","pedag"],saúde:["saúde","saude","médico","medico","enferm"],jurídica:["procurador","juríd","jurid","adv"],tecnologia:["tecnologia","dados","sistemas","ti","infraestrutura"]};
- const areaMatches=(keywords[area]||[]).some(w=>text.includes(w)), level=(profile.education_level||"").toLowerCase(), itemLevel=(item.nivel||"").toLowerCase();
- const levelMatches=!level||!itemLevel||itemLevel==="não informado"||(level.includes("médio")&&itemLevel.includes("médio"))||(level.includes("técnico")&&(itemLevel.includes("médio")||itemLevel.includes("técnico")))||(level.includes("superior")&&itemLevel.includes("superior"));
- const stateMatches=!profile.state||item.estado===profile.state||item.estado==="Brasil", cityMatches=!profile.city||item.localidade===profile.city||item.localidade==="Brasil";
- const active=/(inscriç(?:ões)?\s+(?:abertas|em andamento)|autorizad[oa]|pré[- ]?edital|edital\s+publicado|anunciad[oa]|convocaç)/.test((item.status||"").toLowerCase());
- return Math.round((areaMatches?40:0)+(levelMatches?25:0)+(stateMatches?20:0)+(cityMatches?5:0)+(active?10:0));
-};
-export const getRecommendationReasons = (item, profile = {}) => {
- const area=(profile.interest_area||"").toLowerCase(), text=[item.cargo,item.orgao,item.area,item.nivel,item.estado,item.localidade,item.status].join(" ").toLowerCase();
- const keywords={administrativa:["administr","assistente","técnico","tecnico","analista"],policial:["polícia","policia","policial","segurança","seguranca"],tribunais:["tribunal","judiciário","judiciario","justiça","justica"],"fiscal e controle":["auditor","fiscal","receita","controle","cgu"],bancária:["banco","bancário","bancaria","bacen","central"],educação:["professor","educação","educacao","pedag"],saúde:["saúde","saude","médico","medico","enferm"],jurídica:["procurador","juríd","jurid","adv"],tecnologia:["tecnologia","dados","sistemas","ti","infraestrutura"]};
- const areaMatches=(keywords[area]||[]).some(w=>text.includes(w)), level=(profile.education_level||"").toLowerCase(), itemLevel=(item.nivel||"").toLowerCase();
- const levelMatches=!level||!itemLevel||itemLevel==="não informado"||(level.includes("médio")&&itemLevel.includes("médio"))||(level.includes("técnico")&&(itemLevel.includes("médio")||itemLevel.includes("técnico")))||(level.includes("superior")&&itemLevel.includes("superior"));
- const stateMatches=!profile.state||item.estado===profile.state||item.estado==="Brasil", cityMatches=!profile.city||item.localidade===profile.city||item.localidade==="Brasil";
- const active=/(inscriç(?:ões)?\s+(?:abertas|em andamento)|autorizad[oa]|pré[- ]?edital|edital\s+publicado|anunciad[oa]|convocaç)/.test((item.status||"").toLowerCase());
- return [areaMatches&&"Área de interesse",levelMatches&&"Escolaridade",stateMatches&&"Estado/local",cityMatches&&"Cidade/local",active&&"Oportunidade ativa"].filter(Boolean);
-};
 const readStore = (key, fallback) => {
   const value = safeGetItem(key);
   if (!value) return fallback;
@@ -56,24 +41,6 @@ const isMissingNotificationsColumn = (error) =>
   ["42703", "PGRST204"].includes(error?.code)
   || /notifications.*(column|schema cache)|column.*notifications/i.test(error?.message || "");
 
-const matchesFilters = (item, filters) => {
-  const text = [item.sigla, item.cargo, item.orgao, item.vinculo, item.atoOficial, item.nivel, item.area, item.estado, item.localidade, item.status].join(" ").toLowerCase();
-  const status = (item.status || "").toLowerCase();
-  const matchesSituation = filters.situacao === "Todas as situações"
-    || (filters.situacao === "Pré-edital / anunciado" && /(autorizado|anunciado|pré-edital)/.test(status))
-    || (filters.situacao === "Inscrições abertas" && /inscrições abertas/.test(status))
-    || (filters.situacao === "Inscrições encerradas" && /inscrições encerradas/.test(status))
-    || (filters.situacao === "Provas / resultados" && /(prova|resultado|provas realizadas)/.test(status));
-
-  return text.includes((filters.query || "").toLowerCase())
-    && (filters.nivel === "Todos os níveis" || item.nivel === filters.nivel)
-    && (filters.esfera === "Todas as esferas" || (item.area || "Federal") === filters.esfera)
-    && (filters.estado === "Todos os estados" || (item.estado || "Brasil") === filters.estado)
-    && (filters.localidade === "Todas as cidades" || (item.localidade || "Brasil") === filters.localidade)
-    && matchesSituation
-    && (!filters.ocultarPreliminares || !isPreliminary(item));
-};
-
 const describeAlert = (filters) => {
   const parts = [filters.estado, filters.localidade, filters.esfera, filters.nivel, filters.situacao, filters.query]
     .filter((value) => value && ![
@@ -83,7 +50,7 @@ const describeAlert = (filters) => {
   return parts.length ? parts.join(" · ") : "Todos os concursos";
 };
 
-const isPreliminary = (item) => /concurso listado\s*·\s*verificar/i.test(item?.status || "");
+const isPreliminary = isPreliminaryContest;
 const isTemporarySelection = (item) => /processo seletivo simplificado|contratação temporária/i.test([item?.vinculo, item?.atoOficial].filter(Boolean).join(" "));
 export const getStatusTone = (value = "") => {
   const status = String(value).toLocaleLowerCase("pt-BR");
@@ -395,6 +362,8 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     return "light";
   });
   const [query, setQuery] = useState("");
+  const catalogResultsRef = useRef(null);
+  const jumpToCatalogRef = useRef(false);
   const [nivel, setNivel] = useState("Todos os níveis");
   const [esfera, setEsfera] = useState("Todas as esferas");
   const [estado, setEstado] = useState("Todos os estados");
@@ -485,6 +454,24 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   const [profileMessage, setProfileMessage] = useState("");
   const [profileMessageType, setProfileMessageType] = useState("info");
 
+  const submitContestSearch = (event) => {
+    event?.preventDefault();
+    jumpToCatalogRef.current = page !== "concursos";
+    if (page === "concursos") {
+      catalogResultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      catalogResultsRef.current?.focus({ preventScroll: true });
+      return;
+    }
+    setPage("concursos");
+  };
+
+  useLayoutEffect(() => {
+    if (page !== "concursos" || !jumpToCatalogRef.current) return;
+    jumpToCatalogRef.current = false;
+    catalogResultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    catalogResultsRef.current?.focus({ preventScroll: true });
+  }, [page]);
+
   useEffect(() => {
     const nextTheme = theme === "dark" ? "dark" : "light";
     document.documentElement.dataset.theme = nextTheme;
@@ -498,6 +485,8 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   const catalogSnapshotStorageKey = "er-catalog-snapshot:" + (authUser?.id || "visitor");
   const comparisonStorageKey = "er-comparison:" + (authUser?.id || "visitor");
   const catalog = useMemo(() => applyCatalogOverrides(concursos, catalogOverrides), [catalogOverrides]);
+  // Prazo oficial validado uma vez por atualização do catálogo, sem recalcular em cada card/render.
+  const verifiedDeadlines = useMemo(() => new Map(catalog.map((item) => [String(item.id), getVerifiedRegistrationDeadline(item)])), [catalog]);
   const isAdmin = authUser?.app_metadata?.role === "admin";
   const detailReturnFocusRef = useRef("main-content");
   const lastDetailPageRef = useRef(page);
@@ -1036,6 +1025,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
       authUser?.user_metadata?.interest_area
       || authUser?.user_metadata?.education_level
       || authUser?.user_metadata?.state
+      || authUser?.user_metadata?.city
     );
     const fresh = detected.notifications.filter((notice) => {
       if (knownIds.has(notice.id)) return false;
@@ -1110,8 +1100,8 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
 
   const recommendationProfile=authUser?.user_metadata||{};
   const profileRecommendations=useMemo(()=>{
-    if(!authUser||(!recommendationProfile.interest_area&&!recommendationProfile.education_level&&!recommendationProfile.state))return [];
-    return catalog.map(item=>({item,score:scoreRecommendation(item,recommendationProfile)})).sort((a,b)=>b.score-a.score||(Number(b.item.vagas)||0)-(Number(a.item.vagas)||0)).slice(0,3);
+    if(!authUser||(!recommendationProfile.interest_area&&!recommendationProfile.education_level&&!recommendationProfile.state&&!recommendationProfile.city))return [];
+    return catalog.map(item=>({item,score:scoreRecommendation(item,recommendationProfile)})).filter(({score})=>score>0).sort((a,b)=>b.score-a.score||(Number(b.item.vagas)||0)-(Number(a.item.vagas)||0)).slice(0,3);
   },[catalog,authUser?.id,authUser?.user_metadata?.interest_area,authUser?.user_metadata?.education_level,authUser?.user_metadata?.state,authUser?.user_metadata?.city]);
   const upcomingMilestones = useMemo(() => getUpcomingMilestones(catalog), [catalog]);
   const currentFilters = { query, nivel, esfera, estado, localidade, situacao, ocultarPreliminares };
@@ -1134,7 +1124,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     setOcultarPreliminares(false);
   };
   const filtered = useMemo(
-    () => catalog.filter((item) => matchesFilters(item, currentFilters)),
+    () => catalog.filter((item) => matchesContestCatalogFilters(item, currentFilters)),
     [catalog, query, nivel, esfera, estado, localidade, situacao, ocultarPreliminares]
   );
   const visibleCatalog = useMemo(() => {
@@ -1424,7 +1414,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
     setAuthMessageType("success");
   };
 
-  const matchingAlert = (alert) => catalog.filter((item) => matchesFilters(item, alert.filters)).length;
+  const matchingAlert = (alert) => catalog.filter((item) => matchesContestCatalogFilters(item, alert.filters)).length;
   const currentAlertName = describeAlert(currentFilters);
   const alertAlreadySaved = alerts.some((alert) => JSON.stringify(alert.filters) === JSON.stringify(currentFilters));
   const saveCurrentAlert = () => {
@@ -2229,7 +2219,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
           <section className="content">
             <div className="hero">
               <div><div className="eyebrow light">FONTES OFICIAIS · FEDERAL, ESTADUAL E MUNICIPAL</div><h1>Encontre concursos<br/>em todo o Brasil.</h1><p>Filtre oportunidades por esfera, estado, cidade, escolaridade e situação do edital.</p>
-                <div className="hero-search"><span>⌕</span><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Cargo, órgão ou palavra-chave..." /><button onClick={() => setPage("concursos")}>Buscar concursos</button></div>
+                <form className="hero-search" onSubmit={submitContestSearch}><span aria-hidden="true">⌕</span><input aria-label="Buscar concurso por cargo, órgão ou palavra-chave" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Cargo, órgão ou palavra-chave..." /><button type="submit">Buscar concursos</button></form>
               </div>
               <div className="hero-art"><div className="art-circle">✦</div><div className="art-card"><span>✧</span><strong>Seu esforço<br/>vai valer a pena.</strong><small>Um dia de cada vez.</small></div></div>
             </div>
@@ -2401,7 +2391,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                 ))}</div>
               </section>
             )}
-            <div className="section-title">
+            <div className="section-title" ref={catalogResultsRef} tabIndex={-1} aria-label="Resultados do catálogo">
               <div><div className="eyebrow">{page === "favoritos" ? "SUA LISTA PESSOAL" : "CATÁLOGO DE OPORTUNIDADES"}</div><h2>{page === "favoritos" ? "Seus concursos favoritos" : "Concursos e avisos no catálogo"}</h2></div>
               <div className="section-heading-actions">
                 <span className="results" role="status" aria-live="polite" aria-atomic="true">{visibleCatalog.length} registros</span>
@@ -2508,7 +2498,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
             )}
             <div className={"cards " + (catalogView === "list" ? "cards-list" : "cards-grid")} data-view={catalogView}>
               {visibleCatalog.map((item) => {
-                const registrationDeadline = sortMode === "deadline" ? getVerifiedRegistrationDeadline(item) : null;
+                const registrationDeadline = verifiedDeadlines.get(String(item.id)) || null;
                 const isComparing = comparisonItems.some((entry) => String(entry.id) === String(item.id));
                 const compareLimitReached = comparisonItems.length >= 3 && !isComparing;
                 return <article className="contest-card" key={item.id}>
@@ -2518,7 +2508,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                   <span className="card-area-tag">{item.area || "Federal"} · {item.estado || "Brasil"}</span>
                   {isTemporarySelection(item) && <span className="card-type-tag" aria-label="Processo seletivo temporário">PSS temporário</span>}
                 </div>
-                {sortMode === "deadline" && <div className={`registration-deadline registration-deadline-${registrationDeadline?.state || "unverified"}`}>
+                {(registrationDeadline?.state === "open" || registrationDeadline?.state === "upcoming" || sortMode === "deadline") && <div className={`registration-deadline registration-deadline-${registrationDeadline?.state || "unverified"}`}>
                   {registrationDeadline?.state === "open" && <>
                     <strong>{registrationDeadline.daysRemaining === 0
                       ? (registrationDeadline.endTime ? `Encerra hoje às ${formatRegistrationTime(registrationDeadline.endTime)}` : "Último dia informado · confira o horário no edital")
