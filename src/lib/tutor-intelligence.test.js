@@ -56,7 +56,7 @@ describe("prática autoral e checagem de raciocínio",()=>{
   expect(generated.reference).toContain("fusão");
  });
  it("checa estrutura da explicação sem alegar avaliação semântica",()=>{
-  const response="A regra se aplica porque o exemplo mostra o conceito quando o caso ocorre. Portanto, essa relação explica a situação concreta e o resultado.";
+  const response="A regra se aplica porque o exemplo mostra o conceito quando o caso ocorre. Portanto, essa relação explica a situação concreta e o resultado, demonstrando como ela orienta a conclusão apresentada no caso concreto.";
   expect(evaluateGeneratedReasoning({text:response}).complete).toBe(true);
   expect(evaluateGeneratedReasoning({text:"Sim, porque."}).complete).toBe(false);
  });
@@ -71,7 +71,7 @@ describe("tutor: exercício autoral, avaliação orientativa e domínio",()=>{
  });
  it("avalia presença de termos essenciais e estrutura sem afirmar semântica",()=>{
   const reference="A crase ocorre na fusão de preposição e artigo feminino.";
-  const result=evaluateGeneratedReasoning({text:"A crase ocorre na fusão de preposição e artigo feminino porque essa regra se aplica neste exemplo. Portanto, a regra explica a situação apresentada.",reference});
+  const result=evaluateGeneratedReasoning({text:"A crase ocorre na fusão de preposição e artigo feminino porque essa regra se aplica neste exemplo. Portanto, a regra explica a situação apresentada e demonstra como o artigo determina a aplicação correta nesse contexto específico.",reference});
   expect(result.coverage).toBeGreaterThan(0);
   expect(result.score).not.toBeNull();
   expect(result.feedback).toContain("aproximada");
