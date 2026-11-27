@@ -116,7 +116,8 @@ export function buildTopicMastery({
   return [...topics.values()].map(row => {
     const history = attempts
       .filter((attempt): attempt is StudyAttempt =>
-        Boolean(attempt?.questionId)
+        attempt !== null
+        && Boolean(attempt.questionId)
         && row.questionIds.includes(String(attempt.questionId))
         && toTimestamp(attempt.at) !== null
       )
