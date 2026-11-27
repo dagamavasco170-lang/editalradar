@@ -42,17 +42,17 @@ export const getRecommendationMatch = (item = {}, profile = {}) => {
 
   const profileEducation = getEducationBand(profile.education_level);
   const contestEducation = getEducationBand(item.nivel);
-  const educationMatches = profileEducation === "unknown" || contestEducation === "unknown"
+  const educationMatches = profileEducation !== "unknown" && (contestEducation === "unknown"
     || profileEducation === contestEducation
-    || (profileEducation === "superior" && contestEducation === "medio");
+    || (profileEducation === "superior" && contestEducation === "medio"));
 
   const profileState = normalize(profile.state);
   const contestState = normalize(item.estado);
   const profileCity = normalize(profile.city);
   const contestCity = normalize(item.localidade);
   const national = isNationalContest(item);
-  const stateMatches = !profileState || national || contestState === profileState;
-  const cityMatches = !profileCity || national || contestCity === profileCity;
+  const stateMatches = Boolean(profileState) && (national || contestState === profileState);
+  const cityMatches = Boolean(profileCity) && (national || contestCity === profileCity);
   const status = normalize(item.status);
   const active = /(inscricoes? abertas|inscricoes? em andamento|autorizad[oa]|pre edital|edital publicado|anunciad[oa]|comissao formada)/.test(status);
 
