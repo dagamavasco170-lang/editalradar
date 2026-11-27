@@ -1,8 +1,8 @@
 const normalize = (value) => String(value ?? "")
   .toLocaleLowerCase("pt-BR")
   .normalize("NFD")
-  .replace(/[\\u0300-\\u036f]/g, "")
-  .replace(/[^\\p{L}\\p{N}]+/gu, " ")
+  .replace(/[\u0300-\u036f]/g, "")
+  .replace(/[^\p{L}\p{N}]+/gu, " ")
   .trim();
 
 const AREA_KEYWORDS = {
@@ -43,9 +43,8 @@ export const getRecommendationMatch = (item = {}, profile = {}) => {
   const profileEducation = getEducationBand(profile.education_level);
   const contestEducation = getEducationBand(item.nivel);
   const educationMatches = profileEducation === "unknown" || contestEducation === "unknown"
-    || (profileEducation === "superior")
-    || (profileEducation === "medio" && contestEducation === "medio")
-    || (profileEducation === "fundamental" && contestEducation === "fundamental");
+    || profileEducation === contestEducation
+    || (profileEducation === "superior" && contestEducation === "medio");
 
   const profileState = normalize(profile.state);
   const contestState = normalize(item.estado);
@@ -54,7 +53,8 @@ export const getRecommendationMatch = (item = {}, profile = {}) => {
   const national = isNationalContest(item);
   const stateMatches = !profileState || national || contestState === profileState;
   const cityMatches = !profileCity || national || contestCity === profileCity;
-  const active = /(inscricoes? abertas|inscricoes? em andamento|autorizad[oa]|pre edital|edital publicado|anunciad[oa]|comissao formada)/.test(normalize(item.status));
+  const status = normalize(item.status);
+  const active = /(inscricoes? abertas|inscricoes? em andamento|autorizad[oa]|pre edital|edital publicado|anunciad[oa]|comissao formada)/.test(status);
 
   const score = Math.round(
     (areaMatches ? 40 : 0)
@@ -64,15 +64,7 @@ export const getRecommendationMatch = (item = {}, profile = {}) => {
     + (active ? 10 : 0)
   );
 
-  return {
-    score,
-    areaMatches,
-    educationMatches,
-    stateMatches,
-    cityMatches,
-    national,
-    active
-  };
+  return { score, areaMatches, educationMatches, stateMatches, cityMatches, national, active };
 };
 
 export const scoreRecommendation = (item, profile = {}) =>
@@ -82,10 +74,9 @@ export const getRecommendationReasons = (item, profile = {}) => {
   const match = getRecommendationMatch(item, profile);
   return [
     match.areaMatches && "Área de interesse",
-    match.educationMatches && "Escolaridade compatível ou não informada",
-    match.stateMatches && "Estado/localidade compatível",
-    match.cityMatches && "Cidade/localidade compatível",
-    match.national && "Abrangência nacional",
+    match.educationMatches && "Escolaridade",
+    match.stateMatches && "Estado/local",
+    match.cityMatches && "Cidade/local",
     match.active && "Oportunidade ativa"
   ].filter(Boolean);
 };
