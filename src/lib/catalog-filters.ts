@@ -69,7 +69,8 @@ export const matchesContestCatalogFilters = (
     || (situation === "inscricoes encerradas" && /inscricoes? (?:encerradas|finalizadas)/.test(status))
     || (situation === "provas resultados" && /(prova|resultado|provas realizadas)/.test(status));
 
-  return text.includes(query)
+  const queryTerms = query.split(" ").filter(Boolean);
+  return queryTerms.every((term) => text.includes(term))
     && (filters.nivel === "Todos os níveis" || item.nivel === filters.nivel)
     && (filters.esfera === "Todas as esferas" || (item.area || "Federal") === filters.esfera)
     && (filters.estado === "Todos os estados" || (item.estado || "Brasil") === filters.estado)
