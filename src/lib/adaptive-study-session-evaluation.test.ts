@@ -15,7 +15,11 @@ describe("avaliação de sessão adaptativa", () => {
  it("classifica sessão completa e recomenda revisão quando acerto é baixo",()=>{
   expect(evaluateAdaptiveStudySession({session,attempts:[{questionId:"1",correct:false},{questionId:"2",correct:true},{questionId:"3",correct:false}]})).toMatchObject({status:"completed",accuracy:33,nextAction:"Revise a teoria e refaça as questões erradas"});
  });
- it("ignora tentativas anteriores ao início da sessão",()=>{\n  const result=evaluateAdaptiveStudySession({session:{...session,startedAt:"2026-01-02"},attempts:[{questionId:"1",correct:true,at:"2026-01-01"},{questionId:"2",correct:false,at:"2026-01-03"}]});\n  expect(result).toMatchObject({answered:1,correct:0,wrong:1,unanswered:2,accuracy:0});\n });\n it("não divide por zero em sessão vazia",()=>{
+ it("ignora tentativas anteriores ao início da sessão",()=>{
+  const result=evaluateAdaptiveStudySession({session:{...session,startedAt:"2026-01-02"},attempts:[{questionId:"1",correct:true,at:"2026-01-01"},{questionId:"2",correct:false,at:"2026-01-03"}]});
+  expect(result).toMatchObject({answered:1,correct:0,wrong:1,unanswered:2,accuracy:0});
+ });
+ it("não divide por zero em sessão vazia",()=>{
   expect(evaluateAdaptiveStudySession({session:{questionIds:[]}})).toMatchObject({planned:0,answered:0,accuracy:0,completion:0,status:"not_started"});
  });
 });

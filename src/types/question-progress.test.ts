@@ -20,7 +20,7 @@ describe("question progress contracts", () => {
   });
 
   it("defines the same history caps used by the question bank", () => {
-    expect(QUESTION_PROGRESS_LIMITS).toEqual({ attempts: 500, simulations: 100 });
+    expect(QUESTION_PROGRESS_LIMITS).toEqual({ attempts: 500, saved: 1000, simulations: 100 });
   });
 
   it("accepts object payloads and rejects arrays and primitives", () => {

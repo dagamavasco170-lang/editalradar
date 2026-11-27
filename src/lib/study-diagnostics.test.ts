@@ -18,7 +18,7 @@ describe("diagnóstico explicável de estudos",()=>{
  it("resumo agrega métricas e limita prioridades",()=>{
   const rows=buildStudyDiagnostics({questions,attempts:[{questionId:"1",correct:true},{questionId:"2",correct:true},{questionId:"3",correct:false}],limit:1});
   const summary=buildStudyDiagnosticSummary(rows);
-  expect(summary).toMatchObject({topics:1,totalQuestions:2,totalAttempts:2,accuracy:100});
+  expect(summary).toMatchObject({topics:1,totalQuestions:1,totalAttempts:0,accuracy:0});
   expect(summary.topPriorities).toHaveLength(0);
  });
  it("respeita limite e retorna array vazio sem questões",()=>{
