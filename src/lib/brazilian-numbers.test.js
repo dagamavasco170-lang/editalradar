@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseBrazilianNumber } from "./brazilian-numbers.js";
+import { parseBrazilianNumber } from "./brazilian-numbers.ts";
 
 describe("Leitura de números brasileiros", () => {
   it("interpreta valores monetários com separadores brasileiros", () => {
