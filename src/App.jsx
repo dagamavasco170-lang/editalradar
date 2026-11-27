@@ -1024,6 +1024,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
       authUser?.user_metadata?.interest_area
       || authUser?.user_metadata?.education_level
       || authUser?.user_metadata?.state
+      || authUser?.user_metadata?.city
     );
     const fresh = detected.notifications.filter((notice) => {
       if (knownIds.has(notice.id)) return false;
@@ -1098,7 +1099,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
 
   const recommendationProfile=authUser?.user_metadata||{};
   const profileRecommendations=useMemo(()=>{
-    if(!authUser||(!recommendationProfile.interest_area&&!recommendationProfile.education_level&&!recommendationProfile.state))return [];
+    if(!authUser||(!recommendationProfile.interest_area&&!recommendationProfile.education_level&&!recommendationProfile.state&&!recommendationProfile.city))return [];
     return catalog.map(item=>({item,score:scoreRecommendation(item,recommendationProfile)})).sort((a,b)=>b.score-a.score||(Number(b.item.vagas)||0)-(Number(a.item.vagas)||0)).slice(0,3);
   },[catalog,authUser?.id,authUser?.user_metadata?.interest_area,authUser?.user_metadata?.education_level,authUser?.user_metadata?.state,authUser?.user_metadata?.city]);
   const upcomingMilestones = useMemo(() => getUpcomingMilestones(catalog), [catalog]);
