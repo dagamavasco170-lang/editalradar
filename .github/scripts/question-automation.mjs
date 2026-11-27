@@ -2,6 +2,7 @@ import process from "node:process";
 import { pathToFileURL } from "node:url";
 import { execFileSync } from "node:child_process";
 import { buildDailyAutomationRunQuery, orderTopicsFairly } from "../../scripts/question-automation-budget.mjs";
+import { MAX_SCHEDULED_TOPICS_PER_BATCH } from "../../supabase/functions/question-factory/gemini-rate-limit.mjs";
 
 const SUPABASE_URL = String(process.env.SUPABASE_URL || "").replace(/\/$/, "");
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
@@ -264,6 +265,7 @@ async function main() {
   const runParams = buildDailyAutomationRunQuery(utcStart.toISOString(), DAILY_TOPIC_LIMIT);
   const todaysRuns = await supabaseRest(`study_question_automation_runs?${runParams.toString()}`);
   const remaining = Math.max(0, DAILY_TOPIC_LIMIT - (todaysRuns || []).length);
+  const runTopicLimit = Math.min(remaining, MAX_SCHEDULED_TOPICS_PER_BATCH);
   if (!remaining) {
     console.log("Limite diário de segurança atingido; novas tentativas ficam para a próxima janela UTC.");
     return;
@@ -304,20 +306,20 @@ async function main() {
   for (const topic of fairDueCandidates) {
     if (!candidateQueue.includes(topic)) candidateQueue.push(topic);
   }
-  const sourceCandidates = candidateQueue.slice(0, Math.min(candidateQueue.length, remaining + 4));
+  const sourceCandidates = candidateQueue.slice(0, Math.min(candidateQueue.length, runTopicLimit + 4));
 
   if (!sourceCandidates.length) {
     console.log("Nenhum assunto está vencido neste ciclo. O catálogo continuará sendo ampliado automaticamente.");
     return;
   }
 
-  console.log(`Etapa 2/4: verificando até ${sourceCandidates.length} fontes para preencher ${remaining} vaga(s) de geração.`);
+  console.log(`Etapa 2/4: verificando até ${sourceCandidates.length} fontes para preencher ${runTopicLimit} vaga(s) de geração.`);
   const excerptByUrl = new Map();
   const headingRows = [];
   const sourceExcerpts = {};
   const processableIds = [];
   for (const topic of sourceCandidates) {
-    if (processableIds.length >= remaining) break;
+    if (processableIds.length >= runTopicLimit) break;
     try {
       let source = excerptByUrl.get(topic.source_url);
       if (!source) {
