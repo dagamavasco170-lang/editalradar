@@ -37,6 +37,8 @@ jobs:
           npm ci --no-audit --no-fund
       - name: Executar testes
         run: npm test
+      - name: Verificar contratos TypeScript
+        run: npm run typecheck
       - name: Testar monitoramento de fontes
         run: npm run test:monitor
 
