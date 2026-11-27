@@ -1,5 +1,10 @@
 export function applyCatalogOverrides(baseCatalog = [], records = []) {
-  const byId = new Map(records.filter(row => row && row.id != null).map(row => [String(row.id), row]));
+  const byId = new Map();
+  for (const row of records) {
+    if (!row || row.id == null) continue;
+    byId.set(String(row.id), row);
+  }
+
   const baseIds = new Set(baseCatalog.map(item => String(item.id)));
   const updatedBase = baseCatalog.map(item => {
     const row = byId.get(String(item.id));
@@ -7,7 +12,14 @@ export function applyCatalogOverrides(baseCatalog = [], records = []) {
     if (row.deleted) return null;
     return { ...item, ...(row.data || {}), id: item.id };
   }).filter(Boolean);
-  const added = records.filter(row => row && row.id != null && !row.deleted && !baseIds.has(String(row.id)))
-    .map(row => ({ ...(row.data || {}), id: Number(row.id) }));
-  return [...updatedBase, ...added];
+
+  const addedById = new Map();
+  for (const row of byId.values()) {
+    if (row.deleted || baseIds.has(String(row.id))) continue;
+    const numericId = Number(row.id);
+    const id = Number.isSafeInteger(numericId) ? numericId : String(row.id);
+    addedById.set(String(row.id), { ...(row.data || {}), id });
+  }
+
+  return [...updatedBase, ...addedById.values()];
 }
