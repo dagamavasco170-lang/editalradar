@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
-    "preview": "vite preview --host 0.0.0.0",
+    "preview": "vite preview --host 0.0.0",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
@@ -18,8 +18,8 @@
     "ingest:official-exams": "node scripts/automatic-official-exam-ingestion.mjs"
   },
   "dependencies": {
-    "@vitejs/plugin-react": "^4.3.4",
-    "vite": "^5.4.11",
+    "@vitejs/plugin-react": "^6.3.0",
+    "vite": "^8.4.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "@supabase/supabase-js": "^2.86.0"
@@ -32,6 +32,6 @@
     "@playwright/test": "^1.56.1"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=22.12.0"
   }
 }
