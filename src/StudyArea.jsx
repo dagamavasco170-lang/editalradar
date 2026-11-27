@@ -8,7 +8,7 @@ import { buildAdaptiveStudySessions, buildDailyAdaptiveGoals } from "./lib/adapt
 import { buildTutorSignals, buildAdaptiveQuestionPlan, buildAdaptiveTutorFeedback } from "./lib/tutor-intelligence.js";
 import { buildAdaptiveQuestionQueue } from "./lib/adaptive-question-queue.js";
 import { buildConfusionPatterns, buildPersonalizedRecoveryAdvice, buildMisconceptionDiagnosis } from "./lib/tutor-intelligence.js";
-import { buildGeneratedPractice, evaluateGeneratedReasoning } from "./lib/tutor-generated-practice.js";
+import { buildGeneratedPractice, evaluateGeneratedReasoning, loadConceptMastery, saveConceptMastery } from "./lib/tutor-generated-practice.js";
 
 const SimulatorPanel = React.lazy(() => import("./SimulatorPanel.jsx"));
 const ExamSourcesPanel = React.lazy(() => import("./ExamSourcesPanel.jsx"));
@@ -60,7 +60,6 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
  const [recoveryReflectionConfirmed,setRecoveryReflectionConfirmed]=useState(false);
  const [generatedReasoning,setGeneratedReasoning]=useState("");
  const [generatedAssessment,setGeneratedAssessment]=useState(null);
- const loadConceptMastery=(userId)=>{try{return JSON.parse(localStorage.getItem("er-concept-mastery:"+(userId||"visitor"))||"{}");}catch{return {};}};
  const [conceptMasteryState,setConceptMasteryState]=useState(()=>({userId:activeUserId,data:loadConceptMastery(activeUserId)}));
  const conceptMastery=conceptMasteryState.userId===activeUserId?conceptMasteryState.data:loadConceptMastery(activeUserId);
  const setConceptMastery=(updater)=>setConceptMasteryState(current=>{
@@ -108,7 +107,7 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
  },[timerRunning,timerRemaining,activeUserId]);
  useEffect(()=>{try{localStorage.setItem(storageKey(activeUserId),JSON.stringify(plan));}catch{}},[plan,activeUserId]);
  useEffect(()=>{setConceptMasteryState({userId:activeUserId,data:loadConceptMastery(activeUserId)});setGeneratedReasoning("");setGeneratedAssessment(null);},[activeUserId]);
- useEffect(()=>{if(conceptMasteryState.userId!==activeUserId)return;try{localStorage.setItem("er-concept-mastery:"+(activeUserId||"visitor"),JSON.stringify(conceptMasteryState.data));}catch{}},[conceptMasteryState,activeUserId]);
+ useEffect(()=>{if(conceptMasteryState.userId!==activeUserId)return;saveConceptMastery(activeUserId,conceptMasteryState.data)},[conceptMasteryState,activeUserId]);
 
 
  useEffect(()=>{

@@ -83,3 +83,29 @@ describe("tutor: exercício autoral, avaliação orientativa e domínio",()=>{
   expect(updateConceptMastery(10,{score:0})).toBeGreaterThanOrEqual(0);
  });
 });
+
+describe("persistência isolada do domínio por usuário",()=>{
+ const createStorage=()=>{const data=new Map();return {getItem:key=>data.has(key)?data.get(key):null,setItem:(key,value)=>data.set(key,value),data};};
+ it("mantém progresso separado entre contas e visitante",()=>{
+  const storage=createStorage();
+  saveConceptMastery("user-a",{Crase:70},storage);
+  saveConceptMastery("user-b",{Crase:20},storage);
+  saveConceptMastery(null,{Crase:5},storage);
+  expect(loadConceptMastery("user-a",storage)).toEqual({Crase:70});
+  expect(loadConceptMastery("user-b",storage)).toEqual({Crase:20});
+  expect(loadConceptMastery(null,storage)).toEqual({Crase:5});
+ });
+ it("recupera armazenamento ausente, inválido ou com formato inesperado",()=>{
+  const storage=createStorage();
+  expect(loadConceptMastery("missing",storage)).toEqual({});
+  storage.setItem("er-concept-mastery:broken","{");
+  storage.setItem("er-concept-mastery:array","[]");
+  expect(loadConceptMastery("broken",storage)).toEqual({});
+  expect(loadConceptMastery("array",storage)).toEqual({});
+ });
+ it("retorna false sem quebrar a tela quando o armazenamento falha",()=>{
+  const storage={getItem(){throw Error("blocked");},setItem(){throw Error("blocked");}};
+  expect(loadConceptMastery("user",storage)).toEqual({});
+  expect(saveConceptMastery("user",{Crase:50},storage)).toBe(false);
+ });
+});

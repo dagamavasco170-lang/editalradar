@@ -36,3 +36,17 @@ export function updateConceptMastery(previous=0,evaluation={}){
  const next=Math.round(Math.max(0,Math.min(100,Number(previous||0)*.65+score*.35)));
  return next;
 }
+
+export function conceptMasteryStorageKey(userId){
+ return "er-concept-mastery:"+(userId||"visitor");
+}
+export function loadConceptMastery(userId,storage=globalThis.localStorage){
+ try{
+  const value=JSON.parse(storage?.getItem(conceptMasteryStorageKey(userId))||"{}");
+  return value&&typeof value==="object"&&!Array.isArray(value)?value:{};
+ }catch{return {};}
+}
+export function saveConceptMastery(userId,value,storage=globalThis.localStorage){
+ try{storage?.setItem(conceptMasteryStorageKey(userId),JSON.stringify(value));return true;}
+ catch{return false;}
+}
