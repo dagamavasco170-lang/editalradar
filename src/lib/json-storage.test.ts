@@ -7,8 +7,8 @@ describe("typed JSON persistence helpers", () => {
   });
 
   it("returns fallback for missing, malformed, and validator-rejected data", () => {
-    expect(parseStoredJson(null, [])).toEqual([]);
-    expect(parseStoredJson("{", [])).toEqual([]);
+    expect(parseStoredJson<string[]>(null, [])).toEqual([]);
+    expect(parseStoredJson<string[]>("{", [])).toEqual([]);
     expect(parseStoredJson('{"count":"invalid"}', { count: 0 }, value =>
       isJsonRecord(value) && typeof value.count === "number"
     )).toEqual({ count: 0 });
@@ -17,8 +17,8 @@ describe("typed JSON persistence helpers", () => {
   it("allows validators to narrow parsed data", () => {
     const isStringArray = (value: unknown): value is string[] =>
       Array.isArray(value) && value.every(item => typeof item === "string");
-    expect(parseStoredJson('["a","b"]', [], isStringArray)).toEqual(["a", "b"]);
-    expect(parseStoredJson('[1,2]', [], isStringArray)).toEqual([]);
+    expect(parseStoredJson<string[]>('["a","b"]', [], isStringArray)).toEqual(["a", "b"]);
+    expect(parseStoredJson<string[]>('[1,2]', [], isStringArray)).toEqual([]);
   });
 
   it("stringifies JSON and handles unsupported values without throwing", () => {
