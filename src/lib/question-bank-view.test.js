@@ -46,6 +46,7 @@ describe("visão do banco de questões", () => {
     const datedQuestion = { ...questions[0], examYear: 2024 };
     expect(buildQuestionBankView({ questions: [datedQuestion], questionSearch: "portugues" }).base.map(question => question.id)).toEqual(["q1"]);
     expect(buildQuestionBankView({ questions: [datedQuestion], questionSearch: "fcc 2024" }).base).toHaveLength(1);
+    expect(buildQuestionBankView({ questions: [datedQuestion], questionSearch: "2024 FCC portugues" }).base).toHaveLength(1);
   });
 
   it("filtra por assunto e ano da prova sem alterar as contagens das coleções", () => {

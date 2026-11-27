@@ -22,7 +22,7 @@ export function buildQuestionBankView({
   savedQuestions = new Set(),
   attempts = []
 } = {}) {
-  const search = normalizeSearch(questionSearch);
+  const searchTerms = normalizeSearch(questionSearch).split(" ").filter(Boolean);
   const base = questions.filter((question) => {
     const searchableText = normalizeSearch([
       question.prompt,
@@ -40,7 +40,7 @@ export function buildQuestionBankView({
       && (originFilter === "Todas"
         || (originFilter === "EditalRadar" && question.origin !== "licensed" && question.origin !== "exam_import")
         || (originFilter === "Provas oficiais e licenciadas" && (question.origin === "licensed" || question.origin === "exam_import")))
-      && (!search || searchableText.includes(search));
+      && searchTerms.every((term) => searchableText.includes(term));
   });
 
   const adaptiveIds = new Set(buildAdaptiveQuestionQueue({ questions: base, latestAttempts }));
