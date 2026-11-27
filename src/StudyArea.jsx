@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { loadQuestionProgress, mergeQuestionProgress, questionBank, questionProgressStorageKey } from "./lib/question-bank.js";
 import { buildQuestionBankView } from "./lib/question-bank-view.js";
-import { buildQuestionProgressMetrics } from "./lib/question-progress-metrics.js";
-import { buildStudyRecommendations } from "./lib/study-recommendations.js";
-import { buildTopicMastery, buildWeeklyStudyProgress } from "./lib/topic-mastery.js";
+import { buildQuestionProgressMetrics } from "./lib/question-progress-metrics.ts";
+import { buildStudyRecommendations } from "./lib/study-recommendations.ts";
+import { buildTopicMastery, buildWeeklyStudyProgress } from "./lib/topic-mastery.ts";
 import { buildAdaptiveStudySessions, buildDailyAdaptiveGoals } from "./lib/adaptive-study-plan.js";
 import { buildTutorSignals, buildAdaptiveQuestionPlan, buildAdaptiveTutorFeedback } from "./lib/tutor-intelligence.js";
 import { buildAdaptiveQuestionQueue } from "./lib/adaptive-question-queue.js";
