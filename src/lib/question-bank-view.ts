@@ -3,6 +3,7 @@ import { buildTopicMastery } from "./topic-mastery.ts";
 import type { QuestionBankItem } from "../types/question-bank.js";
 
 type Collection = "all" | "adaptive" | "unanswered" | "wrong" | "saved" | "due" | string;
+type AttemptLike = { correct?: boolean; at?: string; questionId?: string; [key: string]: unknown };
 export interface QuestionBankViewOptions {
   questions?: QuestionBankItem[];
   discipline?: string;
