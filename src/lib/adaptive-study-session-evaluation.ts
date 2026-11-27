@@ -1,5 +1,5 @@
 export interface AdaptiveSessionAttempt { questionId: string | number; correct: boolean; at?: string }
-export interface AdaptiveSessionPlan { questionIds: Array<string | number>; topic?: string; discipline?: string; priority?: number }
+export interface AdaptiveSessionPlan { questionIds: Array<string | number>; topic?: string; discipline?: string; priority?: number; startedAt?: string; baselineAccuracy?: number }
 export interface AdaptiveSessionEvaluation {
  topic: string;
  discipline: string;
@@ -19,7 +19,7 @@ export function evaluateAdaptiveStudySession({session, attempts=[]}:{session:Ada
  const latest=new Map<string,AdaptiveSessionAttempt>();
  for(const attempt of attempts){
   const id=String(attempt.questionId);
-  if(!ids.includes(id)) continue;
+  if(!ids.includes(id) || (session.startedAt && (!attempt.at || attempt.at < session.startedAt))) continue;
   const previous=latest.get(id);
   if(!previous||String(attempt.at||"")>=String(previous.at||"")) latest.set(id,attempt);
  }
