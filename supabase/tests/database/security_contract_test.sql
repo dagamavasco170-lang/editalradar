@@ -363,7 +363,7 @@ values
 insert into public.study_question_answers (question_id,answer,explanation)
 select id,'A','Fixture answer explanation'
 from public.study_questions
-where exam_name in ('ER SECURITY TEST licensed','ER SECURITY TEST reviewed AI');
+where exam_name like 'ER SECURITY TEST%';
 
 set local role anon;
 set local request.jwt.claims = '{"role":"anon"}';
@@ -410,6 +410,14 @@ select is(
   null::jsonb,
   'answer-check RPC returns no result for an unpublished draft'
 );
+select is(
+  (select public.check_study_question_answer(
+    (select id from public.study_questions where exam_name='ER SECURITY TEST unreviewed AI'),
+    'A'
+  )),
+  null::jsonb,
+  'answer-check RPC returns no result for unreviewed AI content'
+);
 reset role;
 
 set local role authenticated;
@@ -421,7 +429,7 @@ select is(
 );
 select is(
   (select count(*) from public.study_question_answers),
-  2::bigint,
+  4::bigint,
   'admin can read fixture answers'
 );
 reset role;
