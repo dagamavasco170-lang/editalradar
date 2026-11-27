@@ -2,7 +2,7 @@
 -- Catalog-only assertions: no production data is read or modified.
 begin;
 
-select plan(45);
+select plan(48);
 
 select ok(
   not has_schema_privilege('anon', 'pgmq', 'USAGE'),
@@ -351,6 +351,47 @@ select ok(
   'postgres does not default-grant pgmq function EXECUTE to clients or PUBLIC'
 );
 
+-- Service/admin-only push and diagnostics tables: RLS is enabled and client roles have no table grants.
+select ok(
+  (
+    select count(*) = 4
+    from pg_class c
+    join pg_namespace n on n.oid = c.relnamespace
+    where (n.nspname, c.relname) in (
+      ('private','push_worker_runs'),
+      ('public','app_diagnostics'),
+      ('public','push_delivery_failures'),
+      ('public','push_devices')
+    )
+      and c.relrowsecurity
+  ),
+  'push worker and diagnostics tables all have RLS enabled'
+);
+select ok(
+  not exists (
+    select 1
+    from pg_class c
+    join pg_namespace n on n.oid = c.relnamespace
+    where (n.nspname, c.relname) in (
+      ('private','push_worker_runs'),
+      ('public','app_diagnostics'),
+      ('public','push_delivery_failures'),
+      ('public','push_devices')
+    )
+      and (
+        has_table_privilege('anon', c.oid, 'SELECT')
+        or has_table_privilege('anon', c.oid, 'INSERT')
+        or has_table_privilege('anon', c.oid, 'UPDATE')
+        or has_table_privilege('anon', c.oid, 'DELETE')
+        or has_table_privilege('authenticated', c.oid, 'SELECT')
+        or has_table_privilege('authenticated', c.oid, 'INSERT')
+        or has_table_privilege('authenticated', c.oid, 'UPDATE')
+        or has_table_privilege('authenticated', c.oid, 'DELETE')
+      )
+  ),
+  'push worker and diagnostics tables grant no direct access to client roles'
+);
+
 -- Behavioral RLS/RPC checks with transaction-local fixtures. All rows roll back below.
 insert into public.study_questions
   (discipline,topic,difficulty,board,exam_name,exam_year,prompt,options,explanation,source_url,rights_holder,license_status,license_proof_url,published,origin,review_status)
@@ -363,7 +404,7 @@ values
 insert into public.study_question_answers (question_id,answer,explanation)
 select id,'A','Fixture answer explanation'
 from public.study_questions
-where exam_name in ('ER SECURITY TEST licensed','ER SECURITY TEST reviewed AI');
+where exam_name like 'ER SECURITY TEST%';
 
 set local role anon;
 set local request.jwt.claims = '{"role":"anon"}';
@@ -410,6 +451,14 @@ select is(
   null::jsonb,
   'answer-check RPC returns no result for an unpublished draft'
 );
+select is(
+  (select public.check_study_question_answer(
+    (select id from public.study_questions where exam_name='ER SECURITY TEST unreviewed AI'),
+    'A'
+  )),
+  null::jsonb,
+  'answer-check RPC returns no result for unreviewed AI content'
+);
 reset role;
 
 set local role authenticated;
@@ -421,7 +470,7 @@ select is(
 );
 select is(
   (select count(*) from public.study_question_answers),
-  2::bigint,
+  4::bigint,
   'admin can read fixture answers'
 );
 reset role;
