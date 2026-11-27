@@ -75,4 +75,21 @@ describe("compatibilidade das recomendações do catálogo", () => {
     expect(getRecommendationReasons(item, profile)).toContain("Abrangência nacional");
   });
 
+
+  it("reconhece siglas oficiais de estados no perfil e no catálogo", () => {
+    const item = { cargo: "Auditor Fiscal", estado: "AL", localidade: "Maceió", nivel: "Superior" };
+    const match = getRecommendationMatch(item, { ...profile, state: "AL" });
+    expect(match.stateMatches).toBe(true);
+    expect(match.cityMatches).toBe(true);
+    expect(getRecommendationReasons(item, { ...profile, state: "AL" })).toContain("Estado/local");
+  });
+
+  it("não concede compatibilidade de cidade quando o estado do registro diverge", () => {
+    const item = { cargo: "Auditor Fiscal", estado: "Pernambuco", localidade: "Maceió", nivel: "Superior" };
+    const match = getRecommendationMatch(item, profile);
+    expect(match.stateMatches).toBe(false);
+    expect(match.cityMatches).toBe(false);
+    expect(getRecommendationReasons(item, profile)).not.toContain("Cidade/local");
+  });
+
 });
