@@ -1,6 +1,6 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { isSupabaseConfigured, supabase } from "./lib/supabaseClient";
-import { safeGetItem, safeSetItem } from "./lib/storage.js";
+import { safeGetItem, safeSetItem } from "./lib/storage.ts";
 import { concursos, sourceUrl, sourceUpdated, fetchedAt } from "./data/concursos";
 import { detectCatalogNotifications, dismissNotificationById, dismissNotificationHistory, getVisibleNotifications, mergeNotificationHistory } from "./lib/notifications";
 import { applyCatalogOverrides } from "./lib/catalog";
