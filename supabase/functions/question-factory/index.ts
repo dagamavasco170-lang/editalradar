@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { classifyGeneratedReview, filterQuestionCandidates, isTrustedPrivateStudySourceUrl, type GeneratedQuestion } from "./validation.ts";
+import { createGeminiRequestRateLimiter, selectScheduledTopics } from "./gemini-rate-limit.mjs";
 import { extractReadableSourceText } from "./source-utils.ts";
 
 const corsHeaders = {
@@ -279,7 +280,7 @@ function isTransientGeminiAvailabilityFailure(error: unknown): boolean {
     || /Gemini falha de rede em .+ após \d+ tentativas:/i.test(message);
 }
 
-async function callStructuredModel(schemaName: string, schema: unknown, systemPrompt: string, userPrompt: string) {
+async function callStructuredModel(schemaName: string, schema: unknown, systemPrompt: string, userPrompt: string, waitForRequestSlot?: () => Promise<void>) {
   if (!geminiKey) throw new Error("GEMINI_API_KEY ainda não está configurada em Supabase → Edge Functions → Secrets.");
   const structuredPrompt = userPrompt + "\n\nRetorne exclusivamente JSON válido que obedeça a este esquema (sem markdown):\n" + JSON.stringify(schema);
   const requestBody = JSON.stringify({
@@ -287,12 +288,13 @@ async function callStructuredModel(schemaName: string, schema: unknown, systemPr
     contents: [{ role: "user", parts: [{ text: structuredPrompt }] }],
     generationConfig: { responseMimeType: "application/json", maxOutputTokens: 8192 }
   });
-  const transientStatuses = new Set([429, 500, 502, 503, 504]);
+  const transientStatuses = new Set([500, 502, 503, 504]); // 429 stops immediately to avoid spending quota on a doomed retry
   const maxAttempts = 2; // one bounded retry; never switch model/provider or increase paid usage unexpectedly
   let lastError = "Falha ao consultar o modelo de IA";
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     let response: Response;
     try {
+      if (waitForRequestSlot) await waitForRequestSlot();
       response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent", {
         method: "POST",
         headers: { "x-goog-api-key": geminiKey, "Content-Type": "application/json" },
@@ -636,7 +638,7 @@ async function dailyRunBudgetAvailable(triggerMode: "manual" | "scheduled"): Pro
   return { allowed: count < limit, count, limit };
 }
 
-async function runTopic(topic: any, triggerMode: "manual" | "scheduled", userId: string | null, suppliedExcerpt?: string) {
+async function runTopic(topic: any, triggerMode: "manual" | "scheduled", userId: string | null, suppliedExcerpt?: string, waitForRequestSlot?: () => Promise<void>) {
   const sourceLicense = sourceLicenseMetadata(topic.source_url);
   if (!isTrustedPrivateStudySourceUrl(topic.source_url) || !sourceLicense) {
     return { topicId: topic.id, status: "skipped", reason: "A fonte não tem uma licença aberta ou permissão de reutilização aprovada." };
@@ -695,7 +697,8 @@ async function runTopic(topic: any, triggerMode: "manual" | "scheduled", userId:
       "editalradar_generated_questions",
       questionSchema,
       prompts.system,
-      prompts.user
+      prompts.user,
+      waitForRequestSlot
     );
     const candidates = Array.isArray(generated?.questions)
       ? generated.questions.slice(0, requested) as GeneratedQuestion[]
@@ -719,7 +722,8 @@ async function runTopic(topic: any, triggerMode: "manual" | "scheduled", userId:
         "editalradar_generated_questions",
         questionSchema,
         repairPrompts.system,
-        repairPrompts.user
+        repairPrompts.user,
+        waitForRequestSlot
       );
       const repairCandidates = Array.isArray(repaired?.questions)
         ? repaired.questions.slice(0, missingCount) as GeneratedQuestion[]
@@ -759,7 +763,8 @@ async function runTopic(topic: any, triggerMode: "manual" | "scheduled", userId:
       "editalradar_independent_question_review",
       reviewSchema,
       review.system,
-      review.user
+      review.user,
+      waitForRequestSlot
     );
     const reviewRows = Array.isArray(reviewed?.reviews) ? reviewed.reviews : [];
     if (reviewRows.length !== validCandidates.length) {
@@ -968,7 +973,8 @@ Deno.serve(async (req: Request) => {
     if (error) return json({ error: error.message }, 500);
     if (!topic) return json({ error: "Tema de automação não encontrado." }, 404);
     try {
-      const result = await runTopic(topic, "manual", actor.userId);
+      const waitForRequestSlot = createGeminiRequestRateLimiter();
+      const result = await runTopic(topic, "manual", actor.userId, undefined, waitForRequestSlot);
       return json({ ok: true, results: [result] });
     } catch (error) {
       return json({ error: String(error?.message || error) }, 502);
@@ -1001,7 +1007,8 @@ Deno.serve(async (req: Request) => {
   if (historyError) return json({ error: "Não foi possível consultar o histórico de distribuição: " + historyError.message }, 500);
 
   const fairDue = orderTopicsFairly(dueCandidates, recentRuns || [], now, topics || []);
-  const due = fairDue.slice(0, remainingDailyRuns);
+  const due = selectScheduledTopics(fairDue, remainingDailyRuns);
+  const waitForRequestSlot = createGeminiRequestRateLimiter();
   const sourceExcerpts = body?.sourceExcerpts && typeof body.sourceExcerpts === "object" ? body.sourceExcerpts : {};
   const results: any[] = [];
   let processed = 0;
@@ -1009,7 +1016,7 @@ Deno.serve(async (req: Request) => {
   for (let index = 0; index < due.length; index += 1) {
     const topic = due[index];
     try {
-      results.push(await runTopic(topic, "scheduled", null, sourceExcerpts[topic.id]));
+      results.push(await runTopic(topic, "scheduled", null, sourceExcerpts[topic.id], waitForRequestSlot));
       processed += 1;
     } catch (error) {
       const reason = String(error?.message || error).slice(0, 500);
