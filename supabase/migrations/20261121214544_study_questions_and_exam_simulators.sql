@@ -1,5 +1,5 @@
--- Banco de questões e histórico de simulados do EditalRadar.
--- Reproduza esta migração depois de 202611220004_auto_publish.sql.
+-- Banco de questões, simulados e histórico de desempenho do EditalRadar.
+-- Questões reais só podem ser exibidas após comprovação de licença ou autorização.
 alter table public.user_data
   add column if not exists question_progress jsonb not null
   default '{"attempts":[],"saved":[],"simulations":[]}'::jsonb;
@@ -31,6 +31,7 @@ create table if not exists public.study_questions (
 create index if not exists study_questions_published_discipline_idx
   on public.study_questions(discipline, board, difficulty, exam_year desc)
   where published = true;
+
 create index if not exists study_questions_search_idx
   on public.study_questions using gin (
     to_tsvector('portuguese', coalesce(prompt,'') || ' ' || coalesce(topic,'') || ' ' || coalesce(exam_name,''))
@@ -44,7 +45,10 @@ create policy "Public can read licensed published questions"
   using (
     published = true
     and license_status in ('permission_granted','public_domain','cc_by','cc_by_sa')
-    and (license_status = 'public_domain' or license_proof_url is not null)
+    and (
+      license_status = 'public_domain'
+      or license_proof_url is not null
+    )
   );
 
 drop policy if exists "Admins can read all study questions" on public.study_questions;

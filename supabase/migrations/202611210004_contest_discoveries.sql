@@ -7,7 +7,7 @@ create table if not exists public.contest_discoveries (
   discovery_key text not null,
   title text not null,
   context text not null default '',
-  discovery_type text not null check (discovery_type in ('new_link', 'page_change', 'source_baseline')),
+  discovery_type text not null check (discovery_type in ('new_link', 'page_change', 'source_baseline', 'web_search_lead')),
   status text not null default 'pending' check (status in ('pending', 'published', 'dismissed')),
   detected_at timestamptz not null default now(),
   reviewed_at timestamptz,
@@ -15,33 +15,30 @@ create table if not exists public.contest_discoveries (
   published_catalog_id bigint references public.contest_catalog(id) on delete set null,
   constraint contest_discoveries_dedupe unique (source_url, candidate_url, discovery_key)
 );
-
--- Permite atualizar uma instalação anterior da migração de descobertas.
-alter table public.contest_discoveries
-  drop constraint if exists contest_discoveries_discovery_type_check;
-alter table public.contest_discoveries
-  add constraint contest_discoveries_discovery_type_check
-  check (discovery_type in ('new_link', 'page_change', 'source_baseline'));
-
+-- CHECK constraint includes all supported discovery types, including web_search_lead.
 create index if not exists contest_discoveries_pending_idx
   on public.contest_discoveries (detected_at desc)
   where status = 'pending';
-
 alter table public.contest_discoveries enable row level security;
 
-drop policy if exists "Admins can read contest discoveries" on public.contest_discoveries;
-create policy "Admins can read contest discoveries" on public.contest_discoveries
-  for select to authenticated
-  using (coalesce((select auth.jwt() -> 'app_metadata' ->> 'role'), '') = 'admin');
-
-drop policy if exists "Admins can review contest discoveries" on public.contest_discoveries;
-create policy "Admins can review contest discoveries" on public.contest_discoveries
-  for update to authenticated
-  using (coalesce((select auth.jwt() -> 'app_metadata' ->> 'role'), '') = 'admin')
-  with check (
-    coalesce((select auth.jwt() -> 'app_metadata' ->> 'role'), '') = 'admin'
-    and status in ('pending', 'published', 'dismissed')
-  );
+do $$
+begin
+  if not exists (select 1 from pg_policies where schemaname='public' and tablename='contest_discoveries' and policyname='Admins can read contest discoveries') then
+    create policy "Admins can read contest discoveries" on public.contest_discoveries
+      for select to authenticated
+      using (coalesce((select auth.jwt() -> 'app_metadata' ->> 'role'), '') = 'admin');
+  end if;
+  if not exists (select 1 from pg_policies where schemaname='public' and tablename='contest_discoveries' and policyname='Admins can review contest discoveries') then
+    create policy "Admins can review contest discoveries" on public.contest_discoveries
+      for update to authenticated
+      using (coalesce((select auth.jwt() -> 'app_metadata' ->> 'role'), '') = 'admin')
+      with check (
+        coalesce((select auth.jwt() -> 'app_metadata' ->> 'role'), '') = 'admin'
+        and status in ('pending', 'published', 'dismissed')
+      );
+  end if;
+end
+$$;
 
 grant select, update on public.contest_discoveries to authenticated;
 grant all on public.contest_discoveries to service_role;

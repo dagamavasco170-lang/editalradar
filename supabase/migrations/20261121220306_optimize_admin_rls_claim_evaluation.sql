@@ -1,13 +1,16 @@
--- Optimize admin claim evaluation in policies, resolving claims once per statement.
+-- Otimiza avaliação do claim administrativo nas políticas RLS.
+-- O JWT é resolvido como initPlan, não reavaliado linha a linha.
 drop policy if exists "Admins can insert catalog records" on public.contest_catalog;
 create policy "Admins can insert catalog records" on public.contest_catalog
   for insert to authenticated
   with check (coalesce(((select auth.jwt()) -> 'app_metadata' ->> 'role'), '') = 'admin');
+
 drop policy if exists "Admins can update catalog records" on public.contest_catalog;
 create policy "Admins can update catalog records" on public.contest_catalog
   for update to authenticated
   using (coalesce(((select auth.jwt()) -> 'app_metadata' ->> 'role'), '') = 'admin')
   with check (coalesce(((select auth.jwt()) -> 'app_metadata' ->> 'role'), '') = 'admin');
+
 drop policy if exists "Admins can delete catalog records" on public.contest_catalog;
 create policy "Admins can delete catalog records" on public.contest_catalog
   for delete to authenticated
@@ -17,6 +20,7 @@ drop policy if exists "Admins can read contest discoveries" on public.contest_di
 create policy "Admins can read contest discoveries" on public.contest_discoveries
   for select to authenticated
   using (coalesce(((select auth.jwt()) -> 'app_metadata' ->> 'role'), '') = 'admin');
+
 drop policy if exists "Admins can review contest discoveries" on public.contest_discoveries;
 create policy "Admins can review contest discoveries" on public.contest_discoveries
   for update to authenticated
@@ -30,6 +34,7 @@ drop policy if exists "Admins can read all study questions" on public.study_ques
 create policy "Admins can read all study questions" on public.study_questions
   for select to authenticated
   using (coalesce(((select auth.jwt()) -> 'app_metadata' ->> 'role'), '') = 'admin');
+
 drop policy if exists "Admins can insert study questions" on public.study_questions;
 create policy "Admins can insert study questions" on public.study_questions
   for insert to authenticated
@@ -37,6 +42,7 @@ create policy "Admins can insert study questions" on public.study_questions
     coalesce(((select auth.jwt()) -> 'app_metadata' ->> 'role'), '') = 'admin'
     and created_by = (select auth.uid())
   );
+
 drop policy if exists "Admins can update study questions" on public.study_questions;
 create policy "Admins can update study questions" on public.study_questions
   for update to authenticated
@@ -45,6 +51,7 @@ create policy "Admins can update study questions" on public.study_questions
     coalesce(((select auth.jwt()) -> 'app_metadata' ->> 'role'), '') = 'admin'
     and created_by = (select auth.uid())
   );
+
 drop policy if exists "Admins can delete study questions" on public.study_questions;
 create policy "Admins can delete study questions" on public.study_questions
   for delete to authenticated

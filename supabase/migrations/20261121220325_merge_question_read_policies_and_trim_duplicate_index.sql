@@ -1,4 +1,4 @@
--- Combine published and administrative SELECT paths to avoid duplicate permissive policies.
+-- Combina leituras públicas e administrativas para evitar políticas permissivas duplicadas.
 drop policy if exists "Admins can read all study questions" on public.study_questions;
 drop policy if exists "Public can read licensed published questions" on public.study_questions;
 create policy "Read published licensed questions or admin review"
@@ -12,6 +12,7 @@ create policy "Read published licensed questions or admin review"
     or coalesce(((select auth.jwt()) -> 'app_metadata' ->> 'role'), '') = 'admin'
   );
 
+-- A leitura pública já usa published=true; o admin ganha leitura via a mesma política.
 drop policy if exists "Public can read official exam sources" on public.study_exam_sources;
 drop policy if exists "Admins can manage official exam sources" on public.study_exam_sources;
 create policy "Read published exam sources or admin review"
@@ -25,11 +26,13 @@ drop policy if exists "Admins can insert official exam sources" on public.study_
 create policy "Admins can insert official exam sources"
   on public.study_exam_sources for insert to authenticated
   with check (coalesce(((select auth.jwt()) -> 'app_metadata' ->> 'role'), '') = 'admin');
+
 drop policy if exists "Admins can update official exam sources" on public.study_exam_sources;
 create policy "Admins can update official exam sources"
   on public.study_exam_sources for update to authenticated
   using (coalesce(((select auth.jwt()) -> 'app_metadata' ->> 'role'), '') = 'admin')
   with check (coalesce(((select auth.jwt()) -> 'app_metadata' ->> 'role'), '') = 'admin');
+
 drop policy if exists "Admins can delete official exam sources" on public.study_exam_sources;
 create policy "Admins can delete official exam sources"
   on public.study_exam_sources for delete to authenticated
