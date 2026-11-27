@@ -6,6 +6,7 @@ on:
       - fix/vite8-react-ci-20261127
     paths:
       - package.json
+      - src/styles.css
       - .github/workflows/vite8-upgrade-validation.yml
 
 permissions:
