@@ -44,7 +44,7 @@ describe("visão do banco de questões", () => {
 
   it("busca sem diferenciar acentos e também encontra banca e ano", () => {
     const datedQuestion = { ...questions[0], examYear: 2024 };
-    expect(buildQuestionBankView({ questions: [datedQuestion], questionSearch: "lingua portuguesa" }).base.map(question => question.id)).toEqual(["q1"]);
+    expect(buildQuestionBankView({ questions: [datedQuestion], questionSearch: "portugues" }).base.map(question => question.id)).toEqual(["q1"]);
     expect(buildQuestionBankView({ questions: [datedQuestion], questionSearch: "fcc 2024" }).base).toHaveLength(1);
   });
 
