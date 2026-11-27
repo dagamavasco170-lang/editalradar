@@ -4216,3 +4216,304 @@ html[data-theme="dark"] .dashboard-section-heading>span{background:#20364f;color
   .sidebar{padding-bottom:calc(9px + env(safe-area-inset-bottom))}
   .sidebar .sidebar-nav .nav-item{min-height:58px}
 }
+
+
+/* Experience polish: homepage, alerts and personalized recommendations. */
+.source-notice{
+  align-items:flex-start;
+  padding:16px 18px;
+  border-radius:14px;
+  background:var(--er-surface);
+  border-color:var(--er-border);
+  box-shadow:var(--er-shadow);
+}
+.source-notice>div{min-width:0;flex:1}
+.source-notice strong{display:block;color:var(--er-ink);font-size:13px;line-height:1.45}
+.source-notice p{max-width:880px;color:var(--er-muted);font-size:11px;line-height:1.6}
+.source-notice a{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-height:40px;padding:9px 12px;border:1px solid var(--er-border);
+  border-radius:9px;background:var(--er-bg);color:var(--er-primary);
+  white-space:normal;line-height:1.35;text-align:center;
+}
+.stats-row .stat{
+  min-width:0;min-height:76px;padding:16px;
+  border-color:var(--er-border);background:var(--er-surface);
+  box-shadow:var(--er-shadow);
+}
+.stats-row .stat strong{color:var(--er-ink);font-size:21px;font-variant-numeric:tabular-nums}
+.stats-row .stat small{color:var(--er-muted);font-size:11px;line-height:1.4}
+.candidate-dashboard{gap:18px;border-color:var(--er-border);background:var(--er-surface)}
+.candidate-dashboard-heading h2{color:var(--er-ink);font-size:clamp(20px,2vw,25px)}
+.candidate-dashboard-heading p{color:var(--er-muted);font-size:12px;line-height:1.65}
+.candidate-dashboard .dashboard-stat{
+  min-height:78px;background:var(--er-bg);border-color:var(--er-border);
+  color:var(--er-ink);border-radius:13px;
+}
+.candidate-dashboard .dashboard-stat-copy small,
+.candidate-dashboard .dashboard-stat em{color:var(--er-muted)}
+.candidate-dashboard .dashboard-stat-copy strong{color:var(--er-ink);font-variant-numeric:tabular-nums}
+.dashboard-focus{background:var(--er-bg);border-color:var(--er-border)}
+.dashboard-focus h3{color:var(--er-ink)}
+.dashboard-focus p{color:var(--er-muted)}
+.dashboard-focus .detail-btn{background:var(--er-surface);color:var(--er-primary);border-color:var(--er-border)}
+.notification-panel{
+  background:var(--er-surface);border-color:var(--er-border);
+  box-shadow:var(--er-shadow);padding:clamp(15px,2vw,22px);
+}
+.notification-heading h2{color:var(--er-ink);font-size:clamp(18px,1.8vw,22px)}
+.notification-heading p,.alerts-note{color:var(--er-muted);line-height:1.55}
+.notification-filters{gap:8px}
+.notification-filter{
+  min-height:36px;padding:8px 12px;
+  background:var(--er-bg);border-color:var(--er-border);color:var(--er-muted);
+  font-size:10px;font-weight:700;
+}
+.notification-filter.active{
+  background:color-mix(in srgb,var(--er-primary) 12%,var(--er-surface));
+  border-color:var(--er-primary);color:var(--er-primary);
+}
+.notification-item{
+  min-height:58px;padding:12px;border-color:var(--er-border);
+  background:var(--er-bg);color:var(--er-ink);border-radius:11px;
+}
+.notification-item:not(.read){background:color-mix(in srgb,var(--er-primary) 7%,var(--er-surface))}
+.notification-item.read{background:var(--er-surface);color:var(--er-muted)}
+.notification-copy strong{color:var(--er-ink);font-size:12px;line-height:1.4}
+.notification-copy small{color:var(--er-muted);font-size:11px;line-height:1.5}
+.notification-open{color:var(--er-primary);font-size:10px}
+.notification-dismiss{min-width:34px;min-height:34px;border-radius:8px}
+.recommendation-card{
+  min-width:0;padding:13px;border:1px solid var(--er-border);
+  background:var(--er-surface);border-radius:12px;
+}
+.recommendation-info strong{color:var(--er-ink);font-size:12px;line-height:1.45}
+.recommendation-info span,.recommendation-info small{color:var(--er-muted);font-size:10px;line-height:1.5}
+.recommendation-score{background:var(--er-bg);color:var(--er-primary)}
+.recommendation-open{min-height:40px;border-color:var(--er-border);background:var(--er-bg);color:var(--er-primary)}
+html[data-theme="dark"] .source-notice,
+html[data-theme="dark"] .notification-panel,
+html[data-theme="dark"] .recommendation-card,
+html[data-theme="dark"] .candidate-dashboard,
+html[data-theme="dark"] .candidate-dashboard .dashboard-stat{
+  background:#172435;border-color:#344861;box-shadow:none;
+}
+html[data-theme="dark"] .source-notice strong,
+html[data-theme="dark"] .notification-heading h2,
+html[data-theme="dark"] .recommendation-info strong,
+html[data-theme="dark"] .candidate-dashboard .dashboard-stat-copy strong,
+html[data-theme="dark"] .dashboard-focus h3{color:#e5edf8}
+html[data-theme="dark"] .source-notice p,
+html[data-theme="dark"] .notification-heading p,
+html[data-theme="dark"] .alerts-note,
+html[data-theme="dark"] .notification-copy small,
+html[data-theme="dark"] .recommendation-info span,
+html[data-theme="dark"] .recommendation-info small,
+html[data-theme="dark"] .candidate-dashboard .dashboard-stat-copy small,
+html[data-theme="dark"] .candidate-dashboard .dashboard-stat em,
+html[data-theme="dark"] .dashboard-focus p{color:#b0bfd2}
+html[data-theme="dark"] .source-notice a,
+html[data-theme="dark"] .notification-filter,
+html[data-theme="dark"] .notification-item,
+html[data-theme="dark"] .notification-item.read,
+html[data-theme="dark"] .recommendation-open{
+  background:#1b2c41;border-color:#3a526e;color:#b7d1f5;
+}
+html[data-theme="dark"] .notification-item:not(.read){background:#20364f;border-color:#45617f}
+html[data-theme="dark"] .notification-item.read{background:#172435;color:#b0bfd2}
+html[data-theme="dark"] .notification-copy strong{color:#e5edf8}
+html[data-theme="dark"] .notification-filter.active{background:#203858;color:#b9d1ff;border-color:#648fcf}
+html[data-theme="dark"] .recommendation-score{background:#20364f;color:#b9d1ff}
+@media(max-width:640px){
+  .source-notice{display:grid;gap:11px;padding:14px}
+  .source-notice a{justify-self:stretch;width:100%}
+  .stats-row .stat{min-height:74px;padding:11px}
+  .stats-row .stat strong{font-size:18px}
+  .notification-panel{padding:14px}
+  .notification-item{align-items:flex-start;gap:8px;padding:10px}
+  .notification-copy strong{font-size:11px}
+  .notification-copy small{font-size:10px}
+  .recommendation-card{align-items:flex-start}
+}
+
+/* Study hub: shared surface system and readable analytics in both themes. */
+.study-page{gap:20px}
+.study-page>.eyebrow{color:var(--er-primary)}
+.study-page>h1{margin:0;color:var(--er-ink);font:800 clamp(25px,3vw,32px)/1.2 Manrope,sans-serif;letter-spacing:-.7px}
+.study-page>.subhead{margin:-9px 0 2px;color:var(--er-muted);font-size:13px;line-height:1.65}
+.study-target-card,.focus-timer-panel,.study-grid>.panel,.study-question-bank,.simulator-panel,.official-exams-panel{
+  border-color:var(--er-border);background:var(--er-surface);color:var(--er-ink);
+  box-shadow:var(--er-shadow);
+}
+.study-target-card strong,.study-target-card p,.study-target-card small{color:var(--er-ink)}
+.study-target-card p,.study-target-card small{color:var(--er-muted)}
+.focus-timer-panel{background:var(--er-surface)}
+.focus-timer-copy h2,.progress-panel .panel-head h2,.study-plan-panel .panel-head h2{color:var(--er-ink)}
+.focus-timer-copy p,.focus-timer-dial small,.focus-timer-summary{color:var(--er-muted)}
+.focus-timer-dial{background:radial-gradient(circle at center,var(--er-surface) 64%,transparent 65%),conic-gradient(var(--er-primary) var(--timer-progress),var(--er-border) 0)}
+.focus-timer-dial span{color:var(--er-ink)}
+.focus-timer-presets button{background:var(--er-bg);border-color:var(--er-border);color:var(--er-muted)}
+.focus-timer-presets button.active{background:color-mix(in srgb,var(--er-primary) 13%,var(--er-surface));border-color:var(--er-primary);color:var(--er-primary)}
+.progress-panel .progress-number{color:var(--er-primary)}
+.progress-panel .progress-track{background:var(--er-border)}
+.progress-panel .progress-track div{background:linear-gradient(90deg,var(--er-primary),#52a3f4)}
+.progress-panel .muted,.progress-panel .task small{color:var(--er-muted)}
+.progress-panel .task{color:var(--er-ink);border-bottom-color:var(--er-border);min-height:44px}
+.progress-panel .task input,.study-plan-panel .study-days input{accent-color:var(--er-primary)}
+.study-plan-panel .study-field,
+.study-plan-panel .study-days>span{color:var(--er-muted)}
+.study-plan-panel .study-field select,
+.study-plan-panel .study-days label,
+.study-plan-panel .study-session,
+.adaptive-daily-goal{
+  background:var(--er-bg);border-color:var(--er-border);color:var(--er-ink);
+}
+.study-plan-panel .study-session strong,
+.adaptive-daily-goal span{color:var(--er-ink)}
+.study-plan-panel .study-session small,
+.adaptive-daily-goal strong,.adaptive-daily-goal small{color:var(--er-muted)}
+.tutor-readiness-panel,.question-discipline-metrics,.study-recommendation-panel,
+.study-mastery-panel,.study-weekly-panel{
+  background:var(--er-bg);border:1px solid var(--er-border);
+  border-radius:14px;color:var(--er-ink);box-shadow:none;
+}
+.tutor-readiness-panel{padding:18px}
+.tutor-readiness-head strong,.tutor-weak-topics>strong,
+.question-discipline-metrics>strong,.study-recommendation-panel>strong,
+.study-mastery-heading>div>strong,.study-weekly-panel>strong{color:var(--er-ink)}
+.tutor-readiness-head p,.tutor-readiness-score small,
+.tutor-readiness-metrics small,.tutor-weak-topics small,
+.tutor-readiness-disclaimer,.question-discipline-row,
+.study-mastery-heading p,.study-weekly-panel>p,
+.study-mastery-topic small,.study-mastery-status small,
+.study-recommendation-row small{color:var(--er-muted)}
+.tutor-readiness-score strong,.tutor-weak-topics b{color:var(--er-primary)}
+.tutor-readiness-track{background:var(--er-border)}
+.tutor-readiness-track i{background:var(--er-primary)}
+.tutor-readiness-metrics span{background:var(--er-surface);border-color:var(--er-border);color:var(--er-ink)}
+.tutor-readiness-metrics strong{color:var(--er-ink)}
+.tutor-weak-topics>div,.study-mastery-row,.study-recommendation-row{border-top-color:var(--er-border)}
+.question-discipline-track{background:var(--er-border)}
+.question-discipline-track i{background:var(--er-primary)}
+.study-mastery-status strong,.study-mastery-topic strong{color:var(--er-ink)}
+.study-mastery-heading>span{color:var(--er-primary)}
+.study-weekly-bar{background:var(--er-border)}
+.study-weekly-day small,.study-weekly-day em{color:var(--er-muted)}
+.study-recommendation-row>div:first-child>span{color:var(--er-ink);font-weight:700}
+.study-recommendation-meter strong{color:var(--er-primary)}
+html[data-theme="dark"] .study-target-card,
+html[data-theme="dark"] .focus-timer-panel,
+html[data-theme="dark"] .study-grid>.panel,
+html[data-theme="dark"] .study-question-bank,
+html[data-theme="dark"] .simulator-panel,
+html[data-theme="dark"] .official-exams-panel{
+  background:#172435;border-color:#344861;color:#e5edf8;box-shadow:none;
+}
+html[data-theme="dark"] .tutor-readiness-panel,
+html[data-theme="dark"] .question-discipline-metrics,
+html[data-theme="dark"] .study-recommendation-panel,
+html[data-theme="dark"] .study-mastery-panel,
+html[data-theme="dark"] .study-weekly-panel{
+  background:#1b2c41;border-color:#344861;color:#e5edf8;
+}
+html[data-theme="dark"] .tutor-readiness-metrics span,
+html[data-theme="dark"] .study-plan-panel .study-session,
+html[data-theme="dark"] .adaptive-daily-goal{
+  background:#132235;border-color:#354b64;color:#e5edf8;
+}
+html[data-theme="dark"] .tutor-readiness-head strong,
+html[data-theme="dark"] .tutor-readiness-metrics strong,
+html[data-theme="dark"] .question-discipline-metrics>strong,
+html[data-theme="dark"] .study-recommendation-panel>strong,
+html[data-theme="dark"] .study-mastery-heading>div>strong,
+html[data-theme="dark"] .study-weekly-panel>strong,
+html[data-theme="dark"] .study-mastery-topic strong,
+html[data-theme="dark"] .study-mastery-status strong,
+html[data-theme="dark"] .study-recommendation-row>div:first-child>span,
+html[data-theme="dark"] .study-plan-panel .study-session strong,
+html[data-theme="dark"] .focus-timer-copy h2,
+html[data-theme="dark"] .progress-panel .panel-head h2,
+html[data-theme="dark"] .study-plan-panel .panel-head h2{color:#e5edf8}
+html[data-theme="dark"] .tutor-readiness-head p,
+html[data-theme="dark"] .tutor-readiness-score small,
+html[data-theme="dark"] .tutor-readiness-metrics small,
+html[data-theme="dark"] .tutor-weak-topics small,
+html[data-theme="dark"] .tutor-readiness-disclaimer,
+html[data-theme="dark"] .question-discipline-row,
+html[data-theme="dark"] .study-mastery-heading p,
+html[data-theme="dark"] .study-weekly-panel>p,
+html[data-theme="dark"] .study-mastery-topic small,
+html[data-theme="dark"] .study-mastery-status small,
+html[data-theme="dark"] .study-recommendation-row small,
+html[data-theme="dark"] .study-plan-panel .study-session small,
+html[data-theme="dark"] .study-target-card p,
+html[data-theme="dark"] .study-target-card small,
+html[data-theme="dark"] .focus-timer-copy p,
+html[data-theme="dark"] .progress-panel .muted,
+html[data-theme="dark"] .study-page>.subhead{color:#b0bfd2}
+html[data-theme="dark"] .progress-panel .task{color:#e5edf8;border-bottom-color:#344861}
+html[data-theme="dark"] .progress-panel .task small{color:#b0bfd2}
+html[data-theme="dark"] .study-plan-panel .study-field select,
+html[data-theme="dark"] .study-plan-panel .study-days label,
+html[data-theme="dark"] .focus-timer-presets button{
+  background:#132235;border-color:#354b64;color:#d6e1f1;
+}
+html[data-theme="dark"] .focus-timer-presets button.active{background:#203858;border-color:#648fcf;color:#c5dbff}
+html[data-theme="dark"] .study-question-bank .question-toolbar input,
+html[data-theme="dark"] .study-question-bank .question-toolbar select{
+  background:#132235;border-color:#354b64;color:#e5edf8;
+}
+html[data-theme="dark"] .study-question-bank .question-toolbar label{color:#b0bfd2}
+html[data-theme="dark"] .study-question-bank .question-stat,
+html[data-theme="dark"] .study-question-bank .question-sync-status{
+  background:#132235;border-color:#354b64;color:#b0bfd2;
+}
+html[data-theme="dark"] .study-question-bank .question-stat strong{color:#e5edf8}
+html[data-theme="dark"] .adaptive-question-coach,
+html[data-theme="dark"] .adaptive-generated-practice,
+html[data-theme="dark"] .adaptive-personalized-advice,
+html[data-theme="dark"] .adaptive-confusion-patterns,
+html[data-theme="dark"] .adaptive-concept-lesson,
+html[data-theme="dark"] .adaptive-reflection-confirmation{
+  background:#1b2c41;border-color:#344861;color:#d8e4f2;
+}
+html[data-theme="dark"] .adaptive-question-coach>div:first-child strong,
+html[data-theme="dark"] .adaptive-coach-stats b,
+html[data-theme="dark"] .adaptive-confusion-patterns>strong,
+html[data-theme="dark"] .adaptive-personalized-advice>strong{color:#8fd7b8}
+html[data-theme="dark"] .adaptive-coach-stats span{background:#132235}
+html[data-theme="dark"] .adaptive-coach-stats small{color:#b0bfd2}
+html[data-theme="dark"] .adaptive-question-coach p,
+html[data-theme="dark"] .adaptive-confusion-patterns p,
+html[data-theme="dark"] .adaptive-personalized-advice p{color:#c1cfdf}
+html[data-theme="dark"] .recovery-mastery-confirmation,
+html[data-theme="dark"] .recovery-lesson-step,
+html[data-theme="dark"] .adaptive-recovery-card,
+html[data-theme="dark"] .adaptive-progression-message{
+  background:#302b22;border-color:#665333;color:#f0d79f;
+}
+html[data-theme="dark"] .adaptive-recovery-card p,
+html[data-theme="dark"] .recovery-lesson-step p{color:#e4d4b4}
+html[data-theme="dark"] .study-question-bank .question-review-card,
+html[data-theme="dark"] .study-question-bank .question-review-tip{background:#1b2c41;border-color:#344861;color:#e5edf8}
+html[data-theme="dark"] .study-question-bank .question-review-heading span{background:#20364f;color:#c1d5ef}
+@media(max-width:760px){
+  .study-page{gap:16px}
+  .study-page>h1{font-size:27px}
+  .study-target-card{grid-template-columns:minmax(0,1fr);gap:13px}
+  .study-target-actions{width:100%}
+  .study-target-actions button{flex:1 1 auto}
+  .tutor-readiness-panel{padding:14px}
+  .tutor-readiness-head{align-items:flex-start}
+  .tutor-readiness-metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+  .tutor-readiness-metrics span{padding:9px}
+  .tutor-readiness-metrics small{font-size:9px;line-height:1.35}
+  .study-mastery-panel,.study-weekly-panel,.study-recommendation-panel,.question-discipline-metrics{padding:13px}
+  .study-mastery-row{align-items:flex-start;gap:10px}
+  .study-mastery-status{justify-items:start;text-align:left}
+}
+@media(max-width:420px){
+  .tutor-readiness-head{gap:10px}
+  .tutor-readiness-score strong{font-size:22px}
+  .study-question-bank .question-bank-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
