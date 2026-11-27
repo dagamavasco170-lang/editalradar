@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildQuestionProgressMetrics } from "./question-progress-metrics.js";
+import { buildQuestionProgressMetrics } from "./question-progress-metrics.ts";
 const questions=[{id:"q1",discipline:"Português"},{id:"q2",discipline:"Direito"},{id:"q3",discipline:"Português"}];
 describe("métricas do progresso em questões",()=>{
  it("calcula acertos, tentativas, taxa e questões únicas",()=>{
