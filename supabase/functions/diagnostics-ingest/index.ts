@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import ipaddr from "npm:ipaddr.js@2.2.0";
 import { PayloadTooLargeError, readBoundedJsonBody } from "./payload-limit.js";
 
 const url = Deno.env.get("SUPABASE_URL") ?? "";
@@ -7,6 +8,24 @@ const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const admin = url && serviceKey ? createClient(url, serviceKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 }) : null;
+
+async function hashClientIp(ip: string): Promise<string> {
+  // HMAC prevents the database from storing raw IP addresses or easily reversible hashes.
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(serviceKey),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const signature = await crypto.subtle.sign(
+    "HMAC",
+    key,
+    new TextEncoder().encode(ipaddr.parse(ip).toString()),
+  );
+  return Array.from(new Uint8Array(signature), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
 const ALLOWED_ORIGINS = new Set([
   "https://dagamavasco170-lang.github.io",
   "http://localhost:5173",
@@ -59,17 +78,36 @@ Deno.serve(async (req) => {
     return json({ error: "Invalid diagnostic payload" }, 400, origin);
   }
   const clientId = payload.client_id;
-  const { count, error: countError } = await admin.from("app_diagnostics")
-    .select("id", { count: "exact", head: true })
-    .eq("client_id", clientId)
-    .gte("created_at", new Date(Date.now() - 15 * 60_000).toISOString());
-  if (countError) return json({ error: "Diagnostic storage unavailable" }, 503, origin);
-  if ((count ?? 0) >= 40) return json({ error: "Rate limit reached" }, 429, origin);
-  const { count: globalCount, error: globalCountError } = await admin.from("app_diagnostics")
-    .select("id", { count: "exact", head: true })
-    .gte("created_at", new Date(Date.now() - 60_000).toISOString());
-  if (globalCountError) return json({ error: "Diagnostic storage unavailable" }, 503, origin);
-  if ((globalCount ?? 0) >= 500) return json({ error: "Service rate limit reached" }, 429, origin);
+  // Only accept the Cloudflare ingress client-IP header. Never fall back to
+  // X-Forwarded-For/X-Real-IP, which may contain caller-supplied values.
+  const ingressIp = req.headers.get("cf-connecting-ip")?.trim() ?? "";
+  if (!ingressIp || ingressIp.length > 64 || !ipaddr.isValid(ingressIp)) {
+    console.error("[diagnostics-ingest] trusted ingress IP unavailable");
+    return json({ error: "Diagnostic service unavailable" }, 503, origin);
+  }
+  const ipHash = await hashClientIp(ingressIp);
+  const { data: withinIpRateLimit, error: ipRateLimitError } = await admin.rpc(
+    "consume_diagnostics_ingest_ip_rate_limit",
+    { p_ip_hash: ipHash, p_cost: payload.logs.length, p_limit: 40 },
+  );
+  if (ipRateLimitError) {
+    console.error("[diagnostics-ingest] per-IP rate limiter unavailable", ipRateLimitError.message);
+    return json({ error: "Diagnostic service unavailable" }, 503, origin);
+  }
+  if (withinIpRateLimit !== true) return json({ error: "Rate limit reached" }, 429, origin);
+
+  // client_id is supplied by the caller and is only a diagnostic grouping key.
+  // Enforce the service-wide budget atomically in Postgres instead of trusting it
+  // as an identity or using a racy count-then-insert check.
+  const { data: withinRateLimit, error: rateLimitError } = await admin.rpc(
+    "consume_diagnostics_ingest_rate_limit",
+    { p_cost: payload.logs.length, p_limit: 500 },
+  );
+  if (rateLimitError) {
+    console.error("[diagnostics-ingest] rate limiter unavailable", rateLimitError.message);
+    return json({ error: "Diagnostic service unavailable" }, 503, origin);
+  }
+  if (withinRateLimit !== true) return json({ error: "Service rate limit reached" }, 429, origin);
 
   const rows = payload.logs.map((item: any) => ({
     client_id: clientId,
