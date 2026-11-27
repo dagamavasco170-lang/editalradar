@@ -5,6 +5,21 @@ const normalize = (value) => String(value ?? "")
   .replace(/[^\p{L}\p{N}]+/gu, " ")
   .trim();
 
+const STATE_ALIASES = {
+  ac: "acre", al: "alagoas", ap: "amapa", am: "amazonas", ba: "bahia",
+  ce: "ceara", df: "distrito federal", es: "espirito santo", go: "goias",
+  ma: "maranhao", mt: "mato grosso", ms: "mato grosso do sul", mg: "minas gerais",
+  pa: "para", pb: "paraiba", pr: "parana", pe: "pernambuco", pi: "piaui",
+  rj: "rio de janeiro", rn: "rio grande do norte", rs: "rio grande do sul",
+  ro: "rondonia", rr: "roraima", sc: "santa catarina", sp: "sao paulo",
+  se: "sergipe", to: "tocantins"
+};
+
+const normalizeState = (value) => {
+  const normalized = normalize(value);
+  return STATE_ALIASES[normalized] || normalized;
+};
+
 const AREA_KEYWORDS = {
   administrativa: ["administr", "assistente administrativo", "gestao publica", "recursos humanos", "protocolo"],
   policial: ["policia", "policial", "seguranca publica", "agente", "investigador", "delegado", "perito criminal"],
@@ -46,13 +61,13 @@ export const getRecommendationMatch = (item = {}, profile = {}) => {
     || profileEducation === contestEducation
     || (profileEducation === "superior" && contestEducation === "medio"));
 
-  const profileState = normalize(profile.state);
-  const contestState = normalize(item.estado);
+  const profileState = normalizeState(profile.state);
+  const contestState = normalizeState(item.estado);
   const profileCity = normalize(profile.city);
   const contestCity = normalize(item.localidade);
   const national = isNationalContest(item);
   const stateMatches = Boolean(profileState) && (national || contestState === profileState);
-  const cityMatches = Boolean(profileCity) && (national || contestCity === profileCity);
+  const cityMatches = Boolean(profileCity) && (national || (stateMatches && contestCity === profileCity));
   const status = normalize(item.status);
   const active = /(inscricoes? abertas|inscricoes? em andamento|autorizad[oa]|pre edital|edital publicado|anunciad[oa]|comissao formada)/.test(status);
 
