@@ -2,7 +2,7 @@ import test from "node:test";
 import { buildSourceMonitorIssueReport, sourceMonitorIssueNeedsUpdate } from "./source-monitor-issue-report.mjs";
 import assert from "node:assert/strict";
 import { concursos } from "../src/data/concursos.js";
-import { collectSourceUrls, compareSource, summarizeSourceChecks, wasSourceAccessRestricted, fingerprintContent, normalizeHtml, extractOpportunityLinks, buildDiscoveriesForSource, fetchOfficialSource, fetchNewsFeedWithRetry, isTrustedOfficialHost, pruneSourceState, buildGoogleNewsRssUrl, parseGoogleNewsRss, searchInternetForContestLeads, filterUnseenWebSearchDiscoveries, INTERNET_SEARCH_QUERIES, classifyContestLead, SECONDARY_NEWS_FEEDS, parseSecondaryNewsRss, isActionableSecondaryNewsLead, fetchNewsFeedWithCurl, isSameTrustedSecondaryFeedPublisher, resolveTrustedSecondaryFeedRedirect } from "./monitor-sources.mjs";
+import { collectSourceUrls, compareSource, summarizeSourceChecks, wasSourceAccessRestricted, fingerprintContent, normalizeHtml, extractOpportunityLinks, buildDiscoveriesForSource, fetchOfficialSource, fetchNewsFeedWithRetry, isTrustedOfficialHost, pruneSourceState, buildGoogleNewsRssUrl, parseGoogleNewsRss, searchInternetForContestLeads, filterUnseenWebSearchDiscoveries, INTERNET_SEARCH_QUERIES, classifyContestLead, SECONDARY_NEWS_FEEDS, parseSecondaryNewsRss, isActionableSecondaryNewsLead, fetchNewsFeedWithCurl, isSameTrustedSecondaryFeedPublisher, resolveTrustedSecondaryFeedRedirect, validateSourcePayload } from "./monitor-sources.mjs";
 
 
 test("COFEN e COREN-SP refletem editais oficiais publicados e inscrições abertas", () => {
@@ -942,4 +942,50 @@ test("inicializa fingerprint em issue legada e suprime repetição depois disso"
   const report = buildSourceMonitorIssueReport({ report: { changed: [{ url: "https://orgao.gov.br", message: "mudou" }] } });
   assert.equal(sourceMonitorIssueNeedsUpdate("Corpo anterior sem fingerprint", report.fingerprint), true);
   assert.equal(sourceMonitorIssueNeedsUpdate(report.body, report.fingerprint), false);
+});
+
+
+test("valida assinatura PDF mesmo quando o servidor declara tipo genérico", () => {
+  const bytes = new TextEncoder().encode("%PDF-1.7\nconteúdo");
+  const result = validateSourcePayload(bytes, "application/octet-stream");
+  assert.equal(result.kind, "pdf");
+  assert.equal(result.contentType, "application/pdf");
+});
+
+test("rejeita PDF falso, resposta vazia e tipo binário desconhecido", () => {
+  assert.throws(
+    () => validateSourcePayload(new TextEncoder().encode("<html>erro</html>"), "application/pdf"),
+    /assinatura PDF válida/
+  );
+  assert.throws(() => validateSourcePayload(new Uint8Array(), "text/html"), /Resposta vazia/);
+  assert.throws(
+    () => validateSourcePayload(new Uint8Array([0, 1, 2, 3]), "application/octet-stream"),
+    /Tipo de conteúdo não reconhecido/
+  );
+});
+
+test("rejeita páginas de bloqueio e CAPTCHA retornadas com HTTP 200", () => {
+  const html = "<!doctype html><html><head><title>Just a moment...</title></head><body>Checking your browser before accessing this site. cf-chl- challenge</body></html>";
+  assert.throws(
+    () => validateSourcePayload(new TextEncoder().encode(html), "text/html; charset=utf-8"),
+    /bloqueio, CAPTCHA ou desafio anti-bot/
+  );
+});
+
+test("aceita HTML oficial com conteúdo de concurso e não confunde menção a CAPTCHA com bloqueio", () => {
+  const html = "<!doctype html><html><head><title>Edital de concurso público</title></head><body><h1>Concurso público</h1><p>Edital 02/2026 com vagas e inscrições abertas. A inscrição exige confirmação.</p><p>O formulário contém captcha.</p></body></html>";
+  const result = validateSourcePayload(new TextEncoder().encode(html), "text/html");
+  assert.equal(result.kind, "html");
+  assert.match(result.content, /Edital 02\/2026/);
+});
+
+test("rejeita HTML curto ou vazio e preserva a última fingerprint ao comparar falha", () => {
+  assert.throws(
+    () => validateSourcePayload(new TextEncoder().encode("<html><body></body></html>"), "text/html"),
+    /sem conteúdo textual suficiente/
+  );
+  const previous = { sha256: "fingerprint-validada" };
+  const failed = { ok: false, error: "Resposta vazia" };
+  assert.equal(compareSource("https://orgao.gov.br/edital", previous, failed).type, "unavailable");
+  assert.equal(previous.sha256, "fingerprint-validada");
 });
