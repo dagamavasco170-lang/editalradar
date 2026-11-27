@@ -1,5 +1,5 @@
 import {describe,it,expect} from "vitest";
-import {buildAdaptiveStudySessions,buildDailyAdaptiveGoals} from "./adaptive-study-plan.js";
+import {buildAdaptiveStudySessions,buildDailyAdaptiveGoals} from "./adaptive-study-plan.ts";
 const questions=[{id:"q1",discipline:"Português"},{id:"q2",discipline:"Direito"}];
 describe("plano adaptativo",()=>{
  it("redistribui minutos para matéria com desempenho fraco e preserva carga",()=>{
