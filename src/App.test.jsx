@@ -851,15 +851,29 @@ describe("segunda leva de oportunidades oficiais e pré-editais", () => {
     expect(getVerifiedRegistrationDeadline(drivers, now)).toMatchObject({ state: "upcoming", daysUntilOpen: 5 });
   });
 
-  it("mantém COFEN e COREN-SP como pré-editais, sem vagas ou contagem regressiva inventadas", () => {
+
+  it("mostra os dois PSS de Nova Guarita como cadastro reserva com prazo oficial aberto", () => {
+    const acsAce = concursos.find((item) => item.id === 535);
+    const pss = concursos.find((item) => item.id === 536);
+    const nowOpen = new Date("2026-11-26T13:07:00.000Z");
+    expect(acsAce).toMatchObject({ vagas: 2, vagasTotais: 2, vagasImediatas: 0, cadastroReserva: 2, status: "Inscrições abertas até 08/12/2026" });
+    expect(pss).toMatchObject({ vagas: 43, vagasTotais: 43, vagasImediatas: 0, cadastroReserva: 43, status: "Inscrições abertas até 08/12/2026" });
+    expect(getStatusTone(acsAce.status)).toBe("status-open");
+    expect(getStatusTone(pss.status)).toBe("status-open");
+    expect(getVerifiedRegistrationDeadline(acsAce, nowOpen)).toMatchObject({ state: "open", daysRemaining: 12 });
+    expect(getVerifiedRegistrationDeadline(pss, nowOpen)).toMatchObject({ state: "open", daysRemaining: 12 });
+  });
+
+  it("reflete COFEN e COREN-SP com editais publicados, vagas e prazos oficiais", () => {
     const cofen = concursos.find((item) => item.sigla === "COFEN");
     const coren = concursos.find((item) => item.sigla === "COREN-SP");
-    expect(cofen).toMatchObject({ vagas: null, status: "Pré-edital · banca Quadrix; inscrições não disponíveis" });
-    expect(coren).toMatchObject({ vagas: null, status: "Autorizado · pré-edital; banca Quadrix informa Em breve" });
-    expect(getStatusTone(cofen.status)).toBe("status-upcoming");
-    expect(getStatusTone(coren.status)).toBe("status-upcoming");
-    expect(getVerifiedRegistrationDeadline(cofen, now)).toBeNull();
-    expect(getVerifiedRegistrationDeadline(coren, now)).toBeNull();
+    const nowOpen = new Date("2026-11-26T13:07:00.000Z");
+    expect(cofen).toMatchObject({ vagas: 6, vagasTotais: 450, vagasImediatas: 6, status: "Inscrições abertas até 11/01/2027 às 23h" });
+    expect(coren).toMatchObject({ vagas: 76, vagasTotais: 280, vagasImediatas: 76, status: "Inscrições abertas até 11/01/2027 às 23h" });
+    expect(getStatusTone(cofen.status)).toBe("status-open");
+    expect(getStatusTone(coren.status)).toBe("status-open");
+    expect(getVerifiedRegistrationDeadline(cofen, nowOpen)).toMatchObject({ state: "open", daysRemaining: 46 });
+    expect(getVerifiedRegistrationDeadline(coren, nowOpen)).toMatchObject({ state: "open", daysRemaining: 46 });
   });
 });
 

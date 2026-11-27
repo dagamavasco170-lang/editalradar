@@ -1284,52 +1284,91 @@ export const concursos = [
     ],
     "observacao": "O edital 005/2026 oferece sete vagas imediatas para condutor de veículos de urgência, motoristas de veículos leves e pesados e operador de empilhadeira, além de cadastro reserva. Inscrições de 30/11 a 27/12/2026. O comunicado municipal não detalha a distribuição das sete vagas entre os cargos nem os horários de abertura e encerramento; consulte o edital completo no portal do IDCAP."
   },
-  {
-    "id": 531,
-    "sigla": "COFEN",
-    "cargo": "13 cargos efetivos previstos — nível superior (quantitativo de vagas a divulgar)",
-    "orgao": "Conselho Federal de Enfermagem",
-    "vinculo": "Concurso público · banca Quadrix definida",
-    "nivel": "Superior",
-    "vagas": null,
-    "atoOficial": "Cofen confirmou o Instituto Quadrix como banca em 27/10/2025",
-    "status": "Pré-edital · banca Quadrix; inscrições não disponíveis",
-    "area": "Federal",
-    "estado": "Distrito Federal",
-    "localidade": "Brasília",
-    "sourceUrl": "https://quadrix.org.br/informacoes/3002/",
-    "documentos": [
-      {
-        "title": "Cofen confirma o Instituto Quadrix como banca organizadora",
-        "url": "https://www.cofen.gov.br/cofen-confirma-instituto-quadrix-como-banca-organizadora-de-novo-concurso-publico/",
-        "description": "Comunicado oficial do Cofen lista 13 cargos previstos e informa que vagas, edital e cronograma seriam divulgados posteriormente."
-      }
-    ],
-    "observacao": "Registro preliminar, não é edital publicado nem inscrição aberta. O Cofen confirmou a Quadrix como banca e listou 13 cargos de nível superior em comunicado oficial de 27/10/2025. Em 25/11/2026, a página oficial da Quadrix ainda classifica o concurso como Em breve, sem inscrições ou quantitativo de vagas disponível. Não há prazo de inscrição confirmado."
+    {
+  "id": 531,
+  "sigla": "COFEN",
+  "cargo": "13 cargos de nível superior — 6 vagas imediatas + 444 cadastro reserva",
+  "orgao": "Conselho Federal de Enfermagem",
+  "vinculo": "Concurso público · Edital nº 1/2026",
+  "nivel": "Superior",
+  "vagas": 6,
+  "vagasTotais": 450,
+  "vagasImediatas": 6,
+  "atoOficial": "Edital nº 1, de 25/11/2026",
+  "status": "Inscrições abertas até 11/01/2027 às 23h",
+  "area": "Federal",
+  "estado": "Distrito Federal",
+  "localidade": "Brasília",
+  "sourceUrl": "https://www.cofen.gov.br/edital-no-1-2026-concurso-publico-para-provimento-de-vagas-e-formacao-de-cadastro-dereserva-para-cargos-de-nivel-superior/",
+  "inscricaoUrl": "https://quadrix.org.br/informacoes/3002/",
+  "periodoInscricao": {
+    "inicio": "2026-11-26",
+    "fim": "2027-01-11",
+    "inicioHoraLocal": "10:00",
+    "fimHoraLocal": "23:00",
+    "fonteUrl": "https://quadrix.org.br/informacoes/3002/",
+    "fonteDescricao": "Página oficial do concurso — Instituto Quadrix",
+    "verificadoEm": "2026-11-26"
   },
-  {
-    "id": 532,
-    "sigla": "COREN-SP",
-    "cargo": "Nove cargos efetivos autorizados — quantitativo de vagas a divulgar",
-    "orgao": "Conselho Regional de Enfermagem de São Paulo",
-    "vinculo": "Concurso público · autorização e comissão organizadora",
-    "nivel": "Médio e Superior",
-    "vagas": null,
-    "atoOficial": "Autorização e comissão organizadora publicadas no DOU em 18/08/2026",
-    "status": "Autorizado · pré-edital; banca Quadrix informa Em breve",
-    "area": "Federal",
-    "estado": "São Paulo",
-    "localidade": "São Paulo",
-    "sourceUrl": "https://quadrix.org.br/informacoes/3075/",
-    "documentos": [
-      {
-        "title": "Ato de autorização do concurso e constituição da comissão — DOU, 18/08/2026",
-        "url": "https://ouvidoria.cofen.gov.br/uploads/625067-portaria-ple-25-2.pdf",
-        "description": "Publicação no Diário Oficial da União autoriza o concurso, lista nove cargos efetivos e cria a comissão organizadora interna."
-      }
-    ],
-    "observacao": "Registro de pré-edital. O DOU de 18/08/2026 autoriza o concurso para nove cargos efetivos: assistente administrativo, contador, analista de ciência de dados e IA, analista de desenvolvimento de sistemas, analista de suporte à gestão, analista técnico, auditor, enfermeiro de apoio às atividades finalísticas e enfermeiro fiscal. O ato cria a comissão organizadora. A página oficial da Quadrix informa situação Em breve; não há número de vagas, edital de abertura nem prazo de inscrição confirmado."
+  "documentos": [
+    {
+      "title": "Edital nº 1/2026 — publicação oficial Cofen",
+      "url": "https://cofen.gov.br/wp-content/uploads/2026/11/Edital-01-2026-Concurso-Cofen.pdf",
+      "description": "PDF oficial do edital de abertura, publicado em 25/11/2026."
+    },
+    {
+      "title": "Página oficial do concurso — Instituto Quadrix",
+      "url": "https://quadrix.org.br/informacoes/3002/",
+      "description": "Página oficial da banca com inscrições, cronograma, cargos e publicações."
+    }
+  ],
+  "observacao": "Edital oficial publicado em 25/11/2026: 13 cargos de nível superior, 6 vagas imediatas e 444 para cadastro reserva (450 no total). Salário-base de R$ 18.950,52 mais benefícios, jornada de 40 horas semanais e lotação em Brasília/DF. Inscrições de 26/11/2026 às 10h a 11/01/2027 às 23h; isenção em 26 e 27/11. Provas objetiva e discursiva em 28/02/2027, no Distrito Federal. Dados confirmados no edital do Cofen e na página oficial Quadrix."
+},
+    {
+  "id": 532,
+  "sigla": "COREN-SP",
+  "cargo": "9 cargos — 76 vagas imediatas + 204 cadastro reserva",
+  "orgao": "Conselho Regional de Enfermagem de São Paulo",
+  "vinculo": "Concurso público · Edital nº 1/2026",
+  "nivel": "Médio e Superior",
+  "vagas": 76,
+  "vagasTotais": 280,
+  "vagasImediatas": 76,
+  "atoOficial": "Edital nº 1, de 25/11/2026",
+  "status": "Inscrições abertas até 11/01/2027 às 23h",
+  "area": "Federal",
+  "estado": "São Paulo",
+  "localidade": "São Paulo",
+  "sourceUrl": "https://quadrix.org.br/informacoes/3075/",
+  "inscricaoUrl": "https://quadrix.org.br/informacoes/3075/",
+  "periodoInscricao": {
+    "inicio": "2026-11-26",
+    "fim": "2027-01-11",
+    "inicioHoraLocal": "10:00",
+    "fimHoraLocal": "23:00",
+    "fonteUrl": "https://quadrix.org.br/informacoes/3075/",
+    "fonteDescricao": "Página oficial do concurso — Instituto Quadrix",
+    "verificadoEm": "2026-11-26"
   },
+  "documentos": [
+    {
+      "title": "Edital nº 1/2026 — abertura",
+      "url": "https://anexos-r2.selecao.net.br/uploads/861/concursos/3075/anexos/a10260c5-f08b-4290-9ee3-b3be6d126724.pdf",
+      "description": "PDF do edital de abertura, vinculado pela página oficial da Quadrix."
+    },
+    {
+      "title": "Cronograma — 25/11/2026",
+      "url": "https://anexos-r2.selecao.net.br/uploads/861/concursos/3075/anexos/7978ed5f-7136-4922-800b-f54040fef282.pdf",
+      "description": "Cronograma oficial do concurso, vinculado pela página Quadrix."
+    },
+    {
+      "title": "Página oficial do concurso — Instituto Quadrix",
+      "url": "https://quadrix.org.br/informacoes/3075/",
+      "description": "Página da banca com inscrições, cargos, salários e etapas."
+    }
+  ],
+  "observacao": "Edital publicado em 25/11/2026 para 9 cargos: 76 vagas imediatas e 204 para cadastro reserva (280 no total). Remuneração-base: R$ 5.389,00 para Assistente Administrativo, R$ 8.440,59 para a maioria dos cargos superiores e R$ 10.692,00 para Enfermeiro Fiscal, além de benefícios. Jornada de 40 horas. Inscrições de 26/11/2026 às 10h a 11/01/2027 às 23h; isenção em 26 e 27/11. Provas objetiva e discursiva em 07/03/2027, em São Paulo e interior. Dados confirmados no edital e cronograma vinculados à página oficial Quadrix."
+},
 {
     "id": 533,
     "sigla": "PMS-SALVADOR-EDUCACAO",
@@ -1420,6 +1459,72 @@ export const concursos = [
     "observacao": "Concurso exclusivamente para formação de cadastro de reserva, sem quantitativo de vagas imediatas divulgado e sem garantia de nomeação. Abrange os cargos de Delegado de Polícia, Agente de Polícia Judiciária e Papiloscopista Policial, com distribuição por macrorregião conforme o edital. Inscrições de 14/07/2026 às 16h até 12/08/2026 às 16h. A prova objetiva ocorreu em 11/10/2026 e a FGV publicou o resultado preliminar em 13/11/2026; recursos foram previstos até 16/11/2026."
   },
 
+  {
+    "id": 535,
+    "sigla": "NOVA-GUARITA-ACS-ACE-2026",
+    "cargo": "Agente Comunitário de Saúde (Microárea 05 — PSF 01) e Agente de Combate às Endemias — cadastro reserva",
+    "orgao": "Prefeitura Municipal de Nova Guarita — Secretaria Municipal de Saúde",
+    "vinculo": "Processo seletivo público · Edital nº 001/2026",
+    "nivel": "Médio",
+    "vagas": 2,
+    "vagasTotais": 2,
+    "vagasImediatas": 0,
+    "cadastroReserva": 2,
+    "atoOficial": "Edital nº 001/2026 — Prefeitura de Nova Guarita",
+    "status": "Inscrições abertas até 08/12/2026",
+    "area": "Municipal",
+    "estado": "Mato Grosso",
+    "localidade": "Nova Guarita",
+    "sourceUrl": "https://www.novaguarita.mt.gov.br/Noticias/Nova-guarita-abre-processo-seletivo-publico-para-agente-comunitario-de-saude-e-agente-de-combate-as-endemias-1335/",
+    "periodoInscricao": {
+      "inicio": "2026-11-24",
+      "fim": "2026-12-08",
+      "fonteUrl": "https://www.novaguarita.mt.gov.br/Noticias/Nova-guarita-abre-processo-seletivo-publico-para-agente-comunitario-de-saude-e-agente-de-combate-as-endemias-1335/",
+      "fonteDescricao": "Prefeitura de Nova Guarita — publicação oficial do Edital 001/2026",
+      "verificadoEm": "2026-11-26"
+    },
+    "documentos": [
+      {
+        "title": "Edital 001/2026 — publicação oficial da Prefeitura",
+        "url": "https://www.novaguarita.mt.gov.br/Noticias/Nova-guarita-abre-processo-seletivo-publico-para-agente-comunitario-de-saude-e-agente-de-combate-as-endemias-1335/",
+        "description": "Notícia oficial com funções, cadastro reserva, requisitos, remuneração, inscrição e data da prova."
+      }
+    ],
+    "observacao": "Edital 001/2026 forma cadastro reserva, sem contratação imediata: 1 posição para Agente Comunitário de Saúde (Microárea 05 — PSF 01) e 1 para Agente de Combate às Endemias. Ambos exigem ensino médio, 40h e remuneração de R$ 3.262,64. Inscrições 24/11–08/12/2026, taxa de R$ 70 e pagamento até 09/12; isenção 24–27/11. Prova objetiva com 40 questões prevista para 17/01/2027 em Nova Guarita. Dados da publicação oficial municipal."
+  },
+  {
+    "id": 536,
+    "sigla": "NOVA-GUARITA-PSS-002-2026",
+    "cargo": "18 funções — 43 posições de cadastro reserva",
+    "orgao": "Prefeitura Municipal de Nova Guarita",
+    "vinculo": "Processo seletivo simplificado · Edital nº 002/2026",
+    "nivel": "Diversos níveis",
+    "vagas": 43,
+    "vagasTotais": 43,
+    "vagasImediatas": 0,
+    "cadastroReserva": 43,
+    "atoOficial": "Edital nº 002/2026 — Prefeitura de Nova Guarita",
+    "status": "Inscrições abertas até 08/12/2026",
+    "area": "Municipal",
+    "estado": "Mato Grosso",
+    "localidade": "Nova Guarita",
+    "sourceUrl": "https://www.novaguarita.mt.gov.br/Noticias/Nova-guarita-abre-inscricoes-para-processo-seletivo-simplificado-com-oportunidades-em-diversas-areas-1336/",
+    "periodoInscricao": {
+      "inicio": "2026-11-24",
+      "fim": "2026-12-08",
+      "fonteUrl": "https://www.novaguarita.mt.gov.br/Noticias/Nova-guarita-abre-inscricoes-para-processo-seletivo-simplificado-com-oportunidades-em-diversas-areas-1336/",
+      "fonteDescricao": "Prefeitura de Nova Guarita — publicação oficial do Edital 002/2026",
+      "verificadoEm": "2026-11-26"
+    },
+    "documentos": [
+      {
+        "title": "Edital 002/2026 — publicação oficial da Prefeitura",
+        "url": "https://www.novaguarita.mt.gov.br/Noticias/Nova-guarita-abre-inscricoes-para-processo-seletivo-simplificado-com-oportunidades-em-diversas-areas-1336/",
+        "description": "Notícia oficial com 18 funções, 43 posições em cadastro reserva, salários, taxas, inscrições e prova."
+      }
+    ],
+    "observacao": "Edital 002/2026 — PSS para 18 funções, 43 posições em cadastro reserva e nenhuma contratação imediata. Remunerações de R$ 2.471,70 a R$ 7.415,10; taxas de R$ 40, R$ 70 e R$ 100 conforme escolaridade. Inscrições 24/11–08/12/2026, pagamento até 09/12 e isenção 24–27/11. Prova objetiva de 40 questões prevista para 17/01/2027, das 8h às 12h, em Nova Guarita; prova de títulos para nível superior. Validade de 12 meses, prorrogável. Dados da publicação oficial municipal."
+  }
 ]; 
 
 export const sourceRegistry = [
@@ -1457,5 +1562,6 @@ export const materias = [
     "descricao": "Conceitos e ferramentas",
     "icon": "⌘"
   },
+
 
 ];
