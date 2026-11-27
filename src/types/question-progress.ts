@@ -10,6 +10,7 @@ export type { QuestionAttemptRecord, QuestionProgressInput, QuestionProgressReco
 /** Persisted progress limits used by question-bank normalization and merge. */
 export const QUESTION_PROGRESS_LIMITS = {
   attempts: 500,
+  saved: 1000,
   simulations: 100,
 } as const;
 
