@@ -17,11 +17,11 @@ describe("typed question progress service", () => {
     expect(loadQuestionProgress("u2")).toEqual({ attempts: [], saved: [], simulations: [] });
   });
 
-  it("normalizes malformed attempts and simulations", () => {
+  it("normalizes malformed attempts, saved ids and simulations", () => {
     const result = normalizeQuestionProgress({
       attempts: [null, { questionId: "q1", answer: "a", correct: true }, { questionId: 1, answer: "b", correct: true }],
-      saved: ["q1", "q1", 9],
-      simulations: [{ id: "s1", questionIds: ["q1"], correct: 1, total: 1 }, { id: 4 }],
+      saved: ["q1", "q1", "", 9],
+      simulations: [{ id: "s1", questionIds: ["q1"], correct: 1, total: 1 }, { id: 4 }, { id: "invalid", questionIds: [], correct: 3, total: 2 }],
     });
     expect(result.attempts).toHaveLength(1);
     expect(result.saved).toEqual(["q1"]);
@@ -36,6 +36,17 @@ describe("typed question progress service", () => {
     expect(result.attempts).toHaveLength(2);
     expect(result.attempts.find((attempt) => attempt.id === "attempt-1")?.correct).toBe(true);
     expect(result.saved).toEqual(["q1", "q2"]);
+  });
+
+  it("prefers the newest simulation version and caps saved ids", () => {
+    const merged = mergeQuestionProgress(
+      { simulations: [{ id: "sim-1", questionIds: ["q1"], correct: 1, total: 1, updatedAt: "2026-01-01" }] },
+      { simulations: [{ id: "sim-1", questionIds: ["q2"], correct: 0, total: 1, updatedAt: "2026-01-02" }] },
+    );
+    expect(merged.simulations[0].questionIds).toEqual(["q2"]);
+    const oversized = normalizeQuestionProgress({ saved: Array.from({ length: 1200 }, (_, i) => `q${i}`) });
+    expect(oversized.saved).toHaveLength(1000);
+    expect(oversized.saved[0]).toBe("q200");
   });
 
   it("handles invalid storage JSON safely", () => {
