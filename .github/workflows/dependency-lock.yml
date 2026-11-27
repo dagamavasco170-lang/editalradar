@@ -11,40 +11,46 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 concurrency:
-  group: npm-lockfile-main
+  group: npm-lockfile-sync
   cancel-in-progress: false
 
 jobs:
   lockfile:
-    name: Gerar e versionar package-lock.json
+    name: Gerar lockfile e validar antes de abrir PR
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - name: Checkout da branch principal
         uses: actions/checkout@v7
         with:
           ref: main
           fetch-depth: 0
+          persist-credentials: false
       - name: Configurar Node.js
         uses: actions/setup-node@v7
         with:
           node-version: 22
-      - name: Resolver dependências e gerar lockfile
+      - name: Atualizar lockfile sem executar scripts de instalação
         run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
-      - name: Validar árvore de dependências, testes e build
-        run: |
-          npm ci --no-audit --no-fund
-          npm test
-          npm run build
-      - name: Registrar lockfile no Git
-        run: |
-          git add package-lock.json
-          if git diff --cached --quiet -- package-lock.json; then
-            echo "package-lock.json já está atualizado."
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "build: sync npm lockfile"
-          git push origin HEAD:main
+      - name: Validar instalação reproduzível
+        run: npm ci --no-audit --no-fund
+      - name: Testes
+        run: npm test
+      - name: Build
+        run: npm run build
+      - name: Abrir PR do lockfile (sem escrita direta em main)
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: automation/npm-lockfile-sync
+          delete-branch: true
+          title: "build: sincronizar lockfile npm"
+          commit-message: "build: sync npm lockfile"
+          body: |
+            Lockfile regenerado pelo workflow e validado com npm ci, testes e build.
+            Esta automação não faz push direto para main; abre/atualiza PR para revisão.
+          labels: dependencies, automated
+          add-paths: package-lock.json
