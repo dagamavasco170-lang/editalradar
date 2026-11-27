@@ -31,6 +31,12 @@ jobs:
               { file: "android-apk.yml", label: "Compilação do APK" },
               { file: "dependency-autofix.yml", label: "Correções automáticas de dependências" }
             ];
+            const mainBranchResponse = await github.rest.repos.getBranch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              branch: "main"
+            });
+            const currentMainSha = mainBranchResponse.data.commit.sha;
             const now = Date.now();
             const retryErrors = [];
             for (const target of targets) {
@@ -44,6 +50,7 @@ jobs:
                 const run = response.data.workflow_runs
                   .filter(item =>
                     item.head_branch === "main" &&
+                    item.head_sha === currentMainSha &&
                     ["schedule", "workflow_dispatch", "push"].includes(item.event) &&
                     item.status === "completed" &&
                     ["timed_out", "cancelled"].includes(item.conclusion) &&
@@ -52,7 +59,7 @@ jobs:
                   )
                   .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
                 if (!run) {
-                  core.info(target.label + ": nenhuma execução interrompida/timeout recente elegível; falhas determinísticas não são reexecutadas automaticamente.");
+                  core.info(target.label + ": nenhuma execução interrompida/timeout do SHA atual da main elegível; falhas determinísticas e runs obsoletas não são reexecutadas automaticamente.");
                   continue;
                 }
                 const jobsResponse = await github.rest.actions.listJobsForWorkflowRun({
