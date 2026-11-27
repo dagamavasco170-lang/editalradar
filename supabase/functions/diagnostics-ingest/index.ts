@@ -59,17 +59,18 @@ Deno.serve(async (req) => {
     return json({ error: "Invalid diagnostic payload" }, 400, origin);
   }
   const clientId = payload.client_id;
-  const { count, error: countError } = await admin.from("app_diagnostics")
-    .select("id", { count: "exact", head: true })
-    .eq("client_id", clientId)
-    .gte("created_at", new Date(Date.now() - 15 * 60_000).toISOString());
-  if (countError) return json({ error: "Diagnostic storage unavailable" }, 503, origin);
-  if ((count ?? 0) >= 40) return json({ error: "Rate limit reached" }, 429, origin);
-  const { count: globalCount, error: globalCountError } = await admin.from("app_diagnostics")
-    .select("id", { count: "exact", head: true })
-    .gte("created_at", new Date(Date.now() - 60_000).toISOString());
-  if (globalCountError) return json({ error: "Diagnostic storage unavailable" }, 503, origin);
-  if ((globalCount ?? 0) >= 500) return json({ error: "Service rate limit reached" }, 429, origin);
+  // client_id is supplied by the caller and is only a diagnostic grouping key.
+  // Enforce the service-wide budget atomically in Postgres instead of trusting it
+  // as an identity or using a racy count-then-insert check.
+  const { data: withinRateLimit, error: rateLimitError } = await admin.rpc(
+    "consume_diagnostics_ingest_rate_limit",
+    { p_cost: payload.logs.length, p_limit: 500 },
+  );
+  if (rateLimitError) {
+    console.error("[diagnostics-ingest] rate limiter unavailable", rateLimitError.message);
+    return json({ error: "Diagnostic service unavailable" }, 503, origin);
+  }
+  if (withinRateLimit !== true) return json({ error: "Service rate limit reached" }, 429, origin);
 
   const rows = payload.logs.map((item: any) => ({
     client_id: clientId,
