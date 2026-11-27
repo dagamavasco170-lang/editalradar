@@ -1,8 +1,7 @@
 import { buildAdaptiveQuestionQueue } from "./adaptive-question-queue.js";
 import { buildTopicMastery } from "./topic-mastery.ts";
-import type { QuestionBankItem, QuestionAttemptRecord } from "../types/question-bank.js";
+import type { QuestionBankItem } from "../types/question-bank.js";
 
-type AttemptLike = QuestionAttemptRecord & { correct?: boolean; at?: string };
 type Collection = "all" | "adaptive" | "unanswered" | "wrong" | "saved" | "due" | string;
 export interface QuestionBankViewOptions {
   questions?: QuestionBankItem[];
