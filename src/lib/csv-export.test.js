@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildCsv, escapeCsvCell } from "./csv-export.js";
+import { buildCsv, escapeCsvCell } from "./csv-export.ts";
 
 describe("Exportação CSV", () => {
   it("gera arquivo UTF-8 com BOM e linhas CRLF", () => {
