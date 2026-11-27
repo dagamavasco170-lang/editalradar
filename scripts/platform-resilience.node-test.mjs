@@ -47,8 +47,11 @@ test("monitor de saúde considera somente execuções schedule/manual e fecha al
   assert.ok(automationHealth.includes('issues.update({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, state: "closed", state_reason: "completed" })'));
 });
 
-test("recuperação automática seleciona somente falhas recentes elegíveis da main", () => {
+test("recuperação automática seleciona somente falhas recentes elegíveis do SHA atual da main", () => {
   assert.match(automationRecovery, /item\.head_branch === "main"/);
+  assert.match(automationRecovery, /mainBranchResponse = await github\.rest\.repos\.getBranch/);
+  assert.match(automationRecovery, /const currentMainSha = mainBranchResponse\.data\.commit\.sha/);
+  assert.match(automationRecovery, /item\.head_sha === currentMainSha/);
   assert.match(automationRecovery, /response\.data\.workflow_runs\s+\.filter\(item =>/);
   assert.match(automationRecovery, /\["schedule", "workflow_dispatch", "push"\]\.includes\(item\.event\)/);
   assert.match(automationRecovery, /item\.status === "completed"/);
