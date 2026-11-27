@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isPreliminaryContest, matchesContestCatalogFilters, normalizeCatalogSearchText } from "./catalog-filters.js";
+import { isPreliminaryContest, matchesContestCatalogFilters, normalizeCatalogSearchText } from "./catalog-filters.ts";
 
 const defaults = {
   query: "",
