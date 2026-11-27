@@ -48,4 +48,31 @@ describe("compatibilidade das recomendações do catálogo", () => {
     const item = { cargo: "Auditor Fiscal", estado: "Alagoas", localidade: "Maceió", nivel: "Superior", status: "Inscrições abertas" };
     expect(scoreRecommendation(item, profile)).toBe(100);
   });
+
+  it("não atribui compatibilidade geográfica quando o perfil não informa localização", () => {
+    const item = { cargo: "Auditor Fiscal", estado: "Alagoas", localidade: "Maceió", nivel: "Superior" };
+    const match = getRecommendationMatch(item, { interest_area: "Fiscal e controle", education_level: "Superior completo" });
+    expect(match.stateMatches).toBe(false);
+    expect(match.cityMatches).toBe(false);
+    expect(getRecommendationReasons(item, { interest_area: "Fiscal e controle", education_level: "Superior completo" }))
+      .not.toContain("Estado/local");
+    expect(getRecommendationReasons(item, { interest_area: "Fiscal e controle", education_level: "Superior completo" }))
+      .not.toContain("Cidade/local");
+  });
+
+  it("não afirma compatibilidade de escolaridade quando o perfil não informou esse dado", () => {
+    const item = { cargo: "Auditor Fiscal", nivel: "Superior" };
+    const match = getRecommendationMatch(item, { interest_area: "Fiscal e controle" });
+    expect(match.educationMatches).toBe(false);
+    expect(getRecommendationReasons(item, { interest_area: "Fiscal e controle" })).not.toContain("Escolaridade");
+  });
+
+  it("mantém compatibilidade nacional quando o candidato informou estado e cidade", () => {
+    const item = { cargo: "Auditor Federal", estado: "Brasil", localidade: "Brasil", nivel: "Superior" };
+    const match = getRecommendationMatch(item, profile);
+    expect(match.stateMatches).toBe(true);
+    expect(match.cityMatches).toBe(true);
+    expect(getRecommendationReasons(item, profile)).toContain("Abrangência nacional");
+  });
+
 });
