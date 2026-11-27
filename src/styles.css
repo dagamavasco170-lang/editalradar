@@ -4270,14 +4270,14 @@ html[data-theme="dark"] .dashboard-section-heading>span{background:#20364f;color
   font-size:10px;font-weight:700;
 }
 .notification-filter.active{
-  background:color-mix(in srgb,var(--er-primary) 12%,var(--er-surface));
+  background:#eaf1ff;
   border-color:var(--er-primary);color:var(--er-primary);
 }
 .notification-item{
   min-height:58px;padding:12px;border-color:var(--er-border);
   background:var(--er-bg);color:var(--er-ink);border-radius:11px;
 }
-.notification-item:not(.read){background:color-mix(in srgb,var(--er-primary) 7%,var(--er-surface))}
+.notification-item:not(.read){background:#f1f6ff}
 .notification-item.read{background:var(--er-surface);color:var(--er-muted)}
 .notification-copy strong{color:var(--er-ink);font-size:12px;line-height:1.4}
 .notification-copy small{color:var(--er-muted);font-size:11px;line-height:1.5}
