@@ -1,6 +1,6 @@
 const stopWords=new Set(["para","como","quando","onde","porque","qual","que","uma","um","uns","umas","com","sem","por","sobre","entre","mais","menos","são","ser","seu","sua","isso","essa","este","esta","dos","das","de","do","da","em","no","na","os","as","ao","aos","às","ou","e","é","s","o","a"]);
 function extractConceptTerms(reference){
- return [...new Set(String(reference||"").normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").toLowerCase().match(/[a-z]{4,}/g)||[])].filter(term=>!stopWords.has(term)).slice(0,8);
+ return [...new Set(String(reference||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().match(/[a-z]{4,}/g)||[])].filter(term=>!stopWords.has(term)).slice(0,8);
 }
 export function buildGeneratedPractice({question={},explanation=""}={}){
  const topic=String(question.topic||question.discipline||"assunto").trim()||"assunto";
@@ -13,7 +13,7 @@ export function buildGeneratedPractice({question={},explanation=""}={}){
 }
 export function evaluateGeneratedReasoning({text="",reference="",criteria=[]}={}){
  const response=String(text||"").trim();
- const normalized=response.normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").toLowerCase();
+ const normalized=response.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
  const words=normalized.match(/[a-z0-9]+/g)||[];
  const terms=criteria.length?criteria:extractConceptTerms(reference);
  const matched=terms.filter(term=>normalized.includes(term));

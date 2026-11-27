@@ -8,6 +8,11 @@ describe("plano adaptativo",()=>{
   expect(result.reduce((sum,row)=>sum+row.minutes,0)).toBe(300);
   expect(sumFor("Português")).toBeGreaterThan(sumFor("Direito"));
  });
+ it("matches discipline names even when accents differ",()=>{
+  const result=buildAdaptiveStudySessions({subjects:["Portugues","Direito"],questions,attempts:[{questionId:"q1",correct:false,at:"2026-11-26"},{questionId:"q2",correct:true,at:"2026-11-26"}],hours:2,days:["Seg"]});
+  const sumFor=subject=>result.filter(row=>row.subject===subject).reduce((sum,row)=>sum+row.minutes,0);
+  expect(sumFor("Portugues")).toBeGreaterThan(sumFor("Direito"));
+ });
  it("calculates daily goals from the redistributed sessions",()=>{
   const sessions=[{day:"Seg",minutes:60,subject:"A"},{day:"Seg",minutes:30,subject:"B"},{day:"Ter",minutes:45,subject:"A"}];
   expect(buildDailyAdaptiveGoals({sessions,days:["Seg","Ter"]})).toEqual([{day:"Seg",minutes:90,subjects:["A","B"],sessions:2},{day:"Ter",minutes:45,subjects:["A"],sessions:1}]);

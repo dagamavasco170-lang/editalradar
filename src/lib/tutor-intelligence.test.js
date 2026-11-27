@@ -66,6 +66,7 @@ describe("tutor: exercício autoral, avaliação orientativa e domínio",()=>{
  it("extrai critérios do texto de referência e gera proposta aberta",()=>{
   const practice=buildGeneratedPractice({question:{topic:"Crase"},explanation:"A crase ocorre na fusão de preposição e artigo feminino."});
   expect(practice.criteria).toContain("crase");
+  expect(practice.criteria).toContain("fusao");
   expect(practice.prompt).toContain("Crase");
  });
  it("avalia presença de termos essenciais e estrutura sem afirmar semântica",()=>{

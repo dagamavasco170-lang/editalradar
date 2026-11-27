@@ -1,4 +1,4 @@
-const normalize=value=>String(value||"").normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").toLowerCase().trim();
+const normalize=value=>String(value||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim();
 export function buildAdaptiveStudySessions({subjects=[],questions=[],attempts=[],mastery=[],hours=10,days=[]}={}) {
  const chosen=days.filter(day=>["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"].includes(day));
  if(!chosen.length||!subjects.length)return [];
