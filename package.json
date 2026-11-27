@@ -8,6 +8,7 @@
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
     "test": "vitest run",
+    "typecheck": "npm exec --yes --package=typescript@5.9.3 -- tsc --noEmit -p tsconfig.json",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "monitor:sources": "node scripts/monitor-sources.mjs",
