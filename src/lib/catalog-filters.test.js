@@ -39,6 +39,8 @@ describe("filtros do catálogo", () => {
     expect(matchesContestCatalogFilters(contest, { ...defaults, query: "comissao formada" })).toBe(true);
     expect(matchesContestCatalogFilters(contest, { ...defaults, query: "20000" })).toBe(true);
     expect(matchesContestCatalogFilters(contest, { ...defaults, query: "inexistente" })).toBe(false);
+    expect(matchesContestCatalogFilters(contest, { ...defaults, query: "banco 20000" })).toBe(true);
+    expect(matchesContestCatalogFilters(contest, { ...defaults, query: "fiscal comissao" })).toBe(true);
   });
 
   it("combina escolaridade, esfera, estado e cidade", () => {
