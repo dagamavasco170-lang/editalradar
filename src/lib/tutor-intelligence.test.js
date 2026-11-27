@@ -1,5 +1,5 @@
 import {describe,it,expect} from "vitest";
-import {buildTutorSignals,buildAdaptiveQuestionPlan,buildConfusionPatterns,buildPersonalizedRecoveryAdvice,buildMisconceptionDiagnosis} from "./tutor-intelligence.js";
+import {buildTutorSignals,buildAdaptiveQuestionPlan,buildAdaptiveTutorFeedback,buildConfusionPatterns,buildPersonalizedRecoveryAdvice,buildMisconceptionDiagnosis} from "./tutor-intelligence.js";
 describe("inteligência do tutor adaptativo",()=>{
  it("identifica temas frágeis e sugere dificuldade inicial",()=>{
   const result=buildTutorSignals({topics:[
@@ -22,7 +22,6 @@ describe("inteligência do tutor adaptativo",()=>{
   expect(plan.find(row=>row.id==="new")).toMatchObject({level:"Fácil",due:true});
  });
 
-import {buildAdaptiveTutorFeedback} from "./tutor-intelligence.js";
 it("feedback reduz nível após erro e sobe após sequência de três acertos",()=>{
  const error=buildAdaptiveTutorFeedback({correct:false,currentLevel:"Médio"});
  expect(error).toMatchObject({progression:"recover",nextLevel:"Fácil"});
@@ -48,7 +47,7 @@ it("diagnostica a alternativa marcada e prepara revisão reflexiva baseada na qu
  expect(result.verification).toContain("nova questão");
 });
 
-import {buildGeneratedPractice,evaluateGeneratedReasoning} from "./tutor-generated-practice.js";
+import {buildGeneratedPractice,evaluateGeneratedReasoning,updateConceptMastery,loadConceptMastery,saveConceptMastery,mergeConceptMastery} from "./tutor-generated-practice.js";
 describe("prática autoral e checagem de raciocínio",()=>{
  it("gera exercício aberto vinculado ao tema e explicação quando disponível",()=>{
   const generated=buildGeneratedPractice({question:{topic:"Crase"},explanation:"Crase ocorre na fusão de preposição e artigo."});
@@ -63,7 +62,6 @@ describe("prática autoral e checagem de raciocínio",()=>{
  });
 });
 
-import {buildGeneratedPractice,evaluateGeneratedReasoning,updateConceptMastery,mergeConceptMastery} from "./tutor-generated-practice.js";
 describe("tutor: exercício autoral, avaliação orientativa e domínio",()=>{
  it("extrai critérios do texto de referência e gera proposta aberta",()=>{
   const practice=buildGeneratedPractice({question:{topic:"Crase"},explanation:"A crase ocorre na fusão de preposição e artigo feminino."});
