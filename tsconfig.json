@@ -12,6 +12,15 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true
   },
-  "include": ["src/types/**/*.ts", "src/**/*.d.ts"],
-  "exclude": ["node_modules", "dist", "android", "supabase/functions"]
+  "include": [
+    "src/types/**/*.ts",
+    "src/lib/**/*.ts",
+    "src/**/*.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "android",
+    "supabase/functions"
+  ]
 }
