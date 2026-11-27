@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildTopicMastery, buildWeeklyStudyProgress } from "./topic-mastery.js";
+import { buildTopicMastery, buildWeeklyStudyProgress } from "./topic-mastery.ts";
 
 const questions=[
  {id:"a",discipline:"Português",topic:"Crase"},
