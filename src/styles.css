@@ -4127,3 +4127,92 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{ou
 .adaptive-reflection-field{display:grid;gap:8px;font-weight:600;font-size:.9rem}
 .adaptive-reflection-field textarea{width:100%;padding:10px;border-radius:8px;border:1px solid var(--border-color,rgba(128,128,128,.3));background:var(--surface,transparent);color:inherit;font:inherit;resize:vertical;line-height:1.5}
 .adaptive-reflection-confirmation{display:grid;gap:8px}
+
+
+/* Dashboard de oportunidades — legibilidade, hierarquia e adaptação mobile. */
+.candidate-dashboard .dashboard-milestones,
+.candidate-dashboard .dashboard-focus{
+  min-width:0;
+  border-color:var(--er-border);
+  background:var(--er-surface);
+  box-shadow:0 5px 18px rgba(16,38,64,.045);
+}
+.dashboard-section-heading{align-items:flex-start;gap:12px;margin-bottom:13px}
+.dashboard-section-heading h3{font-size:clamp(16px,1.5vw,19px);line-height:1.3;letter-spacing:-.25px}
+.dashboard-section-heading>span{flex:0 0 auto;font-size:10px;font-weight:700}
+.dashboard-milestone-list{gap:8px}
+.dashboard-milestone{
+  display:grid;
+  grid-template-columns:minmax(88px,auto) minmax(0,1fr) auto;
+  align-items:start;
+  gap:12px;
+  padding:12px;
+  border:1px solid var(--er-border);
+  border-radius:12px;
+  background:var(--er-bg);
+}
+.dashboard-milestone time{
+  min-width:0;
+  min-height:36px;
+  padding:8px 9px;
+  font-size:10px;
+  line-height:1.35;
+  letter-spacing:.1px;
+}
+.dashboard-milestone-copy{gap:5px;padding-top:1px}
+.dashboard-milestone-copy strong{font-size:11px;line-height:1.35;font-weight:800}
+.dashboard-milestone-copy span{font-size:12px;line-height:1.5;font-weight:700;overflow-wrap:anywhere}
+.dashboard-milestone-copy small{font-size:11px;line-height:1.45;overflow-wrap:anywhere}
+.dashboard-milestone-open{
+  min-width:62px;min-height:38px;
+  display:inline-flex;align-items:center;justify-content:center;
+  border:1px solid var(--er-border);border-radius:9px;
+  background:var(--er-surface);font-size:11px;font-weight:800;
+}
+.dashboard-milestone-open:hover{border-color:var(--er-primary);background:var(--er-bg)}
+.dashboard-disclaimer{font-size:10px;line-height:1.55;margin-top:12px}
+.dashboard-milestone-empty{color:var(--er-muted);font-size:12px;line-height:1.6}
+html[data-theme="dark"] .candidate-dashboard .dashboard-milestones,
+html[data-theme="dark"] .candidate-dashboard .dashboard-focus{
+  background:#172435;
+  border-color:#344861;
+  box-shadow:none;
+}
+html[data-theme="dark"] .dashboard-milestone{
+  background:#1b2c41;
+  border-color:#354b64;
+}
+html[data-theme="dark"] .dashboard-milestone-copy strong{color:#83d8b8}
+html[data-theme="dark"] .dashboard-milestone-copy span{color:#e2ebf8}
+html[data-theme="dark"] .dashboard-milestone-copy small{color:#b2c2d6}
+html[data-theme="dark"] .dashboard-milestone-open{
+  background:#20364f;border-color:#45617f;color:#a9ccff;
+}
+html[data-theme="dark"] .dashboard-milestone-open:hover{background:#294564;border-color:#78a7e8}
+html[data-theme="dark"] .dashboard-disclaimer{color:#b0bfd2}
+html[data-theme="dark"] .dashboard-section-heading h3{color:#e5edf8}
+html[data-theme="dark"] .dashboard-section-heading>span{background:#20364f;color:#c1d5ef}
+@media(max-width:640px){
+  .candidate-dashboard .dashboard-milestones,.candidate-dashboard .dashboard-focus{padding:14px}
+  .dashboard-section-heading{align-items:flex-start}
+  .dashboard-section-heading h3{font-size:17px}
+  .dashboard-milestone{
+    grid-template-columns:minmax(76px,auto) minmax(0,1fr) auto;
+    gap:8px;padding:10px;border-radius:12px;
+  }
+  .dashboard-milestone time{font-size:9px;padding:8px 5px}
+  .dashboard-milestone-copy strong{font-size:10px}
+  .dashboard-milestone-copy span{font-size:11px;line-height:1.45}
+  .dashboard-milestone-copy small{font-size:10px;line-height:1.4}
+  .dashboard-milestone-open{min-width:48px;min-height:36px;padding:6px;font-size:10px}
+  .dashboard-disclaimer{font-size:10px}
+}
+@media(max-width:390px){
+  .dashboard-milestone{grid-template-columns:76px minmax(0,1fr)}
+  .dashboard-milestone-open{grid-column:2;justify-self:end;min-width:72px}
+}
+@media(max-width:760px){
+  .main{padding-bottom:calc(98px + env(safe-area-inset-bottom))}
+  .sidebar{padding-bottom:calc(9px + env(safe-area-inset-bottom))}
+  .sidebar .sidebar-nav .nav-item{min-height:58px}
+}
