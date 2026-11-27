@@ -1,5 +1,5 @@
 import {describe,it,expect} from "vitest";
-import {buildTutorSignals,buildAdaptiveQuestionPlan,buildAdaptiveTutorFeedback,buildConfusionPatterns,buildPersonalizedRecoveryAdvice,buildMisconceptionDiagnosis} from "./tutor-intelligence.js";
+import {buildTutorSignals,buildAdaptiveQuestionPlan,buildAdaptiveTutorFeedback,buildConfusionPatterns,buildPersonalizedRecoveryAdvice,buildMisconceptionDiagnosis} from "./tutor-intelligence.ts";
 describe("inteligência do tutor adaptativo",()=>{
  it("identifica temas frágeis e sugere dificuldade inicial",()=>{
   const result=buildTutorSignals({topics:[
