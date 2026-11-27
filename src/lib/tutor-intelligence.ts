@@ -104,8 +104,8 @@ export function buildPersonalizedRecoveryAdvice({pattern={},explanation=""}:Reco
 export function buildMisconceptionDiagnosis({question={},selectedAnswer,explanation=""}:MisconceptionDiagnosisInput={}) {
  const options=Array.isArray(question.options)?question.options:[];
  const chosen=options.find(option=>String(option[1])===String(selectedAnswer)),chosenText=chosen?.[0]||"Alternativa selecionada";
- const normalized=String(chosenText).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
- const clueTerms=String(question.prompt||"").match(/[\p{L}]{4,}/gu)||[],clues=[...new Set(clueTerms.map(term=>term.toLowerCase()))].slice(0,4);
+ const normalized=String(chosenText).normalize("NFD").split("").filter(char=>char.charCodeAt(0)<768||char.charCodeAt(0)>879).join("").toLowerCase();
+ const clueTerms=String(question.prompt||"").match(/[A-Za-zÀ-ÿ]{4,}/g)||[],clues=[...new Set(clueTerms.map(term=>term.toLowerCase()))].slice(0,4);
  const explanationText=String(explanation||question.explanation||"").trim();
  return {selectedLabel:chosenText,observed:true,topic:question.topic||question.discipline||"assunto",clue:clues.length?clues.join(", "):question.topic||question.discipline||"o conceito central do enunciado",explanation:explanationText,lesson:explanationText||"A questão ainda não possui uma explicação validada. Releia o enunciado, localize a regra central no material oficial e compare com a alternativa escolhida.",reflection:normalized.length>0?"Por que a alternativa escolhida parecia correta? Qual palavra do enunciado mudaria sua decisão?":"Qual regra central sustenta a resposta e como ela se aplica ao enunciado?",verification:"Resolva uma nova questão do mesmo assunto sem consultar a explicação. Se conseguir justificar a resposta, avance; se não, retome a fonte."};
 }
