@@ -1,3 +1,17 @@
+import {
+  mergeQuestionProgress,
+  normalizeQuestionProgress,
+  loadQuestionProgress,
+  questionProgressStorageKey,
+} from "./question-progress.ts";
+
+export {
+  mergeQuestionProgress,
+  normalizeQuestionProgress,
+  loadQuestionProgress,
+  questionProgressStorageKey,
+};
+
 const originalQuestions = [
   { id:"p1", discipline:"Língua Portuguesa", board:"Cebraspe", topic:"Ortografia", difficulty:"Fácil", prompt:"Julgue: a palavra 'exceção' está grafada corretamente.", options:[["Certo","certo"],["Errado","errado"]], answer:"certo", explanation:"A grafia oficial é exceção, com ç." },
   { id:"p2", discipline:"Língua Portuguesa", board:"FGV", topic:"Concordância", difficulty:"Intermediária", prompt:"Assinale a frase com concordância adequada.", options:[["Fazem dois anos que o edital saiu.","a"],["Houveram alterações.","b"],["Faz dois anos que o edital saiu.","c"],["Existe muitas vagas.","d"]], answer:"c", explanation:"O verbo fazer, indicando tempo decorrido, é impessoal e fica no singular." },
@@ -44,57 +58,3 @@ export const questionBank = [
   ...extraQuestions
 ];
 
-export const mergeQuestionProgress = (remoteValue, localValue) => {
-  const remote = normalizeQuestionProgress(remoteValue);
-  const local = normalizeQuestionProgress(localValue);
-  const attempts = new Map();
-  [...remote.attempts, ...local.attempts].forEach(attempt => {
-    const key = attempt.id || [attempt.questionId, attempt.at, attempt.answer].join("|");
-    const previous = attempts.get(key);
-    if (!previous || String(attempt.at || "") >= String(previous.at || "")) attempts.set(key, attempt);
-  });
-  const simulations = new Map();
-  [...remote.simulations, ...local.simulations].forEach(simulation => simulations.set(simulation.id, simulation));
-  return {
-    attempts: [...attempts.values()].sort((a,b)=>String(a.at||"").localeCompare(String(b.at||""))).slice(-500),
-    saved: [...new Set([...remote.saved, ...local.saved])],
-    simulations: [...simulations.values()].slice(-100)
-  };
-};
-
-export const questionProgressStorageKey = (userId) => "er-question-progress:" + (userId || "visitor");
-
-export const normalizeQuestionProgress = (value) => {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return { attempts: [], saved: [], simulations: [] };
-  }
-  const attempts = Array.isArray(value.attempts)
-    ? value.attempts.filter((attempt) =>
-      attempt && typeof attempt.questionId === "string"
-      && typeof attempt.answer === "string"
-      && typeof attempt.correct === "boolean"
-    ).slice(-500)
-    : [];
-  const saved = Array.isArray(value.saved)
-    ? [...new Set(value.saved.filter((id) => typeof id === "string"))]
-    : [];
-  const simulations = Array.isArray(value.simulations)
-    ? value.simulations.filter((simulation) =>
-      simulation && typeof simulation.id === "string"
-      && Array.isArray(simulation.questionIds)
-      && typeof simulation.correct === "number"
-      && typeof simulation.total === "number"
-    ).slice(-100)
-    : [];
-  return { attempts, saved, simulations };
-};
-
-export const loadQuestionProgress = (userId) => {
-  try {
-    if (typeof localStorage === "undefined") return normalizeQuestionProgress(null);
-    const stored = localStorage.getItem(questionProgressStorageKey(userId));
-    return normalizeQuestionProgress(stored ? JSON.parse(stored) : null);
-  } catch {
-    return normalizeQuestionProgress(null);
-  }
-};
