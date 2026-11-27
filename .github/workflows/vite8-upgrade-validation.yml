@@ -1,0 +1,53 @@
+name: Generate lockfile and validate Vite 8 upgrade
+
+on:
+  push:
+    branches:
+      - fix/vite8-react-ci-20261127
+    paths:
+      - package.json
+      - src/styles.css
+      - .github/workflows/vite8-upgrade-validation.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: vite8-upgrade-lockfile
+  cancel-in-progress: false
+
+jobs:
+  validate-and-lock:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout upgrade branch
+        uses: actions/checkout@v7
+        with:
+          ref: fix/vite8-react-ci-20261127
+          fetch-depth: 0
+      - name: Set up Node.js 22.12+
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22.12.0
+      - name: Generate lockfile using npm
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Install from generated lockfile
+        run: npm ci --no-audit --no-fund
+      - name: Run unit tests
+        run: npm test
+      - name: Run source-monitor tests
+        run: npm run test:monitor
+      - name: Production build
+        run: npm run build
+      - name: Commit generated lockfile to upgrade branch only
+        run: |
+          git add package-lock.json
+          if git diff --cached --quiet -- package-lock.json; then
+            echo "Lockfile already up to date."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "build: generate lockfile for Vite 8 upgrade"
+          git push origin HEAD:fix/vite8-react-ci-20261127
