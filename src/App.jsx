@@ -501,6 +501,8 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
   const catalogSnapshotStorageKey = "er-catalog-snapshot:" + (authUser?.id || "visitor");
   const comparisonStorageKey = "er-comparison:" + (authUser?.id || "visitor");
   const catalog = useMemo(() => applyCatalogOverrides(concursos, catalogOverrides), [catalogOverrides]);
+  // Prazo oficial validado uma vez por atualização do catálogo, sem recalcular em cada card/render.
+  const verifiedDeadlines = useMemo(() => new Map(catalog.map((item) => [String(item.id), getVerifiedRegistrationDeadline(item)])), [catalog]);
   const isAdmin = authUser?.app_metadata?.role === "admin";
   const detailReturnFocusRef = useRef("main-content");
   const lastDetailPageRef = useRef(page);
@@ -2511,7 +2513,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
             )}
             <div className={"cards " + (catalogView === "list" ? "cards-list" : "cards-grid")} data-view={catalogView}>
               {visibleCatalog.map((item) => {
-                const registrationDeadline = sortMode === "deadline" ? getVerifiedRegistrationDeadline(item) : null;
+                const registrationDeadline = verifiedDeadlines.get(String(item.id)) || null;
                 const isComparing = comparisonItems.some((entry) => String(entry.id) === String(item.id));
                 const compareLimitReached = comparisonItems.length >= 3 && !isComparing;
                 return <article className="contest-card" key={item.id}>
@@ -2521,7 +2523,7 @@ export default function App({ authClient = supabase, authConfigured = isSupabase
                   <span className="card-area-tag">{item.area || "Federal"} · {item.estado || "Brasil"}</span>
                   {isTemporarySelection(item) && <span className="card-type-tag" aria-label="Processo seletivo temporário">PSS temporário</span>}
                 </div>
-                {sortMode === "deadline" && <div className={`registration-deadline registration-deadline-${registrationDeadline?.state || "unverified"}`}>
+                {(registrationDeadline?.state === "open" || registrationDeadline?.state === "upcoming" || sortMode === "deadline") && <div className={`registration-deadline registration-deadline-${registrationDeadline?.state || "unverified"}`}>
                   {registrationDeadline?.state === "open" && <>
                     <strong>{registrationDeadline.daysRemaining === 0
                       ? (registrationDeadline.endTime ? `Encerra hoje às ${formatRegistrationTime(registrationDeadline.endTime)}` : "Último dia informado · confira o horário no edital")
