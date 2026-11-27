@@ -102,13 +102,21 @@ jobs:
           key: source-monitor-${{ runner.os }}-${{ github.run_id }}
 
       - name: Preparar relatório e fingerprint do monitor
-        if: always() && (steps.monitor.outputs.changed_count != '0' || steps.monitor.outputs.failed_count != '0' || steps.monitor.outputs.new_restricted_count != '0' || steps.monitor.outputs.web_search_failed_count != '0' || steps.publish_discoveries.outcome == 'failure' || steps.resolve.outcome == 'failure' || steps.resolve.outputs.pending_count != '0')
+        if: always() && (steps.monitor.outcome == 'failure' || steps.monitor.outputs.source_status == 'PARTIAL' || steps.monitor.outputs.source_status == 'FAILED' || steps.monitor.outputs.changed_count != '0' || steps.monitor.outputs.failed_count != '0' || steps.monitor.outputs.new_restricted_count != '0' || steps.monitor.outputs.web_search_failed_count != '0' || steps.publish_discoveries.outcome == 'failure' || steps.resolve.outcome == 'failure' || steps.resolve.outputs.pending_count != '0')
         run: node scripts/source-monitor-issue-report.mjs
         env:
           REPORT_PATH: .cache/source-monitor-report.json
           ISSUE_REPORT_PATH: .cache/source-monitor-issue.json
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           MONITOR_OUTCOME: ${{ steps.monitor.outcome }}
+          SOURCE_STATUS: ${{ steps.monitor.outputs.source_status }}
+          SOURCE_CHECKED: ${{ steps.monitor.outputs.sources_checked_count }}
+          SOURCE_SUCCESSFUL: ${{ steps.monitor.outputs.sources_successful_count }}
+          SOURCE_FAILED: ${{ steps.monitor.outputs.sources_failed_count }}
+          SOURCE_UNCHANGED: ${{ steps.monitor.outputs.sources_unchanged_count }}
+          SOURCE_BASELINE: ${{ steps.monitor.outputs.sources_baseline_count }}
+          SOURCE_UNAVAILABLE: ${{ steps.monitor.outputs.sources_unavailable_count }}
+          SOURCE_RESTRICTED: ${{ steps.monitor.outputs.sources_restricted_count }}
           PUBLISH_OUTCOME: ${{ steps.publish_discoveries.outcome }}
           TRIAGE_OUTCOME: ${{ steps.resolve.outcome }}
           TRIAGE_ELIGIBLE: ${{ steps.resolve.outputs.eligible_count }}
@@ -125,7 +133,7 @@ jobs:
           WEB_SEARCH_FAILED: ${{ steps.monitor.outputs.web_search_failed_count }}
 
       - name: Abrir ou atualizar issue para revisão e falhas
-        if: always() && (steps.monitor.outputs.changed_count != '0' || steps.monitor.outputs.failed_count != '0' || steps.monitor.outputs.new_restricted_count != '0' || steps.monitor.outputs.web_search_failed_count != '0' || steps.publish_discoveries.outcome == 'failure' || steps.resolve.outcome == 'failure' || steps.resolve.outputs.pending_count != '0')
+        if: always() && (steps.monitor.outcome == 'failure' || steps.monitor.outputs.source_status == 'PARTIAL' || steps.monitor.outputs.source_status == 'FAILED' || steps.monitor.outputs.changed_count != '0' || steps.monitor.outputs.failed_count != '0' || steps.monitor.outputs.new_restricted_count != '0' || steps.monitor.outputs.web_search_failed_count != '0' || steps.publish_discoveries.outcome == 'failure' || steps.resolve.outcome == 'failure' || steps.resolve.outputs.pending_count != '0')
         uses: actions/github-script@v8
         env:
           ISSUE_REPORT_PATH: .cache/source-monitor-issue.json
@@ -179,7 +187,7 @@ jobs:
             core.info("Issue #" + existing.number + " atualizada; fingerprint " + fingerprint + ".");
             
       - name: Encerrar automaticamente alerta quando a triagem se recuperar
-        if: always() && steps.monitor.outcome == 'success' && steps.monitor.outputs.changed_count == '0' && steps.monitor.outputs.failed_count == '0' && steps.monitor.outputs.restricted_count == '0' && steps.monitor.outputs.web_search_failed_count == '0' && steps.publish_discoveries.outcome != 'failure' && steps.resolve.outcome == 'success' && steps.resolve.outputs.pending_count == '0' && steps.resolve.outputs.pending_total_count == '0' && steps.resolve.outputs.error_count == '0'
+        if: always() && steps.monitor.outcome == 'success' && steps.monitor.outputs.source_status == 'NO_CHANGE' && steps.monitor.outputs.changed_count == '0' && steps.monitor.outputs.failed_count == '0' && steps.monitor.outputs.restricted_count == '0' && steps.monitor.outputs.web_search_failed_count == '0' && steps.publish_discoveries.outcome != 'failure' && steps.resolve.outcome == 'success' && steps.resolve.outputs.pending_count == '0' && steps.resolve.outputs.pending_total_count == '0' && steps.resolve.outputs.error_count == '0'
         uses: actions/github-script@v8
         with:
           script: |
