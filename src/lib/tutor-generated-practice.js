@@ -50,3 +50,14 @@ export function saveConceptMastery(userId,value,storage=globalThis.localStorage)
  try{storage?.setItem(conceptMasteryStorageKey(userId),JSON.stringify(value));return true;}
  catch{return false;}
 }
+
+export function mergeConceptMastery(cloudValue={},localValue={}){
+ const cloud=cloudValue&&typeof cloudValue==="object"&&!Array.isArray(cloudValue)?cloudValue:{};
+ const local=localValue&&typeof localValue==="object"&&!Array.isArray(localValue)?localValue:{};
+ const merged={...cloud};
+ for(const [topic,value] of Object.entries(local)){
+  const localScore=Number(value),cloudScore=Number(merged[topic]);
+  if(Number.isFinite(localScore))merged[topic]=Number.isFinite(cloudScore)?Math.max(localScore,cloudScore):localScore;
+ }
+ return merged;
+}

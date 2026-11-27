@@ -63,7 +63,7 @@ describe("prática autoral e checagem de raciocínio",()=>{
  });
 });
 
-import {buildGeneratedPractice,evaluateGeneratedReasoning,updateConceptMastery} from "./tutor-generated-practice.js";
+import {buildGeneratedPractice,evaluateGeneratedReasoning,updateConceptMastery,mergeConceptMastery} from "./tutor-generated-practice.js";
 describe("tutor: exercício autoral, avaliação orientativa e domínio",()=>{
  it("extrai critérios do texto de referência e gera proposta aberta",()=>{
   const practice=buildGeneratedPractice({question:{topic:"Crase"},explanation:"A crase ocorre na fusão de preposição e artigo feminino."});
@@ -107,5 +107,16 @@ describe("persistência isolada do domínio por usuário",()=>{
   const storage={getItem(){throw Error("blocked");},setItem(){throw Error("blocked");}};
   expect(loadConceptMastery("user",storage)).toEqual({});
   expect(saveConceptMastery("user",{Crase:50},storage)).toBe(false);
+ });
+});
+
+describe("sincronização do domínio de conceitos",()=>{
+ it("combina progresso local e da conta sem perder o maior domínio registrado",()=>{
+  expect(mergeConceptMastery({Crase:60,Concordancia:40},{Crase:75,Raciocinio:30})).toEqual({
+   Crase:75,Concordancia:40,Raciocinio:30
+  });
+ });
+ it("ignora dados remotos fora do formato de objeto",()=>{
+  expect(mergeConceptMastery(["inválido"],{Crase:20})).toEqual({Crase:20});
  });
 });

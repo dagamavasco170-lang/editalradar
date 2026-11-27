@@ -8,7 +8,7 @@ import { buildAdaptiveStudySessions, buildDailyAdaptiveGoals } from "./lib/adapt
 import { buildTutorSignals, buildAdaptiveQuestionPlan, buildAdaptiveTutorFeedback } from "./lib/tutor-intelligence.js";
 import { buildAdaptiveQuestionQueue } from "./lib/adaptive-question-queue.js";
 import { buildConfusionPatterns, buildPersonalizedRecoveryAdvice, buildMisconceptionDiagnosis } from "./lib/tutor-intelligence.js";
-import { buildGeneratedPractice, evaluateGeneratedReasoning, loadConceptMastery, saveConceptMastery } from "./lib/tutor-generated-practice.js";
+import { buildGeneratedPractice, evaluateGeneratedReasoning, loadConceptMastery, saveConceptMastery, mergeConceptMastery } from "./lib/tutor-generated-practice.js";
 
 const SimulatorPanel = React.lazy(() => import("./SimulatorPanel.jsx"));
 const ExamSourcesPanel = React.lazy(() => import("./ExamSourcesPanel.jsx"));
@@ -61,6 +61,8 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
  const [generatedReasoning,setGeneratedReasoning]=useState("");
  const [generatedAssessment,setGeneratedAssessment]=useState(null);
  const [conceptMasteryState,setConceptMasteryState]=useState(()=>({userId:activeUserId,data:loadConceptMastery(activeUserId)}));
+ const [conceptMasteryReady,setConceptMasteryReady]=useState(!activeUserId||!authClient);
+ const [conceptMasterySyncStatus,setConceptMasterySyncStatus]=useState(activeUserId&&authClient?"loading":"local");
  const conceptMastery=conceptMasteryState.userId===activeUserId?conceptMasteryState.data:loadConceptMastery(activeUserId);
  const setConceptMastery=(updater)=>setConceptMasteryState(current=>{
   const base=current.userId===activeUserId?current.data:loadConceptMastery(activeUserId);
@@ -106,8 +108,55 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
   setTimerNotice("Sessão concluída! Faça uma pausa e volte com energia.");
  },[timerRunning,timerRemaining,activeUserId]);
  useEffect(()=>{try{localStorage.setItem(storageKey(activeUserId),JSON.stringify(plan));}catch{}},[plan,activeUserId]);
- useEffect(()=>{setConceptMasteryState({userId:activeUserId,data:loadConceptMastery(activeUserId)});setGeneratedReasoning("");setGeneratedAssessment(null);},[activeUserId]);
- useEffect(()=>{if(conceptMasteryState.userId!==activeUserId)return;saveConceptMastery(activeUserId,conceptMasteryState.data)},[conceptMasteryState,activeUserId]);
+ useEffect(()=>{
+  setConceptMasteryState({userId:activeUserId,data:loadConceptMastery(activeUserId)});
+  setConceptMasteryReady(!activeUserId||!authClient);
+  setConceptMasterySyncStatus(activeUserId&&authClient?"loading":"local");
+  setGeneratedReasoning("");setGeneratedAssessment(null);
+ },[activeUserId,authClient]);
+ useEffect(()=>{
+  if(conceptMasteryState.userId!==activeUserId)return;
+  saveConceptMastery(activeUserId,conceptMasteryState.data);
+ },[conceptMasteryState,activeUserId]);
+ useEffect(()=>{
+  let cancelled=false;
+  if(!activeUserId||!authClient){setConceptMasteryReady(true);setConceptMasterySyncStatus("local");return undefined;}
+  setConceptMasteryReady(false);setConceptMasterySyncStatus("loading");
+  const loadCloudMastery=async()=>{
+   try{
+    const {data,error}=await authClient.from("user_data").select("concept_mastery").eq("user_id",activeUserId).maybeSingle();
+    if(error)throw error;
+    if(cancelled)return;
+    const local=loadConceptMastery(activeUserId);
+    const merged=mergeConceptMastery(data?.concept_mastery,local);
+    setConceptMasteryState({userId:activeUserId,data:merged});
+    setConceptMasterySyncStatus("synced");
+   }catch{
+    if(!cancelled)setConceptMasterySyncStatus("local");
+   }finally{
+    if(!cancelled)setConceptMasteryReady(true);
+   }
+  };
+  void loadCloudMastery();
+  return()=>{cancelled=true;};
+ },[activeUserId,authClient]);
+ useEffect(()=>{
+  if(!activeUserId||!authClient||!conceptMasteryReady||conceptMasteryState.userId!==activeUserId)return undefined;
+  let cancelled=false;
+  const timeout=window.setTimeout(async()=>{
+   setConceptMasterySyncStatus("syncing");
+   try{
+    const {error}=await authClient.from("user_data").upsert({
+     user_id:activeUserId,concept_mastery:conceptMasteryState.data,updated_at:new Date().toISOString()
+    });
+    if(error)throw error;
+    if(!cancelled)setConceptMasterySyncStatus("synced");
+   }catch{
+    if(!cancelled)setConceptMasterySyncStatus("local");
+   }
+  },500);
+  return()=>{cancelled=true;window.clearTimeout(timeout);};
+ },[activeUserId,authClient,conceptMasteryReady,conceptMasteryState]);
 
 
  useEffect(()=>{
@@ -401,6 +450,7 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
     <label className="question-filter-field">Dificuldade<select aria-label="Filtrar questões por dificuldade" value={difficulty} onChange={e=>setQuestionFilter(setDifficulty,e.target.value)}><option>Todas</option>{["Fácil","Intermediária","Avançada"].map(x=><option key={x}>{x}</option>)}</select></label>
     <label className="question-filter-field">Origem<select aria-label="Filtrar questões por origem" value={originFilter} onChange={e=>setQuestionFilter(setOriginFilter,e.target.value)}><option>Todas</option><option>EditalRadar</option><option>Provas oficiais e licenciadas</option></select></label>
    </div>
+   <div className="question-sync-status" role="status">Domínio dos conceitos: {conceptMasterySyncStatus==="syncing"?"Salvando na conta…":conceptMasterySyncStatus==="synced"?"Sincronizado na sua conta":conceptMasterySyncStatus==="loading"?"Carregando da conta…":"Salvo neste aparelho"}</div>
    <div className="question-sync-status" role="status">Progresso: {questionSyncStatus==="syncing"?"Salvando progresso…":questionSyncStatus==="synced"?"Progresso salvo":questionSyncStatus==="loading"?"Carregando seu progresso…":"Progresso salvo neste aparelho"}</div>
    <div className="question-collections" role="group" aria-label="Coleções de questões">
     <button type="button" className={collection==="adaptive"?"active":""} aria-pressed={collection==="adaptive"} onClick={()=>selectCollection("adaptive")}>Recomendadas <span>{collectionCounts.adaptive}</span></button>
