@@ -1,5 +1,5 @@
 import { buildAdaptiveQuestionPlan } from "./tutor-intelligence.js";
-import { buildTopicMastery } from "./topic-mastery.js";
+import { buildTopicMastery } from "./topic-mastery.ts";
 
 export function buildAdaptiveQuestionQueue({ questions = [], latestAttempts = {}, attempts = [], now = Date.now() } = {}) {
   const plan = buildAdaptiveQuestionPlan({ questions, latestAttempts, now });
