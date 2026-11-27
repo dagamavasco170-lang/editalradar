@@ -506,9 +506,9 @@ test("atualiza apenas campos explícitos da retificação e preserva histórico"
   const result = buildRetificationUpdate(existing, extracted, discovery, document);
   assert.equal(result.updated, true);
   assert.equal(result.data.vagas, 30);
-  assert.equal(result.data.status, "Edital publicado · inscrições encerradas");
+  assert.equal(result.data.status, "Edital publicado · inscrições abertas");
   assert.equal(result.data.historicoAtualizacoes.length, 2);
-  assert.deepEqual(result.changes.map(change => change.field).sort(), ["status", "vagas"]);
+  assert.deepEqual(result.changes.map(change => change.field).sort(), ["vagas"]);
   assert.equal(result.data.cargo, existing.cargo);
 });
 
@@ -1107,4 +1107,47 @@ test("aceita artigo do G1 como pista, mas extrai apenas links HTTPS oficiais aut
   assert.equal(references.length, 1);
   assert.equal(references[0].url, officialUrl);
   assert.equal(isTrustedSecondaryNewsHost("g1.globo.com"), true);
+});
+
+
+test("não altera status de inscrição por texto histórico fora de uma correção explícita", () => {
+  const existing = {
+    orgao: "Prefeitura Municipal de Igaci",
+    cargo: "Agente Administrativo",
+    vagas: 20,
+    status: "Edital publicado · inscrições abertas",
+    historicoAtualizacoes: []
+  };
+  const result = buildRetificationUpdate(
+    existing,
+    { orgao: existing.orgao, cargo: existing.cargo },
+    { ...discovery, title: "Retificação do Edital 01/2026" },
+    {
+      title: "Retificação do Edital 01/2026",
+      text: "Retificação do edital. Cargo: Agente Administrativo. O cronograma original informava inscrições encerradas em 10/11/2026."
+    }
+  );
+  assert.equal(result.updated, false);
+  assert.equal(existing.status, "Edital publicado · inscrições abertas");
+});
+
+test("não altera quantidade de vagas por menção isolada sem indicar valor corrigido", () => {
+  const existing = {
+    orgao: "Prefeitura Municipal de Igaci",
+    cargo: "Agente Administrativo",
+    vagas: 20,
+    status: "Edital publicado · inscrições abertas",
+    historicoAtualizacoes: []
+  };
+  const result = buildRetificationUpdate(
+    existing,
+    { orgao: existing.orgao, cargo: existing.cargo },
+    { ...discovery, title: "Retificação do Edital 01/2026" },
+    {
+      title: "Retificação do Edital 01/2026",
+      text: "Retificação do edital. Cargo: Agente Administrativo. O documento menciona 30 vagas em caráter informativo, sem indicar alteração do quantitativo."
+    }
+  );
+  assert.equal(result.updated, false);
+  assert.equal(existing.vagas, 20);
 });
