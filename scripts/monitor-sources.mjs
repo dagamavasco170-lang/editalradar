@@ -257,6 +257,31 @@ export function fingerprintContent(content, contentType = "text/html") {
   return createHash("sha256").update(stableContent).digest("hex");
 }
 
+export function validateSourcePayload(bytes, declaredContentType = "") {
+  const payload = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes || []);
+  if (payload.byteLength === 0) throw new Error("Resposta vazia: a fonte não pode atualizar a linha de base.");
+  if (payload.byteLength > MAX_BYTES) throw new Error("Resposta excede o limite de 12 MB.");
+
+  const contentType = String(declaredContentType || "").split(";")[0].trim().toLowerCase();
+  const isPdf = payload.byteLength >= 5 && new TextDecoder("ascii").decode(payload.subarray(0, 5)) === "%PDF-";
+  if (isPdf) return { kind: "pdf", content: payload, contentType: "application/pdf" };
+  if (contentType.includes("pdf")) throw new Error("A resposta foi declarada como PDF, mas não possui assinatura PDF válida.");
+
+  const text = new TextDecoder("utf-8", { fatal: false }).decode(payload).replace(/^\uFEFF/, "").trim();
+  const looksLikeHtml = /^(?:<!doctype\s+html|<html\b|<\?xml[\s\S]*?<html\b)/i.test(text)
+    || /(?:text\/html|application\/xhtml\+xml)/i.test(contentType);
+  if (looksLikeHtml) {
+    const normalized = normalizeHtml(text);
+    if (normalized.length < 30) throw new Error("HTML vazio ou sem conteúdo textual suficiente; linha de base preservada.");
+    const challenge = /just a moment|attention required|checking your browser|verify you are human|access denied|request blocked|captcha|cf-chl-/i.test(text);
+    const hasContestContext = /edital|concurso|certame|processo seletivo|inscriç|inscric|vagas|retificaç|retificac/i.test(normalized);
+    if (challenge && !hasContestContext) throw new Error("Resposta parece ser página de bloqueio, CAPTCHA ou desafio anti-bot; linha de base preservada.");
+    return { kind: "html", content: text, contentType: contentType || "text/html" };
+  }
+  if (contentType.startsWith("text/") && text.length > 0) return { kind: "text", content: text, contentType };
+  throw new Error("Tipo de conteúdo não reconhecido como HTML, texto ou PDF válido; linha de base preservada.");
+}
+
 function decodeHtmlText(value) {
   return String(value)
     .replace(/<[^>]*>/g, " ")
@@ -409,15 +434,18 @@ async function fetchSource(url) {
     throw error;
   }
 
-  const contentType = response.headers.get("content-type") || "application/octet-stream";
-  const contentLength = Number(response.headers.get("content-length") || 0);
-  if (contentLength > MAX_BYTES) throw new Error("Resposta excede o limite de 12 MB.");
+  const declaredContentType = response.headers.get("content-type") || "";
+  const contentLengthHeader = response.headers.get("content-length");
+  const contentLength = contentLengthHeader === null ? null : Number(contentLengthHeader);
+  if (contentLength !== null && (!Number.isFinite(contentLength) || contentLength < 0)) {
+    throw new Error("Cabeçalho Content-Length inválido; linha de base preservada.");
+  }
+  if (contentLength !== null && contentLength > MAX_BYTES) throw new Error("Resposta excede o limite de 12 MB.");
   const bytes = new Uint8Array(await response.arrayBuffer());
-  if (bytes.byteLength > MAX_BYTES) throw new Error("Resposta excede o limite de 12 MB.");
-  const content = /html|text\//i.test(contentType) ? new TextDecoder("utf-8").decode(bytes) : bytes;
-  const opportunityLinks = /html/i.test(contentType)
-    ? extractOpportunityLinks(content, finalUrl)
-    : [];
+  const validated = validateSourcePayload(bytes, declaredContentType);
+  const content = validated.content;
+  const contentType = validated.contentType;
+  const opportunityLinks = validated.kind === "html" ? extractOpportunityLinks(content, finalUrl) : [];
 
   return {
     ok: true,
@@ -1120,6 +1148,9 @@ export function summarizeSourceChecks({
 
 async function runMonitor() {
   const urls = collectSourceUrls();
+  if (urls.length === 0) {
+    throw new Error("Nenhuma URL oficial válida foi encontrada; histórico de fingerprints não será alterado.");
+  }
   await mkdir(dirname(resolve(STATE_PATH)), { recursive: true });
   let oldState = { version: 1, sources: {} };
   try {
