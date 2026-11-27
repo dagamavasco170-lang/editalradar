@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { questionBank } from "./lib/question-bank.js";
+import { questionBank } from "./lib/question-bank.ts";
 import { loadQuestionProgress, mergeQuestionProgress, saveQuestionProgress } from "./lib/question-progress.ts";
 import { buildQuestionBankView } from "./lib/question-bank-view.js";
 import { buildQuestionProgressMetrics } from "./lib/question-progress-metrics.ts";
