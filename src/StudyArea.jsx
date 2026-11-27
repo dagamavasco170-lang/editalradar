@@ -5,7 +5,7 @@ import { buildQuestionProgressMetrics } from "./lib/question-progress-metrics.ts
 import { buildStudyRecommendations } from "./lib/study-recommendations.ts";
 import { buildTopicMastery, buildWeeklyStudyProgress } from "./lib/topic-mastery.ts";
 import { buildAdaptiveStudySessions, buildDailyAdaptiveGoals } from "./lib/adaptive-study-plan.ts";
-import { buildTutorSignals, buildAdaptiveQuestionPlan, buildAdaptiveTutorFeedback } from "./lib/tutor-intelligence.js";
+import { buildTutorSignals, buildAdaptiveQuestionPlan, buildAdaptiveTutorFeedback } from "./lib/tutor-intelligence.ts";
 import { buildAdaptiveQuestionQueue } from "./lib/adaptive-question-queue.js";
 import { buildConfusionPatterns, buildPersonalizedRecoveryAdvice, buildMisconceptionDiagnosis } from "./lib/tutor-intelligence.js";
 import { buildGeneratedPractice, evaluateGeneratedReasoning, loadConceptMastery, saveConceptMastery, mergeConceptMastery } from "./lib/tutor-generated-practice.js";
