@@ -75,8 +75,9 @@ export const getRecommendationReasons = (item, profile = {}) => {
   return [
     match.areaMatches && "Área de interesse",
     match.educationMatches && "Escolaridade",
-    match.stateMatches && "Estado/local",
-    match.cityMatches && "Cidade/local",
+    match.national && "Abrangência nacional",
+    !match.national && match.stateMatches && "Estado/local",
+    !match.national && match.cityMatches && "Cidade/local",
     match.active && "Oportunidade ativa"
   ].filter(Boolean);
 };
