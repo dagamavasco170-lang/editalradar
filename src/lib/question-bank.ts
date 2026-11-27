@@ -5,7 +5,6 @@ export {
   mergeQuestionProgress,
   normalizeQuestionProgress,
   loadQuestionProgress,
-  saveQuestionProgress,
   questionProgressStorageKey,
 } from "./question-progress.ts";
 
