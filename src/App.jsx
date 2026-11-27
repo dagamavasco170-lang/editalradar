@@ -4,7 +4,7 @@ import { safeGetItem, safeSetItem } from "./lib/storage.js";
 import { concursos, sourceUrl, sourceUpdated, fetchedAt } from "./data/concursos";
 import { detectCatalogNotifications, dismissNotificationById, dismissNotificationHistory, getVisibleNotifications, mergeNotificationHistory } from "./lib/notifications";
 import { applyCatalogOverrides } from "./lib/catalog";
-import { matchesContestCatalogFilters, isPreliminaryContest } from "./lib/catalog-filters.js";
+import { matchesContestCatalogFilters, isPreliminaryContest } from "./lib/catalog-filters.ts";
 import { isTrustedOfficialUrl, officialSourceLabel, parseHttpsUrl } from "./lib/official-sources.js";
 import { getUpcomingMilestones } from "./lib/dashboard";
 import { classifyRecommendationPriority } from "./lib/recommendation-priority.js";
