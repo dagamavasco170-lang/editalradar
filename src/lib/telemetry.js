@@ -25,12 +25,38 @@ function getClientId() {
 }
 
 function safeText(value, limit = 1000) {
-  if (value instanceof Error) return value.message || value.name;
-  try {
-    return typeof value === "string" ? value : JSON.stringify(value);
-  } catch {
-    return String(value);
+  let text;
+  if (value instanceof Error) text = value.message || value.name;
+  else {
+    try {
+      text = typeof value === "string" ? value : JSON.stringify(value);
+    } catch {
+      text = String(value);
+    }
   }
+  return String(text ?? "")
+    .replace(/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/g, "[email]")
+    .replace(/Bearer\s+[A-Za-z0-9._~-]+/gi, "Bearer [redacted]")
+    .replace(/(token|password|secret|apikey|api_key|authorization|private_key)\s*[:=]\s*[^\s,;]+/gi, "$1=[redacted]")
+    .replace(/https?:\/\/[^\s<>"']+/gi, (value) => {
+      try {
+        const url = new URL(value);
+        return url.origin;
+      } catch {
+        return "[url]";
+      }
+    })
+    .replace(/\b[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\b/g, "[jwt]")
+    .replace(/\b(?:[A-Fa-f0-9_-]{32,})\b/g, "[token]")
+    .slice(0, limit);
+}
+export function sanitizePagePath(value) {
+  if (typeof value !== "string" || !value.startsWith("/")) return "";
+  return value.split("/").map((segment) => {
+    if (!segment) return "";
+    if (/^[0-9]+$/.test(segment) || /^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(segment) || /^[A-Za-z0-9_-]{24,}$/.test(segment)) return ":id";
+    return segment.slice(0, 80);
+  }).join("/").slice(0, 180);
 }
 
 export function createDiagnosticEntry({ level = "error", event = "client_error", message = "", stack = "" } = {}) {
@@ -43,7 +69,7 @@ export function createDiagnosticEntry({ level = "error", event = "client_error",
     platform: isNative ? "android" : "web",
     app_version: isNative ? "android-webview" : "web",
     app_commit: typeof __EDITALRADAR_COMMIT__ !== "undefined" ? __EDITALRADAR_COMMIT__ : "",
-    page: typeof location !== "undefined" ? `${location.pathname}`.slice(0, 180) : "",
+    page: typeof location !== "undefined" ? sanitizePagePath(location.pathname) : "",
   };
 }
 
