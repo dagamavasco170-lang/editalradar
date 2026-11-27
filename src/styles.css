@@ -4132,6 +4132,30 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{ou
 .adaptive-reflection-confirmation{display:grid;gap:8px}
 
 
+/* Advanced performance report */
+.performance-report-panel{display:grid;gap:14px;margin:16px 0;padding:16px;border:1px solid var(--border,#e5e7eb);border-radius:14px;background:var(--surface-soft,#f8fafc)}
+.performance-report-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.performance-report-heading p{margin:5px 0 0;color:var(--text-muted,#64748b);font-size:.84rem;line-height:1.5}
+.performance-report-heading>span{white-space:nowrap;font-size:.78rem;font-weight:700;color:var(--primary,#3478c4)}
+.performance-report-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}
+.performance-report-summary>div{display:grid;gap:4px;padding:11px;border:1px solid var(--border,#e5e7eb);border-radius:10px;background:var(--surface,#fff)}
+.performance-report-summary strong{font-size:1.25rem;font-variant-numeric:tabular-nums}
+.performance-report-summary small{font-size:.72rem;color:var(--text-muted,#64748b)}
+.performance-report-columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.performance-report-columns>div>strong,.performance-report-trend>strong{display:block;margin-bottom:7px;font-size:.88rem}
+.performance-report-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:9px 0;border-top:1px solid var(--border,#e5e7eb)}
+.performance-report-row>span{display:grid;gap:3px;font-size:.84rem}
+.performance-report-row small{font-size:.72rem;color:var(--text-muted,#64748b)}
+.performance-report-row b{font-size:.86rem;font-variant-numeric:tabular-nums}
+.performance-report-trend>div{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:9px;align-items:end;padding-top:6px}
+.performance-report-trend>div>span{display:grid;justify-items:center;gap:4px;min-width:0}
+.performance-report-trend i{display:block;width:min(100%,28px);height:54px;min-height:0;align-self:end;border-radius:6px 6px 2px 2px;background:var(--primary,#3478c4)}
+.performance-report-trend small,.performance-report-trend em{font-size:.68rem;color:var(--text-muted,#64748b);font-style:normal}
+.performance-report-trend em{font-weight:700;color:var(--text,#334155)}
+.performance-report-recommendation{margin:0;padding:11px 12px;border-left:3px solid var(--primary,#3478c4);border-radius:0 8px 8px 0;background:var(--surface,#fff);font-size:.82rem;line-height:1.5}
+@media(max-width:640px){.performance-report-heading{flex-direction:column}.performance-report-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.performance-report-columns{grid-template-columns:1fr}.performance-report-trend>div{gap:4px}}
+
+
 /* Dashboard de oportunidades — legibilidade, hierarquia e adaptação mobile. */
 .candidate-dashboard .dashboard-milestones,
 .candidate-dashboard .dashboard-focus{

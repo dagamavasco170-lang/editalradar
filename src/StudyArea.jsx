@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { loadQuestionProgress, mergeQuestionProgress, questionBank, questionProgressStorageKey } from "./lib/question-bank.js";
 import { buildQuestionBankView } from "./lib/question-bank-view.js";
 import { buildQuestionProgressMetrics } from "./lib/question-progress-metrics.js";
+import { buildPerformanceReport } from "./lib/performance-report.js";
 import { buildStudyRecommendations } from "./lib/study-recommendations.js";
 import { buildTopicMastery, buildWeeklyStudyProgress } from "./lib/topic-mastery.js";
 import { buildAdaptiveStudySessions, buildDailyAdaptiveGoals } from "./lib/adaptive-study-plan.js";
@@ -267,6 +268,7 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
   return answeredIds.size;
  },[filtered,questionProgress.attempts]);
  const progressMetrics=useMemo(()=>buildQuestionProgressMetrics({attempts:questionProgress.attempts,questions:allQuestions}),[questionProgress.attempts,allQuestions]);
+ const performanceReport=useMemo(()=>buildPerformanceReport({attempts:questionProgress.attempts,questions:allQuestions}),[questionProgress.attempts,allQuestions]);
  const {totalAttempts,totalCorrect,accuracy,uniqueAnswered}=progressMetrics;
  const adaptiveQuestionPlan=useMemo(()=>buildAdaptiveQuestionPlan({questions:allQuestions,latestAttempts}),[allQuestions,latestAttempts]);
  const recoveryQueue=useMemo(()=>buildAdaptiveQuestionQueue({questions:allQuestions,latestAttempts,attempts:questionProgress.attempts}),[allQuestions,latestAttempts,questionProgress.attempts]);
@@ -428,6 +430,21 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
     <div className="question-stat"><strong>{totalAttempts}</strong><span>tentativas registradas</span></div>
     <div className="question-stat"><strong>{accuracy}%</strong><span>taxa de acerto</span></div>
    </div>
+   <section className="performance-report-panel" aria-label="Relatório avançado de desempenho">
+    <div className="performance-report-heading"><div><strong>Relatório de desempenho</strong><p>Seu domínio por assunto considera a resposta mais recente de cada questão, evitando distorções por tentativas repetidas.</p></div><span>{performanceReport.summary.coverage}% de cobertura</span></div>
+    <div className="performance-report-summary">
+     <div><strong>{performanceReport.summary.answered}</strong><small>questões com resposta</small></div>
+     <div><strong>{performanceReport.summary.accuracy}%</strong><small>acerto atual</small></div>
+     <div><strong>{performanceReport.summary.weakTopics}</strong><small>assuntos para reforçar</small></div>
+     <div><strong>{performanceReport.summary.strongTopics}</strong><small>assuntos consolidados</small></div>
+    </div>
+    <div className="performance-report-columns">
+     <div><strong>Assuntos que precisam de atenção</strong>{performanceReport.weakTopics.length?performanceReport.weakTopics.slice(0,5).map(item=><div className="performance-report-row" key={item.key}><span>{item.topic}<small>{item.discipline} · {item.answered} questão(ões) · {item.wrong} erro(s)</small></span><b>{item.accuracy}%</b></div>):<p className="muted">Responda mais questões para identificar pontos fracos.</p>}</div>
+     <div><strong>Assuntos com melhor domínio</strong>{performanceReport.strongestTopics.length?performanceReport.strongestTopics.slice(0,5).map(item=><div className="performance-report-row" key={item.key}><span>{item.topic}<small>{item.discipline} · {item.answered} questão(ões)</small></span><b>{item.accuracy}%</b></div>):<p className="muted">Ainda não há dados suficientes para destacar assuntos consolidados.</p>}</div>
+    </div>
+    <div className="performance-report-trend"><strong>Evolução dos últimos 7 dias</strong><div>{performanceReport.trend.map(day=><span key={day.date} title={day.attempts+" tentativa(s), "+day.accuracy+"% de acerto"}><i style={{height:(day.attempts?Math.max(8,day.attempts/performanceReport.trendMax*100):0)+"%"}}/><small>{day.label}</small><em>{day.attempts}</em></span>)}</div></div>
+    <p className="performance-report-recommendation">{performanceReport.recommendation}</p>
+   </section>
    {progressMetrics.byDiscipline.length>0&&<div className="question-discipline-metrics" aria-label="Desempenho por disciplina"><strong>Desempenho por disciplina</strong>{progressMetrics.byDiscipline.slice(0,4).map(row=><div className="question-discipline-row" key={row.discipline}><span>{row.discipline}</span><span>{row.correct}/{row.attempts} · {row.accuracy}%</span><div className="question-discipline-track"><i style={{width:row.accuracy+"%"}}/></div></div>)}</div>}
    <div className="tutor-readiness-panel" aria-label="Indicador de prontidão para prova">
     <div className="tutor-readiness-head"><div><strong>Tutor adaptativo · preparação para prova</strong><p>Estimativa de evolução baseada em desempenho, cobertura de assuntos, consistência e simulados.</p></div><div className="tutor-readiness-score"><strong>{tutorSignals.readiness}%</strong><small>prontidão estimada</small></div></div>
