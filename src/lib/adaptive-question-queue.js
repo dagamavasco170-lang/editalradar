@@ -21,7 +21,9 @@ export function buildAdaptiveQuestionQueue({questions=[],latestAttempts={},attem
    const aWrong=latestAttempts[a.id]?.correct===false?1:0;
    const bWrong=latestAttempts[b.id]?.correct===false?1:0;
    const pa=priorityFor(a.id),pb=priorityFor(b.id);
-   return bWrong-aWrong||pb.due-pa||pa.accuracy-pb.accuracy||pb.wrong-pa.wrong||b.score-a.score||order.get(a.id)-order.get(b.id);
+   if(bWrong!==aWrong)return bWrong-aWrong;
+   if(aWrong&&bWrong)return order.get(a.id)-order.get(b.id);
+   return pb.due-pa.due||pa.accuracy-pb.accuracy||pb.wrong-pa.wrong||b.score-a.score||order.get(a.id)-order.get(b.id);
   })
   .map(row=>row.id);
 }
