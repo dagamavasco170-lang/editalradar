@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { QuestionBankItem } from "../types/question-bank.js";
 import { isQuestionBankItem, normalizeQuestionBank, normalizeQuestionOptions } from "./question-bank-contract.ts";
 
 const validQuestion = {
@@ -19,7 +20,7 @@ describe("question bank runtime contracts", () => {
   });
 
   it("normalizes tuple and object options to label/value records", () => {
-    expect(normalizeQuestionOptions([["Yes", "y"], { label: "No", value: "n" }])).toEqual([
+    expect(normalizeQuestionOptions([["Yes", "y"], { label: "No", value: "n" }] as QuestionBankItem["options"])).toEqual([
       { label: "Yes", value: "y" }, { label: "No", value: "n" },
     ]);
   });
