@@ -8,6 +8,14 @@ const normalizeSearch = (value) => String(value || "")
   .replace(/\s+/g, " ")
   .trim();
 
+const difficultyRank = (value) => {
+  const normalized = normalizeSearch(value);
+  if (normalized.includes("avanc") || normalized.includes("dific")) return 3;
+  if (normalized.includes("intermedi") || normalized.includes("medio")) return 2;
+  if (normalized.includes("fac")) return 1;
+  return 0;
+};
+
 export function buildQuestionBankView({
   questions = [],
   discipline = "Todas",
@@ -18,6 +26,7 @@ export function buildQuestionBankView({
   originFilter = "Todas",
   questionSearch = "",
   collection = "all",
+  sortBy = "original",
   latestAttempts = {},
   savedQuestions = new Set(),
   attempts = []
@@ -43,7 +52,9 @@ export function buildQuestionBankView({
       && searchTerms.every((term) => searchableText.includes(term));
   });
 
-  const adaptiveIds = new Set(buildAdaptiveQuestionQueue({ questions: base, latestAttempts }));
+  const adaptiveQueue = buildAdaptiveQuestionQueue({ questions: base, latestAttempts, attempts });
+  const adaptiveIds = new Set(adaptiveQueue);
+  const adaptiveRank = new Map(adaptiveQueue.map((id, index) => [String(id), index]));
   const dueTopicIds = new Set(buildTopicMastery({ questions: base, attempts }).filter((topicRow) => topicRow.due).flatMap((topicRow) => topicRow.questionIds));
   const counts = {
     adaptive: adaptiveIds.size,
@@ -61,5 +72,31 @@ export function buildQuestionBankView({
     if (collection === "due") return dueTopicIds.has(String(question.id));
     return true;
   });
+
+  const originalOrder = new Map(filtered.map((question, index) => [String(question.id), index]));
+  const compareOriginal = (a, b) => originalOrder.get(String(a.id)) - originalOrder.get(String(b.id));
+  if (sortBy === "recent") {
+    filtered.sort((a, b) => (Number(b.examYear) || 0) - (Number(a.examYear) || 0) || compareOriginal(a, b));
+  } else if (sortBy === "difficulty") {
+    filtered.sort((a, b) => difficultyRank(b.difficulty) - difficultyRank(a.difficulty) || compareOriginal(a, b));
+  } else if (sortBy === "alphabetical") {
+    filtered.sort((a, b) => String(a.topic || a.prompt || "").localeCompare(String(b.topic || b.prompt || ""), "pt-BR") || compareOriginal(a, b));
+  } else if (sortBy === "least-mastered") {
+    filtered.sort((a, b) => {
+      const aRank = adaptiveRank.get(String(a.id));
+      const bRank = adaptiveRank.get(String(b.id));
+      if (aRank !== undefined || bRank !== undefined) {
+        if (aRank === undefined) return 1;
+        if (bRank === undefined) return -1;
+        if (aRank !== bRank) return aRank - bRank;
+      }
+      const aWrong = latestAttempts[a.id]?.correct === false ? 1 : 0;
+      const bWrong = latestAttempts[b.id]?.correct === false ? 1 : 0;
+      if (aWrong !== bWrong) return bWrong - aWrong;
+      const aDue = dueTopicIds.has(String(a.id)) ? 1 : 0;
+      const bDue = dueTopicIds.has(String(b.id)) ? 1 : 0;
+      return bDue - aDue || compareOriginal(a, b);
+    });
+  }
   return { base, counts, filtered };
 }

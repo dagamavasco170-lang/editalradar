@@ -74,3 +74,30 @@ describe("visão do banco de questões", () => {
     expect(view.filtered.map(question => question.id)).toEqual(["legacy"]);
   });
 });
+
+  it("ordena por ano mais recente, dificuldade e assunto em ordem alfabética", () => {
+    const dated = [
+      { ...questions[0], id: "old", examYear: 2021, topic: "Zebra", difficulty: "Fácil" },
+      { ...questions[1], id: "new", examYear: 2025, topic: "Álgebra", difficulty: "Avançada" },
+      { ...questions[2], id: "mid", examYear: 2023, topic: "Regência", difficulty: "Intermediária" }
+    ];
+    expect(buildQuestionBankView({ questions: dated, sortBy: "recent" }).filtered.map(q => q.id)).toEqual(["new", "mid", "old"]);
+    expect(buildQuestionBankView({ questions: dated, sortBy: "difficulty" }).filtered.map(q => q.id)).toEqual(["new", "mid", "old"]);
+    expect(buildQuestionBankView({ questions: dated, sortBy: "alphabetical" }).filtered.map(q => q.id)).toEqual(["new", "mid", "old"]);
+  });
+
+  it("ordena por menor domínio priorizando erros antes das questões ainda não respondidas", () => {
+    const rows = [
+      { ...questions[0], id: "correct", topic: "Concordância" },
+      { ...questions[1], id: "wrong", topic: "Direitos" },
+      { ...questions[2], id: "new", topic: "Crase" }
+    ];
+    const view = buildQuestionBankView({
+      questions: rows,
+      sortBy: "least-mastered",
+      latestAttempts: { correct: { correct: true, at: "2026-11-25T10:00:00Z" }, wrong: { correct: false, at: "2026-11-26T10:00:00Z" } },
+      attempts: [{ questionId: "correct", correct: true, at: "2026-11-25T10:00:00Z" }, { questionId: "wrong", correct: false, at: "2026-11-26T10:00:00Z" }]
+    });
+    expect(view.filtered[0].id).toBe("wrong");
+    expect(view.filtered.at(-1).id).toBe("correct");
+  });
