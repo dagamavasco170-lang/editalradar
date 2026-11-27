@@ -92,4 +92,18 @@ describe("compatibilidade das recomendações do catálogo", () => {
     expect(getRecommendationReasons(item, profile)).not.toContain("Cidade/local");
   });
 
+
+  it("considera o campo singular de área e evita falso positivo por agente administrativo", () => {
+    const administrativeProfile = { interest_area: "administrativa" };
+    expect(getRecommendationMatch({ area: "Gestão pública" }, administrativeProfile).areaMatches).toBe(true);
+    expect(getRecommendationMatch({ cargo: "Agente Administrativo" }, { interest_area: "policial" }).areaMatches).toBe(false);
+  });
+
+  it("reconhece cargos específicos de segurança pública", () => {
+    expect(getRecommendationMatch(
+      { cargo: "Agente Penitenciário" },
+      { interest_area: "policial" }
+    ).areaMatches).toBe(true);
+  });
+
 });
