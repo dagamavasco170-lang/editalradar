@@ -22,7 +22,7 @@ const normalizeState = (value) => {
 
 const AREA_KEYWORDS = {
   administrativa: ["administr", "assistente administrativo", "gestao publica", "recursos humanos", "protocolo"],
-  policial: ["policia", "policial", "seguranca publica", "agente", "investigador", "delegado", "perito criminal"],
+  policial: ["policia", "policial", "seguranca publica", "agente policial", "agente penitenciario", "agente socioeducativo", "investigador", "delegado", "perito criminal"],
   tribunais: ["tribunal", "judici", "justica", "analista judiciario", "tecnico judiciario"],
   "fiscal e controle": ["auditor", "fiscal", "receita", "controle", "tribut", "cgu", "tcu"],
   bancaria: ["banco", "bancario", "bacen", "central", "caixa economica"],
@@ -33,7 +33,7 @@ const AREA_KEYWORDS = {
 };
 
 const getAreaText = (item = {}) => normalize([
-  item.cargo, item.orgao, item.especialidade, item.observacao, item.banca,
+  item.cargo, item.orgao, item.area, item.especialidade, item.observacao, item.banca,
   ...(Array.isArray(item.areas) ? item.areas : [])
 ].filter(Boolean).join(" "));
 
