@@ -9,6 +9,7 @@ import { isTrustedOfficialUrl, officialSourceLabel, parseHttpsUrl } from "./lib/
 import { getUpcomingMilestones } from "./lib/dashboard";
 import { classifyRecommendationPriority } from "./lib/recommendation-priority.js";
 import { scoreRecommendation, getRecommendationReasons } from "./lib/recommendation-matching.js";
+export { scoreRecommendation, getRecommendationReasons } from "./lib/recommendation-matching.js";
 import { parseBrazilianNumber } from "./lib/brazilian-numbers.js";
 import { buildCsv } from "./lib/csv-export.js";
 import { buildContestChangeHistory, describeContestHistoryEntry, formatContestHistoryDate } from "./lib/admin-history.js";
