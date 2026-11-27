@@ -1,0 +1,9 @@
+-- Reconciliation note for migration 20261127172137_revoke_public_net_pgnet_access.
+-- pg_net objects are owned by supabase_admin on managed Supabase projects.
+-- REVOKE from postgres cannot remove supabase_admin's default PUBLIC grants; it is
+-- ineffective and emits a warning that SQL Editor may hide. See official guidance:
+-- https://supabase.com/kb/troubleshooting/revoking-access-to-pg_net-objects-has-no-effect-0bbc16
+-- The net schema is not exposed through the Data API by default. Do not attempt
+-- to drop/recreate pg_net solely to silence this finding without a controlled
+-- plan for dependent push workers, pg_cron jobs, and retained response records.
+-- This migration is intentionally a no-op; its production ledger entry exists.
