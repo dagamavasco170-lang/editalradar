@@ -1,5 +1,5 @@
 import { buildAdaptiveQuestionQueue } from "./adaptive-question-queue.js";
-import { buildTopicMastery } from "./topic-mastery.js";
+import { buildTopicMastery } from "./topic-mastery.ts";
 
 const normalizeSearch = (value) => String(value || "")
   .normalize("NFD")
