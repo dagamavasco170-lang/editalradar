@@ -389,6 +389,23 @@ test("auto-publication gate accepts OCR only when the caller confirms high confi
   assert.equal(result.checks.textSpacingValid, true);
 });
 
+test("auto-publication gate preserves valid Portuguese morphology instead of treating it as concatenation", () => {
+  const question = {
+    prompt: "A banca examinadora e a equipe administradora revisaram cuidadosamente a questão jurídica e consideraram a análise suficientemente clara para publicação oficial.",
+    options: [
+      { id: "a", text: "A avaliação foi realizada por equipe técnica habilitada e devidamente responsável." },
+      { id: "b", text: "A avaliação foi realizada sem equipe responsável ou critérios definidos." },
+      { id: "c", text: "A avaliação dispensou qualquer conferência e análise dos documentos." },
+      { id: "d", text: "A avaliação foi substituída por decisão sem fundamentação administrativa." }
+    ],
+    ocr_used: false,
+    review_notes: "Extração automática estruturada."
+  };
+  const result = validateQuestionForAutoPublication(question, "a", "multiple_choice");
+  assert.equal(result.approved, true, result.reasons.join("; "));
+  assert.equal(result.checks.textSpacingValid, true);
+});
+
 test("auto-publication gate blocks text with joined words even when options and key are valid", () => {
   const question = {
     prompt: "Oácidofosfórico(H3PO4)podeserobtido principalmente pormeio de dois processos industriais, sendo o processo úmido o mais utilizado no mundo. Ele consiste nareação darochafática (Ca3(PO4)2) moída com o ácido sulfúrico (H2SO4) concentrado. Como subproduto dessa reação exotérmica, forma-seo sulfato decálcio di-hidratado (CaSO4.2H2O) que, posteriormente, é separado por filtração.",
