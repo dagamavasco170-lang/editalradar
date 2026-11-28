@@ -13,10 +13,21 @@ export type ValidationResult = { valid: boolean; issues: string[] };
 export const PT_BR_DICTIONARY_SNAPSHOT = "93ba2a6f3b2f85262fba72df09d448c6bb2fa50a";
 const PT_BR_DICTIONARY_URLS = [
   `https://raw.githubusercontent.com/fserb/pt-br/${PT_BR_DICTIONARY_SNAPSHOT}/lexico`,
-  `https://raw.githubusercontent.com/fserb/pt-br/${PT_BR_DICTIONARY_SNAPSHOT}/conjuga%C3%A7%C3%B5es`
+  `https://raw.githubusercontent.com/fserb/pt-br/${PT_BR_DICTIONARY_SNAPSHOT}/conjuga%C3%A7%C3%B5es`,
+  `https://raw.githubusercontent.com/fserb/pt-br/${PT_BR_DICTIONARY_SNAPSHOT}/listas/municipios-br`
 ];
 let portugueseLexiconPromise: Promise<Set<string>> | null = null;
-const PORTUGUESE_DOMAIN_WORDS = new Set(["custodiado", "custodiada", "custodiados", "custodiadas"]);
+const PORTUGUESE_DOMAIN_WORDS = new Set([
+    "custodiado", "custodiada", "custodiados", "custodiadas",
+    "multiversão", "retrocompatibilidade", "autoidentificação", "odontolegal",
+    "autolesão", "cacheamento", "quiritariedade", "service"
+  ]);
+const PORTUGUESE_SHORT_JOIN_WORDS = new Set([
+  "a", "à", "o", "e", "as", "os", "de", "do", "da", "dos", "das", "em", "no", "na",
+  "nos", "nas", "ao", "aos", "se", "me", "te", "lhe", "lhes", "um", "uma", "uns", "umas",
+  "que", "por", "para", "pelo", "pela", "pelos", "pelas", "com", "sem", "sob", "sobre",
+  "entre", "após", "antes", "num", "numa", "nuns", "numas", "foi"
+]);
 const PORTUGUESE_FUNCTION_WORDS = new Set([
   "a", "à", "o", "e", "as", "os", "de", "do", "da", "dos", "das", "em", "no", "na",
   "nos", "nas", "ao", "aos", "se", "me", "te", "lhe", "lhes", "um", "uma", "uns", "umas",
@@ -72,7 +83,16 @@ function portugueseDictionaryHasWord(value: string, lexicon: Set<string>): boole
     if (word.endsWith(ending)) variants.push(word.slice(0, -ending.length) + replacement);
   }
 
-  if (word.endsWith("mente")) variants.push(word.slice(0, -5));
+  if (word.endsWith("mente")) {
+    const root = word.slice(0, -5);
+    variants.push(root);
+    if (root.endsWith("ada")) variants.push(root.slice(0, -3) + "ado");
+    if (root.endsWith("ida")) variants.push(root.slice(0, -3) + "ido");
+    if (root.endsWith("osa")) variants.push(root.slice(0, -3) + "oso");
+    if (root.endsWith("ica")) variants.push(root.slice(0, -3) + "ico");
+  }
+  if (word.endsWith("eia")) variants.push(word.slice(0, -3) + "eu");
+  if (word.endsWith("a")) variants.push(word.slice(0, -1) + "o");
   if (word.endsWith("idades")) variants.push(word.slice(0, -1));
   if (word.endsWith("idade")) variants.push(word.slice(0, -5));
   if (word.endsWith("ções")) variants.push(word.slice(0, -3) + "ção");
@@ -124,10 +144,12 @@ export function findPortugueseConcatenatedWords(value: unknown, lexicon: Set<str
     return paths[word.length].some(parts => {
       const contentWords = parts.filter(part => !PORTUGUESE_FUNCTION_WORDS.has(part));
       const allContentWordsLookComplete = contentWords.every(part => part.length >= 4);
-      return allContentWordsLookComplete && (
-        contentWords.length >= 2
-        || (word.length <= 12 && contentWords.length >= 1 && PORTUGUESE_FUNCTION_WORDS.has(parts[0]))
-      );
+      const hasShortFunctionWord = parts.some(part => PORTUGUESE_SHORT_JOIN_WORDS.has(part));
+      const longJoin = word.length >= 14 && allContentWordsLookComplete
+        && contentWords.length >= 2 && hasShortFunctionWord;
+      const shortJoin = word.length <= 13 && parts.length <= 3
+        && contentWords.length === 1 && contentWords[0].length >= 4 && hasShortFunctionWord;
+      return longJoin || shortJoin;
     });
   });
 }
