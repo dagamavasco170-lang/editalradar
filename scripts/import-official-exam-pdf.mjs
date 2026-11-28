@@ -16,6 +16,15 @@ const RIGHTS_BASES = new Set([
   "official_publication", "public_domain", "permission_granted", "cc_by", "cc_by_sa", "other_reviewed"
 ]);
 
+export function formatChemicalFormulaText(value) {
+  const subscript = digits => String(digits).replace(/[0-9]/g, digit => "₀₁₂₃₄₅₆₇₈₉"[Number(digit)]);
+  return String(value ?? "")
+    .replace(/([A-Z][a-z]?)(\d+)|\)(\d+)/g, (match, element, elementCount, groupCount) =>
+      element ? element + subscript(elementCount) : ")" + subscript(groupCount)
+    )
+    .replace(/(?<=[A-Za-z0-9₀-₉])\.(?=\d+[A-Z])/g, "·");
+}
+
 export function normalizeQuestionText(value) {
   return String(value ?? "")
     .normalize("NFKC")
@@ -25,6 +34,74 @@ export function normalizeQuestionText(value) {
     .replace(/[^\p{L}\p{N}]+/gu, " ")
     .trim()
     .replace(/\s+/g, " ");
+}
+
+export function measureTextSpacing(value) {
+  const text = String(value ?? "").normalize("NFC");
+  const words = text.match(/\p{L}+/gu) || [];
+  const letterCount = (text.match(/\p{L}/gu) || []).length;
+  const spaceCount = (text.match(/\s/gu) || []).length;
+  const lengths = words.map(word => [...word].length);
+  const longWordCount = lengths.filter(length => length >= 18).length;
+  const veryLongWordCount = lengths.filter(length => length >= 28).length;
+  const averageWordLength = words.length ? letterCount / words.length : 0;
+  const spaceRatio = letterCount ? spaceCount / letterCount : 0;
+  const joinedWordMarkers = words.filter(word => {
+    const fusedConnective = /^(?:pormeio|pormeiode)$/iu.test(word);
+    if (([...word].length < 8 && !fusedConnective) || [...word].length >= 28) return false;
+    const fusedLeadingWord = /^(?:que|ele|ela|foi|teria|uma|dos|das|por|da)\p{L}{4,}$/iu.test(word);
+    const fusedMiddleWord = /^\p{L}{8,}(?:por|com|sem|para|que|dos|das)\p{L}{3,}$/iu.test(word);
+    const fusedVerb = /^(?:pode|podem|deve|devem|teria|teriam|foi|foram|será|serao|está|estao)(?:ser|estar|ter|haver|sido|obtido|realizado|aplicado|utilizado|considerado)\p{L}*$/iu.test(word);
+    const fusedClause = /^(?:consiste|consistem)(?:na|no|em|de|do|da)\p{L}{4,}$/iu.test(word);
+    return fusedLeadingWord || fusedMiddleWord || fusedVerb || fusedClause || fusedConnective;
+  }).length;
+  return { letterCount, wordCount: words.length, spaceCount, spaceRatio, averageWordLength, longWordCount, veryLongWordCount, joinedWordMarkers };
+}
+
+export function parseTesseractTsv(tsv) {
+  const lines = new Map();
+  const confidences = [];
+  for (const rawLine of String(tsv || "").split(/\r?\n/).slice(1)) {
+    const columns = rawLine.split("\t");
+    if (columns.length < 12 || columns[0] !== "5") continue;
+    const confidence = Number(columns[10]);
+    const word = String(columns.slice(11).join("\t") || "").trim();
+    if (!word || !Number.isFinite(confidence) || confidence < 0) continue;
+    const key = [columns[2], columns[3], columns[4]].join(":");
+    if (!lines.has(key)) lines.set(key, []);
+    lines.get(key).push(word);
+    confidences.push(confidence);
+  }
+  const text = [...lines.values()].map(words => words.join(" ")).join("\n").trim();
+  const meanConfidence = confidences.length
+    ? Math.round(confidences.reduce((sum, value) => sum + value, 0) / confidences.length * 100) / 100
+    : 0;
+  return { text, meanConfidence, words: confidences.length };
+}
+
+export function scoreTextSpacingQuality(value) {
+  const metrics = measureTextSpacing(value);
+  if (metrics.letterCount < 40 || !metrics.wordCount) return 0;
+  let score = 100;
+  score -= Math.max(0, metrics.averageWordLength - 5.2) * 8;
+  score -= Math.min(36, metrics.longWordCount * 1.8 + metrics.veryLongWordCount * 5);
+  score -= Math.min(30, metrics.joinedWordMarkers * 2.5);
+  if (metrics.spaceRatio < 0.13) score -= (0.13 - metrics.spaceRatio) * 320;
+  if (metrics.spaceRatio > 0.25) score -= (metrics.spaceRatio - 0.25) * 180;
+  return Math.max(0, Math.round(score * 10) / 10);
+}
+
+export function hasSuspiciousWordSpacing(value) {
+  const metrics = measureTextSpacing(value);
+  if (metrics.letterCount < 100 || metrics.wordCount < 8) return false;
+  return metrics.veryLongWordCount >= 2
+    || (metrics.veryLongWordCount >= 1 && metrics.joinedWordMarkers >= 2 && metrics.averageWordLength >= 5.4)
+    || (metrics.longWordCount >= 4 && metrics.averageWordLength >= 5.4)
+    || (metrics.joinedWordMarkers >= 3 && metrics.averageWordLength >= 5.4)
+    || (metrics.joinedWordMarkers >= 2 && metrics.averageWordLength >= 5.4)
+    || (metrics.spaceRatio < 0.095 && metrics.averageWordLength >= 5.5 && metrics.veryLongWordCount === 0)
+    || (metrics.averageWordLength >= 5.7 && metrics.spaceRatio < 0.15
+      && metrics.longWordCount >= 1 && metrics.veryLongWordCount === 0);
 }
 
 export function sha256(value) {
@@ -186,9 +263,9 @@ export function parseExamPages(pages, documentSha256, {
 
   const flush = () => {
     if (!current) return;
-    const prompt = current.promptLines.join(" ").replace(/\s+/g, " ").trim();
+    const prompt = formatChemicalFormulaText(current.promptLines.join(" ").replace(/\s+/g, " ").trim());
     let options = current.options
-      .map(item => ({ id: item.id, text: item.text.replace(/\s+/g, " ").trim() }))
+      .map(item => ({ id: item.id, text: formatChemicalFormulaText(item.text.replace(/\s+/g, " ").trim()) }))
       .filter(item => item.text.length >= 2);
     if (!options.length && questionFormat === "true_false" && current.kind === "true_false") {
       options = [{ id: "c", text: "Certo" }, { id: "e", text: "Errado" }];
@@ -196,6 +273,17 @@ export function parseExamPages(pages, documentSha256, {
 
     const issues = [];
     const rejectionReasons = [];
+    const spacingSegments = [prompt, ...options.map(item => item.text)];
+    const spacingText = spacingSegments.join(" ");
+    // Avalia cada enunciado/alternativa isoladamente: texto correto nas opções
+    // não pode diluir e esconder espaços ausentes no enunciado.
+    const spacingMetrics = measureTextSpacing(prompt);
+    const spacingQuality = Math.min(...spacingSegments.map(scoreTextSpacingQuality));
+    const suspiciousWordSpacing = spacingSegments.some(hasSuspiciousWordSpacing);
+    if (suspiciousWordSpacing) {
+      issues.push("Espaçamento entre palavras suspeito; OCR ou revisão visual necessária.");
+      rejectionReasons.push("suspicious_word_spacing");
+    }
     if (prompt.length < 20) {
       issues.push("Enunciado curto ou não identificado com segurança.");
       rejectionReasons.push("prompt_too_short");
@@ -232,7 +320,8 @@ export function parseExamPages(pages, documentSha256, {
     const structurallyEligible = prompt.length >= 20 && prompt.length <= 5000
       && options.length >= 2 && options.length <= 6
       && uniqueOptionIds.size === options.length
-      && (validMultipleChoiceIds || validTrueFalseIds);
+      && (validMultipleChoiceIds || validTrueFalseIds)
+      && !suspiciousWordSpacing;
 
     const entry = {
       page: Number(current.page),
@@ -241,6 +330,8 @@ export function parseExamPages(pages, documentSha256, {
       promptLength: prompt.length,
       optionCount: options.length,
       optionIds,
+      spacingQuality,
+      spacingMetrics,
       hasVisualDependency,
       ocrUsed: Boolean(current.ocrUsed),
       accepted: false,
@@ -264,6 +355,7 @@ export function parseExamPages(pages, documentSha256, {
           suggested_answer: null,
           fingerprint,
           ocr_used: Boolean(current.ocrUsed),
+          ocr_confidence: Number(current.ocrConfidence) || null,
           review_notes: issues.join(" ") || "Extração automática estruturada; gabarito deve corresponder à publicação definitiva."
         });
         seenFingerprints.add(fingerprint);
@@ -277,7 +369,10 @@ export function parseExamPages(pages, documentSha256, {
 
   for (const page of pages) {
     const pageNumber = Number(page.page);
-    if (current && page.ocrUsed) current.ocrUsed = true;
+    if (current && page.ocrUsed) {
+      current.ocrUsed = true;
+      current.ocrConfidence = Number(page.ocrConfidence) || current.ocrConfidence || null;
+    }
     const lines = String(page.text || "").replace(/\r/g, "").split("\n");
     for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
       const line = lines[lineIndex];
@@ -314,6 +409,7 @@ export function parseExamPages(pages, documentSha256, {
           startStyle: start.style || "multiple_choice",
           page: pageNumber,
           ocrUsed: Boolean(page.ocrUsed),
+          ocrConfidence: Number(page.ocrConfidence) || null,
           promptLines: questionFormat === "true_false" && start.style === "numbered_item"
             ? [...activeCommandLines]
             : [],
@@ -484,13 +580,22 @@ export async function extractPdfPages(pdfPath, questionFormat = "multiple_choice
     return { page: index + 1, text: layout.text, extractionMode: "layout", columnsSplit: layout.split };
   });
 
-  // Compare Poppler's physical layout with its content-stream order. This can
-  // recover independently flowing columns without relaxing question validation.
+  // Compare both question coverage and textual integrity. A PDF extraction that
+  // finds more question numbers but glues words together must not win.
+  const layoutQuestions = parseExamPages(layoutPages, "0".repeat(64), { questionFormat, allowNumberedMultipleChoice, allowBareOptions });
+  const averageQuestionSpacing = questions => {
+    const scores = questions.map(question => scoreTextSpacingQuality(
+      [question.prompt, ...(question.options || []).map(option => option.text)].join(" ")
+    )).filter(score => score > 0);
+    return scores.length ? Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length * 10) / 10 : 0;
+  };
   let pages = layoutPages;
   const extractionSelection = {
     mode: "layout",
-    layoutScore: scoreQuestionExtraction(parseExamPages(layoutPages, "0".repeat(64), { questionFormat, allowNumberedMultipleChoice, allowBareOptions })),
-    rawScore: null
+    layoutScore: scoreQuestionExtraction(layoutQuestions),
+    layoutTextQuality: averageQuestionSpacing(layoutQuestions),
+    rawScore: null,
+    rawTextQuality: null
   };
   try {
     const rawText = command("pdftotext", ["-raw", "-enc", "UTF-8", pdfPath, "-"]);
@@ -499,9 +604,13 @@ export async function extractPdfPages(pdfPath, questionFormat = "multiple_choice
     const rawPages = rawPageTexts.slice(0, pageCount).map((text, index) => ({
       page: index + 1, text, extractionMode: "raw", columnsSplit: false
     }));
-    const rawScore = scoreQuestionExtraction(parseExamPages(rawPages, "0".repeat(64), { questionFormat, allowNumberedMultipleChoice, allowBareOptions }));
+    const rawQuestions = parseExamPages(rawPages, "0".repeat(64), { questionFormat, allowNumberedMultipleChoice, allowBareOptions });
+    const rawScore = scoreQuestionExtraction(rawQuestions);
+    const rawTextQuality = averageQuestionSpacing(rawQuestions);
     extractionSelection.rawScore = rawScore;
-    if (rawScore > extractionSelection.layoutScore) {
+    extractionSelection.rawTextQuality = rawTextQuality;
+    if (rawScore > extractionSelection.layoutScore
+      || (rawScore === extractionSelection.layoutScore && rawTextQuality > extractionSelection.layoutTextQuality + 1)) {
       pages = rawPages;
       extractionSelection.mode = "raw";
       columnWarnings.length = 0;
@@ -513,8 +622,21 @@ export async function extractPdfPages(pdfPath, questionFormat = "multiple_choice
     page.layoutScore = extractionSelection.layoutScore;
     page.rawScore = extractionSelection.rawScore;
   }
-  const sparsePages = pages.filter((page) => page.text.replace(/\s/g, "").length < 40);
-  const selectedOcrPages = selectPdfOcrPages(pages, MAX_OCR_PAGES);
+  const sparsePages = pages.filter(page => page.text.replace(/\s/g, "").length < 40);
+  const spacingDiagnostics = [];
+  parseExamPages(pages, "0".repeat(64), {
+    questionFormat, allowNumberedMultipleChoice, allowBareOptions, diagnostics: spacingDiagnostics
+  });
+  const spacingSuspectNumbers = new Set(spacingDiagnostics
+    .filter(item => item.rejectionReasons?.includes("suspicious_word_spacing"))
+    .map(item => Number(item.page)));
+  const sparsePageNumbers = new Set(sparsePages.map(page => Number(page.page)));
+  const ocrCandidates = pages.filter(page => sparsePageNumbers.has(Number(page.page)) || spacingSuspectNumbers.has(Number(page.page)));
+  const selectedOcrPages = ocrCandidates.length <= MAX_OCR_PAGES
+    ? ocrCandidates
+    : Array.from({ length: MAX_OCR_PAGES }, (_, index) => ocrCandidates[
+      Math.round(index * (ocrCandidates.length - 1) / (MAX_OCR_PAGES - 1))
+    ]);
   const warnings = columnWarnings.length
     ? ["Layout de duas colunas detectado e separado nas páginas: " + columnWarnings.join(", ") + ". Revise visualmente a ordem e o conteúdo."]
     : [];
@@ -526,23 +648,33 @@ export async function extractPdfPages(pdfPath, questionFormat = "multiple_choice
       for (const page of selectedOcrPages) {
         const prefix = path.join(tempDir, "page-" + page.page);
         try {
-          command("pdftoppm", ["-f", String(page.page), "-l", String(page.page), "-r", "120", "-singlefile", "-png", pdfPath, prefix], { timeout: 12000 });
+          command("pdftoppm", ["-f", String(page.page), "-l", String(page.page), "-r", "180", "-singlefile", "-png", pdfPath, prefix], { timeout: 16000 });
           const imagePath = prefix + ".png";
           if (!existsSync(imagePath)) continue;
-          const ocrText = command("tesseract", [imagePath, "stdout", "-l", "por+eng", "--psm", "6"], { timeout: 8000 });
-          if (ocrText.trim().length > page.text.trim().length) {
+          const tsv = command("tesseract", [imagePath, "stdout", "-l", "por+eng", "--psm", "6", "tsv"], { timeout: 12000 });
+          const ocr = parseTesseractTsv(tsv);
+          const ocrText = ocr.text;
+          const originalLength = page.text.trim().length;
+          const ocrLength = ocrText.length;
+          const isSparse = sparsePageNumbers.has(Number(page.page));
+          const originalQuality = scoreTextSpacingQuality(page.text);
+          const ocrQuality = scoreTextSpacingQuality(ocrText);
+          const ocrHasEnoughContent = ocrLength >= (isSparse ? Math.max(40, originalLength + 1) : Math.max(100, originalLength * 0.65));
+          const improvesSpacing = ocrQuality >= originalQuality + 2;
+          if (ocrHasEnoughContent && ocr.meanConfidence >= 92 && (isSparse || improvesSpacing)) {
             page.text = ocrText;
             page.ocrUsed = true;
+            page.ocrConfidence = ocr.meanConfidence;
             ocrCount += 1;
           }
         } catch {
           warnings.push("OCR indisponível ou falhou na página " + page.page + "; revisão visual necessária.");
         }
       }
-      if (sparsePages.length > MAX_OCR_PAGES) {
-        warnings.push("Limite de OCR aplicado: " + MAX_OCR_PAGES + " de " + sparsePages.length + " páginas sem camada textual foram processadas, com amostragem distribuída. Documento não deve ser considerado integralmente extraído.");
+      if (ocrCandidates.length > MAX_OCR_PAGES) {
+        warnings.push("Limite de OCR aplicado: " + MAX_OCR_PAGES + " de " + ocrCandidates.length + " páginas sem texto suficiente ou com espaçamento suspeito foram processadas, com amostragem distribuída. Questões ainda suspeitas serão rejeitadas.");
       }
-      if (ocrCount) warnings.push(String(ocrCount) + " página(s) sem camada textual receberam OCR em português/inglês a 120 DPI.");
+      if (ocrCount) warnings.push(String(ocrCount) + " página(s) receberam OCR em português/inglês a 180 DPI para recuperar texto ou espaços entre palavras.");
     } finally {
       await rm(tempDir, { recursive: true, force: true });
     }

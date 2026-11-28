@@ -11,7 +11,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { concursos } from "../src/data/concursos.js";
 import { isTrustedOfficialUrl } from "../src/lib/official-sources.js";
-import { extractPdfPages, importPdfToManifest, sha256 } from "./import-official-exam-pdf.mjs";
+import { extractPdfPages, hasSuspiciousWordSpacing, importPdfToManifest, sha256 } from "./import-official-exam-pdf.mjs";
 
 export const MAX_SOURCE_PAGES = 120;
 export const MAX_DOCUMENTS_PER_RUN = 15;
@@ -459,6 +459,9 @@ export function validateQuestionForAutoPublication(question, answer, questionFor
   const prompt = String(question?.prompt || "").trim();
   const options = Array.isArray(question?.options) ? question.options : [];
   const ids = options.map(option => String(option?.id || "").toLowerCase());
+  const spacingValid = !hasSuspiciousWordSpacing(prompt)
+    && options.every(option => !hasSuspiciousWordSpacing(option?.text || ""));
+  if (!spacingValid) reasons.push("espaçamento entre palavras inválido ou suspeito");
   if (prompt.length < 20 || prompt.length > 5000) reasons.push("enunciado fora do limite");
   if (options.length < 2 || options.length > 6) reasons.push("quantidade de alternativas inválida");
   if (new Set(ids).size !== ids.length) reasons.push("alternativas duplicadas");
@@ -481,6 +484,7 @@ export function validateQuestionForAutoPublication(question, answer, questionFor
     optionsValid: options.length >= 2 && options.length <= 6 && new Set(ids).size === ids.length,
     answerKeyMatches: options.some(option => String(option?.id || "").toLowerCase() === String(answer || "").toLowerCase()),
     parserTextOnly: !question?.ocr_used || ocrAllowed,
+    textSpacingValid: spacingValid,
     noVisualDependency: !reasons.some(reason => reason.includes("visual") || reason.includes("figura"))
   }};
 }
@@ -1099,7 +1103,8 @@ async function processDocument(record, examLink, keyLink, mode, runId, report, f
         continue;
       }
       const answer = officialAnswer.toLowerCase();
-      const validation = validateQuestionForAutoPublication(question, answer, questionFormat);
+      const ocrAllowed = Boolean(question.ocr_used && Number(question.ocr_confidence) >= 92);
+      const validation = validateQuestionForAutoPublication(question, answer, questionFormat, { ocrAllowed });
       validations.push({ approved: validation.approved, questionNumber: question.source_question_number, reasons: validation.reasons });
       if (!validation.approved) {
         report.quarantined += 1;
@@ -1120,6 +1125,7 @@ async function processDocument(record, examLink, keyLink, mode, runId, report, f
           answerKeySection: parsedKey.selectedSection || null,
           parser: "editalradar-exam-parser-v1",
           parserOcrUsed: Boolean(question.ocr_used),
+          parserOcrConfidence: Number(question.ocr_confidence) || null,
           sourceHostValidated: true
         }
       });
@@ -1185,6 +1191,57 @@ async function processDocument(record, examLink, keyLink, mode, runId, report, f
   }
 }
 
+async function upsertImportAtSourcePosition(row, { replacePublished = false } = {}) {
+  const sourceLookup = new URLSearchParams({
+    select: "id,status,rights_review_status,published_question_id",
+    source_document_sha256: "eq." + row.source_document_sha256,
+    source_page: "eq." + Number(row.source_page),
+    source_question_number: "eq." + Number(row.source_question_number),
+    limit: "2"
+  });
+  const existingRows = await supabaseRest("study_exam_question_imports?" + sourceLookup.toString());
+  if (!Array.isArray(existingRows) || existingRows.length > 1) return null;
+
+  if (existingRows.length === 1) {
+    const existing = existingRows[0];
+    if (existing.status === "rejected" || existing.rights_review_status === "restricted") return null;
+    if (existing.status !== "pending" && !replacePublished) return null;
+    const updatedRow = {
+      ...row,
+      published_question_id: null,
+      reviewed_by: null,
+      reviewed_at: null
+    };
+    const updated = await supabaseRest(
+      "study_exam_question_imports?id=eq." + encodeURIComponent(existing.id),
+      {
+        method: "PATCH",
+        headers: { Prefer: "return=representation" },
+        body: JSON.stringify(updatedRow)
+      }
+    );
+    return Array.isArray(updated) && updated.length && updated[0].id
+      ? updated[0].id
+      : null;
+  }
+
+  const conflict = new URLSearchParams({ on_conflict: "board,exam_name,exam_year,fingerprint" });
+  let inserted;
+  try {
+    inserted = await supabaseRest("study_exam_question_imports?" + conflict.toString(), {
+      method: "POST",
+      headers: { Prefer: "resolution=ignore-duplicates,return=representation" },
+      body: JSON.stringify(row)
+    });
+  } catch (error) {
+    if (/HTTP 409|duplicate key|unique constraint/i.test(error.message)) return null;
+    throw error;
+  }
+  return Array.isArray(inserted) && inserted.length && inserted[0].id
+    ? inserted[0].id
+    : null;
+}
+
 async function stageExamQuestion(record, item, proof, answerKeyFile, runId) {
   const question = item.question;
   const evidence = item.evidence;
@@ -1225,19 +1282,8 @@ async function stageExamQuestion(record, item, proof, answerKeyFile, runId) {
     auto_reviewed_at: new Date().toISOString(),
     automation_run_id: runId
   };
-  const query = new URLSearchParams({ on_conflict: "board,exam_name,exam_year,fingerprint" });
-  let inserted;
-  try {
-    inserted = await supabaseRest("study_exam_question_imports?" + query.toString(), {
-      method: "POST",
-      headers: { Prefer: "resolution=ignore-duplicates,return=representation" },
-      body: JSON.stringify(row)
-    });
-  } catch (error) {
-    if (/HTTP 409|duplicate key|unique constraint/i.test(error.message)) return "duplicate";
-    throw error;
-  }
-  return Array.isArray(inserted) && inserted.length && inserted[0].id ? "staged" : "duplicate";
+  const importId = await upsertImportAtSourcePosition(row);
+  return importId ? "staged" : "duplicate";
 }
 
 async function stageAndPublish(record, item, proof, answerKeyFile, runId) {
@@ -1280,51 +1326,9 @@ async function stageAndPublish(record, item, proof, answerKeyFile, runId) {
     auto_reviewed_at: new Date().toISOString(),
     automation_run_id: runId
   };
-  const query = new URLSearchParams({ on_conflict: "board,exam_name,exam_year,fingerprint" });
-  let inserted;
-  try {
-    inserted = await supabaseRest("study_exam_question_imports?" + query.toString(), {
-      method: "POST",
-      headers: { Prefer: "resolution=ignore-duplicates,return=representation" },
-      body: JSON.stringify(row)
-    });
-  } catch (error) {
-    if (/HTTP 409|duplicate key|unique constraint/i.test(error.message)) return "duplicate";
-    throw error;
-  }
-  let importId = Array.isArray(inserted) && inserted.length && inserted[0].id
-    ? inserted[0].id
-    : null;
+  let importId = await upsertImportAtSourcePosition(row, { replacePublished: true });
 
-  if (!importId) {
-    // A questão pode já existir porque uma execução anterior a deixou em staging.
-    // Só promovemos registros pendentes, não revisados e com fundamento oficial validado.
-    const lookup = new URLSearchParams({
-      select: "id,status,rights_review_status,rights_basis,official_release_verified,published_question_id",
-      board: "eq." + record.board,
-      exam_name: "eq." + record.exam_name,
-      exam_year: "eq." + Number(record.exam_year),
-      fingerprint: "eq." + question.fingerprint,
-      limit: "2"
-    });
-    const existingRows = await supabaseRest("study_exam_question_imports?" + lookup.toString());
-    if (!Array.isArray(existingRows) || existingRows.length !== 1 || !canPromoteStagedImport(existingRows[0])) {
-      return "duplicate";
-    }
-
-    const existingId = existingRows[0].id;
-    const promoted = await supabaseRest(
-      "study_exam_question_imports?id=eq." + encodeURIComponent(existingId)
-        + "&status=eq.pending&rights_review_status=eq.not_reviewed",
-      {
-        method: "PATCH",
-        headers: { Prefer: "return=representation" },
-        body: JSON.stringify(row)
-      }
-    );
-    if (!Array.isArray(promoted) || !promoted.length || !promoted[0].id) return "duplicate";
-    importId = promoted[0].id;
-  }
+  if (!importId) return "duplicate";
 
   const publishedId = await supabaseRest("rpc/publish_study_exam_question_import_automated", {
     method: "POST",

@@ -2,7 +2,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   buildImportManifest,
+  formatChemicalFormulaText,
   normalizeQuestionText,
+  hasSuspiciousWordSpacing,
+  scoreTextSpacingQuality,
+  parseTesseractTsv,
   parseExamPages,
   splitPdfColumns,
   sha256,
@@ -49,6 +53,56 @@ test("prioriza a extração PDF com mais números de questão distintos", () => 
     { source_question_number: 3 }
   ];
   assert.ok(scoreQuestionExtraction(rawQuestions) > scoreQuestionExtraction(layoutQuestions));
+});
+
+test("detecta palavras coladas e mantém compostos legítimos", () => {
+  const extracted = "Oácidofosfórico(H3PO4)podeserobtido principalmente pormeio de dois processos industriais, sendo o processo úmido o mais utilizado no mundo. Ele consiste nareação darochafática (Ca3(PO4)2) moída com o ácido sulfúrico (H2SO4) concentrado. Como subproduto dessa reação exotérmica, forma-seo sulfato decálcio di-hidratado (CaSO4.2H2O) que, posteriormente, é separado por filtração.";
+  const corrected = "O ácido fosfórico (H₃PO₄) pode ser obtido principalmente por meio de dois processos industriais, sendo o processo úmido o mais utilizado no mundo. Ele consiste na reação da rocha fosfática (Ca₃(PO₄)₂) moída com o ácido sulfúrico (H₂SO₄) concentrado. Como subproduto dessa reação exotérmica, forma-se o sulfato de cálcio di-hidratado (CaSO₄·2H₂O), que posteriormente é separado por filtração.";
+  assert.equal(hasSuspiciousWordSpacing(extracted), true);
+  assert.equal(hasSuspiciousWordSpacing(corrected), false);
+  assert.ok(scoreTextSpacingQuality(corrected) > scoreTextSpacingQuality(extracted));
+  const legitimateCompound = "A palavra Donaudampfschifffahrselektrizitätenhauptbetriebswerkbauunterbeamtengesellschaft aparece como exemplo de composto alemão em um texto corretamente espaçado.";
+  assert.equal(hasSuspiciousWordSpacing(legitimateCompound), false);
+});
+
+test("rejeita questão com palavras coladas e registra o motivo", () => {
+  const diagnostics = [];
+  const pages = [{
+    page: 14,
+    text: [
+      "QUESTÃO 17",
+      "Oácidofosfórico(H3PO4)podeserobtido principalmente pormeio de dois processos industriais, sendo o processo úmido o mais utilizado no mundo.",
+      "(A) Primeira alternativa com texto suficientemente extenso para a validação da questão.",
+      "(B) Segunda alternativa com texto suficientemente extenso para a validação da questão.",
+      "(C) Terceira alternativa com texto suficientemente extenso para a validação da questão.",
+      "(D) Quarta alternativa com texto suficientemente extenso para a validação da questão."
+    ].join("\n")
+  }];
+  const rows = parseExamPages(pages, documentHash, { diagnostics });
+  assert.equal(rows.length, 0);
+  assert.ok(diagnostics.some(item => item.questionNumber === 17
+    && item.rejectionReasons.includes("suspicious_word_spacing")));
+});
+
+test("interpreta confiança do OCR e reconstrói linhas a partir do TSV do Tesseract", () => {
+  const tsv = [
+    "level\tpage_num\tblock_num\tpar_num\tline_num\tword_num\tleft\ttop\twidth\theight\tconf\ttext",
+    "5\t1\t1\t1\t1\t1\t10\t10\t20\t10\t96.50\tO",
+    "5\t1\t1\t1\t1\t2\t35\t10\t20\t10\t94.50\tácido",
+    "5\t1\t1\t1\t1\t3\t60\t10\t20\t10\t92.00\tfosfórico",
+    "5\t1\t1\t1\t2\t1\t10\t30\t20\t10\t98.00\tPode"
+  ].join("\n");
+  const parsed = parseTesseractTsv(tsv);
+  assert.equal(parsed.text, "O ácido fosfórico\nPode");
+  assert.equal(parsed.words, 4);
+  assert.equal(parsed.meanConfidence, 95.25);
+});
+
+test("preserva fórmulas químicas com índices inferiores e ponto de hidratação", () => {
+  assert.equal(
+    formatChemicalFormulaText("H3PO4 + Ca3(PO4)2 + CaSO4.2H2O"),
+    "H₃PO₄ + Ca₃(PO₄)₂ + CaSO₄·2H₂O"
+  );
 });
 
 test("normaliza acentos, caixa e espaços para fingerprint estável", () => {
