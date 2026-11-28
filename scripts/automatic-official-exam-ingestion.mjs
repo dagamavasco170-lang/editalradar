@@ -584,9 +584,9 @@ async function loadRegisteredSources(mode = "dry-run") {
     ...(Array.isArray(configuredSources) ? configuredSources : [])
   ];
   const query = new URLSearchParams({
-    select: "board,exam_name,exam_year,discipline,role_name,source_url,exam_url,answer_key_url,notes,question_reuse_status,question_reuse_basis,question_reuse_proof_url,question_reuse_terms_url,question_reuse_rights_holder,question_reuse_restrictions,question_reuse_review_notes,question_reuse_reviewed_by,question_reuse_reviewed_at",
+    select: "id,board,exam_name,exam_year,discipline,role_name,source_url,exam_url,answer_key_url,notes,question_reuse_status,question_reuse_basis,question_reuse_proof_url,question_reuse_terms_url,question_reuse_rights_holder,question_reuse_restrictions,question_reuse_review_notes,question_reuse_reviewed_by,question_reuse_reviewed_at,last_ingested_at",
     published: "eq.true",
-    order: "exam_year.desc",
+    order: "last_ingested_at.asc.nullsfirst,exam_year.desc",
     limit: "300"
   });
   let rows = [];
@@ -1468,6 +1468,23 @@ export async function runAutomaticOfficialExamIngestion({ mode = "dry-run", limi
         }
       } catch (error) {
         report.failures.push({ source: record.source_url, reason: String(error?.message || error).slice(0, 500) });
+      } finally {
+        // Marca cada fonte consultada para que o próximo ciclo avance para
+        // outras bancas em vez de reprocessar indefinidamente a mesma lista.
+        if (runCreated && record.id) {
+          try {
+            await supabaseRest("study_exam_sources?id=eq." + encodeURIComponent(record.id), {
+              method: "PATCH",
+              headers: { Prefer: "return=minimal" },
+              body: JSON.stringify({ last_ingested_at: new Date().toISOString(), last_ingested_run: report.runId, updated_at: new Date().toISOString() })
+            });
+          } catch (error) {
+            report.failures.push({
+              source: record.source_url,
+              reason: "Não foi possível atualizar o cursor da fonte: " + String(error?.message || error).slice(0, 350)
+            });
+          }
+        }
       }
       await sleep(500);
     }
