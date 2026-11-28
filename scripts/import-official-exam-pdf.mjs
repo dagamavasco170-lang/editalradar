@@ -42,6 +42,8 @@ function portugueseDictionaryWordInfo(value) {
   if (word.endsWith("ões")) variants.push(word.slice(0, -3) + "ão");
   if (word.endsWith("ães")) variants.push(word.slice(0, -3) + "ão");
   if (word.endsWith("ens")) variants.push(word.slice(0, -3) + "em");
+  if (word.endsWith("adas")) variants.push(word.slice(0, -4) + "ado");
+  if (word.endsWith("idas")) variants.push(word.slice(0, -4) + "ido");
   if (word.endsWith("is")) variants.push(word.slice(0, -2) + "l");
   if (word.endsWith("s")) variants.push(word.slice(0, -1));
   if (word.endsWith("as")) variants.push(word.slice(0, -2) + "ado", word.slice(0, -2) + "ido");
