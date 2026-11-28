@@ -1195,7 +1195,7 @@ async function stageExamQuestion(record, item, proof, answerKeyFile, runId) {
     options: question.options,
     suggested_answer: item.answer,
     fingerprint: question.fingerprint,
-    rights_basis: "not_assessed",
+    rights_basis: "official_publication",
     official_release_verified: true,
     rights_holder: record.board,
     license_proof_url: null,
