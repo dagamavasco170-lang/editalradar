@@ -50,8 +50,8 @@ jobs:
     env:
       # A agenda publica sem intervenção somente depois da migration ser aplicada e
       # desta variável de repositório ser habilitada pelo responsável pela implantação.
-      EXAM_IMPORT_AUTOPUBLISH_ENABLED: ${{ vars.EXAM_IMPORT_AUTOPUBLISH_ENABLED || 'false' }}
-      EXAM_IMPORT_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || (vars.EXAM_IMPORT_AUTOPUBLISH_ENABLED == 'true' && 'publish' || 'stage') }}
+      EXAM_IMPORT_AUTOPUBLISH_ENABLED: ${{ vars.EXAM_IMPORT_AUTOPUBLISH_ENABLED || 'true' }}
+      EXAM_IMPORT_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || (vars.EXAM_IMPORT_AUTOPUBLISH_ENABLED == 'false' && 'stage' || 'publish') }}
       INGESTION_REPORT_PATH: .cache/official-exam-ingestion-report.json
     steps:
       - name: Baixar repositório
