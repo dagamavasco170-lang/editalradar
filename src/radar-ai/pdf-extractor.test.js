@@ -3,7 +3,7 @@ import { extractKnowledgePdf } from "./pdf-extractor.js";
 
 const validStats = { size: 2048, isFile: () => true };
 function fakeExec(outputs = {}) {
-  return (cmd) => outputs[cmd] ?? (cmd === "pdfinfo" ? "Pages: 2\n" : "Page one text\fPage two text\f");
+  return (cmd) => outputs[cmd] ?? (cmd === "pdfinfo" ? "Pages: 2\n" : "Page one text\fPage two text");
 }
 function stubHeader() {
   return { open: () => 1, read: (_fd, buffer) => { buffer.write("%PDF-"); return 5; }, close: () => {} };
@@ -20,8 +20,20 @@ describe("Radar AI PDF text extractor", () => {
     expect(extractKnowledgePdf("").extracted).toBe(false);
   });
   it("rejects files that are not PDFs", () => {
-    const result = extractKnowledgePdf("sample.txt", { stat: () => validStats, ...stubHeader(), readSync: (_fd, buffer) => { buffer.write("TEXT!"); return 5; } });
+    const result = extractKnowledgePdf("sample.txt", { stat: () => validStats, ...stubHeader(), read: (_fd, buffer) => { buffer.write("TEXT!"); return 5; } });
     expect(result.errors).toContain("File does not have a PDF signature.");
+  });
+  it("returns a bounded error and closes the file when header reading fails", () => {
+    let closed = false;
+    const result = extractKnowledgePdf("sample.pdf", {
+      stat: () => validStats,
+      open: () => 1,
+      read: () => { throw new Error("read failed"); },
+      close: () => { closed = true; }
+    });
+    expect(result.extracted).toBe(false);
+    expect(result.errors[0]).toContain("PDF signature check failed");
+    expect(closed).toBe(true);
   });
   it("enforces byte and page limits before extraction", () => {
     const large = extractKnowledgePdf("sample.pdf", { stat: () => ({ size: 40 * 1024 * 1024, isFile: () => true }) });
