@@ -44,9 +44,11 @@ const PT_BR_SEGMENTATION_CACHE = new Map();
 function portugueseDictionaryWordInfo(value) {
   const word = String(value || "").normalize("NFC").toLocaleLowerCase("pt-BR");
   if (PT_BR_DICTIONARY.has(word)) return { exact: true };
+
   const variants = [];
-  // Flexões regulares de gênero: só são aceitas quando a forma-base masculina consta do léxico.
-  // Ex.: "examinadora" -> "examinador", evitando dividi-la em "examina" + "dora".
+  // Flexões regulares só são aceitas se a forma-base constar do léxico.
+  // Exemplos: examinadora -> examinador; brasileira -> brasileiro;
+  // concomitantemente -> concomitante; longitudinalidades -> longitudinalidade.
   const genderVariants = [
     ["oras", "or"], ["ora", "or"],
     ["eiras", "eiro"], ["eira", "eiro"],
@@ -56,31 +58,26 @@ function portugueseDictionaryWordInfo(value) {
     ["árias", "ário"], ["ária", "ário"]
   ];
   for (const [ending, replacement] of genderVariants) {
-    if (word.endsWith(ending)) {
-      variants.push(word.slice(0, -ending.length) + replacement);
-    }
+    if (word.endsWith(ending)) variants.push(word.slice(0, -ending.length) + replacement);
   }
+
+  if (word.endsWith("mente")) variants.push(word.slice(0, -5));
+  if (word.endsWith("idades")) variants.push(word.slice(0, -1));
+  if (word.endsWith("idade")) variants.push(word.slice(0, -5));
   if (word.endsWith("ções")) variants.push(word.slice(0, -3) + "ção");
   else if (word.endsWith("ões")) variants.push(word.slice(0, -3) + "ão");
   if (word.endsWith("ães")) variants.push(word.slice(0, -3) + "ão");
   if (word.endsWith("ens")) variants.push(word.slice(0, -3) + "em");
-  if (word.endsWith("es")) variants.push(word.slice(0, -2));
-  if (word.endsWith("dora")) variants.push(word.slice(0, -1));
-  if (word.endsWith("idade")) variants.push(word.slice(0, -5));
-  if (word.endsWith("iva")) variants.push(word.slice(0, -3) + "ivo");
-  if (word.endsWith("ivas")) variants.push(word.slice(0, -4) + "ivo");
-  if (word.endsWith("ária")) variants.push(word.slice(0, -4) + "ário");
-  if (word.endsWith("árias")) variants.push(word.slice(0, -5) + "ário");
-  if (word.endsWith("icas")) variants.push(word.slice(0, -4) + "ico");
-  if (word.endsWith("ica")) variants.push(word.slice(0, -3) + "ico");
   if (word.endsWith("adas")) variants.push(word.slice(0, -4) + "ado");
   if (word.endsWith("idas")) variants.push(word.slice(0, -4) + "ido");
   if (word.endsWith("ada")) variants.push(word.slice(0, -3) + "ado");
   if (word.endsWith("ida")) variants.push(word.slice(0, -3) + "ido");
   if (word.endsWith("is")) variants.push(word.slice(0, -2) + "l");
+  if (word.endsWith("es")) variants.push(word.slice(0, -2));
   if (word.endsWith("s")) variants.push(word.slice(0, -1));
   if (word.endsWith("as")) variants.push(word.slice(0, -2) + "ado", word.slice(0, -2) + "ido");
   if (word.endsWith("os")) variants.push(word.slice(0, -2) + "a");
+
   return variants.some(variant => PT_BR_DICTIONARY.has(variant)) ? { exact: false } : null;
 }
 
