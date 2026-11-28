@@ -352,7 +352,10 @@ export function parseExamPages(pages, documentSha256, {
 
   for (const page of pages) {
     const pageNumber = Number(page.page);
-    if (current && page.ocrUsed) current.ocrUsed = true;
+    if (current && page.ocrUsed) {
+      current.ocrUsed = true;
+      current.ocrConfidence = Number(page.ocrConfidence) || current.ocrConfidence || null;
+    }
     const lines = String(page.text || "").replace(/\r/g, "").split("\n");
     for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
       const line = lines[lineIndex];
