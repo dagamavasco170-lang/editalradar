@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createKnowledgeChunks, normalizeKnowledgeText, searchKnowledgeChunks, splitKnowledgeText, validateKnowledgeSource } from "./knowledge-engine.js";
+import { MAX_KNOWLEDGE_TEXT_CHARS, createKnowledgeChunks, normalizeKnowledgeText, searchKnowledgeChunks, splitKnowledgeText, validateKnowledgeSource } from "./knowledge-engine.js";
 
 const source = { id: "cf88", title: "Constituição", url: "https://www.planalto.gov.br/", license: "Public domain / verify terms", attribution: "Portal oficial", official: true };
 
@@ -15,6 +15,10 @@ describe("Radar AI knowledge engine", () => {
     const chunks = splitKnowledgeText("a".repeat(250), { maxChars: 120, overlapChars: 20 });
     expect(chunks.length).toBeGreaterThan(1);
     expect(chunks.every(chunk => chunk.length <= 120)).toBe(true);
+  });
+  it("rejects oversized input and excessive chunk counts", () => {
+    expect(() => splitKnowledgeText("x".repeat(MAX_KNOWLEDGE_TEXT_CHARS + 1))).toThrow(/input limit/);
+    expect(() => splitKnowledgeText("x".repeat(600), { maxChars: 100, overlapChars: 99, maxChunks: 5 })).toThrow(/chunk count/);
   });
   it("preserves source metadata and deterministic chunk ids", () => {
     const chunks = createKnowledgeChunks(source, "Princípios administrativos.\n\nLegalidade e impessoalidade.", { subject: "Direito Administrativo", topic: "Princípios" });
