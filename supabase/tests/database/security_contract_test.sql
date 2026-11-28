@@ -2,7 +2,7 @@
 -- Catalog-only assertions: no production data is read or modified.
 begin;
 
-select plan(48);
+select plan(49);
 
 select ok(
   not has_schema_privilege('anon', 'pgmq', 'USAGE'),
@@ -394,12 +394,13 @@ select ok(
 
 -- Behavioral RLS/RPC checks with transaction-local fixtures. All rows roll back below.
 insert into public.study_questions
-  (discipline,topic,difficulty,board,exam_name,exam_year,prompt,options,explanation,source_url,rights_holder,license_status,license_proof_url,published,origin,review_status)
+  (discipline,topic,difficulty,board,exam_name,exam_year,prompt,options,explanation,source_url,rights_holder,license_status,license_proof_url,published,origin,review_status,rights_basis)
 values
-  ('Segurança','Fixture RLS','Fácil','Fixture','ER SECURITY TEST licensed',2026,'Prompt for security fixture licensed question','["A","B"]'::jsonb,'Fixture explanation','https://example.com/fixture','Fixture', 'public_domain',null,true,'manual','not_required'),
-  ('Segurança','Fixture RLS','Fácil','Fixture','ER SECURITY TEST reviewed AI',2026,'Prompt for security fixture reviewed AI question','["A","B"]'::jsonb,'Fixture explanation','https://example.com/fixture','EditalRadar','original_content',null,true,'ai_generated','auto_approved'),
-  ('Segurança','Fixture RLS','Fácil','Fixture','ER SECURITY TEST unreviewed AI',2026,'Prompt for security fixture unreviewed AI question','["A","B"]'::jsonb,'Fixture explanation','https://example.com/fixture','EditalRadar','original_content',null,true,'ai_generated','pending'),
-  ('Segurança','Fixture RLS','Fácil','Fixture','ER SECURITY TEST draft',2026,'Prompt for security fixture draft question','["A","B"]'::jsonb,'Fixture explanation','https://example.com/fixture','Fixture','public_domain',null,false,'manual','not_required');
+  ('Segurança','Fixture RLS','Fácil','Fixture','ER SECURITY TEST licensed',2026,'Prompt for security fixture licensed question','["A","B"]'::jsonb,'Fixture explanation','https://example.com/fixture','Fixture', 'public_domain',null,true,'manual','not_required',null),
+  ('Segurança','Fixture RLS','Fácil','Fixture','ER SECURITY TEST reviewed AI',2026,'Prompt for security fixture reviewed AI question','["A","B"]'::jsonb,'Fixture explanation','https://example.com/fixture','EditalRadar','original_content',null,true,'ai_generated','auto_approved',null),
+  ('Segurança','Fixture RLS','Fácil','Fixture','ER SECURITY TEST unreviewed AI',2026,'Prompt for security fixture unreviewed AI question','["A","B"]'::jsonb,'Fixture explanation','https://example.com/fixture','EditalRadar','original_content',null,true,'ai_generated','pending',null),
+  ('Segurança','Fixture RLS','Fácil','Fixture','ER SECURITY TEST draft',2026,'Prompt for security fixture draft question','["A","B"]'::jsonb,'Fixture explanation','https://example.com/fixture','Fixture','public_domain',null,false,'manual','not_required',null),
+  ('Segurança','Fixture RLS','Fácil','FGV','ER SECURITY TEST official exam',2026,'Prompt for official exam fixture question','["A","B","C","D"]'::jsonb,'Official answer fixture','https://conhecimento.fgv.br/concursos/teste','FGV','official_publication',null,true,'exam_import','auto_approved','official_publication');
 
 insert into public.study_question_answers (question_id,answer,explanation)
 select id,'A','Fixture answer explanation'
@@ -410,7 +411,7 @@ set local role anon;
 set local request.jwt.claims = '{"role":"anon"}';
 select is(
   (select count(*) from public.study_questions where exam_name like 'ER SECURITY TEST%'),
-  2::bigint,
+  3::bigint,
   'anon sees only published eligible fixtures'
 );
 reset role;
@@ -419,7 +420,7 @@ set local role authenticated;
 set local request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated","app_metadata":{}}';
 select is(
   (select count(*) from public.study_questions where exam_name like 'ER SECURITY TEST%'),
-  2::bigint,
+  3::bigint,
   'authenticated non-admin sees only eligible fixtures'
 );
 select is(
@@ -459,18 +460,26 @@ select is(
   null::jsonb,
   'answer-check RPC returns no result for unreviewed AI content'
 );
+select is(
+  (select public.check_study_question_answer(
+    (select id from public.study_questions where exam_name='ER SECURITY TEST official exam'),
+    'a'
+  )->>'correct'),
+  'true',
+  'authenticated user can check a published official exam answer'
+);
 reset role;
 
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated","app_metadata":{"role":"admin"}}';
 select is(
   (select count(*) from public.study_questions where exam_name like 'ER SECURITY TEST%'),
-  4::bigint,
+  5::bigint,
   'admin sees all fixtures including unpublished and unreviewed'
 );
 select is(
   (select count(*) from public.study_question_answers),
-  4::bigint,
+  5::bigint,
   'admin can read fixture answers'
 );
 reset role;
