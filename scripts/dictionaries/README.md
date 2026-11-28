@@ -7,6 +7,7 @@ Conteúdo incorporado:
 - Léxico: 145.744 entradas.
 - Conjugações: 195.751 formas verbais.
 - Stopwords e regras conservadoras de plural/gênero para reconhecer flexões usuais.
+- Vocabulário complementar revisado para termos jurídicos recorrentes ausentes do léxico geral (`pt-br-domain-terms.txt`).
 - O vocabulário é dividido em arquivos numerados; o validador carrega todos os fragmentos.
 
 Uso:
