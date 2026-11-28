@@ -38,7 +38,7 @@ export function measureTextSpacing(value) {
   const averageWordLength = words.length ? letterCount / words.length : 0;
   const spaceRatio = letterCount ? spaceCount / letterCount : 0;
   const joinedWordMarkers = words.filter(word => {
-    if ([...word].length < 10) return false;
+    if ([...word].length < 10 || [...word].length >= 28) return false;
     return /^(?:que|ele|ela|foi|teria|uma|dos|das|para|com|por|sem)\\p{L}{4,}$/iu.test(word)
       || /\\p{L}{3,}(?:que|dos|das|por|com|sem|para|uma|de|do|da|em|na|no|as|os)\\p{L}{3,}/iu.test(word)
       || /\\p{L}{4,}(?:os|as|do|da|dos|das|que|com|por|sem)$/iu.test(word);
@@ -61,11 +61,13 @@ export function scoreTextSpacingQuality(value) {
 export function hasSuspiciousWordSpacing(value) {
   const metrics = measureTextSpacing(value);
   if (metrics.letterCount < 120 || metrics.wordCount < 8) return false;
-  return metrics.averageWordLength >= 6.4
-    || (metrics.veryLongWordCount >= 1 && metrics.averageWordLength >= 5.7)
+  return metrics.veryLongWordCount >= 2
+    || (metrics.veryLongWordCount >= 1 && metrics.joinedWordMarkers >= 2 && metrics.averageWordLength >= 5.4)
     || (metrics.longWordCount >= 4 && metrics.averageWordLength >= 5.4)
-    || metrics.joinedWordMarkers >= 3
-    || metrics.spaceRatio < 0.095;
+    || (metrics.joinedWordMarkers >= 3 && metrics.averageWordLength >= 5.4)
+    || (metrics.joinedWordMarkers >= 2 && metrics.averageWordLength >= 5.8)
+    || (metrics.averageWordLength >= 8.5 && metrics.spaceRatio < 0.18)
+    || (metrics.spaceRatio < 0.095 && metrics.averageWordLength >= 5.5);
 }
 
 export function sha256(value) {
