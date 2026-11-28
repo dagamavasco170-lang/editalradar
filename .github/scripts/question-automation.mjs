@@ -32,27 +32,58 @@ async function supabaseRest(path, init = {}) {
   return body ? JSON.parse(body) : null;
 }
 
+const TRANSIENT_FACTORY_STATUSES = new Set([408, 429, 500, 502, 503, 504]);
+const MAX_FACTORY_ATTEMPTS = 4;
+
+function isTransientFactoryFailure(status, message = "") {
+  return TRANSIENT_FACTORY_STATUSES.has(Number(status))
+    || /\b(temporarily unavailable|high demand|rate limit|overloaded|timeout|timed out|HTTP 503|HTTP 429)\b/i.test(String(message));
+}
+
 async function callQuestionFactory(payload) {
-  const response = await fetch(`${SUPABASE_URL}/functions/v1/question-factory`, {
-    method: "POST",
-    headers: authHeaders,
-    body: JSON.stringify(payload),
-    signal: AbortSignal.timeout(720000)
-  });
-  const body = await response.text();
-  let result;
-  try {
-    result = JSON.parse(body);
-  } catch {
-    throw new Error(`question-factory retornou HTTP ${response.status} sem JSON válido: ${body.slice(0, 700)}`);
+  let lastError;
+  for (let attempt = 1; attempt <= MAX_FACTORY_ATTEMPTS; attempt += 1) {
+    let status = 0;
+    let retryAfterMs = 0;
+    try {
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/question-factory`, {
+        method: "POST",
+        headers: authHeaders,
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(720000)
+      });
+      status = response.status;
+      const retryAfter = Number(response.headers.get("Retry-After"));
+      if (Number.isFinite(retryAfter) && retryAfter > 0) retryAfterMs = Math.min(retryAfter * 1000, 30000);
+      const body = await response.text();
+      let result;
+      try {
+        result = JSON.parse(body);
+      } catch {
+        lastError = new Error(`question-factory retornou HTTP ${response.status} sem JSON válido: ${body.slice(0, 700)}`);
+        if (!isTransientFactoryFailure(status, lastError.message)) throw lastError;
+      }
+      if (result) {
+        if (!response.ok || result.ok !== true) {
+          lastError = new Error(result.error || result.message || `question-factory HTTP ${response.status}`);
+          if (!isTransientFactoryFailure(status, lastError.message)) throw lastError;
+        } else if (result.setup_required) {
+          throw new Error(result.message || "Configure GEMINI_API_KEY no Supabase.");
+        } else {
+          return result;
+        }
+      }
+    } catch (error) {
+      lastError = error;
+      if (!isTransientFactoryFailure(status, error?.message)) throw error;
+    }
+    if (attempt >= MAX_FACTORY_ATTEMPTS) break;
+    const exponentialDelay = Math.min(30000, 2000 * (2 ** (attempt - 1)));
+    const delay = Math.max(retryAfterMs, exponentialDelay) + Math.floor(Math.random() * 500);
+    console.warn(`question-factory indisponível (tentativa ${attempt}/${MAX_FACTORY_ATTEMPTS}); nova tentativa em ${delay} ms.`);
+    await new Promise((resolve) => setTimeout(resolve, delay));
   }
-  if (!response.ok || result.ok !== true) {
-    throw new Error(result.error || result.message || `question-factory HTTP ${response.status}`);
-  }
-  if (result.setup_required) {
-    throw new Error(result.message || "Configure GEMINI_API_KEY no Supabase.");
-  }
-  return result;
+  throw lastError || new Error("question-factory falhou após tentativas de recuperação.");
 }
 
 function decodeEntities(value) {
