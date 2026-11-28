@@ -190,8 +190,18 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
 
  useEffect(()=>{
   let cancelled=false;
+  let loading=false;
+  let lastRefreshAt=0;
   if(!authClient){setLicensedQuestions([]);setLicensedQuestionStatus("fallback");return undefined;}
-  const loadLicensedQuestions=async()=>{
+
+  const loadLicensedQuestions=async(force=false)=>{
+   if(loading)return;
+   const now=Date.now();
+   // Evita várias consultas seguidas quando foco e visibilidade disparam juntos.
+   if(!force&&now-lastRefreshAt<15000)return;
+   loading=true;
+   lastRefreshAt=now;
+   setLicensedQuestionStatus(current=>current==="loading"?"loading":"refreshing");
    try{
     const records=[];
     const pageSize=500;
@@ -213,11 +223,33 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
      options:(Array.isArray(record.options)?record.options:[]).map(option=>[option.text,option.id]),
      sourceUrl:record.source_url,licenseStatus:record.license_status,rightsBasis:record.rights_basis
     })).filter(question=>question.options.length>=2);
-    setLicensedQuestions(rows);setLicensedQuestionStatus("ready");
-   }catch{if(!cancelled){setLicensedQuestions([]);setLicensedQuestionStatus("unavailable");}}
+    setLicensedQuestions(rows);
+    setLicensedQuestionStatus("ready");
+   }catch{
+    // Preserva a última versão carregada quando a rede falhar durante uma atualização.
+    if(!cancelled)setLicensedQuestionStatus("unavailable");
+   }finally{
+    loading=false;
+   }
   };
-  void loadLicensedQuestions();
-  return()=>{cancelled=true;};
+
+  const refreshOnFocus=()=>void loadLicensedQuestions(false);
+  const refreshWhenVisible=()=>{
+   if(document.visibilityState==="visible")void loadLicensedQuestions(false);
+  };
+  const refreshOnRequest=()=>void loadLicensedQuestions(true);
+
+  window.addEventListener("focus",refreshOnFocus);
+  document.addEventListener("visibilitychange",refreshWhenVisible);
+  window.addEventListener("editalradar:refresh-questions",refreshOnRequest);
+  void loadLicensedQuestions(true);
+
+  return()=>{
+   cancelled=true;
+   window.removeEventListener("focus",refreshOnFocus);
+   document.removeEventListener("visibilitychange",refreshWhenVisible);
+   window.removeEventListener("editalradar:refresh-questions",refreshOnRequest);
+  };
  },[authClient]);
 
  useEffect(()=>{
@@ -475,6 +507,7 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
    </div>
    <div className="question-sync-status" role="status">Domínio dos conceitos: {conceptMasterySyncStatus==="syncing"?"Salvando na conta…":conceptMasterySyncStatus==="synced"?"Sincronizado na sua conta":conceptMasterySyncStatus==="loading"?"Carregando da conta…":"Salvo neste aparelho"}</div>
    <div className="question-sync-status" role="status">Progresso: {questionSyncStatus==="syncing"?"Salvando progresso…":questionSyncStatus==="synced"?"Progresso salvo":questionSyncStatus==="loading"?"Carregando seu progresso…":"Progresso salvo neste aparelho"}</div>
+   <button type="button" className="detail-btn" disabled={licensedQuestionStatus==="loading"||licensedQuestionStatus==="refreshing"} onClick={()=>window.dispatchEvent(new Event("editalradar:refresh-questions"))}>{licensedQuestionStatus==="loading"||licensedQuestionStatus==="refreshing"?"Atualizando banco…":licensedQuestionStatus==="unavailable"?"Tentar atualizar questões":"Atualizar banco de questões"}</button>
    <div className="question-collections" role="group" aria-label="Coleções de questões">
     <button type="button" className={collection==="adaptive"?"active":""} aria-pressed={collection==="adaptive"} onClick={()=>selectCollection("adaptive")}>Recomendadas <span>{collectionCounts.adaptive}</span></button>
     <button type="button" className={collection==="all"?"active":""} aria-pressed={collection==="all"} onClick={()=>selectCollection("all")}>Todas <span>{collectionCounts.all}</span></button>
