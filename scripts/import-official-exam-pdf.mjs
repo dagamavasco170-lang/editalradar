@@ -69,11 +69,9 @@ export function findPortugueseDictionarySegmentation(value) {
         const part = word.slice(start, end);
         if (part.length === 1 && !PT_BR_FUNCTION_WORDS.has(part)) continue;
         if (!portugueseDictionaryWordInfo(part)) continue;
-        paths[end].push([...path, part]);
+        if (paths[end].length < 80) paths[end].push([...path, part]);
       }
     }
-    // Bound work for ambiguous tokens without losing the strongest candidate paths.
-    if (paths[start + 1].length > 80) paths[start + 1] = paths[start + 1].slice(0, 80);
   }
 
   const candidates = paths[word.length].filter(parts => {
