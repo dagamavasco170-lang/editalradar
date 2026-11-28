@@ -9,7 +9,7 @@ describe("Radar AI knowledge engine", () => {
     expect(validateKnowledgeSource({ ...source, url: "http://example.com" }).valid).toBe(false);
   });
   it("normalizes text consistently", () => {
-    expect(normalizeKnowledgeText("  texto\u00a0  \n\n\n outro ")).toBe("texto outro");
+    expect(normalizeKnowledgeText("  texto\u00a0  \n\n\n outro ")).toBe("texto\n\noutro");
   });
   it("splits content into bounded chunks", () => {
     const chunks = splitKnowledgeText("a".repeat(250), { maxChars: 120, overlapChars: 20 });
