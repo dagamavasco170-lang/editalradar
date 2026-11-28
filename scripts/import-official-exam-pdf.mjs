@@ -272,9 +272,13 @@ export function parseExamPages(pages, documentSha256, {
 
     const issues = [];
     const rejectionReasons = [];
-    const spacingText = [prompt, ...options.map(item => item.text)].join(" ");
-    const spacingMetrics = measureTextSpacing(spacingText);
-    const suspiciousWordSpacing = hasSuspiciousWordSpacing(spacingText);
+    const spacingSegments = [prompt, ...options.map(item => item.text)];
+    const spacingText = spacingSegments.join(" ");
+    // Avalia cada enunciado/alternativa isoladamente: texto correto nas opções
+    // não pode diluir e esconder espaços ausentes no enunciado.
+    const spacingMetrics = measureTextSpacing(prompt);
+    const spacingQuality = Math.min(...spacingSegments.map(scoreTextSpacingQuality));
+    const suspiciousWordSpacing = spacingSegments.some(hasSuspiciousWordSpacing);
     if (suspiciousWordSpacing) {
       issues.push("Espaçamento entre palavras suspeito; OCR ou revisão visual necessária.");
       rejectionReasons.push("suspicious_word_spacing");
@@ -325,7 +329,7 @@ export function parseExamPages(pages, documentSha256, {
       promptLength: prompt.length,
       optionCount: options.length,
       optionIds,
-      spacingQuality: scoreTextSpacingQuality(spacingText),
+      spacingQuality,
       spacingMetrics,
       hasVisualDependency,
       ocrUsed: Boolean(current.ocrUsed),
