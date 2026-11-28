@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS public.radar_ai_training_examples (
   metadata jsonb NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(metadata) = 'object'),
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
-  CHECK ((review_status = 'approved') = (reviewed_at IS NOT NULL))
+  CHECK ((review_status IN ('approved','rejected')) = (reviewed_at IS NOT NULL))
 );
 
 CREATE TABLE IF NOT EXISTS public.radar_ai_learning_events (
