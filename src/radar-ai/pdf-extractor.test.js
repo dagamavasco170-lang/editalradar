@@ -6,7 +6,7 @@ function fakeExec(outputs = {}) {
   return (cmd) => outputs[cmd] ?? (cmd === "pdfinfo" ? "Pages: 2\n" : "Page one text\fPage two text\f");
 }
 function stubHeader() {
-  return { openSync: () => 1, readSync: (_fd, buffer) => { buffer.write("%PDF-"); return 5; }, closeSync: () => {} };
+  return { open: () => 1, read: (_fd, buffer) => { buffer.write("%PDF-"); return 5; }, close: () => {} };
 }
 
 describe("Radar AI PDF text extractor", () => {
