@@ -38,6 +38,21 @@ describe("Validação automática de questões", () => {
       "Donaudampfschifffahrselektrizitätenhauptbetriebswerkbauunterbeamtengesellschaft",
       lexicon
     )).toEqual([]);
+    const expandedLexicon = new Set([
+      ...lexicon, "obrigatório", "europeu", "curitiba", "sorocaba", "service",
+      "retrocompatibilidade", "multiversão", "autoidentificação", "odontolegal",
+      "detalhado", "verdadeiro", "prestador", "pensador", "esquisito",
+      "examinador", "administrador", "professor", "criativo", "bondoso",
+      "técnico", "bancário", "brasileiro", "concomitante", "suficiente",
+      "longitudinal", "foi", "adiado", "na", "data"
+    ]);
+    expect(findPortugueseConcatenatedWords(
+      "A alternativa obrigatória sobre a cultura Europeia em Curitiba e Sorocaba cita Service e retrocompatibilidade.",
+      expandedLexicon
+    )).toEqual([]);
+    expect(findPortugueseConcatenatedWords("foiadiada semuito Nadata", expandedLexicon))
+      .toEqual(["foiadiada", "semuito", "Nadata"]);
+
     const morphologyLexicon = new Set(["examinador", "administrador", "professor", "criativo", "bondoso", "técnico", "bancário", "brasileiro", "concomitante", "suficiente", "longitudinal"]);
     expect(findPortugueseConcatenatedWords(
       "A banca examinadora e a equipe administradora, com professoras, técnicas, bancárias e brasileiras, trabalharam concomitantemente e apresentaram uma análise suficientemente clara sobre longitudinalidades.",
