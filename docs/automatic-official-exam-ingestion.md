@@ -7,7 +7,7 @@ Manter no banco próprio do EditalRadar questões extraídas de cadernos oficiai
 ## Modos de execução
 
 - `dry-run`: baixa e analisa os PDFs, extrai questões, cruza o gabarito e gera relatório. Não grava enunciados no banco.
-- `stage`: executa as mesmas validações e grava questões elegíveis em `study_exam_question_imports`, com o gabarito e proveniência. Os registros ficam privados, com `status=pending`, `rights_review_status=not_reviewed` e `rights_basis=not_assessed`. Não aparecem no banco público nem no app.
+- `stage`: executa as mesmas validações e grava questões elegíveis em `study_exam_question_imports`, com o gabarito e proveniência. Os registros ficam privados, com `status=pending`, `rights_review_status=not_reviewed` e `rights_basis=official_publication`; isso identifica a origem do caderno, mas não o publica por si só. Não aparecem no banco público nem no app.
 - `publish`: só processa fontes com uma decisão de reutilização documentada em nível de fonte. A base pode ser publicação oficial, domínio público, licença aberta ou autorização; não exige anexar uma autorização individual para cada questão. A publicação passa pela RPC transacional e mantém a auditoria.
 
 O modo `stage` não é uma declaração de que todo o conteúdo está livre para reutilização; é a fila interna para conferência de proveniência, gabarito e enquadramento da fonte. O modo `publish` não presume que a mera disponibilidade de um PDF autoriza qualquer uso.
@@ -25,7 +25,7 @@ O modo `stage` não é uma declaração de que todo o conteúdo está livre para
 
 ## Critério de reutilização
 
-A decisão é feita por fonte e por fundamento aplicável, não por autorização separada de cada questão. O sistema registra publicação oficial, domínio público, licença aberta, autorização ou outra análise documentada. Conteúdo de terceiros incorporado ao enunciado — por exemplo, imagem, charge, texto ou mapa — pode exigir tratamento próprio. Os links oficiais continuam disponíveis mesmo quando uma questão ainda não foi liberada para publicação.
+A decisão é feita por fonte e por fundamento aplicável, não por autorização separada de cada questão. Para questões de cadernos oficiais publicados, o fundamento `official_publication` é registrado com a própria página da banca/órgão. O TJPR, na Apelação Cível 1437332-3 (5ª Câmara Cível, julgamento de 22/03/2016), aplicou o art. 8º, IV, da Lei 9.610/1998 ao tratar questões de concursos como atos oficiais. Para outras fontes, o sistema registra domínio público, licença aberta, autorização ou outra análise documentada. Conteúdo de terceiros incorporado ao enunciado — por exemplo, imagem, charge, texto ou mapa — pode exigir tratamento próprio. Os links oficiais continuam disponíveis mesmo quando uma questão ainda não foi liberada para publicação.
 
 A Lei 9.610/1998 exclui textos de atos oficiais em seu art. 8º, IV, e trata de forma própria da reprodução e inclusão em bases de dados no art. 29 e das limitações/citações no art. 46. O enquadramento concreto depende do material e da origem; não se presume nem que todos os itens exigem autorização individual nem que todo PDF público pode ser republicado integralmente.
 
@@ -33,7 +33,7 @@ A Lei 9.610/1998 exclui textos de atos oficiais em seu art. 8º, IV, e trata de 
 
 - O workflow de PR executa `dry-run` sem credenciais.
 - O workflow manual oferece `dry-run`, `stage` e `publish`.
-- A agenda e o push para `main` executam `stage` por padrão; `publish` só é escolhido com a configuração de autopublicação ativada e fontes aprovadas.
+- A agenda e o push para `main` executam `publish` por padrão quando a variável `EXAM_IMPORT_AUTOPUBLISH_ENABLED` não está definida ou é `true`; defina-a como `false` para executar somente `stage`. O modo `publish` inclui apenas fontes aprovadas em nível de fonte e questões que passam por todos os controles técnicos.
 - É necessário configurar `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` como secrets do GitHub Actions para execução `stage`/ `publish`.
 
 ## Relatório de validação já realizado
