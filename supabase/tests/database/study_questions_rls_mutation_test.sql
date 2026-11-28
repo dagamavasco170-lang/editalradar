@@ -2,7 +2,7 @@
 -- Runs only in the local Supabase test database; all fixture changes roll back.
 begin;
 
-select plan(12);
+select plan(13);
 
 -- Fixture admin identity satisfies the auth.users FK; transaction rollback removes it.
 insert into auth.users (id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
@@ -72,6 +72,13 @@ select is(
 
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated","app_metadata":{"role":"admin"}}';
+set local request.jwt.claim.sub = '22222222-2222-2222-2222-222222222222';
+
+select is(
+  (select auth.uid()),
+  '22222222-2222-2222-2222-222222222222'::uuid,
+  'admin fixture auth.uid resolves to the fixture user'
+);
 
 select is(
   (select count(*) from public.study_questions where exam_name='ER RLS MUTATION fixture'),
