@@ -101,7 +101,7 @@ export function findPortugueseConcatenatedWords(value: unknown, lexicon: Set<str
     return paths[word.length].some(parts => {
       const contentWords = parts.filter(part => part.length >= 3 && !PORTUGUESE_FUNCTION_WORDS.has(part));
       const hasFunctionWord = parts.some(part => PORTUGUESE_FUNCTION_WORDS.has(part));
-      return contentWords.length >= 2 || (word.length <= 12 && contentWords.length >= 1 && hasFunctionWord);
+      return contentWords.length >= 2 || (word.length <= 12 && contentWords.length >= 1 && PORTUGUESE_FUNCTION_WORDS.has(parts[0]));
     });
   });
 }
