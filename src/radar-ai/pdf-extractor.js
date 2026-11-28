@@ -9,6 +9,9 @@ const MAX_TEXT_BYTES = 15 * 1024 * 1024;
 export function extractKnowledgePdf(pdfPath, {
   execFile = execFileSync,
   stat = statSync,
+  open = openSync,
+  read = readSync,
+  close = closeSync,
   maxBytes = MAX_KNOWLEDGE_PDF_BYTES,
   maxPages = MAX_KNOWLEDGE_PDF_PAGES
 } = {}) {
