@@ -14,14 +14,15 @@ O modo `stage` não é uma declaração de que todo o conteúdo está livre para
 
 ## Pipeline
 
-1. **Fontes**: lê registros publicados em `study_exam_sources` e fontes oficiais adicionais mantidas em `scripts/official-exam-sources.json`. A lista é limitada a 120 registros por execução.
+1. **Fontes**: lê registros publicados em `study_exam_sources` e fontes oficiais adicionais mantidas em `scripts/official-exam-sources.json`. A lista é limitada a 120 registros por execução. Fontes persistidas são ordenadas pelo momento da última verificação, para distribuir os ciclos entre as bancas e evitar reprocessar sempre o mesmo concurso.
 2. **Descoberta**: examina a página da banca, PDFs e até três páginas intermediárias. Os destinos são limitados a HTTPS e aos hosts permitidos em `src/lib/official-sources.js`. Não tenta contornar WAF, CAPTCHA, login, paywall, robots ou respostas 401/403/429.
 3. **Download**: valida redirects e assinatura PDF, com limites de 5 MB para HTML e 25 MB por PDF.
 4. **Extração**: usa Poppler e Tesseract em português, respeitando até 300 páginas por PDF e até 60 páginas selecionadas para OCR. Preserva página e numeração original.
 5. **Gabarito**: exige gabarito definitivo identificável e associação inequívoca por cargo/caderno/versão. A resposta não é inferida pelo enunciado. Questões anuladas ou sem resposta válida não são elegíveis.
 6. **Validação**: exige correspondência de 100% do conjunto numérico do gabarito com o caderno. Questões incompletas, duplicadas, dependentes de imagens, tabelas, mapas, charges ou texto externo permanecem em quarentena.
 7. **Persistência**: `stage` guarda o item e a resposta sugerida na fila privada; `publish` grava questão e resposta em tabelas separadas por transação. Duplicatas não criam novas questões.
-8. **Relatório**: audita fontes, documentos, questões extraídas, pré-cadastros, publicação, duplicatas, anulações, quarentena e falhas.
+8. **Rodízio de fontes**: ao terminar de examinar uma fonte, atualiza `last_ingested_at` e `last_ingested_run`. O próximo ciclo começa pelas fontes que ainda não foram verificadas ou estão há mais tempo sem ingestão.
+9. **Relatório**: audita fontes, documentos, questões extraídas, pré-cadastros, publicação, duplicatas, anulações, quarentena e falhas.
 
 ## Critério de reutilização
 
