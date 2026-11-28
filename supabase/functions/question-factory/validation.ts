@@ -82,10 +82,9 @@ export function findPortugueseConcatenatedWords(value: unknown, lexicon: Set<str
           const part = word.slice(start, end);
           if (part.length === 1 && !PORTUGUESE_FUNCTION_WORDS.has(part)) continue;
           if (!portugueseDictionaryHasWord(part, lexicon)) continue;
-          paths[end].push([...path, part]);
+          if (paths[end].length < 80) paths[end].push([...path, part]);
         }
       }
-      if (paths[start + 1].length > 80) paths[start + 1] = paths[start + 1].slice(0, 80);
     }
     return paths[word.length].some(parts => {
       const contentWords = parts.filter(part => part.length >= 3 && !PORTUGUESE_FUNCTION_WORDS.has(part));
