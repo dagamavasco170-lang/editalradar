@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifyGeneratedReview, filterQuestionCandidates, isDuplicateQuestion, isTrustedPrivateStudySourceUrl, similarityScore, findPortugueseConcatenatedWords, validateQuestion } from "./validation.ts";
+import { classifyGeneratedReview, filterQuestionCandidates, isDuplicateQuestion, isTrustedPrivateStudySourceUrl, similarityScore, findPortugueseConcatenatedWords, hasMissingSpacesAfterPunctuation, validateQuestion } from "./validation.ts";
 
 const source = "A administração pública direta e indireta de qualquer dos Poderes da União, dos Estados, do Distrito Federal e dos Municípios obedecerá aos princípios de legalidade, impessoalidade, moralidade, publicidade e eficiência.";
 const question = {
@@ -38,6 +38,11 @@ describe("Validação automática de questões", () => {
       "Donaudampfschifffahrselektrizitätenhauptbetriebswerkbauunterbeamtengesellschaft",
       lexicon
     )).toEqual([]);
+  });
+
+  it("detecta ausência de espaço após pontuação em enunciados e alternativas", () => {
+    expect(hasMissingSpacesAfterPunctuation("Após a detenção,permaneceu em local ermo.")).toBe(true);
+    expect(hasMissingSpacesAfterPunctuation("A frase terminou. O texto continua.")).toBe(false);
   });
 
   it("bloqueia questão com palavras concatenadas no enunciado ou nas alternativas", () => {
