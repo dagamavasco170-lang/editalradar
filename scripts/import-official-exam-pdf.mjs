@@ -39,10 +39,10 @@ export function measureTextSpacing(value) {
   const spaceRatio = letterCount ? spaceCount / letterCount : 0;
   const joinedWordMarkers = words.filter(word => {
     if ([...word].length < 8 || [...word].length >= 28) return false;
-    const fusedLeadingWord = /^(?:que|ele|ela|foi|teria|uma|dos|das|para|com|por|sem|na|no|da|do)\\p{L}{4,}$/iu.test(word);
-    const fusedMiddleWord = /^\\p{L}{8,}(?:por|com|sem|para|que|dos|das)\\p{L}{3,}$/iu.test(word);
-    const fusedVerb = /^(?:pode|podem|deve|devem|teria|teriam|foi|foram|será|serao|está|estao)(?:ser|estar|ter|haver|sido|obtido|realizado|aplicado|utilizado|considerado)\\p{L}*$/iu.test(word);
-    const fusedClause = /^(?:consiste|consistem)(?:na|no|em|de|do|da)\\p{L}{4,}$/iu.test(word);
+    const fusedLeadingWord = /^(?:que|ele|ela|foi|teria|uma|dos|das|para|com|por|sem|na|no|da|do)\p{L}{4,}$/iu.test(word);
+    const fusedMiddleWord = /^\p{L}{8,}(?:por|com|sem|para|que|dos|das)\p{L}{3,}$/iu.test(word);
+    const fusedVerb = /^(?:pode|podem|deve|devem|teria|teriam|foi|foram|será|serao|está|estao)(?:ser|estar|ter|haver|sido|obtido|realizado|aplicado|utilizado|considerado)\p{L}*$/iu.test(word);
+    const fusedClause = /^(?:consiste|consistem)(?:na|no|em|de|do|da)\p{L}{4,}$/iu.test(word);
     return fusedLeadingWord || fusedMiddleWord || fusedVerb || fusedClause;
   }).length;
   return { letterCount, wordCount: words.length, spaceCount, spaceRatio, averageWordLength, longWordCount, veryLongWordCount, joinedWordMarkers };
