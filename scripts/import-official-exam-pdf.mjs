@@ -19,10 +19,10 @@ const RIGHTS_BASES = new Set([
 export function formatChemicalFormulaText(value) {
   const subscript = digits => String(digits).replace(/[0-9]/g, digit => "₀₁₂₃₄₅₆₇₈₉"[Number(digit)]);
   return String(value ?? "")
-    .replace(/([A-Z][a-z]?)(\\d+)|\\)(\\d+)/g, (match, element, elementCount, groupCount) =>
+    .replace(/([A-Z][a-z]?)(\d+)|\)(\d+)/g, (match, element, elementCount, groupCount) =>
       element ? element + subscript(elementCount) : ")" + subscript(groupCount)
     )
-    .replace(/(?<=[A-Za-z0-9])\\.(?=\\d+[A-Z])/g, "·");
+    .replace(/(?<=[A-Za-z0-9])\.(?=\d+[A-Z])/g, "·");
 }
 
 export function normalizeQuestionText(value) {
