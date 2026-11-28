@@ -171,6 +171,7 @@ export function scoreTextSpacingQuality(value) {
 
 export function hasSuspiciousWordSpacing(value) {
   const metrics = measureTextSpacing(value);
+  if (metrics.joinedWordMarkers >= 1) return true;
   if (metrics.letterCount < 100 || metrics.wordCount < 8) return false;
   return metrics.veryLongWordCount >= 2
     || (metrics.veryLongWordCount >= 1 && metrics.joinedWordMarkers >= 2 && metrics.averageWordLength >= 5.4)
