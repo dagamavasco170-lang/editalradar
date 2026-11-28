@@ -145,11 +145,17 @@ export function findPortugueseConcatenatedWords(value: unknown, lexicon: Set<str
       const contentWords = parts.filter(part => !PORTUGUESE_FUNCTION_WORDS.has(part));
       const allContentWordsLookComplete = contentWords.every(part => part.length >= 4);
       const hasShortFunctionWord = parts.some(part => PORTUGUESE_SHORT_JOIN_WORDS.has(part));
+      const hasBrokenWordBoundary = parts.some((part, index) =>
+        index < parts.length - 1 && portugueseDictionaryHasWord(part + parts[index + 1], lexicon)
+      );
+      if (hasBrokenWordBoundary) return false;
       const longJoin = word.length >= 14 && allContentWordsLookComplete
         && contentWords.length >= 2 && hasShortFunctionWord;
+      const twoWordJoin = word.length >= 13 && parts.length === 2
+        && contentWords.length === 2 && contentWords.every(part => part.length >= 5);
       const shortJoin = word.length <= 13 && parts.length <= 3
         && contentWords.length === 1 && contentWords[0].length >= 4 && hasShortFunctionWord;
-      return longJoin || shortJoin;
+      return longJoin || twoWordJoin || shortJoin;
     });
   });
 }
