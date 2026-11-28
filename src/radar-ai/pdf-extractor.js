@@ -30,13 +30,18 @@ export function extractKnowledgePdf(pdfPath, {
     return { extracted: false, errors: ["PDF size must be between 1 byte and the configured limit."], pages: [], stats: { pageCount: 0, byteSize: fileStats.size || 0 } };
   }
   let header;
-  const fd = open(pdfPath, "r");
   try {
-    const buffer = Buffer.alloc(5);
-    const read = read(fd, buffer, 0, buffer.length, 0);
-    header = buffer.subarray(0, read).toString("ascii");
-  } finally {
-    close(fd);
+    const fd = open(pdfPath, "r");
+    try {
+      const buffer = Buffer.alloc(5);
+      const bytesRead = read(fd, buffer, 0, buffer.length, 0);
+      if (!Number.isInteger(bytesRead) || bytesRead < 0 || bytesRead > buffer.length) throw new Error("Invalid PDF header read.");
+      header = buffer.subarray(0, bytesRead).toString("ascii");
+    } finally {
+      close(fd);
+    }
+  } catch (error) {
+    return { extracted: false, errors: ["PDF signature check failed: " + String(error?.message || error).slice(0, 200)], pages: [], stats: { pageCount: 0, byteSize: fileStats.size } };
   }
   if (header !== "%PDF-") return { extracted: false, errors: ["File does not have a PDF signature."], pages: [], stats: { pageCount: 0, byteSize: fileStats.size } };
 
