@@ -10,6 +10,91 @@ export type GeneratedQuestion = {
 
 export type ValidationResult = { valid: boolean; issues: string[] };
 
+export const PT_BR_DICTIONARY_SNAPSHOT = "93ba2a6f3b2f85262fba72df09d448c6bb2fa50a";
+const PT_BR_DICTIONARY_URLS = [
+  `https://raw.githubusercontent.com/fserb/pt-br/${PT_BR_DICTIONARY_SNAPSHOT}/lexico`,
+  `https://raw.githubusercontent.com/fserb/pt-br/${PT_BR_DICTIONARY_SNAPSHOT}/conjuga%C3%A7%C3%B5es`
+];
+let portugueseLexiconPromise: Promise<Set<string>> | null = null;
+const PORTUGUESE_FUNCTION_WORDS = new Set([
+  "a", "à", "o", "e", "as", "os", "de", "do", "da", "dos", "das", "em", "no", "na",
+  "nos", "nas", "ao", "aos", "se", "me", "te", "lhe", "lhes", "um", "uma", "uns", "umas",
+  "que", "por", "para", "pelo", "pela", "pelos", "pelas", "com", "sem", "sob", "sobre",
+  "entre", "após", "antes", "num", "numa", "nuns", "numas", "é", "são"
+]);
+
+export async function loadPortugueseLexicon(): Promise<Set<string>> {
+  if (!portugueseLexiconPromise) {
+    portugueseLexiconPromise = (async () => {
+      const responses = await Promise.all(PT_BR_DICTIONARY_URLS.map((url) =>
+        fetch(url, { headers: { Accept: "text/plain" } })
+      ));
+      for (const response of responses) {
+        if (!response.ok) throw new Error("Não foi possível carregar o dicionário pt-BR (HTTP " + response.status + ").");
+      }
+      const contents = await Promise.all(responses.map(response => response.text()));
+      const words = new Set<string>(PORTUGUESE_FUNCTION_WORDS);
+      for (const content of contents) {
+        for (const rawWord of content.split(/\\r?\\n/)) {
+          const word = rawWord.normalize("NFC").toLocaleLowerCase("pt-BR").trim();
+          if (word) words.add(word);
+        }
+      }
+      if (words.size < 250_000) throw new Error("O dicionário pt-BR carregado está incompleto; publicação automática bloqueada.");
+      return words;
+    })().catch((error) => {
+      portugueseLexiconPromise = null;
+      throw error;
+    });
+  }
+  return portugueseLexiconPromise;
+}
+
+function portugueseDictionaryHasWord(value: string, lexicon: Set<string>): boolean {
+  const word = value.normalize("NFC").toLocaleLowerCase("pt-BR");
+  if (PORTUGUESE_FUNCTION_WORDS.has(word) || lexicon.has(word)) return true;
+  const variants: string[] = [];
+  if (word.endsWith("ões")) variants.push(word.slice(0, -3) + "ão");
+  if (word.endsWith("ães")) variants.push(word.slice(0, -3) + "ão");
+  if (word.endsWith("ens")) variants.push(word.slice(0, -3) + "em");
+  if (word.endsWith("is")) variants.push(word.slice(0, -2) + "l");
+  if (word.endsWith("s")) variants.push(word.slice(0, -1));
+  if (word.endsWith("as")) variants.push(word.slice(0, -2) + "ado", word.slice(0, -2) + "ido");
+  if (word.endsWith("os")) variants.push(word.slice(0, -2) + "a");
+  return variants.some(variant => lexicon.has(variant));
+}
+
+export function findPortugueseConcatenatedWords(value: unknown, lexicon: Set<string>): string[] {
+  const text = String(value ?? "")
+    .replace(/https?:\\/\\/\\S+/giu, " ")
+    .replace(/`[^`]*`/gu, " ");
+  const words = text.match(/\\p{L}+/gu) || [];
+  return words.filter(original => {
+    if (original.length < 6 || /[a-zà-ÿ][A-ZÀ-Þ]/u.test(original)) return false;
+    const word = original.normalize("NFC").toLocaleLowerCase("pt-BR");
+    if (PORTUGUESE_FUNCTION_WORDS.has(word) || lexicon.has(word)) return false;
+    const paths = Array.from({ length: word.length + 1 }, () => [] as string[][]);
+    paths[0] = [[]];
+    for (let start = 0; start < word.length; start += 1) {
+      if (!paths[start].length) continue;
+      for (const path of paths[start]) {
+        for (let end = start + 1; end <= Math.min(word.length, start + 24); end += 1) {
+          const part = word.slice(start, end);
+          if (part.length === 1 && !PORTUGUESE_FUNCTION_WORDS.has(part)) continue;
+          if (!portugueseDictionaryHasWord(part, lexicon)) continue;
+          paths[end].push([...path, part]);
+        }
+      }
+      if (paths[start + 1].length > 80) paths[start + 1] = paths[start + 1].slice(0, 80);
+    }
+    return paths[word.length].some(parts => {
+      const contentWords = parts.filter(part => part.length >= 3 && !PORTUGUESE_FUNCTION_WORDS.has(part));
+      const hasFunctionWord = parts.some(part => PORTUGUESE_FUNCTION_WORDS.has(part));
+      return contentWords.length >= 2 || (word.length <= 12 && contentWords.length >= 1 && hasFunctionWord);
+    });
+  });
+}
+
 export function normalizeText(value: unknown): string {
   return String(value ?? "")
     .normalize("NFD")
@@ -41,7 +126,7 @@ export function isTrustedPrivateStudySourceUrl(value: unknown): boolean {
   } catch { return false; }
 }
 
-export function validateQuestion(question: unknown, sourceExcerpt: string): ValidationResult {
+export function validateQuestion(question: unknown, sourceExcerpt: string, lexicon?: Set<string>): ValidationResult {
   const issues: string[] = [];
   if (!question || typeof question !== "object" || Array.isArray(question)) {
     return { valid: false, issues: ["A questão não é um objeto válido."] };
@@ -55,6 +140,15 @@ export function validateQuestion(question: unknown, sourceExcerpt: string): Vali
   const options = Array.isArray(item.options) ? item.options as QuestionOption[] : [];
 
   if (prompt.length < 30 || prompt.length > 2500) issues.push("Enunciado muito curto ou longo.");
+  if (lexicon) {
+    const fusedPromptWords = findPortugueseConcatenatedWords(prompt, lexicon);
+    const fusedOptionWords = options.flatMap(option => findPortugueseConcatenatedWords(option?.text, lexicon));
+    if (fusedPromptWords.length || fusedOptionWords.length) {
+      const examples = [...fusedPromptWords, ...fusedOptionWords].slice(0, 5).join(", ");
+      issues.push("Possíveis palavras concatenadas, não reconhecidas como uma palavra no léxico pt-BR: " + examples + ". Conferir com a fonte e não corrigir por adivinhação.");
+    }
+  }
+
   if (explanation.length < 40 || explanation.length > 2000) issues.push("Justificativa ausente ou insuficiente.");
   if (options.length !== 4) issues.push("A questão precisa ter exatamente quatro alternativas.");
   const ids = options.map((option) => String(option?.id || "").toLowerCase());
@@ -109,7 +203,8 @@ export type GeneratedReviewStatus = "auto_approved" | "manual_review" | "rejecte
 export function filterQuestionCandidates(
   candidates: unknown,
   sourceExcerpt: string,
-  existingPrompts: string[] = []
+  existingPrompts: string[] = [],
+  lexicon?: Set<string>
 ): { validCandidates: GeneratedQuestion[]; issues: string[] } {
   const validCandidates: GeneratedQuestion[] = [];
   const issues: string[] = [];
@@ -118,7 +213,7 @@ export function filterQuestionCandidates(
 
   for (let index = 0; index < rows.length; index += 1) {
     const candidate = rows[index] as GeneratedQuestion;
-    const result = validateQuestion(candidate, sourceExcerpt);
+    const result = validateQuestion(candidate, sourceExcerpt, lexicon);
     if (!result.valid) {
       issues.push(`Questão ${index + 1}: ${result.issues.join(" ")}`);
       continue;
