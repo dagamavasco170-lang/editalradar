@@ -84,6 +84,13 @@ test("rejeita questão com palavras coladas e registra o motivo", () => {
     && item.rejectionReasons.includes("suspicious_word_spacing")));
 });
 
+test("rejeita enunciado FGV com palavras concatenadas em trechos isolados", () => {
+  const corrupted = "Durante o registro de ocorrência relativo à apresentação de um homem detido pela Polícia Militar, o custodiado relata que, após a detenção,permaneceudurantedoisdiassobaguardadospoliciais em uma casa em local ermo. Afirma que foi mantido encapuzado, privado do sono por estímulos sonoros repetidos, ameaçado de morte e submetido a simulações de execução para que confessasse determinado crime. O homem apresenta-semuito nervoso, com olheirasacentuadase roupas com forte odor de urina, mas não são observadas lesões corporais visíveis. Diante da alegação apresentada, a melhor conduta a ser adotada pelo Delegado é";
+  const corrected = "Durante o registro de ocorrência relativo à apresentação de um homem detido pela Polícia Militar, o custodiado relata que, após a detenção, permaneceu durante dois dias sob a guarda dos policiais em uma casa em local ermo. Afirma que foi mantido encapuzado, privado do sono por estímulos sonoros repetidos, ameaçado de morte e submetido a simulações de execução para que confessasse determinado crime. O homem apresenta-se muito nervoso, com olheiras acentuadas e roupas com forte odor de urina, mas não são observadas lesões corporais visíveis. Diante da alegação apresentada, a melhor conduta a ser adotada pelo Delegado é";
+  assert.equal(hasSuspiciousWordSpacing(corrupted), true);
+  assert.equal(hasSuspiciousWordSpacing(corrected), false);
+});
+
 test("interpreta confiança do OCR e reconstrói linhas a partir do TSV do Tesseract", () => {
   const tsv = [
     "level\tpage_num\tblock_num\tpar_num\tline_num\tword_num\tleft\ttop\twidth\theight\tconf\ttext",
