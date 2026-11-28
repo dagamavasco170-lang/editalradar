@@ -26,8 +26,13 @@ const PT_BR_FUNCTION_WORDS = new Set([
   "que", "por", "para", "pelo", "pela", "pelos", "pelas", "com", "sem", "sob", "sobre",
   "entre", "após", "antes", "num", "numa", "nuns", "numas", "é", "são"
 ]);
+const PT_BR_DOMAIN_WORDS = new Set(
+  readFileSync(new URL("./dictionaries/pt-br-domain-terms.txt", import.meta.url), "utf8")
+    .split(/\r?\n/).map(word => word.normalize("NFC").toLocaleLowerCase("pt-BR").trim()).filter(Boolean)
+);
 const PT_BR_DICTIONARY = new Set([
   ...PT_BR_FUNCTION_WORDS,
+  ...PT_BR_DOMAIN_WORDS,
   ...PT_BR_DICTIONARY_FILES.flatMap(file => readFileSync(new URL(file, import.meta.url), "utf8")
     .split(/\r?\n/)
     .map(word => word.normalize("NFC").toLocaleLowerCase("pt-BR").trim())
