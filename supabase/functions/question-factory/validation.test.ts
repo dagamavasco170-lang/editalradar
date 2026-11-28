@@ -38,9 +38,9 @@ describe("Validação automática de questões", () => {
       "Donaudampfschifffahrselektrizitätenhauptbetriebswerkbauunterbeamtengesellschaft",
       lexicon
     )).toEqual([]);
-    const morphologyLexicon = new Set(["examinador", "administrador", "professor", "criativo", "bondoso", "técnico", "bancário", "brasileiro"]);
+    const morphologyLexicon = new Set(["examinador", "administrador", "professor", "criativo", "bondoso", "técnico", "bancário", "brasileiro", "concomitante", "suficiente", "longitudinal"]);
     expect(findPortugueseConcatenatedWords(
-      "A banca examinadora e a equipe administradora, com professoras, técnicas, bancárias e brasileiras.",
+      "A banca examinadora e a equipe administradora, com professoras, técnicas, bancárias e brasileiras, trabalharam concomitantemente e apresentaram uma análise suficientemente clara sobre longitudinalidades.",
       morphologyLexicon
     )).toEqual([]);
   });
