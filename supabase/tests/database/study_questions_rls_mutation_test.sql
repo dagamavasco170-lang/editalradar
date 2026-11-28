@@ -2,7 +2,11 @@
 -- Runs only in the local Supabase test database; all fixture changes roll back.
 begin;
 
-select plan(9);
+select plan(16);
+
+-- Fixture admin identity satisfies the auth.users FK; transaction rollback removes it.
+insert into auth.users (id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
+values ('22222222-2222-2222-2222-222222222222', 'authenticated', 'authenticated', 'rls-admin-fixture@example.test', '', now(), '{}'::jsonb, '{}'::jsonb, now(), now());
 
 insert into public.study_questions
   (discipline,topic,difficulty,board,exam_name,exam_year,prompt,options,explanation,source_url,rights_holder,license_status,license_proof_url,published,origin,review_status)
@@ -68,6 +72,26 @@ select is(
 
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated","app_metadata":{"role":"admin"}}';
+set local request.jwt.claim.sub = '22222222-2222-2222-2222-222222222222';
+
+select is(
+  (select auth.uid()),
+  '22222222-2222-2222-2222-222222222222'::uuid,
+  'admin fixture auth.uid resolves to the fixture user'
+);
+select ok(
+  (select auth.jwt() -> 'app_metadata' ->> 'role') = 'admin',
+  'admin fixture JWT app_metadata role resolves to admin'
+);
+select ok(
+  (select auth.uid()) = '22222222-2222-2222-2222-222222222222'::uuid,
+  'admin INSERT created_by predicate matches auth.uid'
+);
+select ok(
+  (coalesce((select auth.jwt() -> 'app_metadata' ->> 'role'), '') = 'admin')
+  and ('22222222-2222-2222-2222-222222222222'::uuid = (select auth.uid())),
+  'admin INSERT RLS check expression evaluates true'
+);
 
 select is(
   (select count(*) from public.study_questions where exam_name='ER RLS MUTATION fixture'),
@@ -84,6 +108,32 @@ select is(
   (select count(*) from public.study_question_answers a join public.study_questions q on q.id=a.question_id where q.exam_name='ER RLS MUTATION fixture'),
   0::bigint,
   'admin delete cascades fixture answer row'
+);
+
+-- Admin insert/update/delete path. created_by matches the admin fixture user.
+insert into public.study_questions
+  (discipline,topic,difficulty,board,exam_name,exam_year,prompt,options,explanation,source_url,rights_holder,license_status,license_proof_url,published,origin,review_status,created_by)
+values
+  ('Segurança','Mutation RLS admin','Fácil','Fixture','ER RLS MUTATION admin CRUD',2026,
+   'Admin-created fixture prompt','["A","B"]'::jsonb,'Fixture explanation',
+   'https://example.com/fixture','Fixture','public_domain',null,false,'manual','not_required','22222222-2222-2222-2222-222222222222');
+select is(
+  (select count(*) from public.study_questions where exam_name='ER RLS MUTATION admin CRUD'),
+  1::bigint,
+  'admin INSERT succeeds with matching auth user fixture'
+);
+update public.study_questions set prompt='Admin-updated fixture prompt'
+where exam_name='ER RLS MUTATION admin CRUD';
+select is(
+  (select count(*) from public.study_questions where exam_name='ER RLS MUTATION admin CRUD' and prompt='Admin-updated fixture prompt'),
+  1::bigint,
+  'admin UPDATE succeeds on fixture'
+);
+delete from public.study_questions where exam_name='ER RLS MUTATION admin';
+select is(
+  (select count(*) from public.study_questions where exam_name='ER RLS MUTATION admin'),
+  0::bigint,
+  'admin DELETE succeeds on admin-created fixture'
 );
 
 reset role;
