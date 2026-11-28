@@ -9,7 +9,8 @@ export function toRadarLearningAttempts({ attempts = [], questions = [] } = {}) 
   return attempts.flatMap(attempt => {
     if (!attempt || typeof attempt.questionId === "undefined" || typeof attempt.correct !== "boolean") return [];
     const question = questionById.get(String(attempt.questionId));
-    const topic = normalizeTopic(question?.topic || question?.discipline);
+    if (!question) return [];
+    const topic = normalizeTopic(question.topic || question.discipline);
     const subject = normalizeTopic(question?.discipline || "Outras");
     const timestamp = attempt.at || attempt.timestamp;
     return [{
