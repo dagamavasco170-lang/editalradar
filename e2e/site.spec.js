@@ -140,6 +140,26 @@ test("oferece acesso ao banco de provas original do PCI Concursos", async ({ pag
   await expect(page.getByText("Os documentos permanecem hospedados no PCI ou nas fontes indicadas por ele; o EditalRadar não copia nem espelha o acervo.")).toBeVisible();
 });
 
+test("renderiza enunciados oficiais do ácido fosfórico com espaçamento e fórmulas preservados", async ({ page }) => {
+  await page.goto("./");
+  await page.getByRole("button", { name: /Área de estudos/ }).click();
+
+  await expect(page.locator(".question-card")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Atualizar banco de questões" })).toBeEnabled({ timeout: 15_000 });
+
+  const search = page.getByRole("textbox", { name: "Buscar no banco de questões" });
+  await search.fill("ácido fosfórico");
+
+  const prompt = page.locator(".question-card h3");
+  await expect(prompt).toBeVisible();
+  await expect(prompt).toContainText("O ácido fosfórico (H₃PO₄) pode ser obtido principalmente por meio de dois processos industriais");
+  await expect(prompt).toContainText("Ele consiste na reação da rocha fosfática (Ca₃(PO₄)₂) moída");
+  await expect(prompt).toContainText("ácido sulfúrico (H₂SO₄) concentrado");
+  await expect(prompt).toContainText("Como subproduto dessa reação exotérmica, forma-se o sulfato de cálcio di-hidratado (CaSO₄·2H₂O)");
+  await expect(prompt).toContainText("Quando 1 mol de Ca₃(PO₄)₂(s) reage");
+  await expect(page.locator(".question-card .question-meta")).toContainText("Prova oficial · importada");
+});
+
 test("abre a página individual de um concurso com cronograma e fonte oficial", async ({ page }) => {
   await page.goto("./");
   await page.getByPlaceholder("Buscar cargo ou órgão...").fill("Polícia Civil");
