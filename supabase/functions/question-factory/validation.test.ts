@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifyGeneratedReview, filterQuestionCandidates, isDuplicateQuestion, isTrustedPrivateStudySourceUrl, similarityScore, validateQuestion } from "./validation.ts";
+import { classifyGeneratedReview, filterQuestionCandidates, isDuplicateQuestion, isTrustedPrivateStudySourceUrl, similarityScore, findPortugueseConcatenatedWords, validateQuestion } from "./validation.ts";
 
 const source = "A administração pública direta e indireta de qualquer dos Poderes da União, dos Estados, do Distrito Federal e dos Municípios obedecerá aos princípios de legalidade, impessoalidade, moralidade, publicidade e eficiência.";
 const question = {
@@ -19,6 +19,27 @@ describe("Validação automática de questões", () => {
   it("aprova uma estrutura íntegra e evidência literal na fonte", () => {
     expect(validateQuestion(question, source)).toEqual({ valid: true, issues: [] });
   });
+  it("identifica junções de palavras usando o léxico pt-BR e não divide palavra legítima", () => {
+    const lexicon = new Set([
+      "permaneceu", "durante", "dois", "dia", "sob", "guarda", "policial",
+      "olheira", "acentuado", "muito", "local", "ermo", "homem", "nervoso",
+      "roupa", "donaudampfschifffahrselektrizitätenhauptbetriebswerkbauunterbeamtengesellschaft"
+    ]);
+    const fused = "permaneceudurantedoissobaguardadospoliciais olheirasacentuadase semuito";
+    const detected = findPortugueseConcatenatedWords(fused, lexicon);
+    expect(detected).toContain("permaneceudurantedoissobaguardadospoliciais");
+    expect(detected).toContain("olheirasacentuadase");
+    expect(detected).toContain("semuito");
+    expect(findPortugueseConcatenatedWords(
+      "permaneceu durante dois dias sob a guarda dos policiais",
+      lexicon
+    )).toEqual([]);
+    expect(findPortugueseConcatenatedWords(
+      "Donaudampfschifffahrselektrizitätenhauptbetriebswerkbauunterbeamtengesellschaft",
+      lexicon
+    )).toEqual([]);
+  });
+
   it("reprova gabarito que não existe entre as alternativas", () => {
     expect(validateQuestion({ ...question, answer: "e" }, source).valid).toBe(false);
   });
