@@ -54,7 +54,7 @@ Os avisos locais existentes continuam funcionando quando o aplicativo está aber
 
 ## Pacotes publicados
 
-- **Versão em validação: 1.3.13 (versionCode 26).** O tag da próxima versão será `android-v1.3.13`. A publicação depende da aprovação do build assinado, da atualização sobre a versão anterior e da abertura do catálogo no emulador Android 10. Esta versão encaminha falhas nativas da WebView para o sistema de diagnóstico centralizado, para que erros de renderização, TLS, HTTP e carregamento possam ser analisados.
+- **Versão em validação: 1.3.14 (versionCode 27).** O tag da próxima versão será `android-v1.3.14`. A publicação depende da aprovação do build assinado, da atualização sobre a versão anterior e da abertura do catálogo no emulador Android 10. Esta versão atualiza as questões oficiais quando o WebView retorna do segundo plano e encaminha falhas nativas da WebView para o sistema de diagnóstico centralizado.
 - O APK é o pacote para instalação direta. O AAB fica disponível para uma eventual distribuição pela Play Store; a publicação na loja não é automática.
 - Builds debug são usados somente para verificação de CI quando a assinatura de produção não está disponível e não substituem a versão estável.
 
