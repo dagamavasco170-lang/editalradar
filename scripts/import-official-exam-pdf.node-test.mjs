@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   buildImportManifest,
+  formatChemicalFormulaText,
   normalizeQuestionText,
   hasSuspiciousWordSpacing,
   scoreTextSpacingQuality,
@@ -95,6 +96,13 @@ test("interpreta confiança do OCR e reconstrói linhas a partir do TSV do Tesse
   assert.equal(parsed.text, "O ácido fosfórico\nPode");
   assert.equal(parsed.words, 4);
   assert.equal(parsed.meanConfidence, 95.25);
+});
+
+test("preserva fórmulas químicas com índices inferiores e ponto de hidratação", () => {
+  assert.equal(
+    formatChemicalFormulaText("H3PO4 + Ca3(PO4)2 + CaSO4.2H2O"),
+    "H₃PO₄ + Ca₃(PO₄)₂ + CaSO₄·2H₂O"
+  );
 });
 
 test("normaliza acentos, caixa e espaços para fingerprint estável", () => {
