@@ -5,6 +5,7 @@ import {
   formatChemicalFormulaText,
   normalizeQuestionText,
   hasSuspiciousWordSpacing,
+  findPortugueseDictionarySegmentation,
   scoreTextSpacingQuality,
   parseTesseractTsv,
   parseExamPages,
@@ -89,6 +90,17 @@ test("rejeita enunciado FGV com palavras concatenadas em trechos isolados", () =
   const corrected = "Durante o registro de ocorrência relativo à apresentação de um homem detido pela Polícia Militar, o custodiado relata que, após a detenção, permaneceu durante dois dias sob a guarda dos policiais em uma casa em local ermo. Afirma que foi mantido encapuzado, privado do sono por estímulos sonoros repetidos, ameaçado de morte e submetido a simulações de execução para que confessasse determinado crime. O homem apresenta-se muito nervoso, com olheiras acentuadas e roupas com forte odor de urina, mas não são observadas lesões corporais visíveis. Diante da alegação apresentada, a melhor conduta a ser adotada pelo Delegado é";
   assert.equal(hasSuspiciousWordSpacing(corrupted), true);
   assert.equal(hasSuspiciousWordSpacing(corrected), false);
+});
+
+test("usa o dicionário pt-BR para identificar possíveis junções e preservar palavras legítimas", () => {
+  const fused = "Durante a detenção,permaneceudurantedoissobaguardadospoliciais em local ermo. O homem apresenta-semuito nervoso, com olheirasacentuadase roupas.";
+  const corrected = "Durante a detenção, permaneceu durante dois dias sob a guarda dos policiais em local ermo. O homem apresenta-se muito nervoso, com olheiras acentuadas e roupas.";
+  assert.ok(findPortugueseDictionarySegmentation("permaneceudurantedoissobaguardadospoliciais"));
+  assert.ok(findPortugueseDictionarySegmentation("olheirasacentuadase"));
+  assert.deepEqual(findPortugueseDictionarySegmentation("semuito"), ["se", "muito"]);
+  assert.equal(hasSuspiciousWordSpacing(fused), true);
+  assert.equal(hasSuspiciousWordSpacing(corrected), false);
+  assert.equal(findPortugueseDictionarySegmentation("Donaudampfschifffahrselektrizitätenhauptbetriebswerkbauunterbeamtengesellschaft"), null);
 });
 
 test("interpreta confiança do OCR e reconstrói linhas a partir do TSV do Tesseract", () => {
