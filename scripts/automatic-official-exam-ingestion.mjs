@@ -1190,6 +1190,57 @@ async function processDocument(record, examLink, keyLink, mode, runId, report, f
   }
 }
 
+async function upsertImportAtSourcePosition(row, { replacePublished = false } = {}) {
+  const sourceLookup = new URLSearchParams({
+    select: "id,status,rights_review_status,published_question_id",
+    source_document_sha256: "eq." + row.source_document_sha256,
+    source_page: "eq." + Number(row.source_page),
+    source_question_number: "eq." + Number(row.source_question_number),
+    limit: "2"
+  });
+  const existingRows = await supabaseRest("study_exam_question_imports?" + sourceLookup.toString());
+  if (!Array.isArray(existingRows) || existingRows.length > 1) return null;
+
+  if (existingRows.length === 1) {
+    const existing = existingRows[0];
+    if (existing.status === "rejected" || existing.rights_review_status === "restricted") return null;
+    if (existing.status !== "pending" && !replacePublished) return null;
+    const updatedRow = {
+      ...row,
+      published_question_id: null,
+      reviewed_by: null,
+      reviewed_at: null
+    };
+    const updated = await supabaseRest(
+      "study_exam_question_imports?id=eq." + encodeURIComponent(existing.id),
+      {
+        method: "PATCH",
+        headers: { Prefer: "return=representation" },
+        body: JSON.stringify(updatedRow)
+      }
+    );
+    return Array.isArray(updated) && updated.length && updated[0].id
+      ? updated[0].id
+      : null;
+  }
+
+  const conflict = new URLSearchParams({ on_conflict: "board,exam_name,exam_year,fingerprint" });
+  let inserted;
+  try {
+    inserted = await supabaseRest("study_exam_question_imports?" + conflict.toString(), {
+      method: "POST",
+      headers: { Prefer: "resolution=ignore-duplicates,return=representation" },
+      body: JSON.stringify(row)
+    });
+  } catch (error) {
+    if (/HTTP 409|duplicate key|unique constraint/i.test(error.message)) return null;
+    throw error;
+  }
+  return Array.isArray(inserted) && inserted.length && inserted[0].id
+    ? inserted[0].id
+    : null;
+}
+
 async function stageExamQuestion(record, item, proof, answerKeyFile, runId) {
   const question = item.question;
   const evidence = item.evidence;
@@ -1230,19 +1281,8 @@ async function stageExamQuestion(record, item, proof, answerKeyFile, runId) {
     auto_reviewed_at: new Date().toISOString(),
     automation_run_id: runId
   };
-  const query = new URLSearchParams({ on_conflict: "board,exam_name,exam_year,fingerprint" });
-  let inserted;
-  try {
-    inserted = await supabaseRest("study_exam_question_imports?" + query.toString(), {
-      method: "POST",
-      headers: { Prefer: "resolution=ignore-duplicates,return=representation" },
-      body: JSON.stringify(row)
-    });
-  } catch (error) {
-    if (/HTTP 409|duplicate key|unique constraint/i.test(error.message)) return "duplicate";
-    throw error;
-  }
-  return Array.isArray(inserted) && inserted.length && inserted[0].id ? "staged" : "duplicate";
+  const importId = await upsertImportAtSourcePosition(row);
+  return importId ? "staged" : "duplicate";
 }
 
 async function stageAndPublish(record, item, proof, answerKeyFile, runId) {
@@ -1285,21 +1325,7 @@ async function stageAndPublish(record, item, proof, answerKeyFile, runId) {
     auto_reviewed_at: new Date().toISOString(),
     automation_run_id: runId
   };
-  const query = new URLSearchParams({ on_conflict: "board,exam_name,exam_year,fingerprint" });
-  let inserted;
-  try {
-    inserted = await supabaseRest("study_exam_question_imports?" + query.toString(), {
-      method: "POST",
-      headers: { Prefer: "resolution=ignore-duplicates,return=representation" },
-      body: JSON.stringify(row)
-    });
-  } catch (error) {
-    if (/HTTP 409|duplicate key|unique constraint/i.test(error.message)) return "duplicate";
-    throw error;
-  }
-  let importId = Array.isArray(inserted) && inserted.length && inserted[0].id
-    ? inserted[0].id
-    : null;
+  let importId = await upsertImportAtSourcePosition(row, { replacePublished: true });
 
   if (!importId) {
     // A questão pode já existir porque uma execução anterior a deixou em staging.
