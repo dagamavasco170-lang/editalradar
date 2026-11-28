@@ -1,12 +1,14 @@
-import { createKnowledgeChunks, normalizeKnowledgeText } from "./knowledge-engine.js";
+import { MAX_KNOWLEDGE_TEXT_CHARS, createKnowledgeChunks, normalizeKnowledgeText } from "./knowledge-engine.js";
 import { getKnowledgeSource } from "./source-registry.js";
 
 /** Processes supplied text only; it deliberately performs no network fetching. */
 export function ingestKnowledgeText(sourceId, text, metadata = {}) {
   const source = getKnowledgeSource(sourceId);
   if (!source) return { ingested: false, errors: ["Source is not registered or its permission was not verified."], chunks: [], stats: { inputChars: 0, normalizedChars: 0, chunkCount: 0 } };
-  const normalizedText = normalizeKnowledgeText(text);
-  if (!normalizedText) return { ingested: false, errors: ["Source content is empty after normalization."], chunks: [], stats: { inputChars: String(text ?? "").length, normalizedChars: 0, chunkCount: 0 } };
+  const inputText = String(text ?? "");
+  if (inputText.length > MAX_KNOWLEDGE_TEXT_CHARS) return { ingested: false, errors: [`Source text exceeds the ${MAX_KNOWLEDGE_TEXT_CHARS.toLocaleString("en-US")}-character limit.`], chunks: [], stats: { inputChars: inputText.length, normalizedChars: 0, chunkCount: 0 } };
+  const normalizedText = normalizeKnowledgeText(inputText);
+  if (!normalizedText) return { ingested: false, errors: ["Source content is empty after normalization."], chunks: [], stats: { inputChars: inputText.length, normalizedChars: 0, chunkCount: 0 } };
   try {
     const chunks = createKnowledgeChunks(source, normalizedText, { ...metadata, retrievedAt: metadata.retrievedAt ?? new Date().toISOString() });
     return { ingested: chunks.length > 0, errors: [], chunks, stats: { inputChars: String(text ?? "").length, normalizedChars: normalizedText.length, chunkCount: chunks.length } };

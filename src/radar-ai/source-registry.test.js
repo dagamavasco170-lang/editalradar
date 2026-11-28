@@ -16,6 +16,13 @@ describe("Radar AI source registry", () => {
     expect(result.registered).toBe(false);
     expect(result.errors).toContain("Source license/permission must be verified before ingestion.");
   });
+  it("requires official=true for all official source categories", () => {
+    for (const sourceType of ["official-law", "official-exam", "official-notice"]) {
+      const result = registerKnowledgeSource({ ...source, id: sourceType, sourceType, official: false });
+      expect(result.registered).toBe(false);
+      expect(result.errors).toContain("Official source categories must be marked official.");
+    }
+  });
   it("rejects malformed HTTPS URLs instead of throwing", () => {
     const result = registerKnowledgeSource({ ...source, url: "https://" });
     expect(result.registered).toBe(false);
