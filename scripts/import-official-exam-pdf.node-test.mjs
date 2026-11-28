@@ -75,7 +75,7 @@ test("rejeita questão com palavras coladas e registra o motivo", () => {
       "(B) Segunda alternativa com texto suficientemente extenso para a validação da questão.",
       "(C) Terceira alternativa com texto suficientemente extenso para a validação da questão.",
       "(D) Quarta alternativa com texto suficientemente extenso para a validação da questão."
-    ].join("\\n")
+    ].join("\n")
   }];
   const rows = parseExamPages(pages, documentHash, { diagnostics });
   assert.equal(rows.length, 0);
@@ -90,7 +90,7 @@ test("interpreta confiança do OCR e reconstrói linhas a partir do TSV do Tesse
     "5\\t1\\t1\\t1\\t1\\t2\\t35\\t10\\t20\\t10\\t94.50\\tácido",
     "5\\t1\\t1\\t1\\t1\\t3\\t60\\t10\\t20\\t10\\t92.00\\tfosfórico",
     "5\\t1\\t1\\t1\\t2\\t1\\t10\\t30\\t20\\t10\\t98.00\\tPode"
-  ].join("\\n");
+  ].join("\n");
   const parsed = parseTesseractTsv(tsv);
   assert.equal(parsed.text, "O ácido fosfórico\\nPode");
   assert.equal(parsed.words, 4);
