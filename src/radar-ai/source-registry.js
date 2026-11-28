@@ -12,7 +12,13 @@ export function registerKnowledgeSource(source) {
   if (errors.length) return { registered: false, errors };
   const existing = sources.get(source.id);
   if (existing && existing.url !== source.url) return { registered: false, errors: ["Source id already exists with a different URL."] };
-  let normalizedUrl;\n  try {\n    normalizedUrl = new URL(source.url).toString();\n  } catch {\n    return { registered: false, errors: ["Source URL must be a valid HTTPS URL without credentials."] };\n  }\n  const normalized = Object.freeze({ ...source, url: normalizedUrl });
+  let normalizedUrl;
+  try {
+    normalizedUrl = new URL(source.url).toString();
+  } catch {
+    return { registered: false, errors: ["Source URL must be a valid HTTPS URL without credentials."] };
+  }
+  const normalized = Object.freeze({ ...source, url: normalizedUrl });
   sources.set(source.id, normalized);
   return { registered: true, errors: [], source: normalized };
 }
