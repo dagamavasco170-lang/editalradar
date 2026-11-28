@@ -39,11 +39,14 @@ function portugueseDictionaryWordInfo(value) {
   const word = String(value || "").normalize("NFC").toLocaleLowerCase("pt-BR");
   if (PT_BR_DICTIONARY.has(word)) return { exact: true };
   const variants = [];
-  if (word.endsWith("ões")) variants.push(word.slice(0, -3) + "ão");
+  if (word.endsWith("ções")) variants.push(word.slice(0, -3) + "ção");
+  else if (word.endsWith("ões")) variants.push(word.slice(0, -3) + "ão");
   if (word.endsWith("ães")) variants.push(word.slice(0, -3) + "ão");
   if (word.endsWith("ens")) variants.push(word.slice(0, -3) + "em");
   if (word.endsWith("adas")) variants.push(word.slice(0, -4) + "ado");
   if (word.endsWith("idas")) variants.push(word.slice(0, -4) + "ido");
+  if (word.endsWith("ada")) variants.push(word.slice(0, -3) + "ado");
+  if (word.endsWith("ida")) variants.push(word.slice(0, -3) + "ido");
   if (word.endsWith("is")) variants.push(word.slice(0, -2) + "l");
   if (word.endsWith("s")) variants.push(word.slice(0, -1));
   if (word.endsWith("as")) variants.push(word.slice(0, -2) + "ado", word.slice(0, -2) + "ido");
@@ -53,7 +56,7 @@ function portugueseDictionaryWordInfo(value) {
 
 export function findPortugueseDictionarySegmentation(value) {
   const word = String(value || "").normalize("NFC").toLocaleLowerCase("pt-BR");
-  if (word.length < 6 || PT_BR_DICTIONARY.has(word)) return null;
+  if (word.length < 6 || portugueseDictionaryWordInfo(word)) return null;
   if (PT_BR_SEGMENTATION_CACHE.has(word)) return PT_BR_SEGMENTATION_CACHE.get(word);
 
   // URLs, hashes and code identifiers are not natural-language words.
