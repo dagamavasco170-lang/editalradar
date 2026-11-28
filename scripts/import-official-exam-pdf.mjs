@@ -86,8 +86,7 @@ export function findPortugueseDictionarySegmentation(value) {
 
   const candidates = paths[word.length].filter(parts => {
     const contentWords = parts.filter(part => part.length >= 3 && !PT_BR_FUNCTION_WORDS.has(part));
-    const hasFunctionWord = parts.some(part => PT_BR_FUNCTION_WORDS.has(part));
-    return contentWords.length >= 2 || (word.length <= 12 && contentWords.length >= 1 && PORTUGUESE_FUNCTION_WORDS.has(parts[0]));
+    return contentWords.length >= 2 || (word.length <= 12 && contentWords.length >= 1 && PT_BR_FUNCTION_WORDS.has(parts[0]));
   });
   candidates.sort((left, right) => {
     const score = parts => parts.reduce((total, part) => {
