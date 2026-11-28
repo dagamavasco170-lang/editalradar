@@ -38,10 +38,12 @@ export function measureTextSpacing(value) {
   const averageWordLength = words.length ? letterCount / words.length : 0;
   const spaceRatio = letterCount ? spaceCount / letterCount : 0;
   const joinedWordMarkers = words.filter(word => {
-    if ([...word].length < 10 || [...word].length >= 28) return false;
-    return /^(?:que|ele|ela|foi|teria|uma|dos|das|para|com|por|sem)\p{L}{4,}$/iu.test(word)
-      || /\p{L}{3,}(?:que|dos|das|por|com|sem|para|uma|de|do|da|em|na|no|as|os)\p{L}{3,}/iu.test(word)
-      || /\p{L}{4,}(?:os|as|do|da|dos|das|que|com|por|sem)$/iu.test(word);
+    if ([...word].length < 8 || [...word].length >= 28) return false;
+    const fusedLeadingWord = /^(?:que|ele|ela|foi|teria|uma|dos|das|para|com|por|sem|na|no|da|do)\\p{L}{4,}$/iu.test(word);
+    const fusedMiddleWord = /^\\p{L}{8,}(?:por|com|sem|para|que|dos|das)\\p{L}{3,}$/iu.test(word);
+    const fusedVerb = /^(?:pode|podem|deve|devem|teria|teriam|foi|foram|será|serao|está|estao)(?:ser|estar|ter|haver|sido|obtido|realizado|aplicado|utilizado|considerado)\\p{L}*$/iu.test(word);
+    const fusedClause = /^(?:consiste|consistem)(?:na|no|em|de|do|da)\\p{L}{4,}$/iu.test(word);
+    return fusedLeadingWord || fusedMiddleWord || fusedVerb || fusedClause;
   }).length;
   return { letterCount, wordCount: words.length, spaceCount, spaceRatio, averageWordLength, longWordCount, veryLongWordCount, joinedWordMarkers };
 }
@@ -87,8 +89,9 @@ export function hasSuspiciousWordSpacing(value) {
     || (metrics.longWordCount >= 4 && metrics.averageWordLength >= 5.4)
     || (metrics.joinedWordMarkers >= 3 && metrics.averageWordLength >= 5.4)
     || (metrics.joinedWordMarkers >= 2 && metrics.averageWordLength >= 5.8)
-    || (metrics.averageWordLength >= 8.5 && metrics.spaceRatio < 0.18)
-    || (metrics.spaceRatio < 0.095 && metrics.averageWordLength >= 5.5);
+    || (metrics.spaceRatio < 0.095 && metrics.averageWordLength >= 5.5 && metrics.veryLongWordCount === 0)
+    || (metrics.averageWordLength >= 5.7 && metrics.spaceRatio < 0.15
+      && metrics.longWordCount >= 1 && metrics.veryLongWordCount === 0);
 }
 
 export function sha256(value) {
