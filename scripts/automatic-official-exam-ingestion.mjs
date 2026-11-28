@@ -459,7 +459,8 @@ export function validateQuestionForAutoPublication(question, answer, questionFor
   const prompt = String(question?.prompt || "").trim();
   const options = Array.isArray(question?.options) ? question.options : [];
   const ids = options.map(option => String(option?.id || "").toLowerCase());
-  const spacingValid = !hasSuspiciousWordSpacing([prompt, ...options.map(option => option?.text || "")].join(" "));
+  const spacingValid = !hasSuspiciousWordSpacing(prompt)
+    && options.every(option => !hasSuspiciousWordSpacing(option?.text || ""));
   if (!spacingValid) reasons.push("espaçamento entre palavras inválido ou suspeito");
   if (prompt.length < 20 || prompt.length > 5000) reasons.push("enunciado fora do limite");
   if (options.length < 2 || options.length > 6) reasons.push("quantidade de alternativas inválida");
