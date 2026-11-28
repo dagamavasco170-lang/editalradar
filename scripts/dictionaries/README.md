@@ -12,7 +12,7 @@ Conteúdo incorporado:
 
 Uso:
 1. Verificar se cada token é uma palavra reconhecida no português brasileiro.
-2. Para tokens longos desconhecidos, procurar segmentações completas compostas por palavras do léxico.
+2. Para tokens longos desconhecidos, procurar segmentações completas compostas por palavras do léxico e conferir flexões morfológicas regulares pela forma-base (ex.: examinadora → examinador).
 3. Marcar a questão para revisão quando houver indício de palavras concatenadas.
 4. Nunca corrigir automaticamente um enunciado só com base em uma divisão possível: o contexto e a fonte original devem confirmar a redação.
 
