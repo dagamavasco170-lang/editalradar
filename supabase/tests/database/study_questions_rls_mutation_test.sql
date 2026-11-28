@@ -2,7 +2,7 @@
 -- Runs only in the local Supabase test database; all fixture changes roll back.
 begin;
 
-select plan(9);
+select plan(12);
 
 insert into public.study_questions
   (discipline,topic,difficulty,board,exam_name,exam_year,prompt,options,explanation,source_url,rights_holder,license_status,license_proof_url,published,origin,review_status)
@@ -84,6 +84,33 @@ select is(
   (select count(*) from public.study_question_answers a join public.study_questions q on q.id=a.question_id where q.exam_name='ER RLS MUTATION fixture'),
   0::bigint,
   'admin delete cascades fixture answer row'
+);
+
+-- Admin insert/update/delete path with created_by bound to auth.uid().
+insert into public.study_questions
+  (discipline,topic,difficulty,board,exam_name,exam_year,prompt,options,explanation,source_url,rights_holder,license_status,license_proof_url,published,origin,review_status,created_by)
+values
+  ('Segurança','Mutation RLS admin','Fácil','Fixture','ER RLS MUTATION admin CRUD',2026,
+   'Admin-created fixture prompt','["A","B"]'::jsonb,'Fixture explanation',
+   'https://example.com/fixture','Fixture','public_domain',null,false,'manual','not_required',
+   '22222222-2222-2222-2222-222222222222');
+select is(
+  (select count(*) from public.study_questions where exam_name='ER RLS MUTATION admin'),
+  1::bigint,
+  'admin INSERT succeeds with created_by matching auth.uid()'
+);
+update public.study_questions set prompt='Admin-updated fixture prompt'
+where exam_name='ER RLS MUTATION admin';
+select is(
+  (select count(*) from public.study_questions where exam_name='ER RLS MUTATION admin' and prompt='Admin-updated fixture prompt'),
+  1::bigint,
+  'admin UPDATE succeeds on fixture'
+);
+delete from public.study_questions where exam_name='ER RLS MUTATION admin';
+select is(
+  (select count(*) from public.study_questions where exam_name='ER RLS MUTATION admin'),
+  0::bigint,
+  'admin DELETE succeeds on admin-created fixture'
 );
 
 reset role;
