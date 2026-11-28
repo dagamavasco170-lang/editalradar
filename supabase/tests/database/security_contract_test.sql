@@ -2,7 +2,7 @@
 -- Catalog-only assertions: no production data is read or modified.
 begin;
 
-select plan(49);
+select plan(50);
 
 select ok(
   not has_schema_privilege('anon', 'pgmq', 'USAGE'),
@@ -156,6 +156,14 @@ select ok(
 select ok(
   position('AUTH.UID() IS NOT NULL' in upper(pg_get_functiondef('public.check_study_question_answer(bigint,text)'::regprocedure))) > 0,
   'answer-check RPC requires an authenticated user'
+);
+
+select ok(
+  position('source_document_sha256 = v_import.source_document_sha256' in lower(pg_get_functiondef('public.publish_study_exam_question_import_automated(bigint,text,text,uuid)'::regprocedure))) > 0
+  and position('source_page = v_import.source_page' in lower(pg_get_functiondef('public.publish_study_exam_question_import_automated(bigint,text,text,uuid)'::regprocedure))) > 0
+  and position('update public.study_questions' in lower(pg_get_functiondef('public.publish_study_exam_question_import_automated(bigint,text,text,uuid)'::regprocedure))) > 0
+  and position('textspacingvalid' in lower(pg_get_functiondef('public.publish_study_exam_question_import_automated(bigint,text,text,uuid)'::regprocedure))) > 0,
+  'official question reimport validates text spacing and updates the same PDF question in place'
 );
 select ok(
   position('license_status' in pg_get_functiondef('public.check_study_question_answer(bigint,text)'::regprocedure)) > 0
