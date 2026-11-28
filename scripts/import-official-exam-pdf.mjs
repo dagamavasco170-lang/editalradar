@@ -126,11 +126,17 @@ export function findPortugueseDictionarySegmentation(value) {
     const contentWords = parts.filter(part => !PT_BR_FUNCTION_WORDS.has(part));
     const allContentWordsLookComplete = contentWords.every(part => part.length >= 4);
     const hasShortFunctionWord = parts.some(part => PT_BR_SHORT_JOIN_WORDS.has(part));
+    const hasBrokenWordBoundary = parts.some((part, index) =>
+      index < parts.length - 1 && portugueseDictionaryWordInfo(part + parts[index + 1])
+    );
+    if (hasBrokenWordBoundary) return false;
     const longJoin = word.length >= 14 && allContentWordsLookComplete
       && contentWords.length >= 2 && hasShortFunctionWord;
+    const twoWordJoin = word.length >= 13 && parts.length === 2
+      && contentWords.length === 2 && contentWords.every(part => part.length >= 5);
     const shortJoin = word.length <= 13 && parts.length <= 3
       && contentWords.length === 1 && contentWords[0].length >= 4 && hasShortFunctionWord;
-    return longJoin || shortJoin;
+    return longJoin || twoWordJoin || shortJoin;
   });
   candidates.sort((left, right) => {
     const score = parts => parts.reduce((total, part) => {
