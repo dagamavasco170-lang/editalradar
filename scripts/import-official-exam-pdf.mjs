@@ -2,7 +2,7 @@
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { mkdtemp, open, readFile, rm, writeFile } from "node:fs/promises";
-import { constants as fsConstants, existsSync } from "node:fs";
+import { constants as fsConstants, existsSync, readFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -15,6 +15,92 @@ export const MAX_BARE_QUESTION_LOOKAHEAD_LINES = 180;
 const RIGHTS_BASES = new Set([
   "official_publication", "public_domain", "permission_granted", "cc_by", "cc_by_sa", "other_reviewed"
 ]);
+
+const PT_BR_DICTIONARY_FILES = [
+  ...Array.from({ length: 4 }, (_, index) => `./dictionaries/pt-br-lexicon-${index + 1}.txt`),
+  ...Array.from({ length: 6 }, (_, index) => `./dictionaries/pt-br-conjugations-${index + 1}.txt`)
+];
+const PT_BR_FUNCTION_WORDS = new Set([
+  "a", "à", "o", "e", "as", "os", "de", "do", "da", "dos", "das", "em", "no", "na",
+  "nos", "nas", "ao", "aos", "se", "me", "te", "lhe", "lhes", "um", "uma", "uns", "umas",
+  "que", "por", "para", "pelo", "pela", "pelos", "pelas", "com", "sem", "sob", "sobre",
+  "entre", "após", "antes", "num", "numa", "nuns", "numas", "é", "são"
+]);
+const PT_BR_DICTIONARY = new Set([
+  ...PT_BR_FUNCTION_WORDS,
+  ...PT_BR_DICTIONARY_FILES.flatMap(file => readFileSync(new URL(file, import.meta.url), "utf8")
+    .split(/\\r?\\n/)
+    .map(word => word.normalize("NFC").toLocaleLowerCase("pt-BR").trim())
+    .filter(Boolean))
+]);
+const PT_BR_SEGMENTATION_CACHE = new Map();
+
+function portugueseDictionaryWordInfo(value) {
+  const word = String(value || "").normalize("NFC").toLocaleLowerCase("pt-BR");
+  if (PT_BR_DICTIONARY.has(word)) return { exact: true };
+  const variants = [];
+  if (word.endsWith("ões")) variants.push(word.slice(0, -3) + "ão");
+  if (word.endsWith("ães")) variants.push(word.slice(0, -3) + "ão");
+  if (word.endsWith("ens")) variants.push(word.slice(0, -3) + "em");
+  if (word.endsWith("is")) variants.push(word.slice(0, -2) + "l");
+  if (word.endsWith("s")) variants.push(word.slice(0, -1));
+  if (word.endsWith("as")) variants.push(word.slice(0, -2) + "ado", word.slice(0, -2) + "ido");
+  if (word.endsWith("os")) variants.push(word.slice(0, -2) + "a");
+  return variants.some(variant => PT_BR_DICTIONARY.has(variant)) ? { exact: false } : null;
+}
+
+export function findPortugueseDictionarySegmentation(value) {
+  const word = String(value || "").normalize("NFC").toLocaleLowerCase("pt-BR");
+  if (word.length < 6 || PT_BR_DICTIONARY.has(word)) return null;
+  if (PT_BR_SEGMENTATION_CACHE.has(word)) return PT_BR_SEGMENTATION_CACHE.get(word);
+
+  // URLs, hashes and code identifiers are not natural-language words.
+  if (/\\d|[_./:#@]/u.test(word)) {
+    PT_BR_SEGMENTATION_CACHE.set(word, null);
+    return null;
+  }
+
+  const paths = Array.from({ length: word.length + 1 }, () => []);
+  paths[0] = [[]];
+  for (let start = 0; start < word.length; start += 1) {
+    if (!paths[start].length) continue;
+    for (const path of paths[start]) {
+      for (let end = start + 1; end <= Math.min(word.length, start + 24); end += 1) {
+        const part = word.slice(start, end);
+        if (part.length === 1 && !PT_BR_FUNCTION_WORDS.has(part)) continue;
+        if (!portugueseDictionaryWordInfo(part)) continue;
+        paths[end].push([...path, part]);
+      }
+    }
+    // Bound work for ambiguous tokens without losing the strongest candidate paths.
+    if (paths[start + 1].length > 80) paths[start + 1] = paths[start + 1].slice(0, 80);
+  }
+
+  const candidates = paths[word.length].filter(parts => {
+    const contentWords = parts.filter(part => part.length >= 3 && !PT_BR_FUNCTION_WORDS.has(part));
+    const hasFunctionWord = parts.some(part => PT_BR_FUNCTION_WORDS.has(part));
+    return contentWords.length >= 2 || (word.length <= 12 && contentWords.length >= 1 && hasFunctionWord);
+  });
+  candidates.sort((left, right) => {
+    const score = parts => parts.reduce((total, part) => {
+      if (PT_BR_FUNCTION_WORDS.has(part)) return total + 2.2;
+      return total + (part.length >= 5 ? 2.2 : part.length >= 3 ? -0.5 : -1.5) - 0.8;
+    }, 0);
+    return score(right) - score(left);
+  });
+  const result = candidates[0] || null;
+  PT_BR_SEGMENTATION_CACHE.set(word, result);
+  return result;
+}
+
+function isLikelyConcatenatedPortugueseWord(value) {
+  const word = String(value || "");
+  if (word.length < 6) return false;
+  // Preserve camelCase identifiers, acronyms and technical code fragments.
+  if (/[a-zà-ÿ][A-ZÀ-Þ]/u.test(word)) return false;
+  const segmentation = findPortugueseDictionarySegmentation(word);
+  return Boolean(segmentation && (word.length >= 14 || segmentation.length >= 2));
+}
 
 export function formatChemicalFormulaText(value) {
   const subscript = digits => String(digits).replace(/[0-9]/g, digit => "₀₁₂₃₄₅₆₇₈₉"[Number(digit)]);
@@ -46,22 +132,9 @@ export function measureTextSpacing(value) {
   const veryLongWordCount = lengths.filter(length => length >= 28).length;
   const averageWordLength = words.length ? letterCount / words.length : 0;
   const spaceRatio = letterCount ? spaceCount / letterCount : 0;
-  const joinedWordMarkers = words.filter(word => {
-    const fusedConnective = /^(?:pormeio|pormeiode)$/iu.test(word);
-    // Padrões observados em extrações de PDFs da FGV: uma frase inteira pode
-    // virar um único token e conectivos curtos podem grudar nas palavras vizinhas.
-    const fusedKnownShortPhrase = /^semuito$/iu.test(word);
-    const fusedPdfPhrase = /^\p{L}{8,}(?:durante|sobre|sob|entre|ap[oó]s|antes|contra|depois)\p{L}{4,}$/iu.test(word);
-    const fusedTrailingConjunction = /^\p{L}{16,}(?:e|ou)$/iu.test(word);
-    if ([...word].length < 8 && !fusedConnective && !fusedKnownShortPhrase) return false;
-    if ([...word].length >= 28) return fusedPdfPhrase;
-    const fusedLeadingWord = /^(?:que|ele|ela|foi|teria|uma|dos|das|por|da)\p{L}{4,}$/iu.test(word);
-    const fusedMiddleWord = /^\p{L}{8,}(?:por|com|sem|para|que|dos|das)\p{L}{3,}$/iu.test(word);
-    const fusedVerb = /^(?:pode|podem|deve|devem|teria|teriam|foi|foram|será|serao|está|estao)(?:ser|estar|ter|haver|sido|obtido|realizado|aplicado|utilizado|considerado)\p{L}*$/iu.test(word);
-    const fusedClause = /^(?:consiste|consistem)(?:na|no|em|de|do|da)\p{L}{4,}$/iu.test(word);
-    return fusedLeadingWord || fusedMiddleWord || fusedVerb || fusedClause
-      || fusedConnective || fusedKnownShortPhrase || fusedPdfPhrase || fusedTrailingConjunction;
-  }).length;
+  const proseForSpacing = text.replace(/https?:\\/\\/\\S+/giu, " ").replace(/`[^`]*`/gu, " ");
+  const proseWords = proseForSpacing.match(/\\p{L}+/gu) || [];
+  const joinedWordMarkers = proseWords.filter(isLikelyConcatenatedPortugueseWord).length;
   return { letterCount, wordCount: words.length, spaceCount, spaceRatio, averageWordLength, longWordCount, veryLongWordCount, joinedWordMarkers };
 }
 
@@ -105,7 +178,7 @@ export function hasSuspiciousWordSpacing(value) {
     || (metrics.veryLongWordCount >= 1 && metrics.joinedWordMarkers >= 2 && metrics.averageWordLength >= 5.4)
     || (metrics.longWordCount >= 4 && metrics.averageWordLength >= 5.4)
     || (metrics.joinedWordMarkers >= 3 && metrics.averageWordLength >= 5.4)
-    || (metrics.joinedWordMarkers >= 2 && metrics.averageWordLength >= 5.4)
+    || (metrics.joinedWordMarkers >= 1 && metrics.averageWordLength >= 4.5)
     || (metrics.spaceRatio < 0.095 && metrics.averageWordLength >= 5.5 && metrics.veryLongWordCount === 0)
     || (metrics.averageWordLength >= 5.7 && metrics.spaceRatio < 0.15
       && metrics.longWordCount >= 1 && metrics.veryLongWordCount === 0);
