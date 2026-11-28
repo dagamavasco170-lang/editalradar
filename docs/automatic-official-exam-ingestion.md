@@ -1,65 +1,48 @@
-# Ingestão autônoma de provas e questões oficiais
+# Ingestão de provas e questões oficiais
 
 ## Objetivo
 
-O worker descobre documentos publicados em fontes oficiais, extrai questões, associa o gabarito definitivo do mesmo caderno e só tenta publicar quando todos os controles determinísticos passam. Não cria pendências para revisão humana: itens ambíguos, incompletos, anulados ou incompatíveis são descartados/quarentenados no relatório técnico.
+Manter no banco próprio do EditalRadar questões extraídas de cadernos oficiais, com banca, concurso, cargo, ano, página, número original, alternativas, gabarito definitivo, anulações, hash da prova e referência da fonte. O site e o Android consomem o mesmo Supabase; a fila privada é revisada no painel administrativo antes da publicação.
 
-## Fluxo implementado
+## Modos de execução
 
-1. **Fontes**: consulta registros publicados em `study_exam_sources` (quando as credenciais de servidor estão disponíveis) e combina-os com contextos pós-prova do catálogo estático. A lista é limitada a 120 registros por execução.
-2. **Descoberta**: examina a página oficial registrada, seus links PDF e até três páginas intermediárias indicadas por links de documentos/provas/gabaritos. Restringe os destinos a HTTPS e aos hosts allowlisted em `src/lib/official-sources.js`. Links de inscrição, resultado, recurso e login são ignorados.
-3. **Download**: valida novamente cada redirect, rejeita destino fora da allowlist, aplica limite de 5 MB para páginas HTML e 25 MB para PDFs, timeout e tentativas limitadas. Não contorna WAF, CAPTCHA, login, paywall, robots nem 401/403/429. PDFs devem conter assinatura `%PDF-`.
-4. **Extração**: usa Poppler e Tesseract português, com os limites do importador existente (até 300 páginas e até 60 páginas selecionadas para OCR). Preserva página e numeração de origem. Nesta versão, qualquer questão extraída por OCR é inelegível para autopublicação.
-5. **Gabarito**: só aceita gabarito cuja publicação definitiva esteja indicada por evidência na URL, página ou notas do registro e confirmada no próprio conteúdo. O parser suporta linhas numeradas, tabelas textuais e gabaritos consolidados por cargo/caderno/turno; `*` é tratado como questão anulada. A seção é associada ao PDF da prova por cargo e tipo do caderno, e só é aceita quando existe exatamente uma correspondência. Gabarito preliminar, conflito, associação ambígua, layout não reconhecido ou OCR no gabarito impedem a publicação. A resposta nunca é inferida pelo enunciado.
-6. **Validação**: verifica enunciado, alternativas, identificadores, dependência de imagens/tabelas/gráficos/mapas/texto externo, hashes, fingerprints, respostas anuladas e correspondência de **100% do conjunto numérico do gabarito**, incluindo posições anuladas, com as questões extraídas, sem faltantes, duplicatas ou números inesperados. Se a cobertura do caderno não for integral, nada desse caderno é autopublicado. Com cobertura integral comprovada, somente questões que passam individualmente em todos os controles ficam elegíveis; itens com dependência visual, externa ou OCR permanecem em quarentena.
-7. **Publicação**: no modo `publish`, registra auditoria e staging e chama a RPC `publish_study_exam_question_import_automated`. A RPC confirma proveniência, hashes, URL, evidências, resposta e execução ativa, e grava questão, gabarito e status numa transação. Duplicatas não criam novas questões.
-8. **Relatório**: registra fontes, links intermediários, candidatos a prova/gabarito, documentos sem associação, erros de rede, questões extraídas, duplicatas, quarentena e publicações.
+- `dry-run`: baixa e analisa os PDFs, extrai questões, cruza o gabarito e gera relatório. Não grava enunciados no banco.
+- `stage`: executa as mesmas validações e grava questões elegíveis em `study_exam_question_imports`, com o gabarito e proveniência. Os registros ficam privados, com `status=pending`, `rights_review_status=not_reviewed` e `rights_basis=not_assessed`. Não aparecem no banco público nem no app.
+- `publish`: só processa fontes com uma decisão de reutilização documentada em nível de fonte. A base pode ser publicação oficial, domínio público, licença aberta ou autorização; não exige anexar uma autorização individual para cada questão. A publicação passa pela RPC transacional e mantém a auditoria.
 
-## Gates de autopublicação
+O modo `stage` não é uma declaração de que todo o conteúdo está livre para reutilização; é a fila interna para conferência de proveniência, gabarito e enquadramento da fonte. O modo `publish` não presume que a mera disponibilidade de um PDF autoriza qualquer uso.
 
-Todos devem passar:
-- fonte HTTPS em host oficial allowlisted e documento realmente publicado;
-- prova e gabarito definitivo em PDF válido, sem OCR;
-- correspondência inequívoca do caderno/versão;
-- parser íntegro, questão textual completa e alternativas sequenciais;
-- nenhum conteúdo visual ou externo necessário para resolver a questão individual;
-- gabarito sem conflito e conjunto exato de 100% dos números de questão, incluindo anuladas;
-- publicação limitada ao subconjunto de questões aprovadas individualmente, apenas quando a cobertura integral do caderno estiver comprovada;
-- hashes, fingerprints e proveniência vinculados no staging;
-- RPC transacional e execução de auditoria válidas.
+## Pipeline
 
-Falhou qualquer gate, o worker não publica a questão. Não existe fallback para aprovação humana neste caminho automático.
+1. **Fontes**: lê registros publicados em `study_exam_sources` e fontes oficiais adicionais mantidas em `scripts/official-exam-sources.json`. A lista é limitada a 120 registros por execução.
+2. **Descoberta**: examina a página da banca, PDFs e até três páginas intermediárias. Os destinos são limitados a HTTPS e aos hosts permitidos em `src/lib/official-sources.js`. Não tenta contornar WAF, CAPTCHA, login, paywall, robots ou respostas 401/403/429.
+3. **Download**: valida redirects e assinatura PDF, com limites de 5 MB para HTML e 25 MB por PDF.
+4. **Extração**: usa Poppler e Tesseract em português, respeitando até 300 páginas por PDF e até 60 páginas selecionadas para OCR. Preserva página e numeração original.
+5. **Gabarito**: exige gabarito definitivo identificável e associação inequívoca por cargo/caderno/versão. A resposta não é inferida pelo enunciado. Questões anuladas ou sem resposta válida não são elegíveis.
+6. **Validação**: exige correspondência de 100% do conjunto numérico do gabarito com o caderno. Questões incompletas, duplicadas, dependentes de imagens, tabelas, mapas, charges ou texto externo permanecem em quarentena.
+7. **Persistência**: `stage` guarda o item e a resposta sugerida na fila privada; `publish` grava questão e resposta em tabelas separadas por transação. Duplicatas não criam novas questões.
+8. **Relatório**: audita fontes, documentos, questões extraídas, pré-cadastros, publicação, duplicatas, anulações, quarentena e falhas.
 
-## Limites conhecidos
+## Critério de reutilização
 
-- A descoberta depende de `study_exam_sources` e dos concursos já listados; não é um crawler genérico de todos os concursos do Brasil.
-- A expansão segue somente uma camada de até três páginas intermediárias por página cadastrada. Páginas dinâmicas, formulários, links sem texto útil ou portais que bloqueiam acesso podem não ser descobertos.
-- O parser de gabaritos é heurístico: reconhece linhas numeradas, pares questão/resposta e tabelas textuais onde números e respostas aparecem em linhas consecutivas, além de seções por cargo/caderno/turno. Formatos de imagem, layouts não reconhecidos e associações ambíguas são recusados.
-- Questões com OCR, elementos gráficos, charges, tabelas, mapas, texto externo ou ambiguidades ficam em quarentena; outras questões do mesmo caderno só podem ficar elegíveis quando todos os 100 números do gabarito estiverem extraídos uma única vez e associados sem conflito.
-- Ainda não há dois verificadores de IA independentes. O score 100 na RPC representa a aprovação de todos os gates determinísticos; não é uma nota de IA.
-- Ainda não há reconciliação automática de retificações posteriores, mudanças de gabarito nem notificação de usuários afetados.
-- Ainda faltam validação de DNS contra DNS rebinding, uso de ETag/Last-Modified e testes integrados da RPC em banco descartável.
-- O worker não gera comentários de professores nem explicações inventadas; a explicação automática remete ao gabarito definitivo oficial.
+A decisão é feita por fonte e por fundamento aplicável, não por autorização separada de cada questão. O sistema registra publicação oficial, domínio público, licença aberta, autorização ou outra análise documentada. Conteúdo de terceiros incorporado ao enunciado — por exemplo, imagem, charge, texto ou mapa — pode exigir tratamento próprio. Os links oficiais continuam disponíveis mesmo quando uma questão ainda não foi liberada para publicação.
+
+A Lei 9.610/1998 exclui textos de atos oficiais em seu art. 8º, IV, e trata de forma própria da reprodução e inclusão em bases de dados no art. 29 e das limitações/citações no art. 46. O enquadramento concreto depende do material e da origem; não se presume nem que todos os itens exigem autorização individual nem que todo PDF público pode ser republicado integralmente.
 
 ## Execução
 
-Comando:
+- O workflow de PR executa `dry-run` sem credenciais.
+- O workflow manual oferece `dry-run`, `stage` e `publish`.
+- A agenda e o push para `main` executam `stage` por padrão; `publish` só é escolhido com a configuração de autopublicação ativada e fontes aprovadas.
+- É necessário configurar `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` como secrets do GitHub Actions para execução `stage`/ `publish`.
 
-```sh
-npm run ingest:official-exams
-```
+## Relatório de validação já realizado
 
-O modo padrão é `dry-run`, limitado a 12 cadernos por execução. O workflow `.github/workflows/automatic-official-exam-ingestion.yml` agenda uma execução diária às 08:40 UTC (05:40 em Brasília), instala Poppler/Tesseract, executa testes, gera relatório e publica artifact. Em eventos de PR, faz `dry-run` sem credenciais do Supabase.
+A execução 46100811601 analisou 12 PDFs oficiais: 1.200 itens extraídos, 1.021 elegíveis tecnicamente, 159 em quarentena, 20 anulados ou sem resposta válida, zero falhas e zero itens publicados. Foi `dry-run`; portanto, não gravou os enunciados no Supabase.
 
-A autopublicação só é selecionada na agenda quando a variável de repositório `EXAM_IMPORT_AUTOPUBLISH_ENABLED=true` estiver habilitada. O workflow manual também oferece modo `dry-run` ou `publish`, mas a RPC exige a migration correspondente no banco.
+## Limites
 
-## Estado de implantação
-
-- Worker, testes, workflow e migration estão na branch da PR #207.
-- O CI não aplica migrations.
-- A migration ainda não foi aplicada no Supabase de produção.
-- A variável de autopublicação não foi habilitada.
-- Nenhuma questão foi publicada pelo novo worker.
-- A PR permanece Draft e aberta.
-
-A ativação em produção exige teste da migration e RPC em banco descartável, validação de PDFs oficiais reais, revisão do relatório do dry-run com fontes registradas e, somente então, implantação controlada. Esta branch não executa essas mudanças em produção.
+- A descoberta depende das fontes cadastradas e do catálogo do EditalRadar; não é um crawler universal.
+- Layouts de PDF, gabaritos em imagem, OCR, retificações e associações ambíguas permanecem sujeitos a revisão.
+- O worker não importa comentários, explicações ou taxonomias de Qconcursos, Gran ou outros agregadores.
+- Ainda é necessário implementar explicações próprias e reconciliação automática de retificações de gabaritos.
