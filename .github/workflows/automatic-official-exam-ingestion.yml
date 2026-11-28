@@ -12,21 +12,28 @@ on:
   schedule:
     # 05:40 no horário de Brasília (08:40 UTC); GitHub pode atrasar cron em períodos de alta demanda.
     - cron: "40 8 * * *"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/automatic-official-exam-ingestion.mjs"
+      - "scripts/official-exam-sources.json"
+      - ".github/workflows/automatic-official-exam-ingestion.yml"
   workflow_dispatch:
     inputs:
       mode:
         description: "Modo de execução"
         type: choice
         required: true
-        default: dry-run
+        default: stage
         options:
           - dry-run
+          - stage
           - publish
       limit:
         description: "Máximo de cadernos processados nesta execução (1 a 12)"
         type: number
         required: false
-        default: 4
+        default: 12
 
 permissions:
   contents: read
@@ -44,7 +51,7 @@ jobs:
       # A agenda publica sem intervenção somente depois da migration ser aplicada e
       # desta variável de repositório ser habilitada pelo responsável pela implantação.
       EXAM_IMPORT_AUTOPUBLISH_ENABLED: ${{ vars.EXAM_IMPORT_AUTOPUBLISH_ENABLED || 'false' }}
-      EXAM_IMPORT_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || (vars.EXAM_IMPORT_AUTOPUBLISH_ENABLED == 'true' && 'publish' || 'dry-run') }}
+      EXAM_IMPORT_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || (vars.EXAM_IMPORT_AUTOPUBLISH_ENABLED == 'true' && 'publish' || 'stage') }}
       INGESTION_REPORT_PATH: .cache/official-exam-ingestion-report.json
     steps:
       - name: Baixar repositório
@@ -80,17 +87,17 @@ jobs:
           EXAM_IMPORT_AUTOPUBLISH_ENABLED: "false"
         run: |
           mkdir -p .cache
-          node scripts/automatic-official-exam-ingestion.mjs --mode dry-run --limit 4
+          node scripts/automatic-official-exam-ingestion.mjs --mode dry-run --limit 12
 
       - name: Executar ingestão agendada ou manual
         if: github.event_name != 'pull_request'
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          EXAM_IMPORT_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || (vars.EXAM_IMPORT_AUTOPUBLISH_ENABLED == 'true' && 'publish' || 'dry-run') }}
+          EXAM_IMPORT_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || (vars.EXAM_IMPORT_AUTOPUBLISH_ENABLED == 'true' && 'publish' || 'stage') }}
         run: |
           mkdir -p .cache
-          node scripts/automatic-official-exam-ingestion.mjs --mode "$EXAM_IMPORT_MODE" --limit "${{ inputs.limit || 4 }}"
+          node scripts/automatic-official-exam-ingestion.mjs --mode "$EXAM_IMPORT_MODE" --limit "${{ inputs.limit || 12 }}"
 
       - name: Salvar relatório da execução
         if: always()
@@ -105,6 +112,6 @@ jobs:
         if: always()
         run: |
           if [ -f .cache/official-exam-ingestion-report.json ]; then
-            node -e "const r=require('./.cache/official-exam-ingestion-report.json'); console.log('Modo:',r.mode); console.log('Fontes:',r.sourcesChecked); console.log('Documentos:',r.documentsChecked); console.log('Questões extraídas:',r.questionsExtracted); console.log('Prontas para publicação:',r.readyToPublish); console.log('Publicadas:',r.published); console.log('Duplicadas:',r.duplicates); console.log('Quarentena:',r.quarantined); console.log('Falhas:',r.failures.length);"
+            node -e "const r=require('./.cache/official-exam-ingestion-report.json'); console.log('Modo:',r.mode); console.log('Fontes:',r.sourcesChecked); console.log('Documentos:',r.documentsChecked); console.log('Questões extraídas:',r.questionsExtracted); console.log('Prontas para publicação:',r.readyToPublish); console.log('Pré-cadastradas na fila privada:',r.staged); console.log('Publicadas:',r.published); console.log('Duplicadas:',r.duplicates); console.log('Quarentena:',r.quarantined); console.log('Falhas:',r.failures.length);"
             cat .cache/official-exam-ingestion-report.json >> "$GITHUB_STEP_SUMMARY"
           fi

@@ -15,6 +15,8 @@ import {
   parseOfficialAnswerKeyVariants,
   selectAnswerKeySection,
   validateQuestionForAutoPublication,
+  isApprovedForQuestionReuse,
+  isSourceEligibleForMode,
   variantIdentity
 } from "./automatic-official-exam-ingestion.mjs";
 
@@ -447,4 +449,38 @@ test("recovers FGV aligned answer rows with annulled asterisks", () => {
   assert.equal(sections[0].parsedCount, 60);
   assert.equal(sections[0].answers.get(49), "ANULADA");
   assert.equal(sections[0].answers.get(48), "C");
+});
+
+
+test("only an explicitly reviewed official-publication source can enter automated ingestion", () => {
+  const base = {
+    question_reuse_status: "approved",
+    question_reuse_basis: "official_publication",
+    question_reuse_proof_url: "https://example.gov.br/ato-publicacao",
+    question_reuse_reviewed_by: "22222222-2222-2222-2222-222222222222",
+    question_reuse_reviewed_at: "2026-11-28T00:00:00.000Z"
+  };
+  assert.equal(isApprovedForQuestionReuse(base), true);
+  assert.equal(isApprovedForQuestionReuse({ ...base, question_reuse_status: "link_only" }), false);
+  assert.equal(isApprovedForQuestionReuse({ ...base, question_reuse_status: "not_reviewed" }), false);
+  assert.equal(isApprovedForQuestionReuse({ ...base, question_reuse_proof_url: null }), false);
+  assert.equal(isApprovedForQuestionReuse({ ...base, question_reuse_basis: "cc_by" }), true);
+  assert.equal(isApprovedForQuestionReuse({ ...base, question_reuse_reviewed_by: null }), false);
+  assert.equal(isApprovedForQuestionReuse({ ...base, question_reuse_reviewed_at: "invalid" }), false);
+});
+
+
+test("link-only official sources are eligible for dry-run and private staging, not publication", () => {
+  const source = {
+    question_reuse_status: "link_only",
+    question_reuse_basis: null,
+    question_reuse_proof_url: null,
+    question_reuse_terms_url: null,
+    question_reuse_reviewed_by: null,
+    question_reuse_reviewed_at: null
+  };
+  assert.equal(isSourceEligibleForMode(source, "dry-run"), true);
+  assert.equal(isSourceEligibleForMode(source, "stage"), true);
+  assert.equal(isSourceEligibleForMode(source, "publish"), false);
+  assert.equal(isSourceEligibleForMode(source, "invalid"), false);
 });

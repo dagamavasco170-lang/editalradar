@@ -1,0 +1,38 @@
+[
+  {
+    "board": "FGV",
+    "exam_name": "Tribunal de Justiça do Ceará — Juiz Substituto — Tipo 1",
+    "exam_year": 2025,
+    "discipline": "Diversas disciplinas",
+    "topic": "Prova objetiva",
+    "role_name": "Juiz Substituto",
+    "source_url": "https://conhecimento.fgv.br/concursos/tjce25",
+    "exam_url": "https://conhecimento.fgv.br/sites/default/files/concursos/juiz-substituto-cns001-tipo-1.pdf",
+    "answer_key_url": "https://conhecimento.fgv.br/sites/default/files/concursos/gabarito-definitivo.pdf",
+    "notes": "Prova objetiva Tipo 1 com 100 questões; o gabarito definitivo oficial identifica separadamente o Tipo 1.",
+    "question_reuse_status": "link_only",
+    "question_reuse_basis": null,
+    "question_reuse_proof_url": null,
+    "question_reuse_terms_url": null,
+    "question_reuse_reviewed_by": null,
+    "question_reuse_reviewed_at": null
+  },
+  {
+    "board": "FGV",
+    "exam_name": "Tribunal de Justiça do Tocantins — Juiz Substituto — Prova 1",
+    "exam_year": 2025,
+    "discipline": "Diversas disciplinas",
+    "topic": "Prova objetiva",
+    "role_name": "Juiz Substituto",
+    "source_url": "https://conhecimento.fgv.br/concursos/tjto25",
+    "exam_url": "https://conhecimento.fgv.br/sites/default/files/concursos/tjto-t1.pdf",
+    "answer_key_url": "https://conhecimento.fgv.br/sites/default/files/concursos/gabarito-definitivo-tj-to.pdf",
+    "notes": "Prova objetiva Prova 1 com 100 questões; o gabarito definitivo oficial identifica separadamente a Prova 1.",
+    "question_reuse_status": "link_only",
+    "question_reuse_basis": null,
+    "question_reuse_proof_url": null,
+    "question_reuse_terms_url": null,
+    "question_reuse_reviewed_by": null,
+    "question_reuse_reviewed_at": null
+  }
+]
