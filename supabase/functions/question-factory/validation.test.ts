@@ -41,6 +41,7 @@ describe("Validação automática de questões", () => {
     const expandedLexicon = new Set([
       ...lexicon, "obrigatório", "europeu", "curitiba", "sorocaba", "service",
       "retrocompatibilidade", "multiversão", "autoidentificação", "odontolegal",
+      "evento", "adverso", "cinco", "candidato",
       "detalhado", "verdadeiro", "prestador", "pensador", "esquisito",
       "examinador", "administrador", "professor", "criativo", "bondoso",
       "técnico", "bancário", "brasileiro", "concomitante", "suficiente",
