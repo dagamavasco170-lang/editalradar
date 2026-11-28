@@ -70,7 +70,7 @@ export function hasMissingSpacesAfterPunctuation(value: unknown): boolean {
   const text = String(value ?? "")
     .replace(/https?:\/\/\S+/giu, " ")
     .replace(/`[^`]*`/gu, " ");
-  return /[,;:!?](?=\\p{L})/u.test(text) || /[.!?](?=\\p{Lu}\\p{Ll})/u.test(text);
+  return /[,;:!?](?=\p{L})/u.test(text) || /[.!?](?=\p{Lu}\p{Ll})/u.test(text);
 }
 
 export function findPortugueseConcatenatedWords(value: unknown, lexicon: Set<string>): string[] {
