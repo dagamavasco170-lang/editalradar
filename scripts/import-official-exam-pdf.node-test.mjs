@@ -111,7 +111,7 @@ test("usa o dicionário pt-BR para identificar possíveis junções e preservar 
 
   for (const legitimateWord of [
     "examinadora", "examinadoras", "administradora", "administradoras", "professora", "professoras",
-    "criativa", "bondosa", "técnica", "bancária", "brasileira"
+    "criativa", "bondosa", "técnica", "bancária", "brasileira", "concomitantemente", "suficientemente", "longitudinalidade"
   ]) {
     assert.equal(
       findPortugueseDictionarySegmentation(legitimateWord),
@@ -120,7 +120,7 @@ test("usa o dicionário pt-BR para identificar possíveis junções e preservar 
     );
   }
   assert.equal(
-    hasSuspiciousWordSpacing("A banca examinadora e a equipe administradora revisaram a questão."),
+    hasSuspiciousWordSpacing("A banca examinadora e a equipe administradora revisaram cuidadosamente a questão jurídica e consideraram a análise suficientemente clara para publicação oficial."),
     false
   );
 });
