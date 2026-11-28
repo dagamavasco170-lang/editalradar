@@ -38,6 +38,11 @@ describe("Validação automática de questões", () => {
       "Donaudampfschifffahrselektrizitätenhauptbetriebswerkbauunterbeamtengesellschaft",
       lexicon
     )).toEqual([]);
+    const morphologyLexicon = new Set(["examinador", "administrador", "professor", "criativo", "bondoso", "técnico", "bancário", "brasileiro"]);
+    expect(findPortugueseConcatenatedWords(
+      "A banca examinadora e a equipe administradora, com professoras, técnicas, bancárias e brasileiras.",
+      morphologyLexicon
+    )).toEqual([]);
   });
 
   it("detecta ausência de espaço após pontuação em enunciados e alternativas", () => {
