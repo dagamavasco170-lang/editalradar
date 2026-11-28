@@ -5,6 +5,8 @@ import {
   formatChemicalFormulaText,
   normalizeQuestionText,
   hasSuspiciousWordSpacing,
+  findPortugueseDictionarySegmentation,
+  hasMissingSpacesAfterPunctuation,
   scoreTextSpacingQuality,
   parseTesseractTsv,
   parseExamPages,
@@ -82,6 +84,66 @@ test("rejeita questão com palavras coladas e registra o motivo", () => {
   assert.equal(rows.length, 0);
   assert.ok(diagnostics.some(item => item.questionNumber === 17
     && item.rejectionReasons.includes("suspicious_word_spacing")));
+});
+
+test("rejeita enunciado FGV com palavras concatenadas em trechos isolados", () => {
+  const corrupted = "Durante o registro de ocorrência relativo à apresentação de um homem detido pela Polícia Militar, o custodiado relata que, após a detenção,permaneceudurantedoisdiassobaguardadospoliciais em uma casa em local ermo. Afirma que foi mantido encapuzado, privado do sono por estímulos sonoros repetidos, ameaçado de morte e submetido a simulações de execução para que confessasse determinado crime. O homem apresenta-semuito nervoso, com olheirasacentuadase roupas com forte odor de urina, mas não são observadas lesões corporais visíveis. Diante da alegação apresentada, a melhor conduta a ser adotada pelo Delegado é";
+  const corrected = "Durante o registro de ocorrência relativo à apresentação de um homem detido pela Polícia Militar, o custodiado relata que, após a detenção, permaneceu durante dois dias sob a guarda dos policiais em uma casa em local ermo. Afirma que foi mantido encapuzado, privado do sono por estímulos sonoros repetidos, ameaçado de morte e submetido a simulações de execução para que confessasse determinado crime. O homem apresenta-se muito nervoso, com olheiras acentuadas e roupas com forte odor de urina, mas não são observadas lesões corporais visíveis. Diante da alegação apresentada, a melhor conduta a ser adotada pelo Delegado é";
+  assert.equal(hasSuspiciousWordSpacing(corrupted), true);
+  assert.equal(hasSuspiciousWordSpacing(corrected), false);
+});
+
+test("detecta ausência de espaço imediatamente depois de pontuação", () => {
+  assert.equal(hasMissingSpacesAfterPunctuation("A situação,permaneceu sem alteração."), true);
+  assert.equal(hasMissingSpacesAfterPunctuation("O relatório foi concluído. O delegado foi avisado."), false);
+  assert.equal(hasMissingSpacesAfterPunctuation("Consulte https://exemplo.com/pagina, por favor."), false);
+});
+
+test("usa o dicionário pt-BR para identificar possíveis junções e preservar palavras legítimas", () => {
+  const fused = "Durante a detenção,permaneceudurantedoissobaguardadospoliciais em local ermo. O homem apresenta-semuito nervoso, com olheirasacentuadase roupas.";
+  const corrected = "Durante a detenção, permaneceu durante dois dias sob a guarda dos policiais em local ermo. O homem apresenta-se muito nervoso, com olheiras acentuadas e roupas.";
+  assert.ok(findPortugueseDictionarySegmentation("permaneceudurantedoissobaguardadospoliciais"));
+  assert.ok(findPortugueseDictionarySegmentation("filosofiadepolícia"));
+  assert.ok(findPortugueseDictionarySegmentation("eventoadverso"));
+  assert.ok(findPortugueseDictionarySegmentation("Cincocandidatos"));
+  assert.ok(findPortugueseDictionarySegmentation("asexpressões"));
+  assert.ok(findPortugueseDictionarySegmentation("olheirasacentuadase"));
+  assert.deepEqual(findPortugueseDictionarySegmentation("semuito"), ["se", "muito"]);
+  assert.equal(hasSuspiciousWordSpacing(fused), true);
+  assert.equal(hasSuspiciousWordSpacing(corrected), false);
+  assert.equal(findPortugueseDictionarySegmentation("Donaudampfschifffahrselektrizitätenhauptbetriebswerkbauunterbeamtengesellschaft"), null);
+
+  for (const legitimateWord of [
+    "examinadora", "examinadoras", "administradora", "administradoras", "professora", "professoras",
+    "criativa", "bondosa", "técnica", "bancária", "brasileira", "concomitantemente", "suficientemente", "longitudinalidade"
+  ]) {
+    assert.equal(
+      findPortugueseDictionarySegmentation(legitimateWord),
+      null,
+      `A palavra legítima "${legitimateWord}" não deve ser dividida.`
+    );
+  }
+  assert.equal(
+    hasSuspiciousWordSpacing("A banca examinadora e a equipe administradora revisaram cuidadosamente a questão jurídica e consideraram a análise suficientemente clara para publicação oficial."),
+    false
+  );
+  for (const legitimateWord of [
+    "obrigatória", "Europeia", "Curitiba", "Sorocaba", "Service",
+    "retrocompatibilidade", "multiversão", "autoidentificação", "odontolegal",
+    "detalhadamente", "verdadeiras", "prestadores", "pensadores", "esquisita",
+    "oposta", "longitudinalidade", "Quiritariedade", "Europeu"
+  ]) {
+    assert.equal(
+      findPortugueseDictionarySegmentation(legitimateWord),
+      null,
+      `A palavra/termo legítimo "${legitimateWord}" não deve ser dividido.`
+    );
+  }
+  assert.ok(findPortugueseDictionarySegmentation("foiadiada"));
+  assert.deepEqual(findPortugueseDictionarySegmentation("semuito"), ["se", "muito"]);
+  assert.ok(findPortugueseDictionarySegmentation("Nadata"));
+  assert.equal(hasSuspiciousWordSpacing("A operação foi adiada. A equipe confirmou a decisão."), false);
+
 });
 
 test("interpreta confiança do OCR e reconstrói linhas a partir do TSV do Tesseract", () => {

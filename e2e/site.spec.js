@@ -160,6 +160,26 @@ test("renderiza enunciados oficiais do ácido fosfórico com espaçamento e fór
   await expect(page.locator(".question-card .question-meta")).toContainText("Prova oficial · importada");
 });
 
+test("renderiza a questão oficial de custódia com todos os espaços preservados", async ({ page }) => {
+  await page.goto("./");
+  await page.getByRole("button", { name: /Área de estudos/ }).click();
+
+  await expect(page.locator(".question-card")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Atualizar banco de questões" })).toBeEnabled({ timeout: 15_000 });
+
+  const search = page.getByRole("textbox", { name: "Buscar no banco de questões" });
+  await search.fill("registro de ocorrência relativo");
+
+  const prompt = page.locator(".question-card h3");
+  await expect(prompt).toBeVisible();
+  await expect(prompt).toContainText("após a detenção, permaneceu durante dois dias sob a guarda dos policiais em uma casa em local ermo");
+  await expect(prompt).toContainText("O homem apresenta-se muito nervoso, com olheiras acentuadas e roupas com forte odor de urina");
+  await expect(prompt).not.toContainText("permaneceudurante");
+  await expect(prompt).not.toContainText("apresenta-semuito");
+  await expect(prompt).not.toContainText("olheirasacentuadase");
+  await expect(page.locator(".question-card .question-meta")).toContainText("Prova oficial · importada");
+});
+
 test("abre a página individual de um concurso com cronograma e fonte oficial", async ({ page }) => {
   await page.goto("./");
   await page.getByPlaceholder("Buscar cargo ou órgão...").fill("Polícia Civil");

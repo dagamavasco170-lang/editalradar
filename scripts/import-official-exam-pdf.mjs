@@ -2,7 +2,7 @@
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { mkdtemp, open, readFile, rm, writeFile } from "node:fs/promises";
-import { constants as fsConstants, existsSync } from "node:fs";
+import { constants as fsConstants, existsSync, readFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -15,6 +15,156 @@ export const MAX_BARE_QUESTION_LOOKAHEAD_LINES = 180;
 const RIGHTS_BASES = new Set([
   "official_publication", "public_domain", "permission_granted", "cc_by", "cc_by_sa", "other_reviewed"
 ]);
+
+const PT_BR_DICTIONARY_FILES = [
+  ...Array.from({ length: 4 }, (_, index) => `./dictionaries/pt-br-lexicon-${index + 1}.txt`),
+  ...Array.from({ length: 6 }, (_, index) => `./dictionaries/pt-br-conjugations-${index + 1}.txt`),
+  "./dictionaries/pt-br-municipalities.txt"
+];
+const PT_BR_FUNCTION_WORDS = new Set([
+  "a", "à", "o", "e", "as", "os", "de", "do", "da", "dos", "das", "em", "no", "na",
+  "nos", "nas", "ao", "aos", "se", "me", "te", "lhe", "lhes", "um", "uma", "uns", "umas",
+  "que", "por", "para", "pelo", "pela", "pelos", "pelas", "com", "sem", "sob", "sobre",
+  "entre", "após", "antes", "num", "numa", "nuns", "numas", "é", "são",
+  "ser", "estar", "ter", "haver", "foi", "foram", "era", "eram", "seja", "sejam", "sido"
+]);
+const PT_BR_SHORT_JOIN_WORDS = new Set([
+  "a", "à", "o", "e", "as", "os", "de", "do", "da", "dos", "das", "em", "no", "na",
+  "nos", "nas", "ao", "aos", "se", "me", "te", "lhe", "lhes", "um", "uma", "uns", "umas",
+  "que", "por", "para", "pelo", "pela", "pelos", "pelas", "com", "sem", "sob", "sobre",
+  "entre", "após", "antes", "num", "numa", "nuns", "numas", "foi"
+]);
+const PT_BR_DOMAIN_WORDS = new Set(
+  readFileSync(new URL("./dictionaries/pt-br-domain-terms.txt", import.meta.url), "utf8")
+    .split(/\r?\n/).map(word => word.normalize("NFC").toLocaleLowerCase("pt-BR").trim()).filter(Boolean)
+);
+const PT_BR_DICTIONARY = new Set([
+  ...PT_BR_FUNCTION_WORDS,
+  ...PT_BR_DOMAIN_WORDS,
+  ...PT_BR_DICTIONARY_FILES.flatMap(file => readFileSync(new URL(file, import.meta.url), "utf8")
+    .split(/\r?\n/)
+    .map(word => word.normalize("NFC").toLocaleLowerCase("pt-BR").trim())
+    .filter(Boolean))
+]);
+const PT_BR_SEGMENTATION_CACHE = new Map();
+
+function portugueseDictionaryWordInfo(value) {
+  const word = String(value || "").normalize("NFC").toLocaleLowerCase("pt-BR");
+  if (PT_BR_DICTIONARY.has(word)) return { exact: true };
+
+  const variants = [];
+  // Flexões regulares só são aceitas se a forma-base constar do léxico.
+  // Exemplos: examinadora -> examinador; brasileira -> brasileiro;
+  // concomitantemente -> concomitante; longitudinalidades -> longitudinalidade.
+  const genderVariants = [
+    ["oras", "or"], ["ora", "or"],
+    ["eiras", "eiro"], ["eira", "eiro"],
+    ["ivas", "ivo"], ["iva", "ivo"],
+    ["osas", "oso"], ["osa", "oso"],
+    ["icas", "ico"], ["ica", "ico"],
+    ["árias", "ário"], ["ária", "ário"]
+  ];
+  for (const [ending, replacement] of genderVariants) {
+    if (word.endsWith(ending)) variants.push(word.slice(0, -ending.length) + replacement);
+  }
+
+  if (word.endsWith("mente")) {
+    const root = word.slice(0, -5);
+    variants.push(root);
+    if (root.endsWith("ada")) variants.push(root.slice(0, -3) + "ado");
+    if (root.endsWith("ida")) variants.push(root.slice(0, -3) + "ido");
+    if (root.endsWith("osa")) variants.push(root.slice(0, -3) + "oso");
+    if (root.endsWith("ica")) variants.push(root.slice(0, -3) + "ico");
+  }
+  if (word.endsWith("eia")) variants.push(word.slice(0, -3) + "eu");
+  if (word.endsWith("a")) variants.push(word.slice(0, -1) + "o");
+  if (word.endsWith("idades")) variants.push(word.slice(0, -1));
+  if (word.endsWith("idade")) variants.push(word.slice(0, -5));
+  if (word.endsWith("ções")) variants.push(word.slice(0, -3) + "ção");
+  else if (word.endsWith("ões")) variants.push(word.slice(0, -3) + "ão");
+  if (word.endsWith("ães")) variants.push(word.slice(0, -3) + "ão");
+  if (word.endsWith("ens")) variants.push(word.slice(0, -3) + "em");
+  if (word.endsWith("adas")) variants.push(word.slice(0, -4) + "ado");
+  if (word.endsWith("idas")) variants.push(word.slice(0, -4) + "ido");
+  if (word.endsWith("ada")) variants.push(word.slice(0, -3) + "ado");
+  if (word.endsWith("ida")) variants.push(word.slice(0, -3) + "ido");
+  if (word.endsWith("is")) variants.push(word.slice(0, -2) + "l");
+  if (word.endsWith("es")) variants.push(word.slice(0, -2));
+  if (word.endsWith("s")) variants.push(word.slice(0, -1));
+  if (word.endsWith("as")) variants.push(word.slice(0, -2) + "ado", word.slice(0, -2) + "ido");
+  if (word.endsWith("os")) variants.push(word.slice(0, -2) + "a");
+
+  return variants.some(variant => PT_BR_DICTIONARY.has(variant)) ? { exact: false } : null;
+}
+
+export function findPortugueseDictionarySegmentation(value) {
+  const word = String(value || "").normalize("NFC").toLocaleLowerCase("pt-BR");
+  if (word.length < 6 || portugueseDictionaryWordInfo(word)) return null;
+  if (PT_BR_SEGMENTATION_CACHE.has(word)) return PT_BR_SEGMENTATION_CACHE.get(word);
+
+  // URLs, hashes and code identifiers are not natural-language words.
+  if (/\d|[_./:#@]/u.test(word)) {
+    PT_BR_SEGMENTATION_CACHE.set(word, null);
+    return null;
+  }
+
+  const paths = Array.from({ length: word.length + 1 }, () => []);
+  paths[0] = [[]];
+  for (let start = 0; start < word.length; start += 1) {
+    if (!paths[start].length) continue;
+    for (const path of paths[start]) {
+      for (let end = start + 1; end <= Math.min(word.length, start + 24); end += 1) {
+        const part = word.slice(start, end);
+        if (part.length === 1 && !PT_BR_FUNCTION_WORDS.has(part)) continue;
+        if (!portugueseDictionaryWordInfo(part)) continue;
+        if (paths[end].length < 80) paths[end].push([...path, part]);
+      }
+    }
+  }
+
+  const candidates = paths[word.length].filter(parts => {
+    const contentWords = parts.filter(part => !PT_BR_FUNCTION_WORDS.has(part));
+    const allContentWordsLookComplete = contentWords.every(part => part.length >= 4);
+    const hasShortFunctionWord = parts.some(part => PT_BR_SHORT_JOIN_WORDS.has(part));
+    const hasBrokenWordBoundary = parts.some((part, index) =>
+      index < parts.length - 1 && portugueseDictionaryWordInfo(part + parts[index + 1])
+    );
+    if (hasBrokenWordBoundary) return false;
+    const longJoin = word.length >= 14 && allContentWordsLookComplete
+      && contentWords.length >= 2 && hasShortFunctionWord;
+    const twoWordJoin = word.length >= 13 && parts.length === 2
+      && contentWords.length === 2 && contentWords.every(part => part.length >= 5);
+    const shortJoin = word.length <= 13 && parts.length <= 3
+      && contentWords.length === 1 && contentWords[0].length >= 4 && hasShortFunctionWord;
+    return longJoin || twoWordJoin || shortJoin;
+  });
+  candidates.sort((left, right) => {
+    const score = parts => parts.reduce((total, part) => {
+      if (PT_BR_FUNCTION_WORDS.has(part)) return total + 2.2;
+      return total + (part.length >= 5 ? 2.2 : part.length >= 3 ? -0.5 : -1.5) - 0.8;
+    }, 0);
+    return score(right) - score(left);
+  });
+  const result = candidates[0] || null;
+  PT_BR_SEGMENTATION_CACHE.set(word, result);
+  return result;
+}
+
+export function hasMissingSpacesAfterPunctuation(value) {
+  const prose = String(value ?? "")
+    .replace(/https?:\/\/\S+/giu, " ")
+    .replace(/`[^`]*`/gu, " ");
+  return /[,;:!?](?=\p{L})/u.test(prose) || /[.!?](?=\p{Lu}\p{Ll})/u.test(prose);
+}
+
+function isLikelyConcatenatedPortugueseWord(value) {
+  const word = String(value || "");
+  if (word.length < 6) return false;
+  // Preserve camelCase identifiers, acronyms and technical code fragments.
+  if (/[a-zà-ÿ][A-ZÀ-Þ]/u.test(word)) return false;
+  const segmentation = findPortugueseDictionarySegmentation(word);
+  return Boolean(segmentation && (word.length >= 14 || segmentation.length >= 2));
+}
 
 export function formatChemicalFormulaText(value) {
   const subscript = digits => String(digits).replace(/[0-9]/g, digit => "₀₁₂₃₄₅₆₇₈₉"[Number(digit)]);
@@ -46,15 +196,9 @@ export function measureTextSpacing(value) {
   const veryLongWordCount = lengths.filter(length => length >= 28).length;
   const averageWordLength = words.length ? letterCount / words.length : 0;
   const spaceRatio = letterCount ? spaceCount / letterCount : 0;
-  const joinedWordMarkers = words.filter(word => {
-    const fusedConnective = /^(?:pormeio|pormeiode)$/iu.test(word);
-    if (([...word].length < 8 && !fusedConnective) || [...word].length >= 28) return false;
-    const fusedLeadingWord = /^(?:que|ele|ela|foi|teria|uma|dos|das|por|da)\p{L}{4,}$/iu.test(word);
-    const fusedMiddleWord = /^\p{L}{8,}(?:por|com|sem|para|que|dos|das)\p{L}{3,}$/iu.test(word);
-    const fusedVerb = /^(?:pode|podem|deve|devem|teria|teriam|foi|foram|será|serao|está|estao)(?:ser|estar|ter|haver|sido|obtido|realizado|aplicado|utilizado|considerado)\p{L}*$/iu.test(word);
-    const fusedClause = /^(?:consiste|consistem)(?:na|no|em|de|do|da)\p{L}{4,}$/iu.test(word);
-    return fusedLeadingWord || fusedMiddleWord || fusedVerb || fusedClause || fusedConnective;
-  }).length;
+  const proseForSpacing = text.replace(/https?:\/\/\S+/giu, " ").replace(/`[^`]*`/gu, " ");
+  const proseWords = proseForSpacing.match(/\p{L}+/gu) || [];
+  const joinedWordMarkers = proseWords.filter(isLikelyConcatenatedPortugueseWord).length;
   return { letterCount, wordCount: words.length, spaceCount, spaceRatio, averageWordLength, longWordCount, veryLongWordCount, joinedWordMarkers };
 }
 
@@ -92,13 +236,15 @@ export function scoreTextSpacingQuality(value) {
 }
 
 export function hasSuspiciousWordSpacing(value) {
+  if (hasMissingSpacesAfterPunctuation(value)) return true;
   const metrics = measureTextSpacing(value);
+  if (metrics.joinedWordMarkers >= 1) return true;
   if (metrics.letterCount < 100 || metrics.wordCount < 8) return false;
   return metrics.veryLongWordCount >= 2
     || (metrics.veryLongWordCount >= 1 && metrics.joinedWordMarkers >= 2 && metrics.averageWordLength >= 5.4)
     || (metrics.longWordCount >= 4 && metrics.averageWordLength >= 5.4)
     || (metrics.joinedWordMarkers >= 3 && metrics.averageWordLength >= 5.4)
-    || (metrics.joinedWordMarkers >= 2 && metrics.averageWordLength >= 5.4)
+    || (metrics.joinedWordMarkers >= 1 && metrics.averageWordLength >= 4.5)
     || (metrics.spaceRatio < 0.095 && metrics.averageWordLength >= 5.5 && metrics.veryLongWordCount === 0)
     || (metrics.averageWordLength >= 5.7 && metrics.spaceRatio < 0.15
       && metrics.longWordCount >= 1 && metrics.veryLongWordCount === 0);

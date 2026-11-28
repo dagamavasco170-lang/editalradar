@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifyGeneratedReview, filterQuestionCandidates, isDuplicateQuestion, isTrustedPrivateStudySourceUrl, similarityScore, validateQuestion } from "./validation.ts";
+import { classifyGeneratedReview, filterQuestionCandidates, isDuplicateQuestion, isTrustedPrivateStudySourceUrl, similarityScore, findPortugueseConcatenatedWords, hasMissingSpacesAfterPunctuation, validateQuestion } from "./validation.ts";
 
 const source = "A administração pública direta e indireta de qualquer dos Poderes da União, dos Estados, do Distrito Federal e dos Municípios obedecerá aos princípios de legalidade, impessoalidade, moralidade, publicidade e eficiência.";
 const question = {
@@ -19,6 +19,73 @@ describe("Validação automática de questões", () => {
   it("aprova uma estrutura íntegra e evidência literal na fonte", () => {
     expect(validateQuestion(question, source)).toEqual({ valid: true, issues: [] });
   });
+  it("identifica junções de palavras usando o léxico pt-BR e não divide palavra legítima", () => {
+    const lexicon = new Set([
+      "permaneceu", "durante", "dois", "dia", "sob", "guarda", "policial",
+      "olheira", "acentuado", "muito", "local", "ermo", "homem", "nervoso",
+      "roupa"
+    ]);
+    const fused = "permaneceudurantedoissobaguardadospoliciais olheirasacentuadase semuito";
+    const detected = findPortugueseConcatenatedWords(fused, lexicon);
+    expect(detected).toContain("permaneceudurantedoissobaguardadospoliciais");
+    expect(detected).toContain("olheirasacentuadase");
+    expect(detected).toContain("semuito");
+    expect(findPortugueseConcatenatedWords(
+      "permaneceu durante dois dias sob a guarda dos policiais",
+      lexicon
+    )).toEqual([]);
+    expect(findPortugueseConcatenatedWords(
+      "Donaudampfschifffahrselektrizitätenhauptbetriebswerkbauunterbeamtengesellschaft",
+      lexicon
+    )).toEqual([]);
+    const expandedLexicon = new Set([
+      ...lexicon, "obrigatório", "europeu", "curitiba", "sorocaba", "service",
+      "retrocompatibilidade", "multiversão", "autoidentificação", "odontolegal",
+      "evento", "adverso", "cinco", "candidato",
+      "detalhado", "verdadeiro", "prestador", "pensador", "esquisito",
+      "examinador", "administrador", "professor", "criativo", "bondoso",
+      "técnico", "bancário", "brasileiro", "concomitante", "suficiente",
+      "longitudinal", "foi", "adiado", "na", "data"
+    ]);
+    expect(findPortugueseConcatenatedWords(
+      "A alternativa obrigatória sobre a cultura Europeia em Curitiba e Sorocaba cita Service e retrocompatibilidade.",
+      expandedLexicon
+    )).toEqual([]);
+    expect(findPortugueseConcatenatedWords("foiadiada semuito Nadata", expandedLexicon))
+      .toEqual(["foiadiada", "semuito", "Nadata"]);
+    expect(findPortugueseConcatenatedWords("eventoadverso Cincocandidatos", expandedLexicon))
+      .toEqual(["eventoadverso", "Cincocandidatos"]);
+
+    const morphologyLexicon = new Set(["examinador", "administrador", "professor", "criativo", "bondoso", "técnico", "bancário", "brasileiro", "concomitante", "suficiente", "longitudinal"]);
+    expect(findPortugueseConcatenatedWords(
+      "A banca examinadora e a equipe administradora, com professoras, técnicas, bancárias e brasileiras, trabalharam concomitantemente e apresentaram uma análise suficientemente clara sobre longitudinalidades.",
+      morphologyLexicon
+    )).toEqual([]);
+  });
+
+  it("detecta ausência de espaço após pontuação em enunciados e alternativas", () => {
+    expect(hasMissingSpacesAfterPunctuation("Após a detenção,permaneceu em local ermo.")).toBe(true);
+    expect(hasMissingSpacesAfterPunctuation("A frase terminou. O texto continua.")).toBe(false);
+  });
+
+  it("bloqueia questão com palavras concatenadas no enunciado ou nas alternativas", () => {
+    const lexicon = new Set([
+      "permaneceu", "durante", "dois", "dia", "sob", "guarda", "policial",
+      "olheira", "acentuado", "muito", "local", "ermo", "homem", "nervoso",
+      "roupa"
+    ]);
+    const invalid = {
+      ...question,
+      options: [
+        { id: "a", text: "A alternativa possui texto extenso e contém semuito no trecho final." },
+        ...question.options.slice(1)
+      ]
+    };
+    const result = validateQuestion(invalid, source, lexicon);
+    expect(result.valid).toBe(false);
+    expect(result.issues.join(" ")).toContain("Possíveis palavras concatenadas");
+  });
+
   it("reprova gabarito que não existe entre as alternativas", () => {
     expect(validateQuestion({ ...question, answer: "e" }, source).valid).toBe(false);
   });
