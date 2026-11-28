@@ -295,7 +295,9 @@ test("Android atualiza o token FCM ao retomar a página confiável", () => {
   const resumeStart = android.indexOf("override fun onResume()");
   const resumeEnd = android.indexOf("private fun showPendingInstallFailureIfAny()", resumeStart);
   const resumeBlock = android.slice(resumeStart, resumeEnd);
-  assert.ok(resumeBlock.includes("if (webPageReady) requestFcmToken()"));
+  assert.ok(resumeBlock.includes("if (webPageReady) {"));
+  assert.ok(resumeBlock.includes("window.dispatchEvent(new Event('editalradar:refresh-questions'))"));
+  assert.ok(resumeBlock.includes("requestFcmToken()"));
   assert.ok(android.includes("if (isFinishing || isDestroyed) return"));
   assert.ok(android.includes("if (fcmTokenRequestInFlight) return"));
   assert.ok(android.includes("fcmTokenRequestInFlight = true"));
