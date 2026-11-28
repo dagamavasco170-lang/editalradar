@@ -18,7 +18,8 @@ const RIGHTS_BASES = new Set([
 
 const PT_BR_DICTIONARY_FILES = [
   ...Array.from({ length: 4 }, (_, index) => `./dictionaries/pt-br-lexicon-${index + 1}.txt`),
-  ...Array.from({ length: 6 }, (_, index) => `./dictionaries/pt-br-conjugations-${index + 1}.txt`)
+  ...Array.from({ length: 6 }, (_, index) => `./dictionaries/pt-br-conjugations-${index + 1}.txt`),
+  "./dictionaries/pt-br-municipalities.txt"
 ];
 const PT_BR_FUNCTION_WORDS = new Set([
   "a", "à", "o", "e", "as", "os", "de", "do", "da", "dos", "das", "em", "no", "na",
@@ -26,6 +27,12 @@ const PT_BR_FUNCTION_WORDS = new Set([
   "que", "por", "para", "pelo", "pela", "pelos", "pelas", "com", "sem", "sob", "sobre",
   "entre", "após", "antes", "num", "numa", "nuns", "numas", "é", "são",
   "ser", "estar", "ter", "haver", "foi", "foram", "era", "eram", "seja", "sejam", "sido"
+]);
+const PT_BR_SHORT_JOIN_WORDS = new Set([
+  "a", "à", "o", "e", "as", "os", "de", "do", "da", "dos", "das", "em", "no", "na",
+  "nos", "nas", "ao", "aos", "se", "me", "te", "lhe", "lhes", "um", "uma", "uns", "umas",
+  "que", "por", "para", "pelo", "pela", "pelos", "pelas", "com", "sem", "sob", "sobre",
+  "entre", "após", "antes", "num", "numa", "nuns", "numas", "foi"
 ]);
 const PT_BR_DOMAIN_WORDS = new Set(
   readFileSync(new URL("./dictionaries/pt-br-domain-terms.txt", import.meta.url), "utf8")
@@ -61,7 +68,16 @@ function portugueseDictionaryWordInfo(value) {
     if (word.endsWith(ending)) variants.push(word.slice(0, -ending.length) + replacement);
   }
 
-  if (word.endsWith("mente")) variants.push(word.slice(0, -5));
+  if (word.endsWith("mente")) {
+    const root = word.slice(0, -5);
+    variants.push(root);
+    if (root.endsWith("ada")) variants.push(root.slice(0, -3) + "ado");
+    if (root.endsWith("ida")) variants.push(root.slice(0, -3) + "ido");
+    if (root.endsWith("osa")) variants.push(root.slice(0, -3) + "oso");
+    if (root.endsWith("ica")) variants.push(root.slice(0, -3) + "ico");
+  }
+  if (word.endsWith("eia")) variants.push(word.slice(0, -3) + "eu");
+  if (word.endsWith("a")) variants.push(word.slice(0, -1) + "o");
   if (word.endsWith("idades")) variants.push(word.slice(0, -1));
   if (word.endsWith("idade")) variants.push(word.slice(0, -5));
   if (word.endsWith("ções")) variants.push(word.slice(0, -3) + "ção");
@@ -109,10 +125,12 @@ export function findPortugueseDictionarySegmentation(value) {
   const candidates = paths[word.length].filter(parts => {
     const contentWords = parts.filter(part => !PT_BR_FUNCTION_WORDS.has(part));
     const allContentWordsLookComplete = contentWords.every(part => part.length >= 4);
-    return allContentWordsLookComplete && (
-      contentWords.length >= 2
-      || (word.length <= 12 && contentWords.length >= 1 && PT_BR_FUNCTION_WORDS.has(parts[0]))
-    );
+    const hasShortFunctionWord = parts.some(part => PT_BR_SHORT_JOIN_WORDS.has(part));
+    const longJoin = word.length >= 14 && allContentWordsLookComplete
+      && contentWords.length >= 2 && hasShortFunctionWord;
+    const shortJoin = word.length <= 13 && parts.length <= 3
+      && contentWords.length === 1 && contentWords[0].length >= 4 && hasShortFunctionWord;
+    return longJoin || shortJoin;
   });
   candidates.sort((left, right) => {
     const score = parts => parts.reduce((total, part) => {
