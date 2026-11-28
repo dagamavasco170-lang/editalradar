@@ -48,8 +48,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     env:
-      # A agenda publica sem intervenção somente depois da migration ser aplicada e
-      # desta variável de repositório ser habilitada pelo responsável pela implantação.
+      # Agenda e push publicam por padrão após as migrations aplicáveis estarem implantadas.
+      # Defina EXAM_IMPORT_AUTOPUBLISH_ENABLED=false para manter somente o staging.
       EXAM_IMPORT_AUTOPUBLISH_ENABLED: ${{ vars.EXAM_IMPORT_AUTOPUBLISH_ENABLED || 'true' }}
       EXAM_IMPORT_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || (vars.EXAM_IMPORT_AUTOPUBLISH_ENABLED == 'false' && 'stage' || 'publish') }}
       INGESTION_REPORT_PATH: .cache/official-exam-ingestion-report.json
@@ -94,7 +94,7 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          EXAM_IMPORT_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || (vars.EXAM_IMPORT_AUTOPUBLISH_ENABLED == 'true' && 'publish' || 'stage') }}
+          EXAM_IMPORT_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || (vars.EXAM_IMPORT_AUTOPUBLISH_ENABLED == 'false' && 'stage' || 'publish') }}
         run: |
           mkdir -p .cache
           node scripts/automatic-official-exam-ingestion.mjs --mode "$EXAM_IMPORT_MODE" --limit "${{ inputs.limit || 15 }}"
