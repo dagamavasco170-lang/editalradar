@@ -23,7 +23,7 @@ describe("Validação automática de questões", () => {
     const lexicon = new Set([
       "permaneceu", "durante", "dois", "dia", "sob", "guarda", "policial",
       "olheira", "acentuado", "muito", "local", "ermo", "homem", "nervoso",
-      "roupa", "donaudampfschifffahrselektrizitätenhauptbetriebswerkbauunterbeamtengesellschaft"
+      "roupa"
     ]);
     const fused = "permaneceudurantedoissobaguardadospoliciais olheirasacentuadase semuito";
     const detected = findPortugueseConcatenatedWords(fused, lexicon);
@@ -38,6 +38,24 @@ describe("Validação automática de questões", () => {
       "Donaudampfschifffahrselektrizitätenhauptbetriebswerkbauunterbeamtengesellschaft",
       lexicon
     )).toEqual([]);
+  });
+
+  it("bloqueia questão com palavras concatenadas no enunciado ou nas alternativas", () => {
+    const lexicon = new Set([
+      "permaneceu", "durante", "dois", "dia", "sob", "guarda", "policial",
+      "olheira", "acentuado", "muito", "local", "ermo", "homem", "nervoso",
+      "roupa"
+    ]);
+    const invalid = {
+      ...question,
+      options: [
+        { id: "a", text: "A alternativa possui texto extenso e contém semuito no trecho final." },
+        ...question.options.slice(1)
+      ]
+    };
+    const result = validateQuestion(invalid, source, lexicon);
+    expect(result.valid).toBe(false);
+    expect(result.issues.join(" ")).toContain("Possíveis palavras concatenadas");
   });
 
   it("reprova gabarito que não existe entre as alternativas", () => {
