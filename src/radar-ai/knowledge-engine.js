@@ -9,7 +9,14 @@ export function validateKnowledgeSource(source) {
   for (const field of REQUIRED_SOURCE_FIELDS) {
     if (typeof source[field] !== "string" || !source[field].trim()) errors.push(`Source field "${field}" is required.`);
   }
-  if (typeof source.url === "string") {\n    try {\n      const parsed = new URL(source.url);\n      if (!VALID_URL.test(source.url) || parsed.protocol !== "https:" || !parsed.hostname || parsed.username || parsed.password) errors.push("Source URL must be a valid HTTPS URL without credentials.");\n    } catch {\n      errors.push("Source URL must be a valid HTTPS URL without credentials.");\n    }\n  }
+  if (typeof source.url === "string") {
+    try {
+      const parsed = new URL(source.url);
+      if (parsed.protocol !== "https:" || !parsed.hostname || parsed.username || parsed.password) errors.push("Source URL must be a valid HTTPS URL without credentials.");
+    } catch {
+      errors.push("Source URL must be a valid HTTPS URL without credentials.");
+    }
+  }
   if (source.official !== undefined && typeof source.official !== "boolean") errors.push("official must be boolean when provided.");
   return { valid: errors.length === 0, errors };
 }
