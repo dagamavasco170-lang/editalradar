@@ -31,7 +31,7 @@ export function measureTextSpacing(value) {
   const text = String(value ?? "").normalize("NFC");
   const words = text.match(/\p{L}+/gu) || [];
   const letterCount = (text.match(/\p{L}/gu) || []).length;
-  const spaceCount = (text.match(/\\s/gu) || []).length;
+  const spaceCount = (text.match(/\s/gu) || []).length;
   const lengths = words.map(word => [...word].length);
   const longWordCount = lengths.filter(length => length >= 18).length;
   const veryLongWordCount = lengths.filter(length => length >= 28).length;
@@ -39,8 +39,8 @@ export function measureTextSpacing(value) {
   const spaceRatio = letterCount ? spaceCount / letterCount : 0;
   const joinedWordMarkers = words.filter(word => {
     if ([...word].length < 10 || [...word].length >= 28) return false;
-    return /^(?:que|ele|ela|foi|teria|uma|dos|das|para|com|por|sem)\\p{L}{4,}$/iu.test(word)
-      || /\p{L}{3,}(?:que|dos|das|por|com|sem|para|uma|de|do|da|em|na|no|as|os)\\p{L}{3,}/iu.test(word)
+    return /^(?:que|ele|ela|foi|teria|uma|dos|das|para|com|por|sem)\p{L}{4,}$/iu.test(word)
+      || /\p{L}{3,}(?:que|dos|das|por|com|sem|para|uma|de|do|da|em|na|no|as|os)\p{L}{3,}/iu.test(word)
       || /\p{L}{4,}(?:os|as|do|da|dos|das|que|com|por|sem)$/iu.test(word);
   }).length;
   return { letterCount, wordCount: words.length, spaceCount, spaceRatio, averageWordLength, longWordCount, veryLongWordCount, joinedWordMarkers };
@@ -602,7 +602,7 @@ export async function extractPdfPages(pdfPath, questionFormat = "multiple_choice
     page.layoutScore = extractionSelection.layoutScore;
     page.rawScore = extractionSelection.rawScore;
   }
-  const sparsePages = pages.filter(page => page.text.replace(/\\s/g, "").length < 40);
+  const sparsePages = pages.filter(page => page.text.replace(/\s/g, "").length < 40);
   const spacingDiagnostics = [];
   parseExamPages(pages, "0".repeat(64), {
     questionFormat, allowNumberedMultipleChoice, allowBareOptions, diagnostics: spacingDiagnostics
