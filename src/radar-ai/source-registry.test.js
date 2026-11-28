@@ -16,7 +16,16 @@ describe("Radar AI source registry", () => {
     expect(result.registered).toBe(false);
     expect(result.errors).toContain("Source license/permission must be verified before ingestion.");
   });
-  it("rejects malformed HTTPS URLs instead of throwing", () => {\n    const result = registerKnowledgeSource({ ...source, url: "https://" });\n    expect(result.registered).toBe(false);\n    expect(result.errors).toContain("Source URL must be a valid HTTPS URL without credentials.");\n  });\n  it("rejects credential-bearing source URLs", () => {\n    const result = registerKnowledgeSource({ ...source, url: "https://user:pass@example.gov.br/" });\n    expect(result.registered).toBe(false);\n  });\n  it("prevents id collisions with different source URLs", () => {
+  it("rejects malformed HTTPS URLs instead of throwing", () => {
+    const result = registerKnowledgeSource({ ...source, url: "https://" });
+    expect(result.registered).toBe(false);
+    expect(result.errors).toContain("Source URL must be a valid HTTPS URL without credentials.");
+  });
+  it("rejects credential-bearing source URLs", () => {
+    const result = registerKnowledgeSource({ ...source, url: "https://user:pass@example.gov.br/" });
+    expect(result.registered).toBe(false);
+  });
+  it("prevents id collisions with different source URLs", () => {
     registerKnowledgeSource(source);
     const result = registerKnowledgeSource({ ...source, url: "https://another.gov.br/", title: "Different source" });
     expect(result.registered).toBe(false);
