@@ -103,6 +103,10 @@ test("usa o dicionário pt-BR para identificar possíveis junções e preservar 
   const fused = "Durante a detenção,permaneceudurantedoissobaguardadospoliciais em local ermo. O homem apresenta-semuito nervoso, com olheirasacentuadase roupas.";
   const corrected = "Durante a detenção, permaneceu durante dois dias sob a guarda dos policiais em local ermo. O homem apresenta-se muito nervoso, com olheiras acentuadas e roupas.";
   assert.ok(findPortugueseDictionarySegmentation("permaneceudurantedoissobaguardadospoliciais"));
+  assert.ok(findPortugueseDictionarySegmentation("filosofiadepolícia"));
+  assert.ok(findPortugueseDictionarySegmentation("eventoadverso"));
+  assert.ok(findPortugueseDictionarySegmentation("Cincocandidatos"));
+  assert.ok(findPortugueseDictionarySegmentation("asexpressões"));
   assert.ok(findPortugueseDictionarySegmentation("olheirasacentuadase"));
   assert.deepEqual(findPortugueseDictionarySegmentation("semuito"), ["se", "muito"]);
   assert.equal(hasSuspiciousWordSpacing(fused), true);
@@ -126,7 +130,8 @@ test("usa o dicionário pt-BR para identificar possíveis junções e preservar 
   for (const legitimateWord of [
     "obrigatória", "Europeia", "Curitiba", "Sorocaba", "Service",
     "retrocompatibilidade", "multiversão", "autoidentificação", "odontolegal",
-    "detalhadamente", "verdadeiras", "prestadores", "pensadores", "esquisita"
+    "detalhadamente", "verdadeiras", "prestadores", "pensadores", "esquisita",
+    "oposta", "longitudinalidade", "Quiritariedade", "Europeu"
   ]) {
     assert.equal(
       findPortugueseDictionarySegmentation(legitimateWord),
