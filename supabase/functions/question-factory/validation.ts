@@ -66,6 +66,13 @@ function portugueseDictionaryHasWord(value: string, lexicon: Set<string>): boole
   return variants.some(variant => lexicon.has(variant));
 }
 
+export function hasMissingSpacesAfterPunctuation(value: unknown): boolean {
+  const text = String(value ?? "")
+    .replace(/https?:\\/\\/\\S+/giu, " ")
+    .replace(/`[^`]*`/gu, " ");
+  return /[,;:!?](?=\\p{L})/u.test(text) || /[.!?](?=\\p{Lu}\\p{Ll})/u.test(text);
+}
+
 export function findPortugueseConcatenatedWords(value: unknown, lexicon: Set<string>): string[] {
   const text = String(value ?? "")
     .replace(/https?:\/\/\S+/giu, " ")
@@ -141,6 +148,9 @@ export function validateQuestion(question: unknown, sourceExcerpt: string, lexic
   const options = Array.isArray(item.options) ? item.options as QuestionOption[] : [];
 
   if (prompt.length < 30 || prompt.length > 2500) issues.push("Enunciado muito curto ou longo.");
+  if (hasMissingSpacesAfterPunctuation(prompt) || options.some(option => hasMissingSpacesAfterPunctuation(option?.text))) {
+    issues.push("Espaço ausente após sinal de pontuação no enunciado ou em uma alternativa.");
+  }
   if (lexicon) {
     const fusedPromptWords = findPortugueseConcatenatedWords(prompt, lexicon);
     const fusedOptionWords = options.flatMap(option => findPortugueseConcatenatedWords(option?.text, lexicon));
