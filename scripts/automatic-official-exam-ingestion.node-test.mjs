@@ -15,6 +15,7 @@ import {
   parseOfficialAnswerKeyVariants,
   selectAnswerKeySection,
   validateQuestionForAutoPublication,
+  canPromoteStagedImport,
   isApprovedForQuestionReuse,
   isSourceEligibleForMode,
   variantIdentity
@@ -499,4 +500,25 @@ test("link-only official sources are eligible for dry-run and private staging, n
   assert.equal(isSourceEligibleForMode(source, "stage"), true);
   assert.equal(isSourceEligibleForMode(source, "publish"), false);
   assert.equal(isSourceEligibleForMode(source, "invalid"), false);
+});
+
+
+test("only promotes unreviewed pending official-publication imports", () => {
+  const staged = {
+    id: 42,
+    status: "pending",
+    rights_review_status: "not_reviewed",
+    rights_basis: "official_publication",
+    official_release_verified: true,
+    published_question_id: null
+  };
+  assert.equal(canPromoteStagedImport(staged), true);
+  assert.equal(canPromoteStagedImport({ ...staged, status: "published" }), false);
+  assert.equal(canPromoteStagedImport({ ...staged, status: "rejected" }), false);
+  assert.equal(canPromoteStagedImport({ ...staged, rights_review_status: "accepted" }), false);
+  assert.equal(canPromoteStagedImport({ ...staged, rights_review_status: "rejected" }), false);
+  assert.equal(canPromoteStagedImport({ ...staged, rights_basis: "permission_granted" }), false);
+  assert.equal(canPromoteStagedImport({ ...staged, official_release_verified: false }), false);
+  assert.equal(canPromoteStagedImport({ ...staged, published_question_id: 999 }), false);
+  assert.equal(canPromoteStagedImport(null), false);
 });
