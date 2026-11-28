@@ -47,12 +47,12 @@ export function measureTextSpacing(value) {
   const averageWordLength = words.length ? letterCount / words.length : 0;
   const spaceRatio = letterCount ? spaceCount / letterCount : 0;
   const joinedWordMarkers = words.filter(word => {
-    if ([...word].length < 8 || [...word].length >= 28) return false;
+    const fusedConnective = /^(?:pormeio|pormeiode)$/iu.test(word);
+    if (([...word].length < 8 && !fusedConnective) || [...word].length >= 28) return false;
     const fusedLeadingWord = /^(?:que|ele|ela|foi|teria|uma|dos|das|por|da)\p{L}{4,}$/iu.test(word);
     const fusedMiddleWord = /^\p{L}{8,}(?:por|com|sem|para|que|dos|das)\p{L}{3,}$/iu.test(word);
     const fusedVerb = /^(?:pode|podem|deve|devem|teria|teriam|foi|foram|será|serao|está|estao)(?:ser|estar|ter|haver|sido|obtido|realizado|aplicado|utilizado|considerado)\p{L}*$/iu.test(word);
     const fusedClause = /^(?:consiste|consistem)(?:na|no|em|de|do|da)\p{L}{4,}$/iu.test(word);
-    const fusedConnective = /^(?:pormeio|pormeiode)$/iu.test(word);
     return fusedLeadingWord || fusedMiddleWord || fusedVerb || fusedClause || fusedConnective;
   }).length;
   return { letterCount, wordCount: words.length, spaceCount, spaceRatio, averageWordLength, longWordCount, veryLongWordCount, joinedWordMarkers };
@@ -93,7 +93,7 @@ export function scoreTextSpacingQuality(value) {
 
 export function hasSuspiciousWordSpacing(value) {
   const metrics = measureTextSpacing(value);
-  if (metrics.letterCount < 120 || metrics.wordCount < 8) return false;
+  if (metrics.letterCount < 100 || metrics.wordCount < 8) return false;
   return metrics.veryLongWordCount >= 2
     || (metrics.veryLongWordCount >= 1 && metrics.joinedWordMarkers >= 2 && metrics.averageWordLength >= 5.4)
     || (metrics.longWordCount >= 4 && metrics.averageWordLength >= 5.4)
