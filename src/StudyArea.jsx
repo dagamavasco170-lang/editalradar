@@ -198,7 +198,7 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
    if(loading)return;
    const now=Date.now();
    // Evita várias consultas seguidas quando foco e visibilidade disparam juntos.
-   if(!force&&now-lastRefreshAt<15000)return;
+   if(!force&&now-lastRefreshAt<1200)return;
    loading=true;
    lastRefreshAt=now;
    setLicensedQuestionStatus(current=>current==="loading"?"loading":"refreshing");
@@ -240,6 +240,7 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
   const refreshOnRequest=()=>void loadLicensedQuestions(true);
 
   window.addEventListener("focus",refreshOnFocus);
+  window.addEventListener("pageshow",refreshOnFocus);
   document.addEventListener("visibilitychange",refreshWhenVisible);
   window.addEventListener("editalradar:refresh-questions",refreshOnRequest);
   void loadLicensedQuestions(true);
@@ -247,6 +248,7 @@ export default function StudyArea({selected,tasks,progress,onToggleTask,onBackDe
   return()=>{
    cancelled=true;
    window.removeEventListener("focus",refreshOnFocus);
+   window.removeEventListener("pageshow",refreshOnFocus);
    document.removeEventListener("visibilitychange",refreshWhenVisible);
    window.removeEventListener("editalradar:refresh-questions",refreshOnRequest);
   };
