@@ -39,7 +39,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: automatic-official-exam-ingestion
+  # Dry-runs de PR não devem bloquear ingestões reais nem outras PRs.
+  group: ${{ github.event_name == 'pull_request' && format('automatic-official-exam-ingestion-pr-{0}', github.event.pull_request.number) || 'automatic-official-exam-ingestion-production' }}
   cancel-in-progress: false
 
 jobs:
