@@ -26,13 +26,13 @@ export function extractKnowledgePdf(pdfPath, {
     return { extracted: false, errors: ["PDF size must be between 1 byte and the configured limit."], pages: [], stats: { pageCount: 0, byteSize: fileStats.size || 0 } };
   }
   let header;
-  const fd = openSync(pdfPath, "r");
+  const fd = open(pdfPath, "r");
   try {
     const buffer = Buffer.alloc(5);
-    const read = readSync(fd, buffer, 0, buffer.length, 0);
+    const read = read(fd, buffer, 0, buffer.length, 0);
     header = buffer.subarray(0, read).toString("ascii");
   } finally {
-    closeSync(fd);
+    close(fd);
   }
   if (header !== "%PDF-") return { extracted: false, errors: ["File does not have a PDF signature."], pages: [], stats: { pageCount: 0, byteSize: fileStats.size } };
 
