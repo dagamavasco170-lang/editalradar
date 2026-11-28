@@ -48,12 +48,19 @@ export function measureTextSpacing(value) {
   const spaceRatio = letterCount ? spaceCount / letterCount : 0;
   const joinedWordMarkers = words.filter(word => {
     const fusedConnective = /^(?:pormeio|pormeiode)$/iu.test(word);
-    if (([...word].length < 8 && !fusedConnective) || [...word].length >= 28) return false;
+    // Padrões observados em extrações de PDFs da FGV: uma frase inteira pode
+    // virar um único token e conectivos curtos podem grudar nas palavras vizinhas.
+    const fusedKnownShortPhrase = /^semuito$/iu.test(word);
+    const fusedPdfPhrase = /^\p{L}{8,}(?:durante|sobre|sob|entre|ap[oó]s|antes|contra|depois)\p{L}{4,}$/iu.test(word);
+    const fusedTrailingConjunction = /^\p{L}{16,}(?:e|ou)$/iu.test(word);
+    if ([...word].length < 8 && !fusedConnective && !fusedKnownShortPhrase) return false;
+    if ([...word].length >= 28) return fusedPdfPhrase;
     const fusedLeadingWord = /^(?:que|ele|ela|foi|teria|uma|dos|das|por|da)\p{L}{4,}$/iu.test(word);
     const fusedMiddleWord = /^\p{L}{8,}(?:por|com|sem|para|que|dos|das)\p{L}{3,}$/iu.test(word);
     const fusedVerb = /^(?:pode|podem|deve|devem|teria|teriam|foi|foram|será|serao|está|estao)(?:ser|estar|ter|haver|sido|obtido|realizado|aplicado|utilizado|considerado)\p{L}*$/iu.test(word);
     const fusedClause = /^(?:consiste|consistem)(?:na|no|em|de|do|da)\p{L}{4,}$/iu.test(word);
-    return fusedLeadingWord || fusedMiddleWord || fusedVerb || fusedClause || fusedConnective;
+    return fusedLeadingWord || fusedMiddleWord || fusedVerb || fusedClause
+      || fusedConnective || fusedKnownShortPhrase || fusedPdfPhrase || fusedTrailingConjunction;
   }).length;
   return { letterCount, wordCount: words.length, spaceCount, spaceRatio, averageWordLength, longWordCount, veryLongWordCount, joinedWordMarkers };
 }
