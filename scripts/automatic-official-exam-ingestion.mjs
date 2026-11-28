@@ -595,7 +595,7 @@ async function loadRegisteredSources(mode = "dry-run") {
     ...(Array.isArray(configuredSources) ? configuredSources : [])
   ];
   const query = new URLSearchParams({
-    select: "id,board,exam_name,exam_year,discipline,role_name,source_url,exam_url,answer_key_url,notes,question_reuse_status,question_reuse_basis,question_reuse_proof_url,question_reuse_terms_url,question_reuse_rights_holder,question_reuse_restrictions,question_reuse_review_notes,question_reuse_reviewed_by,question_reuse_reviewed_at,last_ingested_at",
+    select: "id,board,exam_name,exam_year,discipline,role_name,source_url,exam_url,answer_key_url,notes,published,question_reuse_status,question_reuse_basis,question_reuse_proof_url,question_reuse_terms_url,question_reuse_rights_holder,question_reuse_restrictions,question_reuse_review_notes,question_reuse_reviewed_by,question_reuse_reviewed_at,last_ingested_at",
     published: "eq.true",
     order: "last_ingested_at.asc.nullsfirst,exam_year.desc",
     limit: "300"
