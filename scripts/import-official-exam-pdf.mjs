@@ -24,7 +24,8 @@ const PT_BR_FUNCTION_WORDS = new Set([
   "a", "à", "o", "e", "as", "os", "de", "do", "da", "dos", "das", "em", "no", "na",
   "nos", "nas", "ao", "aos", "se", "me", "te", "lhe", "lhes", "um", "uma", "uns", "umas",
   "que", "por", "para", "pelo", "pela", "pelos", "pelas", "com", "sem", "sob", "sobre",
-  "entre", "após", "antes", "num", "numa", "nuns", "numas", "é", "são"
+  "entre", "após", "antes", "num", "numa", "nuns", "numas", "é", "são",
+  "ser", "estar", "ter", "haver", "foi", "foram", "era", "eram", "seja", "sejam", "sido"
 ]);
 const PT_BR_DOMAIN_WORDS = new Set(
   readFileSync(new URL("./dictionaries/pt-br-domain-terms.txt", import.meta.url), "utf8")
@@ -85,8 +86,12 @@ export function findPortugueseDictionarySegmentation(value) {
   }
 
   const candidates = paths[word.length].filter(parts => {
-    const contentWords = parts.filter(part => part.length >= 3 && !PT_BR_FUNCTION_WORDS.has(part));
-    return contentWords.length >= 2 || (word.length <= 12 && contentWords.length >= 1 && PT_BR_FUNCTION_WORDS.has(parts[0]));
+    const contentWords = parts.filter(part => !PT_BR_FUNCTION_WORDS.has(part));
+    const allContentWordsLookComplete = contentWords.every(part => part.length >= 4);
+    return allContentWordsLookComplete && (
+      contentWords.length >= 2
+      || (word.length <= 12 && contentWords.length >= 1 && PT_BR_FUNCTION_WORDS.has(parts[0]))
+    );
   });
   candidates.sort((left, right) => {
     const score = parts => parts.reduce((total, part) => {
