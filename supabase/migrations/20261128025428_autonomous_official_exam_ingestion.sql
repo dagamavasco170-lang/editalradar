@@ -293,7 +293,7 @@ language sql
 stable
 security definer
 set search_path = ''
-as $
+as $$
   select pg_catalog.jsonb_build_object(
     'correct', pg_catalog.lower(a.answer) = pg_catalog.lower(pg_catalog.btrim(coalesce(p_selected_answer, ''))),
     'explanation', a.explanation
@@ -321,7 +321,7 @@ as $
     )
     and auth.uid() is not null
   limit 1;
-$;
+$$;
 
 revoke all on function public.check_study_question_answer(bigint, text) from public, anon;
 grant execute on function public.check_study_question_answer(bigint, text) to authenticated;
