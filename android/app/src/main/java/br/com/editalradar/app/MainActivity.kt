@@ -1223,9 +1223,16 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         if (::webView.isInitialized) {
             webView.onResume()
-            // FCM may rotate its registration token while the app is backgrounded.
-            // Re-dispatch it only after the trusted app page is ready to receive it.
-            if (webPageReady) requestFcmToken()
+            if (webPageReady) {
+                // Refresh official questions after the WebView returns from the background.
+                webView.evaluateJavascript(
+                    "window.dispatchEvent(new Event('editalradar:refresh-questions'));",
+                    null
+                )
+                // FCM may rotate its registration token while the app is backgrounded.
+                // Re-dispatch it only after the trusted app page is ready to receive it.
+                requestFcmToken()
+            }
         }
         showPendingInstallFailureIfAny()
     }
