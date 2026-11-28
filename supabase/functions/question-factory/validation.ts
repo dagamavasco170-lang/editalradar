@@ -21,7 +21,8 @@ const PORTUGUESE_FUNCTION_WORDS = new Set([
   "a", "à", "o", "e", "as", "os", "de", "do", "da", "dos", "das", "em", "no", "na",
   "nos", "nas", "ao", "aos", "se", "me", "te", "lhe", "lhes", "um", "uma", "uns", "umas",
   "que", "por", "para", "pelo", "pela", "pelos", "pelas", "com", "sem", "sob", "sobre",
-  "entre", "após", "antes", "num", "numa", "nuns", "numas", "é", "são"
+  "entre", "após", "antes", "num", "numa", "nuns", "numas", "é", "são",
+  "ser", "estar", "ter", "haver", "foi", "foram", "era", "eram", "seja", "sejam", "sido"
 ]);
 
 export async function loadPortugueseLexicon(): Promise<Set<string>> {
@@ -100,8 +101,12 @@ export function findPortugueseConcatenatedWords(value: unknown, lexicon: Set<str
       }
     }
     return paths[word.length].some(parts => {
-      const contentWords = parts.filter(part => part.length >= 3 && !PORTUGUESE_FUNCTION_WORDS.has(part));
-      return contentWords.length >= 2 || (word.length <= 12 && contentWords.length >= 1 && PORTUGUESE_FUNCTION_WORDS.has(parts[0]));
+      const contentWords = parts.filter(part => !PORTUGUESE_FUNCTION_WORDS.has(part));
+      const allContentWordsLookComplete = contentWords.every(part => part.length >= 4);
+      return allContentWordsLookComplete && (
+        contentWords.length >= 2
+        || (word.length <= 12 && contentWords.length >= 1 && PORTUGUESE_FUNCTION_WORDS.has(parts[0]))
+      );
     });
   });
 }
