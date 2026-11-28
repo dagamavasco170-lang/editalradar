@@ -123,6 +123,22 @@ test("usa o dicionário pt-BR para identificar possíveis junções e preservar 
     hasSuspiciousWordSpacing("A banca examinadora e a equipe administradora revisaram cuidadosamente a questão jurídica e consideraram a análise suficientemente clara para publicação oficial."),
     false
   );
+  for (const legitimateWord of [
+    "obrigatória", "Europeia", "Curitiba", "Sorocaba", "Service",
+    "retrocompatibilidade", "multiversão", "autoidentificação", "odontolegal",
+    "detalhadamente", "verdadeiras", "prestadores", "pensadores", "esquisita"
+  ]) {
+    assert.equal(
+      findPortugueseDictionarySegmentation(legitimateWord),
+      null,
+      `A palavra/termo legítimo "${legitimateWord}" não deve ser dividido.`
+    );
+  }
+  assert.ok(findPortugueseDictionarySegmentation("foiadiada"));
+  assert.deepEqual(findPortugueseDictionarySegmentation("semuito"), ["se", "muito"]);
+  assert.ok(findPortugueseDictionarySegmentation("Nadata"));
+  assert.equal(hasSuspiciousWordSpacing("A operação foi adiada. A equipe confirmou a decisão."), false);
+
 });
 
 test("interpreta confiança do OCR e reconstrói linhas a partir do TSV do Tesseract", () => {
