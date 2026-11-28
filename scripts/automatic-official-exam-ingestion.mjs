@@ -831,7 +831,7 @@ export async function fetchOfficialResource(initialUrl, {
   lookupImpl = lookup,
   requestImpl = requestPinnedHttpsResponse,
   maxBytes = MAX_HTML_BYTES,
-  attempts = 2
+  attempts = 3
 } = {}) {
   const startUrl = safeOfficialUrl(initialUrl);
   if (!startUrl) throw new Error("URL inicial não é HTTPS ou não pertence a um host oficial autorizado.");
