@@ -118,14 +118,14 @@ values
    'Admin-created fixture prompt','["A","B"]'::jsonb,'Fixture explanation',
    'https://example.com/fixture','Fixture','public_domain',null,false,'manual','not_required','22222222-2222-2222-2222-222222222222');
 select is(
-  (select count(*) from public.study_questions where exam_name='ER RLS MUTATION admin'),
+  (select count(*) from public.study_questions where exam_name='ER RLS MUTATION admin CRUD'),
   1::bigint,
   'admin INSERT succeeds with matching auth user fixture'
 );
 update public.study_questions set prompt='Admin-updated fixture prompt'
-where exam_name='ER RLS MUTATION admin';
+where exam_name='ER RLS MUTATION admin CRUD';
 select is(
-  (select count(*) from public.study_questions where exam_name='ER RLS MUTATION admin' and prompt='Admin-updated fixture prompt'),
+  (select count(*) from public.study_questions where exam_name='ER RLS MUTATION admin CRUD' and prompt='Admin-updated fixture prompt'),
   1::bigint,
   'admin UPDATE succeeds on fixture'
 );
