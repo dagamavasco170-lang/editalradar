@@ -16,6 +16,7 @@ const PT_BR_DICTIONARY_URLS = [
   `https://raw.githubusercontent.com/fserb/pt-br/${PT_BR_DICTIONARY_SNAPSHOT}/conjuga%C3%A7%C3%B5es`
 ];
 let portugueseLexiconPromise: Promise<Set<string>> | null = null;
+const PORTUGUESE_DOMAIN_WORDS = new Set(["custodiado", "custodiada", "custodiados", "custodiadas"]);
 const PORTUGUESE_FUNCTION_WORDS = new Set([
   "a", "à", "o", "e", "as", "os", "de", "do", "da", "dos", "das", "em", "no", "na",
   "nos", "nas", "ao", "aos", "se", "me", "te", "lhe", "lhes", "um", "uma", "uns", "umas",
@@ -33,7 +34,7 @@ export async function loadPortugueseLexicon(): Promise<Set<string>> {
         if (!response.ok) throw new Error("Não foi possível carregar o dicionário pt-BR (HTTP " + response.status + ").");
       }
       const contents = await Promise.all(responses.map(response => response.text()));
-      const words = new Set<string>(PORTUGUESE_FUNCTION_WORDS);
+      const words = new Set<string>([...PORTUGUESE_FUNCTION_WORDS, ...PORTUGUESE_DOMAIN_WORDS]);
       for (const content of contents) {
         for (const rawWord of content.split(/\r?\n/)) {
           const word = rawWord.normalize("NFC").toLocaleLowerCase("pt-BR").trim();
@@ -52,7 +53,7 @@ export async function loadPortugueseLexicon(): Promise<Set<string>> {
 
 function portugueseDictionaryHasWord(value: string, lexicon: Set<string>): boolean {
   const word = value.normalize("NFC").toLocaleLowerCase("pt-BR");
-  if (PORTUGUESE_FUNCTION_WORDS.has(word) || lexicon.has(word)) return true;
+  if (PORTUGUESE_FUNCTION_WORDS.has(word) || PORTUGUESE_DOMAIN_WORDS.has(word) || lexicon.has(word)) return true;
   const variants: string[] = [];
   if (word.endsWith("ções")) variants.push(word.slice(0, -3) + "ção");
   else if (word.endsWith("ões")) variants.push(word.slice(0, -3) + "ão");
