@@ -2,81 +2,41 @@
 
 ## Objetivo
 
-Importar questões objetivas de PDFs publicados pela própria banca ou pelo órgão do concurso, mantendo origem, versão, página, número original e hash do documento. O importador não acessa nem copia acervos privados de terceiros, não importa comentários de outras plataformas e não publica questões sem revisão administrativa.
+Importar questões objetivas de PDFs publicados pela própria banca ou órgão, mantendo banca, concurso, cargo, ano, página, número original, alternativas, gabarito definitivo e hash do documento. O acervo é armazenado no Supabase do EditalRadar e compartilhado entre site e Android.
 
-## Fundamento e limites
+## Uma avaliação por fonte, não uma autorização por questão
 
-O fluxo aceita o fundamento "official_publication" quando a prova foi efetivamente divulgada em fonte oficial. Essa opção não declara que qualquer PDF ou elemento incorporado ao arquivo seja automaticamente de livre reutilização. A Lei 9.610/1998 exclui do âmbito de proteção os textos de atos oficiais (art. 8º, IV), e há precedente do TJPR que aplicou essa regra a questões de concursos; a extensão da regra a toda reprodução comercial, todo edital e todo conteúdo de terceiros embutido em um PDF não deve ser presumida.
+O EditalRadar não exige comprovante individual para cada questão. A decisão de reutilização é registrada em nível de fonte e pode considerar publicação oficial, domínio público, licença aberta, autorização ou outra base documentada. O campo `question_reuse_status` guarda a decisão e o fundamento aplicável.
 
-O administrador deve verificar:
-- se a URL da página e do PDF pertence à banca ou ao órgão responsável;
-- se o certame já publicou o caderno de prova, e não se trata de material sigiloso, vazado ou prova ainda em aplicação;
-- se edital, contrato, termo de uso ou aviso específico traz restrição relevante;
-- se o item contém imagem, charge, texto, mapa, tabela ou obra de terceiro cuja reutilização possa ter regime próprio;
-- se o gabarito usado é definitivo e se a questão foi anulada/alterada.
+A disponibilidade pública do PDF não é tratada, isoladamente, como prova de que todo o conteúdo pode ser republicado. Questões que incorporam imagens, charges, mapas, tabelas ou textos de terceiros podem exigir avaliação separada. Os links para as provas oficiais permanecem disponíveis no catálogo, mesmo quando o texto da questão ainda não está liberado para publicação.
 
-O campo rights_basis registra o fundamento analisado. license_proof_url é opcional para official_publication; deve ser preenchido quando a base for autorização/licença específica. Restrição específica deve ser anotada em source_restrictions. Todo item permanece em pending e not_reviewed até decisão humana.
+A Lei 9.610/1998 exclui textos de atos oficiais de proteção autoral (art. 8º, IV), mas também inclui a reprodução e a inclusão em base de dados entre as formas de utilização da obra (art. 29). O art. 46 prevê limitações e citações em condições específicas. Por isso, o sistema não presume nem que toda questão exige licença individual nem que qualquer prova pública pode ser copiada integralmente sem análise da fonte.
 
-## Uso local
+## Fluxo no banco
 
-Dependências no ambiente:
-- Node.js 22 ou superior;
-- Poppler (pdfinfo, pdftotext, pdftoppm);
-- Tesseract OCR com idioma português (por) e inglês (eng) para páginas digitalizadas.
+1. O worker valida que a página e o PDF são da fonte oficial e que a prova foi publicada.
+2. Extrai o enunciado e as alternativas, preservando página e número.
+3. Localiza o gabarito definitivo, confere a versão/caderno e associa cada resposta.
+4. Com cobertura integral do gabarito, prepara os itens tecnicamente válidos.
+5. No modo `stage`, grava-os em `study_exam_question_imports` como pendentes, com `rights_basis=not_assessed`. A fila é privada e não aparece para os estudantes.
+6. No painel administrativo, a revisão é feita em nível de fonte e dos casos especiais do caderno. Após classificar a base de reutilização e conferir os itens, o administrador pode publicá-los.
+7. A publicação grava questão e gabarito em tabelas separadas numa única transação, mantendo URL, hash, página, número e proveniência.
 
-Crie um arquivo JSON de metadados (exemplo):
+O modo `stage` preserva o trabalho de extração e permite que os itens sejam revisados; não os torna automaticamente públicos. O modo `publish` exige uma decisão de fonte documentada. A autorização não precisa ser repetida para cada item quando o mesmo fundamento cobre a prova/caderno.
 
-    {
-      "board": "Cebraspe",
-      "exam_name": "Nome do concurso",
-      "exam_year": 2025,
-      "discipline": "Língua Portuguesa",
-      "topic": "Interpretação de textos",
-      "difficulty": "Intermediária",
-      "question_format": "multiple_choice",
-      "role_name": "Cargo",
-      "source_url": "https://www.cebraspe.org.br/concursos/...",
-      "exam_pdf_url": "https://cdn.cebraspe.org.br/concursos/.../prova.pdf",
-      "rights_basis": "official_publication",
-      "official_release_verified": true,
-      "source_terms_url": null,
-      "source_restrictions": ""
-    }
+## Critérios de qualidade
 
-official_release_verified só deve ser true depois de confirmar manualmente que o arquivo foi divulgado pela banca/órgão responsável.
+- PDF obtido diretamente da banca ou órgão oficial; não copiar acervos de agregadores.
+- Gabarito definitivo, não preliminar, e vínculo inequívoco com o caderno.
+- Cobertura de 100% dos números do caderno, considerando anuladas e retificadas.
+- Alternativas sequenciais, enunciado completo e sem dependência não capturada de imagens/tabelas/textos.
+- SHA-256 e fingerprint para rastrear origem e impedir duplicatas.
+- Questões incompletas, anuladas, ambíguas ou dependentes de OCR/elementos visuais ficam em quarentena.
 
-Execute:
+## Importação manual de PDF
 
-    node scripts/import-official-exam-pdf.mjs \
-      --pdf ./prova.pdf \
-      --metadata ./prova.json \
-      --out ./manifesto-importacao.json
+O utilitário `scripts/import-official-exam-pdf.mjs` também aceita um PDF local e gera um manifesto JSON. Ele não grava no Supabase. O painel administrativo recebe o manifesto e coloca os itens na fila privada, mantendo a conferência humana antes da publicação.
 
-O utilitário é local/offline: recebe um arquivo PDF já obtido, não faz scraping nem requisições HTTP e não grava no Supabase. Ele calcula SHA-256, extrai texto com layout, tenta OCR apenas em páginas com camada textual ausente/insuficiente, respeita limites de tamanho/páginas/OCR e gera um manifesto JSON. O envio do manifesto pela área administrativa apenas cria rascunhos na tabela de staging.
+## Escopo
 
-A ingestão automática por service_role não faz parte desta versão: não há worker de importação no workflow nem comando de publicação automática. O Supabase recebe apenas as ações do administrador autenticado ao enviar o manifesto e aprovar cada questão.
-
-A publicação usa a função SQL publish_study_exam_question_import. Ela bloqueia o registro pendente, confere permissões/fundamento e alternativa escolhida e grava questão, gabarito separado e status da fila na mesma transação PostgreSQL. Em caso de erro, toda a operação é revertida.
-
-Nesta versão, a única entrada ativa é PDF local → manifesto → fila administrativa → confirmação humana → publicação transacional. Não há worker de ingestão automática, comando de publicação por service_role ou etapa de importação no workflow de monitoramento.
-
-## Revisão obrigatória
-
-O parser é heurístico: reconhece questões numeradas com alternativas A-F e, quando question_format="true_false", itens Cebraspe identificados por ITEM N ou por numeração simples N texto, criando as opções C/Certo e E/Errado sem preencher o gabarito. Não é um OCR jurídico nem garante que toda questão foi reconhecida. Para provas Cebraspe de julgamento, informe question_format="true_false" nos metadados; para provas de múltipla escolha, use "multiple_choice". O manifesto não preenche gabarito (suggested_answer permanece null). Itens com figuras, tabelas, gráficos, mapas ou texto externo recebem alerta de revisão visual.
-
-Antes de inserir/publicar:
-1. confira todas as páginas do PDF, especialmente páginas que receberam OCR;
-2. compare enunciado e alternativas com a imagem do caderno;
-3. confirme número original e página;
-4. compare o gabarito com a versão definitiva e verifique anulações/retificações;
-5. classifique direitos/base e registre restrições específicas;
-6. confira duplicidade contra o banco existente;
-7. mantenha a referência oficial e o SHA-256 para rastreabilidade.
-
-Não importar de páginas, PDFs ou bancos do Gran, Qconcursos, PCI Concursos ou outros agregadores. Use-os apenas como referências de descoberta; obtenha o PDF diretamente da banca/órgão. Não copiar suas explicações, comentários, taxonomias proprietárias, índices ou organização de dados.
-
-## Testes
-
-    node --test scripts/import-official-exam-pdf.node-test.mjs
-
-Os testes unitários não exigem Poppler, Tesseract, PDF real nem credenciais Supabase.
+O EditalRadar armazena seus próprios registros e gabaritos. Não importa comentários, resoluções, índices, taxonomias ou a organização de dados de Qconcursos, Gran, PCI ou outros agregadores. As explicações aos estudantes serão produzidas e revisadas pelo próprio EditalRadar.

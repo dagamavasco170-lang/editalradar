@@ -15,6 +15,8 @@ import {
   parseOfficialAnswerKeyVariants,
   selectAnswerKeySection,
   validateQuestionForAutoPublication,
+  isApprovedForQuestionReuse,
+  isSourceEligibleForMode,
   variantIdentity
 } from "./automatic-official-exam-ingestion.mjs";
 
@@ -447,4 +449,54 @@ test("recovers FGV aligned answer rows with annulled asterisks", () => {
   assert.equal(sections[0].parsedCount, 60);
   assert.equal(sections[0].answers.get(49), "ANULADA");
   assert.equal(sections[0].answers.get(48), "C");
+});
+
+
+test("official-publication sources are approved at source level without per-question permission", () => {
+  const officialSource = {
+    published: true,
+    source_url: "https://conhecimento.fgv.br/concursos/teste",
+    question_reuse_status: "approved",
+    question_reuse_basis: "official_publication",
+    question_reuse_proof_url: null,
+    question_reuse_terms_url: null,
+    question_reuse_reviewed_by: null,
+    question_reuse_reviewed_at: null
+  };
+  assert.equal(isApprovedForQuestionReuse(officialSource), true);
+  assert.equal(isApprovedForQuestionReuse({ ...officialSource, published: false }), false);
+  assert.equal(isApprovedForQuestionReuse({ ...officialSource, source_url: "https://example.invalid/prova" }), false);
+  assert.equal(isApprovedForQuestionReuse({ ...officialSource, question_reuse_status: "link_only" }), false);
+});
+
+test("licensed and permission-based sources still require source-level evidence and review", () => {
+  const licensedSource = {
+    published: true,
+    source_url: "https://conhecimento.fgv.br/concursos/teste",
+    question_reuse_status: "approved",
+    question_reuse_basis: "cc_by",
+    question_reuse_proof_url: "https://conhecimento.fgv.br/termos/licenca",
+    question_reuse_terms_url: null,
+    question_reuse_reviewed_by: "22222222-2222-2222-2222-222222222222",
+    question_reuse_reviewed_at: "2026-11-28T00:00:00.000Z"
+  };
+  assert.equal(isApprovedForQuestionReuse(licensedSource), true);
+  assert.equal(isApprovedForQuestionReuse({ ...licensedSource, question_reuse_reviewed_by: null }), false);
+  assert.equal(isApprovedForQuestionReuse({ ...licensedSource, question_reuse_proof_url: null }), false);
+});
+
+
+test("link-only official sources are eligible for dry-run and private staging, not publication", () => {
+  const source = {
+    question_reuse_status: "link_only",
+    question_reuse_basis: null,
+    question_reuse_proof_url: null,
+    question_reuse_terms_url: null,
+    question_reuse_reviewed_by: null,
+    question_reuse_reviewed_at: null
+  };
+  assert.equal(isSourceEligibleForMode(source, "dry-run"), true);
+  assert.equal(isSourceEligibleForMode(source, "stage"), true);
+  assert.equal(isSourceEligibleForMode(source, "publish"), false);
+  assert.equal(isSourceEligibleForMode(source, "invalid"), false);
 });

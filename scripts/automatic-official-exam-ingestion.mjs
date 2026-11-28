@@ -14,7 +14,7 @@ import { isTrustedOfficialUrl } from "../src/lib/official-sources.js";
 import { extractPdfPages, importPdfToManifest, sha256 } from "./import-official-exam-pdf.mjs";
 
 export const MAX_SOURCE_PAGES = 120;
-export const MAX_DOCUMENTS_PER_RUN = 12;
+export const MAX_DOCUMENTS_PER_RUN = 15;
 export const MAX_SOURCE_SUBPAGES = 3;
 export const MAX_HTML_BYTES = 5 * 1024 * 1024;
 export const MAX_PDF_BYTES = 25 * 1024 * 1024;
@@ -485,6 +485,34 @@ export function validateQuestionForAutoPublication(question, answer, questionFor
   }};
 }
 
+export function isApprovedForQuestionReuse(record) {
+  if (
+    !record
+    || record.question_reuse_status !== "approved"
+    || !["official_publication", "permission_granted", "public_domain", "cc_by", "cc_by_sa"].includes(record.question_reuse_basis)
+  ) return false;
+
+  // Questões de provas oficiais publicadas podem ser classificadas em nível de fonte
+  // com base no ato oficial; não se exige autorização nem assinatura por questão.
+  if (record.question_reuse_basis === "official_publication") {
+    return record.published === true && Boolean(safeOfficialUrl(record.source_url));
+  }
+
+  // Demais bases dependem de evidência documentada da licença/autorização.
+  return Boolean(
+    (safeOfficialUrl(record.question_reuse_proof_url) || safeOfficialUrl(record.question_reuse_terms_url))
+    && typeof record.question_reuse_reviewed_by === "string"
+    && record.question_reuse_reviewed_by.length > 0
+    && typeof record.question_reuse_reviewed_at === "string"
+    && Number.isFinite(Date.parse(record.question_reuse_reviewed_at))
+  );
+}
+
+export function isSourceEligibleForMode(record, mode) {
+  if (!["dry-run", "stage", "publish"].includes(mode)) return false;
+  return mode !== "publish" || isApprovedForQuestionReuse(record);
+}
+
 function inferBoard(value) {
   let host = "";
   try { host = new URL(value).hostname.toLowerCase(); } catch { return ""; }
@@ -549,24 +577,32 @@ async function supabaseRest(endpoint, init = {}) {
   return body ? JSON.parse(body) : null;
 }
 
-async function loadRegisteredSources() {
-  const staticRows = contestContexts();
-  if (!authConfigured()) return staticRows;
+async function loadRegisteredSources(mode = "dry-run") {
+  const configuredSources = JSON.parse(await readFile(new URL("./official-exam-sources.json", import.meta.url), "utf8"));
+  const staticRows = [
+    ...contestContexts(),
+    ...(Array.isArray(configuredSources) ? configuredSources : [])
+  ];
   const query = new URLSearchParams({
-    select: "board,exam_name,exam_year,discipline,role_name,source_url,exam_url,answer_key_url,notes",
+    select: "id,board,exam_name,exam_year,discipline,role_name,source_url,exam_url,answer_key_url,notes,question_reuse_status,question_reuse_basis,question_reuse_proof_url,question_reuse_terms_url,question_reuse_rights_holder,question_reuse_restrictions,question_reuse_review_notes,question_reuse_reviewed_by,question_reuse_reviewed_at,last_ingested_at",
     published: "eq.true",
-    order: "exam_year.desc",
+    order: "last_ingested_at.asc.nullsfirst,exam_year.desc",
     limit: "300"
   });
   let rows = [];
-  try {
-    rows = await supabaseRest("study_exam_sources?" + query.toString()) || [];
-  } catch (error) {
-    if (!/study_exam_sources|schema cache|does not exist|HTTP 404/i.test(error.message)) throw error;
-    console.warn("Tabela de fontes de provas ainda indisponível; usando somente os registros oficiais presentes no catálogo local.");
+  if (authConfigured()) {
+    try {
+      rows = await supabaseRest("study_exam_sources?" + query.toString()) || [];
+    } catch (error) {
+      if (!/study_exam_sources|schema cache|does not exist|HTTP 404/i.test(error.message)) throw error;
+      console.warn("Tabela de fontes de provas ainda indisponível; usando apenas fontes locais verificadas.");
+    }
   }
   const unique = new Map();
   for (const row of [...rows, ...staticRows]) {
+    // Revisão de reutilização é uma decisão por fonte, não uma autorização por questão.
+    // dry-run e stage processam as fontes oficiais; somente publish exige decisão explícita.
+    if (!isSourceEligibleForMode(row, mode)) continue;
     const pageUrl = safeOfficialUrl(row.source_url);
     const examYear = Number(row.exam_year);
     if (!pageUrl || !row.board || !row.exam_name || !Number.isInteger(examYear) || examYear < 1900 || examYear > 2200) continue;
@@ -1100,12 +1136,19 @@ async function processDocument(record, examLink, keyLink, mode, runId, report, f
       });
       output.length = 0;
     }
-    if (mode === "publish" && output.length) {
+    if (mode === "stage" && output.length) {
+      if (!runId) throw new Error("Pré-cadastro sem identificador de auditoria.");
+      for (const item of output) {
+        const result = await stageExamQuestion(record, item, proof, answerKeyFile, runId);
+        if (result === "staged") report.staged += 1;
+        else if (result === "duplicate") report.duplicates += 1;
+      }
+    } else if (mode === "publish" && output.length) {
       if (!runId) throw new Error("Execução de publicação sem identificador de auditoria.");
       for (const item of output) {
-        const staged = await stageAndPublish(record, item, proof, answerKeyFile, runId);
-        if (staged === "published") report.published += 1;
-        else if (staged === "duplicate") report.duplicates += 1;
+        const published = await stageAndPublish(record, item, proof, answerKeyFile, runId);
+        if (published === "published") report.published += 1;
+        else if (published === "duplicate") report.duplicates += 1;
       }
     } else {
       report.readyToPublish += output.length;
@@ -1131,7 +1174,7 @@ async function processDocument(record, examLink, keyLink, mode, runId, report, f
   }
 }
 
-async function stageAndPublish(record, item, proof, answerKeyFile, runId) {
+async function stageExamQuestion(record, item, proof, answerKeyFile, runId) {
   const question = item.question;
   const evidence = item.evidence;
   const row = {
@@ -1160,9 +1203,64 @@ async function stageAndPublish(record, item, proof, answerKeyFile, runId) {
     source_restrictions: "",
     source_license: null,
     source_attribution: record.board + " — prova oficial publicada em " + record.source_url,
+    rights_review_status: "not_reviewed",
+    status: "pending",
+    review_notes: "Extraída e validada tecnicamente em modo de pré-cadastro. A origem oficial e o gabarito foram conferidos; a avaliação de reutilização/publicação permanece pendente. Execução " + runId,
+    created_by: null,
+    gabarito_source_url: answerKeyFile.url,
+    gabarito_document_sha256: evidence.answerKeySha256,
+    auto_validation_score: 100,
+    auto_validation_evidence: evidence,
+    auto_reviewed_at: new Date().toISOString(),
+    automation_run_id: runId
+  };
+  const query = new URLSearchParams({ on_conflict: "board,exam_name,exam_year,fingerprint" });
+  let inserted;
+  try {
+    inserted = await supabaseRest("study_exam_question_imports?" + query.toString(), {
+      method: "POST",
+      headers: { Prefer: "resolution=ignore-duplicates,return=representation" },
+      body: JSON.stringify(row)
+    });
+  } catch (error) {
+    if (/HTTP 409|duplicate key|unique constraint/i.test(error.message)) return "duplicate";
+    throw error;
+  }
+  return Array.isArray(inserted) && inserted.length && inserted[0].id ? "staged" : "duplicate";
+}
+
+async function stageAndPublish(record, item, proof, answerKeyFile, runId) {
+  const question = item.question;
+  const evidence = item.evidence;
+  const row = {
+    board: record.board,
+    exam_name: record.exam_name,
+    exam_year: Number(record.exam_year),
+    discipline: record.discipline,
+    topic: record.topic || "Provas anteriores",
+    difficulty: "Intermediária",
+    question_format: question.question_format || questionFormatFor(record, { label: record.exam_name, url: proof.url }),
+    role_name: record.role_name || "",
+    source_url: record.source_url,
+    exam_pdf_url: proof.url,
+    source_document_sha256: evidence.proofSha256,
+    source_page: Number(question.source_page),
+    source_question_number: Number(question.source_question_number),
+    prompt: question.prompt,
+    options: question.options,
+    suggested_answer: item.answer,
+    fingerprint: question.fingerprint,
+    rights_basis: record.question_reuse_basis,
+    official_release_verified: true,
+    rights_holder: record.question_reuse_rights_holder || record.board,
+    license_proof_url: record.question_reuse_proof_url || null,
+    source_terms_url: record.question_reuse_terms_url || null,
+    source_restrictions: String(record.question_reuse_restrictions || "").slice(0, 2000),
+    source_license: record.question_reuse_basis,
+    source_attribution: record.board + " — prova oficial publicada em " + record.source_url,
     rights_review_status: "accepted",
     status: "pending",
-    review_notes: "Autovalidação integral concluída; gabarito definitivo oficial conferido. Execução " + runId,
+    review_notes: "Reutilização aprovada em " + record.question_reuse_reviewed_at + ". " + String(record.question_reuse_review_notes || "").slice(0, 1000) + " Autovalidação integral e gabarito definitivo conferidos. Execução " + runId,
     created_by: null,
     gabarito_source_url: answerKeyFile.url,
     gabarito_document_sha256: evidence.answerKeySha256,
@@ -1210,6 +1308,7 @@ async function createRun(runId, mode) {
       documents_checked: 0,
       questions_extracted: 0,
       published_count: 0,
+      staged_count: 0,
       duplicate_count: 0,
       quarantined_count: 0,
       failed_count: 0
@@ -1228,6 +1327,7 @@ async function finishRun(runId, report, status) {
       documents_checked: report.documentsChecked,
       questions_extracted: report.questionsExtracted,
       published_count: report.published,
+      staged_count: report.staged,
       duplicate_count: report.duplicates,
       quarantined_count: report.quarantined + report.annulledOrMissing,
       failed_count: report.failures.length,
@@ -1247,6 +1347,7 @@ function createReport(mode) {
     questionsExtracted: 0,
     readyToPublish: 0,
     published: 0,
+    staged: 0,
     duplicates: 0,
     quarantined: 0,
     annulledOrMissing: 0,
@@ -1259,7 +1360,7 @@ function createReport(mode) {
 }
 
 export async function runAutomaticOfficialExamIngestion({ mode = "dry-run", limit = MAX_DOCUMENTS_PER_RUN, fetchImpl = null } = {}) {
-  if (!["dry-run", "publish"].includes(mode)) throw new Error("Modo inválido; use dry-run ou publish.");
+  if (!["dry-run", "stage", "publish"].includes(mode)) throw new Error("Modo inválido; use dry-run, stage ou publish.");
   if (mode === "publish") {
     if (process.env.EXAM_IMPORT_AUTOPUBLISH_ENABLED !== "true") {
       throw new Error("Autopublicação bloqueada: EXAM_IMPORT_AUTOPUBLISH_ENABLED precisa ser true.");
@@ -1267,11 +1368,11 @@ export async function runAutomaticOfficialExamIngestion({ mode = "dry-run", limi
     if (!authConfigured()) throw new Error("Publicação exige SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY.");
   }
   const report = createReport(mode);
-  const rows = await loadRegisteredSources();
+  const rows = await loadRegisteredSources(mode);
   const cache = new Map();
   const maxDocs = Math.max(1, Math.min(MAX_DOCUMENTS_PER_RUN, Number(limit) || MAX_DOCUMENTS_PER_RUN));
   let runCreated = false;
-  if (mode === "publish") {
+  if (mode === "publish" || mode === "stage") {
     await createRun(report.runId, mode);
     runCreated = true;
   }
@@ -1367,13 +1468,30 @@ export async function runAutomaticOfficialExamIngestion({ mode = "dry-run", limi
         }
       } catch (error) {
         report.failures.push({ source: record.source_url, reason: String(error?.message || error).slice(0, 500) });
+      } finally {
+        // Marca cada fonte consultada para que o próximo ciclo avance para
+        // outras bancas em vez de reprocessar indefinidamente a mesma lista.
+        if (runCreated && record.id) {
+          try {
+            await supabaseRest("study_exam_sources?id=eq." + encodeURIComponent(record.id), {
+              method: "PATCH",
+              headers: { Prefer: "return=minimal" },
+              body: JSON.stringify({ last_ingested_at: new Date().toISOString(), last_ingested_run: report.runId, updated_at: new Date().toISOString() })
+            });
+          } catch (error) {
+            report.failures.push({
+              source: record.source_url,
+              reason: "Não foi possível atualizar o cursor da fonte: " + String(error?.message || error).slice(0, 350)
+            });
+          }
+        }
       }
       await sleep(500);
     }
   } finally {
     report.completedAt = new Date().toISOString();
     if (runCreated) {
-      const status = report.failures.length ? (report.published ? "partial" : "failed") : "completed";
+      const status = report.failures.length ? ((report.published || report.staged) ? "partial" : "failed") : "completed";
       await finishRun(report.runId, report, status);
     }
   }
@@ -1394,7 +1512,7 @@ function parseArgs(argv) {
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   if (args.help) {
-    console.log("Uso: node scripts/automatic-official-exam-ingestion.mjs [--mode dry-run|publish] [--limit 1..12]");
+    console.log("Uso: node scripts/automatic-official-exam-ingestion.mjs [--mode dry-run|stage|publish] [--limit 1..15]");
     return;
   }
   const report = await runAutomaticOfficialExamIngestion(args);
@@ -1402,13 +1520,13 @@ async function main() {
   console.log(output);
   if (process.env.GITHUB_OUTPUT) {
     const fs = await import("node:fs/promises");
-    await fs.appendFile(process.env.GITHUB_OUTPUT, "published=" + report.published + "\nready=" + report.readyToPublish + "\nfailures=" + report.failures.length + "\n");
+    await fs.appendFile(process.env.GITHUB_OUTPUT, "published=" + report.published + "\nstaged=" + report.staged + "\nready=" + report.readyToPublish + "\nfailures=" + report.failures.length + "\n");
   }
   if (process.env.INGESTION_REPORT_PATH) {
     await import("node:fs/promises").then(fs => fs.mkdir(path.dirname(process.env.INGESTION_REPORT_PATH), { recursive: true }));
     await writeFile(process.env.INGESTION_REPORT_PATH, output + "\n", { flag: "w" });
   }
-  if (report.mode === "publish" && report.failures.length && report.processedDocuments === 0) process.exitCode = 1;
+  if (report.mode !== "dry-run" && report.failures.length && report.processedDocuments === 0) process.exitCode = 1;
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
