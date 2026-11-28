@@ -56,6 +56,21 @@ function portugueseDictionaryHasWord(value: string, lexicon: Set<string>): boole
   const word = value.normalize("NFC").toLocaleLowerCase("pt-BR");
   if (PORTUGUESE_FUNCTION_WORDS.has(word) || PORTUGUESE_DOMAIN_WORDS.has(word) || lexicon.has(word)) return true;
   const variants: string[] = [];
+  // Flexões regulares de gênero: só são aceitas quando a forma-base masculina consta do léxico.
+  // Ex.: "examinadora" -> "examinador", evitando dividi-la em "examina" + "dora".
+  const genderVariants: Array<[string, string]> = [
+    ["oras", "or"], ["ora", "or"],
+    ["eiras", "eiro"], ["eira", "eiro"],
+    ["ivas", "ivo"], ["iva", "ivo"],
+    ["osas", "oso"], ["osa", "oso"],
+    ["icas", "ico"], ["ica", "ico"],
+    ["árias", "ário"], ["ária", "ário"]
+  ];
+  for (const [ending, replacement] of genderVariants) {
+    if (word.endsWith(ending)) {
+      variants.push(word.slice(0, -ending.length) + replacement);
+    }
+  }
   if (word.endsWith("ções")) variants.push(word.slice(0, -3) + "ção");
   else if (word.endsWith("ões")) variants.push(word.slice(0, -3) + "ão");
   if (word.endsWith("ães")) variants.push(word.slice(0, -3) + "ão");
