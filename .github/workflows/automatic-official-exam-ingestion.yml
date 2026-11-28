@@ -30,10 +30,10 @@ on:
           - stage
           - publish
       limit:
-        description: "Máximo de cadernos processados nesta execução (1 a 12)"
+        description: "Máximo de cadernos processados nesta execução (1 a 15)"
         type: number
         required: false
-        default: 12
+        default: 15
 
 permissions:
   contents: read
@@ -87,7 +87,7 @@ jobs:
           EXAM_IMPORT_AUTOPUBLISH_ENABLED: "false"
         run: |
           mkdir -p .cache
-          node scripts/automatic-official-exam-ingestion.mjs --mode dry-run --limit 12
+          node scripts/automatic-official-exam-ingestion.mjs --mode dry-run --limit 15
 
       - name: Executar ingestão agendada ou manual
         if: github.event_name != 'pull_request'
@@ -97,7 +97,7 @@ jobs:
           EXAM_IMPORT_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || (vars.EXAM_IMPORT_AUTOPUBLISH_ENABLED == 'true' && 'publish' || 'stage') }}
         run: |
           mkdir -p .cache
-          node scripts/automatic-official-exam-ingestion.mjs --mode "$EXAM_IMPORT_MODE" --limit "${{ inputs.limit || 12 }}"
+          node scripts/automatic-official-exam-ingestion.mjs --mode "$EXAM_IMPORT_MODE" --limit "${{ inputs.limit || 15 }}"
 
       - name: Salvar relatório da execução
         if: always()
