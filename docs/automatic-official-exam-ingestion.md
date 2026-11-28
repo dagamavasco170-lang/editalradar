@@ -38,7 +38,7 @@ A Lei 9.610/1998 exclui textos de atos oficiais em seu art. 8º, IV, e trata de 
 
 ## Relatório de validação já realizado
 
-A execução 46100811601 analisou 12 PDFs oficiais: 1.200 itens extraídos, 1.021 elegíveis tecnicamente, 159 em quarentena, 20 anulados ou sem resposta válida, zero falhas e zero itens publicados. Foi `dry-run`; portanto, não gravou os enunciados no Supabase.
+A execução 46100811601 analisou 12 PDFs oficiais da FGV/PCPR: 1.200 itens extraídos, 1.021 elegíveis tecnicamente, 159 em quarentena, 20 anulados ou sem resposta válida e zero falhas. Foi `dry-run`; portanto, não gravou os enunciados no Supabase. O catálogo da produção agora também registra a fonte oficial PCPR/FGV para que os 15 cadernos identificados sejam processados em ciclos subsequentes.
 
 ## Limites
 
