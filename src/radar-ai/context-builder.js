@@ -29,7 +29,7 @@ export function buildTutorContext(chunks, question, filters = {}) {
   }
   const contextText = selected.map((item, index) =>
     `[Fonte ${index + 1}] ${item.title} | ${item.url} | ${item.subject ?? "disciplina não informada"} / ${item.topic ?? "tema não informado"}\n${item.text}`
-  ).join("\n\n");
+  ).join("\n\n").slice(0, maxContextChars);
   return {
     question: String(question ?? "").trim(),
     sources: selected,
