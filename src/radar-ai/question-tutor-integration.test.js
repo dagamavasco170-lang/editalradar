@@ -18,6 +18,7 @@ describe("Radar AI question/tutor integration", () => {
     const converted = toRadarLearningAttempts({ attempts, questions });
     expect(converted).toHaveLength(3);
     expect(converted[0]).toMatchObject({ topicKey: "Português::Crase", subject: "Português", correct: false });
+    expect(toRadarLearningAttempts({ attempts: [...attempts, { questionId: "missing", correct: false, at: "2026-11-04T12:00:00Z" }], questions })).toHaveLength(3);
   });
   it("ranks topics by frequency with bounded importance", () => {
     const importance = deriveTopicImportance(questions);
