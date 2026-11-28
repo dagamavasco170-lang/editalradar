@@ -97,7 +97,7 @@ export function hasMissingSpacesAfterPunctuation(value) {
   const prose = String(value ?? "")
     .replace(/https?:\/\/\S+/giu, " ")
     .replace(/`[^`]*`/gu, " ");
-  return /[,;:!?](?=\\p{L})/u.test(prose) || /[.!?](?=\\p{Lu}\\p{Ll})/u.test(prose);
+  return /[,;:!?](?=\p{L})/u.test(prose) || /[.!?](?=\p{Lu}\p{Ll})/u.test(prose);
 }
 
 function isLikelyConcatenatedPortugueseWord(value) {
