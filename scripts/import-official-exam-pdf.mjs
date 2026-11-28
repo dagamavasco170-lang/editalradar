@@ -97,7 +97,7 @@ export function hasSuspiciousWordSpacing(value) {
     || (metrics.veryLongWordCount >= 1 && metrics.joinedWordMarkers >= 2 && metrics.averageWordLength >= 5.4)
     || (metrics.longWordCount >= 4 && metrics.averageWordLength >= 5.4)
     || (metrics.joinedWordMarkers >= 3 && metrics.averageWordLength >= 5.4)
-    || (metrics.joinedWordMarkers >= 2 && metrics.averageWordLength >= 5.8)
+    || (metrics.joinedWordMarkers >= 2 && metrics.averageWordLength >= 5.4)
     || (metrics.spaceRatio < 0.095 && metrics.averageWordLength >= 5.5 && metrics.veryLongWordCount === 0)
     || (metrics.averageWordLength >= 5.7 && metrics.spaceRatio < 0.15
       && metrics.longWordCount >= 1 && metrics.veryLongWordCount === 0);
