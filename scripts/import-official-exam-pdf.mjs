@@ -29,8 +29,8 @@ export function normalizeQuestionText(value) {
 
 export function measureTextSpacing(value) {
   const text = String(value ?? "").normalize("NFC");
-  const words = text.match(/\\p{L}+/gu) || [];
-  const letterCount = (text.match(/\\p{L}/gu) || []).length;
+  const words = text.match(/\p{L}+/gu) || [];
+  const letterCount = (text.match(/\p{L}/gu) || []).length;
   const spaceCount = (text.match(/\\s/gu) || []).length;
   const lengths = words.map(word => [...word].length);
   const longWordCount = lengths.filter(length => length >= 18).length;
@@ -40,8 +40,8 @@ export function measureTextSpacing(value) {
   const joinedWordMarkers = words.filter(word => {
     if ([...word].length < 10 || [...word].length >= 28) return false;
     return /^(?:que|ele|ela|foi|teria|uma|dos|das|para|com|por|sem)\\p{L}{4,}$/iu.test(word)
-      || /\\p{L}{3,}(?:que|dos|das|por|com|sem|para|uma|de|do|da|em|na|no|as|os)\\p{L}{3,}/iu.test(word)
-      || /\\p{L}{4,}(?:os|as|do|da|dos|das|que|com|por|sem)$/iu.test(word);
+      || /\p{L}{3,}(?:que|dos|das|por|com|sem|para|uma|de|do|da|em|na|no|as|os)\\p{L}{3,}/iu.test(word)
+      || /\p{L}{4,}(?:os|as|do|da|dos|das|que|com|por|sem)$/iu.test(word);
   }).length;
   return { letterCount, wordCount: words.length, spaceCount, spaceRatio, averageWordLength, longWordCount, veryLongWordCount, joinedWordMarkers };
 }
@@ -49,18 +49,18 @@ export function measureTextSpacing(value) {
 export function parseTesseractTsv(tsv) {
   const lines = new Map();
   const confidences = [];
-  for (const rawLine of String(tsv || "").split(/\\r?\\n/).slice(1)) {
-    const columns = rawLine.split("\\t");
+  for (const rawLine of String(tsv || "").split(/\r?\n/).slice(1)) {
+    const columns = rawLine.split("\t");
     if (columns.length < 12 || columns[0] !== "5") continue;
     const confidence = Number(columns[10]);
-    const word = String(columns.slice(11).join("\\t") || "").trim();
+    const word = String(columns.slice(11).join("\t") || "").trim();
     if (!word || !Number.isFinite(confidence) || confidence < 0) continue;
     const key = [columns[2], columns[3], columns[4]].join(":");
     if (!lines.has(key)) lines.set(key, []);
     lines.get(key).push(word);
     confidences.push(confidence);
   }
-  const text = [...lines.values()].map(words => words.join(" ")).join("\\n").trim();
+  const text = [...lines.values()].map(words => words.join(" ")).join("\n").trim();
   const meanConfidence = confidences.length
     ? Math.round(confidences.reduce((sum, value) => sum + value, 0) / confidences.length * 100) / 100
     : 0;
