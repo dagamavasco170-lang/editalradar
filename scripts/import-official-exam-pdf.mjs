@@ -52,7 +52,8 @@ export function measureTextSpacing(value) {
     const fusedMiddleWord = /^\p{L}{8,}(?:por|com|sem|para|que|dos|das)\p{L}{3,}$/iu.test(word);
     const fusedVerb = /^(?:pode|podem|deve|devem|teria|teriam|foi|foram|será|serao|está|estao)(?:ser|estar|ter|haver|sido|obtido|realizado|aplicado|utilizado|considerado)\p{L}*$/iu.test(word);
     const fusedClause = /^(?:consiste|consistem)(?:na|no|em|de|do|da)\p{L}{4,}$/iu.test(word);
-    return fusedLeadingWord || fusedMiddleWord || fusedVerb || fusedClause;
+    const fusedConnective = /^(?:pormeio|pormeiode)$/iu.test(word);
+    return fusedLeadingWord || fusedMiddleWord || fusedVerb || fusedClause || fusedConnective;
   }).length;
   return { letterCount, wordCount: words.length, spaceCount, spaceRatio, averageWordLength, longWordCount, veryLongWordCount, joinedWordMarkers };
 }
