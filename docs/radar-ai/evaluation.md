@@ -1,0 +1,3 @@
+# Evaluation foundation
+
+Deterministic checks verify output structure and source URL matching. They do not measure factual correctness, reasoning, originality, or exam quality. The next benchmark should use a curated, permissioned dataset of questions and references, reviewed by subject matter experts. Report accuracy by discipline, topic, difficulty and exam board, with explicit dataset provenance and split methodology.
