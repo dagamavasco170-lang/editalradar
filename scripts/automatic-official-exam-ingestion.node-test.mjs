@@ -391,7 +391,7 @@ test("auto-publication gate accepts OCR only when the caller confirms high confi
 
 test("auto-publication gate blocks text with joined words even when options and key are valid", () => {
   const question = {
-    prompt: "Apósanalisarocaso, o candidato deverá identificar a providência administrativa adequada conforme a legislação aplicável ao procedimento descrito.",
+    prompt: "Oácidofosfórico(H3PO4)podeserobtido principalmente pormeio de dois processos industriais, sendo o processo úmido o mais utilizado no mundo. Ele consiste nareação darochafática (Ca3(PO4)2) moída com o ácido sulfúrico (H2SO4) concentrado. Como subproduto dessa reação exotérmica, forma-seo sulfato decálcio di-hidratado (CaSO4.2H2O) que, posteriormente, é separado por filtração.",
     options: [
       { id: "a", text: "Adotar a providência prevista na norma aplicável ao caso concreto." },
       { id: "b", text: "Ignorar a legislação e decidir com base apenas na preferência pessoal." },
