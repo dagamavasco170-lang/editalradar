@@ -100,7 +100,7 @@ values
 select is(
   (select count(*) from public.study_questions where exam_name='ER RLS MUTATION admin'),
   1::bigint,
-  'admin INSERT succeeds without a user FK fixture'
+  'admin INSERT succeeds with matching auth user fixture'
 );
 update public.study_questions set prompt='Admin-updated fixture prompt'
 where exam_name='ER RLS MUTATION admin';
