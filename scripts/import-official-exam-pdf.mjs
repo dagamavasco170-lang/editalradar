@@ -16,6 +16,15 @@ const RIGHTS_BASES = new Set([
   "official_publication", "public_domain", "permission_granted", "cc_by", "cc_by_sa", "other_reviewed"
 ]);
 
+export function formatChemicalFormulaText(value) {
+  const subscript = digits => String(digits).replace(/[0-9]/g, digit => "₀₁₂₃₄₅₆₇₈₉"[Number(digit)]);
+  return String(value ?? "")
+    .replace(/([A-Z][a-z]?)(\\d+)|\\)(\\d+)/g, (match, element, elementCount, groupCount) =>
+      element ? element + subscript(elementCount) : ")" + subscript(groupCount)
+    )
+    .replace(/(?<=[A-Za-z0-9])\\.(?=\\d+[A-Z])/g, "·");
+}
+
 export function normalizeQuestionText(value) {
   return String(value ?? "")
     .normalize("NFKC")
@@ -253,9 +262,9 @@ export function parseExamPages(pages, documentSha256, {
 
   const flush = () => {
     if (!current) return;
-    const prompt = current.promptLines.join(" ").replace(/\s+/g, " ").trim();
+    const prompt = formatChemicalFormulaText(current.promptLines.join(" ").replace(/\s+/g, " ").trim());
     let options = current.options
-      .map(item => ({ id: item.id, text: item.text.replace(/\s+/g, " ").trim() }))
+      .map(item => ({ id: item.id, text: formatChemicalFormulaText(item.text.replace(/\s+/g, " ").trim()) }))
       .filter(item => item.text.length >= 2);
     if (!options.length && questionFormat === "true_false" && current.kind === "true_false") {
       options = [{ id: "c", text: "Certo" }, { id: "e", text: "Errado" }];
