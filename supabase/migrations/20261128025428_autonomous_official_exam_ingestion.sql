@@ -292,10 +292,10 @@ returns jsonb
 language sql
 stable
 security definer
-set search_path = pg_catalog, public
-as $$
-  select jsonb_build_object(
-    'correct', a.answer = lower(btrim(coalesce(p_selected_answer, ''))),
+set search_path = ''
+as $
+  select pg_catalog.jsonb_build_object(
+    'correct', pg_catalog.lower(a.answer) = pg_catalog.lower(pg_catalog.btrim(coalesce(p_selected_answer, ''))),
     'explanation', a.explanation
   )
   from public.study_questions q
@@ -303,7 +303,15 @@ as $$
   where q.id = p_question_id
     and q.published = true
     and (
-      q.license_status in ('permission_granted','public_domain','cc_by','cc_by_sa')
+      (
+        q.license_status in ('permission_granted','public_domain','cc_by','cc_by_sa')
+        and (q.license_status = 'public_domain' or q.license_proof_url is not null)
+      )
+      or (
+        q.license_status = 'original_content'
+        and q.origin = 'ai_generated'
+        and q.review_status in ('auto_approved','admin_approved')
+      )
       or (
         q.license_status = 'official_publication'
         and q.origin = 'exam_import'
@@ -313,7 +321,7 @@ as $$
     )
     and auth.uid() is not null
   limit 1;
-$$;
+$;
 
 revoke all on function public.check_study_question_answer(bigint, text) from public, anon;
 grant execute on function public.check_study_question_answer(bigint, text) to authenticated;
