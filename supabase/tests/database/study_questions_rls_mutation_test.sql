@@ -4,6 +4,10 @@ begin;
 
 select plan(12);
 
+-- Fixture admin identity satisfies the auth.users FK; transaction rollback removes it.
+insert into auth.users (id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
+values ('22222222-2222-2222-2222-222222222222', 'authenticated', 'authenticated', 'rls-admin-fixture@example.test', '', now(), '{}'::jsonb, '{}'::jsonb, now(), now());
+
 insert into public.study_questions
   (discipline,topic,difficulty,board,exam_name,exam_year,prompt,options,explanation,source_url,rights_holder,license_status,license_proof_url,published,origin,review_status)
 values
@@ -86,13 +90,13 @@ select is(
   'admin delete cascades fixture answer row'
 );
 
--- Admin insert/update/delete path. Leave created_by unset to avoid a user-table FK fixture.
+-- Admin insert/update/delete path. created_by matches the admin fixture user.
 insert into public.study_questions
-  (discipline,topic,difficulty,board,exam_name,exam_year,prompt,options,explanation,source_url,rights_holder,license_status,license_proof_url,published,origin,review_status)
+  (discipline,topic,difficulty,board,exam_name,exam_year,prompt,options,explanation,source_url,rights_holder,license_status,license_proof_url,published,origin,review_status,created_by)
 values
   ('Segurança','Mutation RLS admin','Fácil','Fixture','ER RLS MUTATION admin CRUD',2026,
    'Admin-created fixture prompt','["A","B"]'::jsonb,'Fixture explanation',
-   'https://example.com/fixture','Fixture','public_domain',null,false,'manual','not_required');
+   'https://example.com/fixture','Fixture','public_domain',null,false,'manual','not_required','22222222-2222-2222-2222-222222222222');
 select is(
   (select count(*) from public.study_questions where exam_name='ER RLS MUTATION admin'),
   1::bigint,
