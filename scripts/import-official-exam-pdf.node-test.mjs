@@ -5,6 +5,7 @@ import {
   normalizeQuestionText,
   hasSuspiciousWordSpacing,
   scoreTextSpacingQuality,
+  parseTesseractTsv,
   parseExamPages,
   splitPdfColumns,
   sha256,
@@ -80,6 +81,20 @@ test("rejeita questão com palavras coladas e registra o motivo", () => {
   assert.equal(rows.length, 0);
   assert.ok(diagnostics.some(item => item.questionNumber === 17
     && item.rejectionReasons.includes("suspicious_word_spacing")));
+});
+
+test("interpreta confiança do OCR e reconstrói linhas a partir do TSV do Tesseract", () => {
+  const tsv = [
+    "level\\tpage_num\\tblock_num\\tpar_num\\tline_num\\tword_num\\tleft\\ttop\\twidth\\theight\\tconf\\ttext",
+    "5\\t1\\t1\\t1\\t1\\t1\\t10\\t10\\t20\\t10\\t96.50\\tO",
+    "5\\t1\\t1\\t1\\t1\\t2\\t35\\t10\\t20\\t10\\t94.50\\tácido",
+    "5\\t1\\t1\\t1\\t1\\t3\\t60\\t10\\t20\\t10\\t92.00\\tfosfórico",
+    "5\\t1\\t1\\t1\\t2\\t1\\t10\\t30\\t20\\t10\\t98.00\\tPode"
+  ].join("\\n");
+  const parsed = parseTesseractTsv(tsv);
+  assert.equal(parsed.text, "O ácido fosfórico\\nPode");
+  assert.equal(parsed.words, 4);
+  assert.equal(parsed.meanConfidence, 95.25);
 });
 
 test("normaliza acentos, caixa e espaços para fingerprint estável", () => {
