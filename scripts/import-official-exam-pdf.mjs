@@ -22,7 +22,7 @@ export function formatChemicalFormulaText(value) {
     .replace(/([A-Z][a-z]?)(\d+)|\)(\d+)/g, (match, element, elementCount, groupCount) =>
       element ? element + subscript(elementCount) : ")" + subscript(groupCount)
     )
-    .replace(/(?<=[A-Za-z0-9])\.(?=\d+[A-Z])/g, "·");
+    .replace(/(?<=[A-Za-z0-9₀-₉])\.(?=\d+[A-Z])/g, "·");
 }
 
 export function normalizeQuestionText(value) {
