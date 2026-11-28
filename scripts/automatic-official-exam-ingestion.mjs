@@ -11,7 +11,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { concursos } from "../src/data/concursos.js";
 import { isTrustedOfficialUrl } from "../src/lib/official-sources.js";
-import { extractPdfPages, importPdfToManifest, sha256 } from "./import-official-exam-pdf.mjs";
+import { extractPdfPages, hasSuspiciousWordSpacing, importPdfToManifest, sha256 } from "./import-official-exam-pdf.mjs";
 
 export const MAX_SOURCE_PAGES = 120;
 export const MAX_DOCUMENTS_PER_RUN = 15;
@@ -459,6 +459,8 @@ export function validateQuestionForAutoPublication(question, answer, questionFor
   const prompt = String(question?.prompt || "").trim();
   const options = Array.isArray(question?.options) ? question.options : [];
   const ids = options.map(option => String(option?.id || "").toLowerCase());
+  const spacingValid = !hasSuspiciousWordSpacing([prompt, ...options.map(option => option?.text || "")].join(" "));
+  if (!spacingValid) reasons.push("espaçamento entre palavras inválido ou suspeito");
   if (prompt.length < 20 || prompt.length > 5000) reasons.push("enunciado fora do limite");
   if (options.length < 2 || options.length > 6) reasons.push("quantidade de alternativas inválida");
   if (new Set(ids).size !== ids.length) reasons.push("alternativas duplicadas");
@@ -481,6 +483,7 @@ export function validateQuestionForAutoPublication(question, answer, questionFor
     optionsValid: options.length >= 2 && options.length <= 6 && new Set(ids).size === ids.length,
     answerKeyMatches: options.some(option => String(option?.id || "").toLowerCase() === String(answer || "").toLowerCase()),
     parserTextOnly: !question?.ocr_used || ocrAllowed,
+    textSpacingValid: spacingValid,
     noVisualDependency: !reasons.some(reason => reason.includes("visual") || reason.includes("figura"))
   }};
 }
@@ -1099,7 +1102,8 @@ async function processDocument(record, examLink, keyLink, mode, runId, report, f
         continue;
       }
       const answer = officialAnswer.toLowerCase();
-      const validation = validateQuestionForAutoPublication(question, answer, questionFormat);
+      const ocrAllowed = Boolean(question.ocr_used && Number(question.ocr_confidence) >= 92);
+      const validation = validateQuestionForAutoPublication(question, answer, questionFormat, { ocrAllowed });
       validations.push({ approved: validation.approved, questionNumber: question.source_question_number, reasons: validation.reasons });
       if (!validation.approved) {
         report.quarantined += 1;
@@ -1120,6 +1124,7 @@ async function processDocument(record, examLink, keyLink, mode, runId, report, f
           answerKeySection: parsedKey.selectedSection || null,
           parser: "editalradar-exam-parser-v1",
           parserOcrUsed: Boolean(question.ocr_used),
+          parserOcrConfidence: Number(question.ocr_confidence) || null,
           sourceHostValidated: true
         }
       });
