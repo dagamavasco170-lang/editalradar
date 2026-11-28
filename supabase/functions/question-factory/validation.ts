@@ -54,7 +54,8 @@ function portugueseDictionaryHasWord(value: string, lexicon: Set<string>): boole
   const word = value.normalize("NFC").toLocaleLowerCase("pt-BR");
   if (PORTUGUESE_FUNCTION_WORDS.has(word) || lexicon.has(word)) return true;
   const variants: string[] = [];
-  if (word.endsWith("ões")) variants.push(word.slice(0, -3) + "ão");
+  if (word.endsWith("ções")) variants.push(word.slice(0, -3) + "ção");
+  else if (word.endsWith("ões")) variants.push(word.slice(0, -3) + "ão");
   if (word.endsWith("ães")) variants.push(word.slice(0, -3) + "ão");
   if (word.endsWith("ens")) variants.push(word.slice(0, -3) + "em");
   if (word.endsWith("adas")) variants.push(word.slice(0, -4) + "ado");
@@ -62,6 +63,8 @@ function portugueseDictionaryHasWord(value: string, lexicon: Set<string>): boole
   if (word.endsWith("is")) variants.push(word.slice(0, -2) + "l");
   if (word.endsWith("s")) variants.push(word.slice(0, -1));
   if (word.endsWith("as")) variants.push(word.slice(0, -2) + "ado", word.slice(0, -2) + "ido");
+  if (word.endsWith("ada")) variants.push(word.slice(0, -3) + "ado");
+  if (word.endsWith("ida")) variants.push(word.slice(0, -3) + "ido");
   if (word.endsWith("os")) variants.push(word.slice(0, -2) + "a");
   return variants.some(variant => lexicon.has(variant));
 }
@@ -81,7 +84,7 @@ export function findPortugueseConcatenatedWords(value: unknown, lexicon: Set<str
   return words.filter(original => {
     if (original.length < 6 || /[a-zà-ÿ][A-ZÀ-Þ]/u.test(original)) return false;
     const word = original.normalize("NFC").toLocaleLowerCase("pt-BR");
-    if (PORTUGUESE_FUNCTION_WORDS.has(word) || lexicon.has(word)) return false;
+    if (portugueseDictionaryHasWord(word, lexicon)) return false;
     const paths = Array.from({ length: word.length + 1 }, () => [] as string[][]);
     paths[0] = [[]];
     for (let start = 0; start < word.length; start += 1) {
