@@ -46,6 +46,27 @@ export function measureTextSpacing(value) {
   return { letterCount, wordCount: words.length, spaceCount, spaceRatio, averageWordLength, longWordCount, veryLongWordCount, joinedWordMarkers };
 }
 
+export function parseTesseractTsv(tsv) {
+  const lines = new Map();
+  const confidences = [];
+  for (const rawLine of String(tsv || "").split(/\\r?\\n/).slice(1)) {
+    const columns = rawLine.split("\\t");
+    if (columns.length < 12 || columns[0] !== "5") continue;
+    const confidence = Number(columns[10]);
+    const word = String(columns.slice(11).join("\\t") || "").trim();
+    if (!word || !Number.isFinite(confidence) || confidence < 0) continue;
+    const key = [columns[2], columns[3], columns[4]].join(":");
+    if (!lines.has(key)) lines.set(key, []);
+    lines.get(key).push(word);
+    confidences.push(confidence);
+  }
+  const text = [...lines.values()].map(words => words.join(" ")).join("\\n").trim();
+  const meanConfidence = confidences.length
+    ? Math.round(confidences.reduce((sum, value) => sum + value, 0) / confidences.length * 100) / 100
+    : 0;
+  return { text, meanConfidence, words: confidences.length };
+}
+
 export function scoreTextSpacingQuality(value) {
   const metrics = measureTextSpacing(value);
   if (metrics.letterCount < 40 || !metrics.wordCount) return 0;
@@ -317,6 +338,7 @@ export function parseExamPages(pages, documentSha256, {
           suggested_answer: null,
           fingerprint,
           ocr_used: Boolean(current.ocrUsed),
+          ocr_confidence: Number(current.ocrConfidence) || null,
           review_notes: issues.join(" ") || "Extração automática estruturada; gabarito deve corresponder à publicação definitiva."
         });
         seenFingerprints.add(fingerprint);
@@ -367,6 +389,7 @@ export function parseExamPages(pages, documentSha256, {
           startStyle: start.style || "multiple_choice",
           page: pageNumber,
           ocrUsed: Boolean(page.ocrUsed),
+          ocrConfidence: Number(page.ocrConfidence) || null,
           promptLines: questionFormat === "true_false" && start.style === "numbered_item"
             ? [...activeCommandLines]
             : [],
@@ -608,17 +631,20 @@ export async function extractPdfPages(pdfPath, questionFormat = "multiple_choice
           command("pdftoppm", ["-f", String(page.page), "-l", String(page.page), "-r", "180", "-singlefile", "-png", pdfPath, prefix], { timeout: 16000 });
           const imagePath = prefix + ".png";
           if (!existsSync(imagePath)) continue;
-          const ocrText = command("tesseract", [imagePath, "stdout", "-l", "por+eng", "--psm", "6"], { timeout: 10000 });
+          const tsv = command("tesseract", [imagePath, "stdout", "-l", "por+eng", "--psm", "6", "tsv"], { timeout: 12000 });
+          const ocr = parseTesseractTsv(tsv);
+          const ocrText = ocr.text;
           const originalLength = page.text.trim().length;
-          const ocrLength = ocrText.trim().length;
+          const ocrLength = ocrText.length;
           const isSparse = sparsePageNumbers.has(Number(page.page));
           const originalQuality = scoreTextSpacingQuality(page.text);
           const ocrQuality = scoreTextSpacingQuality(ocrText);
           const ocrHasEnoughContent = ocrLength >= (isSparse ? Math.max(40, originalLength + 1) : Math.max(100, originalLength * 0.65));
           const improvesSpacing = ocrQuality >= originalQuality + 2;
-          if (ocrHasEnoughContent && (isSparse || improvesSpacing)) {
+          if (ocrHasEnoughContent && ocr.meanConfidence >= 92 && (isSparse || improvesSpacing)) {
             page.text = ocrText;
             page.ocrUsed = true;
+            page.ocrConfidence = ocr.meanConfidence;
             ocrCount += 1;
           }
         } catch {
