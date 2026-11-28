@@ -60,6 +60,13 @@ function portugueseDictionaryHasWord(value: string, lexicon: Set<string>): boole
   else if (word.endsWith("ões")) variants.push(word.slice(0, -3) + "ão");
   if (word.endsWith("ães")) variants.push(word.slice(0, -3) + "ão");
   if (word.endsWith("ens")) variants.push(word.slice(0, -3) + "em");
+  if (word.endsWith("es")) variants.push(word.slice(0, -2));
+  if (word.endsWith("dora")) variants.push(word.slice(0, -1));
+  if (word.endsWith("idade")) variants.push(word.slice(0, -5));
+  if (word.endsWith("iva")) variants.push(word.slice(0, -3) + "ivo");
+  if (word.endsWith("ivas")) variants.push(word.slice(0, -4) + "ivo");
+  if (word.endsWith("ária")) variants.push(word.slice(0, -4) + "ário");
+  if (word.endsWith("árias")) variants.push(word.slice(0, -5) + "ário");
   if (word.endsWith("adas")) variants.push(word.slice(0, -4) + "ado");
   if (word.endsWith("idas")) variants.push(word.slice(0, -4) + "ido");
   if (word.endsWith("is")) variants.push(word.slice(0, -2) + "l");
