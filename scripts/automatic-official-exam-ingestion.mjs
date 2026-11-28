@@ -1327,35 +1327,7 @@ async function stageAndPublish(record, item, proof, answerKeyFile, runId) {
   };
   let importId = await upsertImportAtSourcePosition(row, { replacePublished: true });
 
-  if (!importId) {
-    // A questão pode já existir porque uma execução anterior a deixou em staging.
-    // Só promovemos registros pendentes, não revisados e com fundamento oficial validado.
-    const lookup = new URLSearchParams({
-      select: "id,status,rights_review_status,rights_basis,official_release_verified,published_question_id",
-      board: "eq." + record.board,
-      exam_name: "eq." + record.exam_name,
-      exam_year: "eq." + Number(record.exam_year),
-      fingerprint: "eq." + question.fingerprint,
-      limit: "2"
-    });
-    const existingRows = await supabaseRest("study_exam_question_imports?" + lookup.toString());
-    if (!Array.isArray(existingRows) || existingRows.length !== 1 || !canPromoteStagedImport(existingRows[0])) {
-      return "duplicate";
-    }
-
-    const existingId = existingRows[0].id;
-    const promoted = await supabaseRest(
-      "study_exam_question_imports?id=eq." + encodeURIComponent(existingId)
-        + "&status=eq.pending&rights_review_status=eq.not_reviewed",
-      {
-        method: "PATCH",
-        headers: { Prefer: "return=representation" },
-        body: JSON.stringify(row)
-      }
-    );
-    if (!Array.isArray(promoted) || !promoted.length || !promoted[0].id) return "duplicate";
-    importId = promoted[0].id;
-  }
+  if (!importId) return "duplicate";
 
   const publishedId = await supabaseRest("rpc/publish_study_exam_question_import_automated", {
     method: "POST",
