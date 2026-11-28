@@ -71,6 +71,8 @@ function portugueseDictionaryWordInfo(value) {
   if (word.endsWith("ivas")) variants.push(word.slice(0, -4) + "ivo");
   if (word.endsWith("ária")) variants.push(word.slice(0, -4) + "ário");
   if (word.endsWith("árias")) variants.push(word.slice(0, -5) + "ário");
+  if (word.endsWith("icas")) variants.push(word.slice(0, -4) + "ico");
+  if (word.endsWith("ica")) variants.push(word.slice(0, -3) + "ico");
   if (word.endsWith("adas")) variants.push(word.slice(0, -4) + "ado");
   if (word.endsWith("idas")) variants.push(word.slice(0, -4) + "ido");
   if (word.endsWith("ada")) variants.push(word.slice(0, -3) + "ado");
