@@ -108,6 +108,21 @@ test("usa o dicionário pt-BR para identificar possíveis junções e preservar 
   assert.equal(hasSuspiciousWordSpacing(fused), true);
   assert.equal(hasSuspiciousWordSpacing(corrected), false);
   assert.equal(findPortugueseDictionarySegmentation("Donaudampfschifffahrselektrizitätenhauptbetriebswerkbauunterbeamtengesellschaft"), null);
+
+  for (const legitimateWord of [
+    "examinadora", "examinadoras", "administradora", "administradoras", "professora", "professoras",
+    "criativa", "bondosa", "técnica", "bancária", "brasileira"
+  ]) {
+    assert.equal(
+      findPortugueseDictionarySegmentation(legitimateWord),
+      null,
+      `A palavra legítima "${legitimateWord}" não deve ser dividida.`
+    );
+  }
+  assert.equal(
+    hasSuspiciousWordSpacing("A banca examinadora e a equipe administradora revisaram a questão."),
+    false
+  );
 });
 
 test("interpreta confiança do OCR e reconstrói linhas a partir do TSV do Tesseract", () => {
