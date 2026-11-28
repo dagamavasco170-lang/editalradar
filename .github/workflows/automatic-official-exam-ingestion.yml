@@ -113,5 +113,5 @@ jobs:
         run: |
           if [ -f .cache/official-exam-ingestion-report.json ]; then
             node -e "const r=require('./.cache/official-exam-ingestion-report.json'); console.log('Modo:',r.mode); console.log('Fontes:',r.sourcesChecked); console.log('Documentos:',r.documentsChecked); console.log('Questões extraídas:',r.questionsExtracted); console.log('Prontas para publicação:',r.readyToPublish); console.log('Pré-cadastradas na fila privada:',r.staged); console.log('Publicadas:',r.published); console.log('Duplicadas:',r.duplicates); console.log('Quarentena:',r.quarantined); console.log('Falhas:',r.failures.length);"
-            cat .cache/official-exam-ingestion-report.json >> "$GITHUB_STEP_SUMMARY"
+            echo "Relatório completo anexado ao artefato ingestao-provas-oficiais desta execução." >> "$GITHUB_STEP_SUMMARY"
           fi
