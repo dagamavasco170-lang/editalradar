@@ -52,6 +52,8 @@ describe("Validação automática de questões", () => {
     )).toEqual([]);
     expect(findPortugueseConcatenatedWords("foiadiada semuito Nadata", expandedLexicon))
       .toEqual(["foiadiada", "semuito", "Nadata"]);
+    expect(findPortugueseConcatenatedWords("eventoadverso Cincocandidatos", expandedLexicon))
+      .toEqual(["eventoadverso", "Cincocandidatos"]);
 
     const morphologyLexicon = new Set(["examinador", "administrador", "professor", "criativo", "bondoso", "técnico", "bancário", "brasileiro", "concomitante", "suficiente", "longitudinal"]);
     expect(findPortugueseConcatenatedWords(
