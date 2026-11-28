@@ -68,7 +68,7 @@ function portugueseDictionaryHasWord(value: string, lexicon: Set<string>): boole
 
 export function hasMissingSpacesAfterPunctuation(value: unknown): boolean {
   const text = String(value ?? "")
-    .replace(/https?:\\/\\/\\S+/giu, " ")
+    .replace(/https?:\/\/\S+/giu, " ")
     .replace(/`[^`]*`/gu, " ");
   return /[,;:!?](?=\\p{L})/u.test(text) || /[.!?](?=\\p{Lu}\\p{Ll})/u.test(text);
 }
