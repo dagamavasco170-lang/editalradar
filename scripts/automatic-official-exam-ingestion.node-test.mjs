@@ -370,6 +370,43 @@ test("auto-publication gate accepts a textual passage included after 'texto a se
   assert.equal(result.approved, true);
 });
 
+test("auto-publication gate accepts OCR only when the caller confirms high confidence and spacing", () => {
+  const question = {
+    prompt: "O candidato deverá analisar a situação descrita e identificar, com fundamento na legislação aplicável, a providência administrativa adequada para a solução do caso concreto apresentado.",
+    options: [
+      { id: "a", text: "Adotar a providência prevista na norma aplicável ao caso concreto." },
+      { id: "b", text: "Ignorar a legislação e decidir com base apenas na preferência pessoal." },
+      { id: "c", text: "Delegar a decisão sem verificar a competência administrativa." },
+      { id: "d", text: "Suspender automaticamente todos os atos do procedimento." }
+    ],
+    ocr_used: true,
+    ocr_confidence: 96,
+    review_notes: "Extração estruturada com OCR de alta confiança."
+  };
+  const result = validateQuestionForAutoPublication(question, "a", "multiple_choice", { ocrAllowed: question.ocr_confidence >= 92 });
+  assert.equal(result.approved, true);
+  assert.equal(result.checks.parserTextOnly, true);
+  assert.equal(result.checks.textSpacingValid, true);
+});
+
+test("auto-publication gate blocks text with joined words even when options and key are valid", () => {
+  const question = {
+    prompt: "Apósanalisarocaso, o candidato deverá identificar a providência administrativa adequada conforme a legislação aplicável ao procedimento descrito.",
+    options: [
+      { id: "a", text: "Adotar a providência prevista na norma aplicável ao caso concreto." },
+      { id: "b", text: "Ignorar a legislação e decidir com base apenas na preferência pessoal." },
+      { id: "c", text: "Delegar a decisão sem verificar a competência administrativa." },
+      { id: "d", text: "Suspender automaticamente todos os atos do procedimento." }
+    ],
+    ocr_used: false,
+    review_notes: "Extração automática estruturada."
+  };
+  const result = validateQuestionForAutoPublication(question, "a", "multiple_choice");
+  assert.equal(result.approved, false);
+  assert.equal(result.checks.textSpacingValid, false);
+  assert.ok(result.reasons.some(reason => reason.includes("espaçamento")));
+});
+
 test("auto-publication gate rejects OCR and visual dependencies", () => {
   const question = {
     prompt: "Com base na figura apresentada, assinale a alternativa correta sobre o comportamento do gráfico a seguir.",
