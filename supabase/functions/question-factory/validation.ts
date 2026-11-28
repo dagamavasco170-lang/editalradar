@@ -35,7 +35,7 @@ export async function loadPortugueseLexicon(): Promise<Set<string>> {
       const contents = await Promise.all(responses.map(response => response.text()));
       const words = new Set<string>(PORTUGUESE_FUNCTION_WORDS);
       for (const content of contents) {
-        for (const rawWord of content.split(/\\r?\\n/)) {
+        for (const rawWord of content.split(/\r?\n/)) {
           const word = rawWord.normalize("NFC").toLocaleLowerCase("pt-BR").trim();
           if (word) words.add(word);
         }
@@ -66,9 +66,9 @@ function portugueseDictionaryHasWord(value: string, lexicon: Set<string>): boole
 
 export function findPortugueseConcatenatedWords(value: unknown, lexicon: Set<string>): string[] {
   const text = String(value ?? "")
-    .replace(/https?:\\/\\/\\S+/giu, " ")
+    .replace(/https?:\/\/\S+/giu, " ")
     .replace(/`[^`]*`/gu, " ");
-  const words = text.match(/\\p{L}+/gu) || [];
+  const words = text.match(/\p{L}+/gu) || [];
   return words.filter(original => {
     if (original.length < 6 || /[a-zà-ÿ][A-ZÀ-Þ]/u.test(original)) return false;
     const word = original.normalize("NFC").toLocaleLowerCase("pt-BR");
