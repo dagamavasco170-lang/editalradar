@@ -14,7 +14,7 @@ import { isTrustedOfficialUrl } from "../src/lib/official-sources.js";
 import { extractPdfPages, importPdfToManifest, sha256 } from "./import-official-exam-pdf.mjs";
 
 export const MAX_SOURCE_PAGES = 120;
-export const MAX_DOCUMENTS_PER_RUN = 12;
+export const MAX_DOCUMENTS_PER_RUN = 15;
 export const MAX_SOURCE_SUBPAGES = 3;
 export const MAX_HTML_BYTES = 5 * 1024 * 1024;
 export const MAX_PDF_BYTES = 25 * 1024 * 1024;
@@ -1495,7 +1495,7 @@ function parseArgs(argv) {
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   if (args.help) {
-    console.log("Uso: node scripts/automatic-official-exam-ingestion.mjs [--mode dry-run|stage|publish] [--limit 1..12]");
+    console.log("Uso: node scripts/automatic-official-exam-ingestion.mjs [--mode dry-run|stage|publish] [--limit 1..15]");
     return;
   }
   const report = await runAutomaticOfficialExamIngestion(args);
