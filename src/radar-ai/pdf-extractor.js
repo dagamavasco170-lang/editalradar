@@ -15,6 +15,7 @@ export function extractKnowledgePdf(pdfPath, {
   const errors = [];
   if (typeof pdfPath !== "string" || !pdfPath.trim()) {
     return { extracted: false, errors: ["PDF path is required."], pages: [], stats: { pageCount: 0, byteSize: 0 } };
+  }
   let fileStats;
   try {
     fileStats = stat(pdfPath);
