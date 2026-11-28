@@ -93,6 +93,13 @@ export function findPortugueseDictionarySegmentation(value) {
   return result;
 }
 
+export function hasMissingSpacesAfterPunctuation(value) {
+  const prose = String(value ?? "")
+    .replace(/https?:\\/\\/\\S+/giu, " ")
+    .replace(/`[^`]*`/gu, " ");
+  return /[,;:!?](?=\\p{L})/u.test(prose) || /[.!?](?=\\p{Lu}\\p{Ll})/u.test(prose);
+}
+
 function isLikelyConcatenatedPortugueseWord(value) {
   const word = String(value || "");
   if (word.length < 6) return false;
@@ -172,6 +179,7 @@ export function scoreTextSpacingQuality(value) {
 }
 
 export function hasSuspiciousWordSpacing(value) {
+  if (hasMissingSpacesAfterPunctuation(value)) return true;
   const metrics = measureTextSpacing(value);
   if (metrics.joinedWordMarkers >= 1) return true;
   if (metrics.letterCount < 100 || metrics.wordCount < 8) return false;
