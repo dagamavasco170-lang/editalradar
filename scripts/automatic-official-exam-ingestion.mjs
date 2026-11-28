@@ -486,11 +486,21 @@ export function validateQuestionForAutoPublication(question, answer, questionFor
 }
 
 export function isApprovedForQuestionReuse(record) {
+  if (
+    !record
+    || record.question_reuse_status !== "approved"
+    || !["official_publication", "permission_granted", "public_domain", "cc_by", "cc_by_sa"].includes(record.question_reuse_basis)
+  ) return false;
+
+  // Questões de provas oficiais publicadas podem ser classificadas em nível de fonte
+  // com base no ato oficial; não se exige autorização nem assinatura por questão.
+  if (record.question_reuse_basis === "official_publication") {
+    return record.published === true && Boolean(safeOfficialUrl(record.source_url));
+  }
+
+  // Demais bases dependem de evidência documentada da licença/autorização.
   return Boolean(
-    record
-    && record.question_reuse_status === "approved"
-    && ["official_publication", "permission_granted", "public_domain", "cc_by", "cc_by_sa"].includes(record.question_reuse_basis)
-    && (safeOfficialUrl(record.question_reuse_proof_url) || safeOfficialUrl(record.question_reuse_terms_url))
+    (safeOfficialUrl(record.question_reuse_proof_url) || safeOfficialUrl(record.question_reuse_terms_url))
     && typeof record.question_reuse_reviewed_by === "string"
     && record.question_reuse_reviewed_by.length > 0
     && typeof record.question_reuse_reviewed_at === "string"
