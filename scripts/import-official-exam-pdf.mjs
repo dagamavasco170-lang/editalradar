@@ -29,7 +29,7 @@ const PT_BR_FUNCTION_WORDS = new Set([
 const PT_BR_DICTIONARY = new Set([
   ...PT_BR_FUNCTION_WORDS,
   ...PT_BR_DICTIONARY_FILES.flatMap(file => readFileSync(new URL(file, import.meta.url), "utf8")
-    .split(/\\r?\\n/)
+    .split(/\r?\n/)
     .map(word => word.normalize("NFC").toLocaleLowerCase("pt-BR").trim())
     .filter(Boolean))
 ]);
@@ -55,7 +55,7 @@ export function findPortugueseDictionarySegmentation(value) {
   if (PT_BR_SEGMENTATION_CACHE.has(word)) return PT_BR_SEGMENTATION_CACHE.get(word);
 
   // URLs, hashes and code identifiers are not natural-language words.
-  if (/\\d|[_./:#@]/u.test(word)) {
+  if (/\d|[_./:#@]/u.test(word)) {
     PT_BR_SEGMENTATION_CACHE.set(word, null);
     return null;
   }
@@ -132,8 +132,8 @@ export function measureTextSpacing(value) {
   const veryLongWordCount = lengths.filter(length => length >= 28).length;
   const averageWordLength = words.length ? letterCount / words.length : 0;
   const spaceRatio = letterCount ? spaceCount / letterCount : 0;
-  const proseForSpacing = text.replace(/https?:\\/\\/\\S+/giu, " ").replace(/`[^`]*`/gu, " ");
-  const proseWords = proseForSpacing.match(/\\p{L}+/gu) || [];
+  const proseForSpacing = text.replace(/https?:\/\/\S+/giu, " ").replace(/`[^`]*`/gu, " ");
+  const proseWords = proseForSpacing.match(/\p{L}+/gu) || [];
   const joinedWordMarkers = proseWords.filter(isLikelyConcatenatedPortugueseWord).length;
   return { letterCount, wordCount: words.length, spaceCount, spaceRatio, averageWordLength, longWordCount, veryLongWordCount, joinedWordMarkers };
 }
