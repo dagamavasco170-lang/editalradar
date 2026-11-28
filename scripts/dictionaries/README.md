@@ -6,8 +6,10 @@ Fonte: [fserb/pt-br](https://github.com/fserb/pt-br), snapshot fixado no commit
 Conteúdo incorporado:
 - Léxico: 145.744 entradas.
 - Conjugações: 195.751 formas verbais.
+- Nomes próprios geográficos: 5.570 municípios brasileiros.
 - Stopwords e regras conservadoras de plural/gênero para reconhecer flexões usuais.
-- Vocabulário complementar revisado para termos jurídicos recorrentes ausentes do léxico geral (`pt-br-domain-terms.txt`).
+- Vocabulário complementar revisado para termos jurídicos e técnicos recorrentes ausentes do léxico geral (`pt-br-domain-terms.txt`).
+- Lista oficial de nomes de municípios brasileiros (`pt-br-municipalities.txt`) para não confundir topônimos com palavras concatenadas.
 - O vocabulário é dividido em arquivos numerados; o validador carrega todos os fragmentos.
 
 Uso:
