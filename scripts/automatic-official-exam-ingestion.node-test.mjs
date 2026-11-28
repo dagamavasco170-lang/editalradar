@@ -65,6 +65,33 @@ test("pins each official redirect hop to a freshly validated public DNS address"
   assert.deepEqual(requests.map(item => item.address), ["93.184.216.34", "93.184.216.35"]);
 });
 
+test("retries transient 504 responses up to three attempts before accepting an official PDF", async () => {
+  let requests = 0;
+  const response = await fetchOfficialResource(
+    "https://cdn.cebraspe.org.br/prova.pdf",
+    {
+      lookupImpl: async () => [{ address: "93.184.216.34", family: 4 }],
+      requestImpl: async () => {
+        requests += 1;
+        if (requests < 3) {
+          return {
+            statusCode: 504,
+            headers: { "content-type": "text/plain" },
+            bytes: Buffer.from("upstream gateway timeout")
+          };
+        }
+        return {
+          statusCode: 200,
+          headers: { "content-type": "application/pdf" },
+          bytes: Buffer.from("%PDF-1.7\\nfixture")
+        };
+      }
+    }
+  );
+  assert.equal(requests, 3);
+  assert.equal(response.isPdf, true);
+});
+
 test("blocks an official hostname when any DNS answer is private or reserved", async () => {
   let requested = false;
   await assert.rejects(
