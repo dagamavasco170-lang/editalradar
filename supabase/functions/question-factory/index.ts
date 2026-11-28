@@ -1,6 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { classifyGeneratedReview, filterQuestionCandidates, isTrustedPrivateStudySourceUrl, loadPortugueseLexicon, findPortugueseConcatenatedWords, type GeneratedQuestion } from "./validation.ts";
+import { classifyGeneratedReview, filterQuestionCandidates, isTrustedPrivateStudySourceUrl, loadPortugueseLexicon, findPortugueseConcatenatedWords, hasMissingSpacesAfterPunctuation, type GeneratedQuestion } from "./validation.ts";
 import { createGeminiRequestRateLimiter, selectScheduledTopics } from "./gemini-rate-limit.mjs";
 import { extractReadableSourceText } from "./source-utils.ts";
 
@@ -699,8 +699,9 @@ async function runTopic(topic: any, triggerMode: "manual" | "scheduled", userId:
     // O léxico completo é baixado de um snapshot fixo e cacheado no isolate; sem ele não há publicação automática.
     const portugueseLexicon = await loadPortugueseLexicon();
     const sourceWordSpacingIssues = findPortugueseConcatenatedWords(excerpt, portugueseLexicon);
-    if (sourceWordSpacingIssues.length) {
-      throw new Error("A fonte de referência contém possíveis palavras concatenadas (" + sourceWordSpacingIssues.slice(0, 5).join(", ") + "). Revisar o texto da fonte antes de gerar questões.");
+    if (sourceWordSpacingIssues.length || hasMissingSpacesAfterPunctuation(excerpt)) {
+      const examples = sourceWordSpacingIssues.slice(0, 5).join(", ");
+      throw new Error("A fonte de referência contém possíveis palavras concatenadas ou espaço ausente após pontuação" + (examples ? " (" + examples + ")" : "") + ". Revisar o texto da fonte antes de gerar questões.");
     }
 
     const prompts = generationPrompts(topic, requested, excerpt);
