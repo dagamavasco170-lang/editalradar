@@ -6,6 +6,7 @@ import {
   normalizeQuestionText,
   hasSuspiciousWordSpacing,
   findPortugueseDictionarySegmentation,
+  hasMissingSpacesAfterPunctuation,
   scoreTextSpacingQuality,
   parseTesseractTsv,
   parseExamPages,
@@ -90,6 +91,12 @@ test("rejeita enunciado FGV com palavras concatenadas em trechos isolados", () =
   const corrected = "Durante o registro de ocorrência relativo à apresentação de um homem detido pela Polícia Militar, o custodiado relata que, após a detenção, permaneceu durante dois dias sob a guarda dos policiais em uma casa em local ermo. Afirma que foi mantido encapuzado, privado do sono por estímulos sonoros repetidos, ameaçado de morte e submetido a simulações de execução para que confessasse determinado crime. O homem apresenta-se muito nervoso, com olheiras acentuadas e roupas com forte odor de urina, mas não são observadas lesões corporais visíveis. Diante da alegação apresentada, a melhor conduta a ser adotada pelo Delegado é";
   assert.equal(hasSuspiciousWordSpacing(corrupted), true);
   assert.equal(hasSuspiciousWordSpacing(corrected), false);
+});
+
+test("detecta ausência de espaço imediatamente depois de pontuação", () => {
+  assert.equal(hasMissingSpacesAfterPunctuation("A situação,permaneceu sem alteração."), true);
+  assert.equal(hasMissingSpacesAfterPunctuation("O relatório foi concluído. O delegado foi avisado."), false);
+  assert.equal(hasMissingSpacesAfterPunctuation("Consulte https://exemplo.com/pagina, por favor."), false);
 });
 
 test("usa o dicionário pt-BR para identificar possíveis junções e preservar palavras legítimas", () => {
