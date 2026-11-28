@@ -513,6 +513,17 @@ export function isSourceEligibleForMode(record, mode) {
   return mode !== "publish" || isApprovedForQuestionReuse(record);
 }
 
+export function canPromoteStagedImport(existing) {
+  return Boolean(
+    existing
+    && existing.status === "pending"
+    && existing.rights_review_status === "not_reviewed"
+    && existing.rights_basis === "official_publication"
+    && existing.official_release_verified === true
+    && (existing.published_question_id === null || existing.published_question_id === undefined)
+  );
+}
+
 function inferBoard(value) {
   let host = "";
   try { host = new URL(value).hostname.toLowerCase(); } catch { return ""; }
@@ -1281,11 +1292,44 @@ async function stageAndPublish(record, item, proof, answerKeyFile, runId) {
     if (/HTTP 409|duplicate key|unique constraint/i.test(error.message)) return "duplicate";
     throw error;
   }
-  if (!Array.isArray(inserted) || !inserted.length || !inserted[0].id) return "duplicate";
+  let importId = Array.isArray(inserted) && inserted.length && inserted[0].id
+    ? inserted[0].id
+    : null;
+
+  if (!importId) {
+    // A questão pode já existir porque uma execução anterior a deixou em staging.
+    // Só promovemos registros pendentes, não revisados e com fundamento oficial validado.
+    const lookup = new URLSearchParams({
+      select: "id,status,rights_review_status,rights_basis,official_release_verified,published_question_id",
+      board: "eq." + record.board,
+      exam_name: "eq." + record.exam_name,
+      exam_year: "eq." + Number(record.exam_year),
+      fingerprint: "eq." + question.fingerprint,
+      limit: "2"
+    });
+    const existingRows = await supabaseRest("study_exam_question_imports?" + lookup.toString());
+    if (!Array.isArray(existingRows) || existingRows.length !== 1 || !canPromoteStagedImport(existingRows[0])) {
+      return "duplicate";
+    }
+
+    const existingId = existingRows[0].id;
+    const promoted = await supabaseRest(
+      "study_exam_question_imports?id=eq." + encodeURIComponent(existingId)
+        + "&status=eq.pending&rights_review_status=eq.not_reviewed",
+      {
+        method: "PATCH",
+        headers: { Prefer: "return=representation" },
+        body: JSON.stringify(row)
+      }
+    );
+    if (!Array.isArray(promoted) || !promoted.length || !promoted[0].id) return "duplicate";
+    importId = promoted[0].id;
+  }
+
   const publishedId = await supabaseRest("rpc/publish_study_exam_question_import_automated", {
     method: "POST",
     body: JSON.stringify({
-      p_import_id: inserted[0].id,
+      p_import_id: importId,
       p_answer: item.answer,
       p_explanation: "Gabarito definitivo publicado pela banca organizadora. Consulte a publicação oficial: " + answerKeyFile.url,
       p_run_id: runId
