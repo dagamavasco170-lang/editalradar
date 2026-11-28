@@ -2,7 +2,7 @@
 -- Runs only in the local Supabase test database; all fixture changes roll back.
 begin;
 
-select plan(13);
+select plan(16);
 
 -- Fixture admin identity satisfies the auth.users FK; transaction rollback removes it.
 insert into auth.users (id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
@@ -78,6 +78,19 @@ select is(
   (select auth.uid()),
   '22222222-2222-2222-2222-222222222222'::uuid,
   'admin fixture auth.uid resolves to the fixture user'
+);
+select ok(
+  (select auth.jwt() -> 'app_metadata' ->> 'role') = 'admin',
+  'admin fixture JWT app_metadata role resolves to admin'
+);
+select ok(
+  (select auth.uid()) = '22222222-2222-2222-2222-222222222222'::uuid,
+  'admin INSERT created_by predicate matches auth.uid'
+);
+select ok(
+  (coalesce((select auth.jwt() -> 'app_metadata' ->> 'role'), '') = 'admin')
+  and ('22222222-2222-2222-2222-222222222222'::uuid = (select auth.uid())),
+  'admin INSERT RLS check expression evaluates true'
 );
 
 select is(
